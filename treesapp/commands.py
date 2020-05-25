@@ -21,10 +21,9 @@ from treesapp import placement_trainer
 from treesapp import update_refpkg
 from treesapp import annotate_extra
 from treesapp import treesapp_args
+from treesapp import classy
 from treesapp.phylo_seq import TreeProtein
 from treesapp.refpkg import ReferencePackage
-from treesapp.classy import TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer, \
-    prep_logging, dedup_records, TaxonTest, Purity, Abundance
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
@@ -43,8 +42,8 @@ def info(sys_args):
     parser = treesapp_args.TreeSAPPArgumentParser(description="Return package, executable and refpkg information.")
     treesapp_args.add_info_arguments(parser)
     args = parser.parse_args(sys_args)
-    prep_logging()
-    ts_info = TreeSAPP("info")
+    classy.prep_logging()
+    ts_info = classy.TreeSAPP("info")
 
     import treesapp
     import Bio
@@ -82,14 +81,15 @@ def info(sys_args):
 
     if args.verbose:
         refpkg_dict = file_parsers.gather_ref_packages(ts_info.refpkg_dir)
-        refpkg_summary_str = "\t".join(["Name", "Code-name", "Molecule", "RefPkg-type", "Description", "Last-updated"])
-        refpkg_summary_str += "\n"
+        refpkg_summary_str = "\t".join(["Name", "Code-name",
+                                        "Molecule", "Tree builder", "RefPkg-type", "Leaf nodes",
+                                        "Description", "Created", "Last-updated"]) + "\n"
         for refpkg_name in sorted(refpkg_dict, key=lambda x: refpkg_dict[x].prefix):
             refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
-            refpkg_summary_str += refpkg_name + " -> " + ", ".join(
-                [refpkg.refpkg_code, refpkg.molecule, refpkg.kind, str(refpkg.num_seqs),
-                 refpkg.description, refpkg.update]
-            ) + "\n"
+            refpkg_summary_str += "\t".join([refpkg_name, refpkg.refpkg_code,
+                                             refpkg.molecule, refpkg.tree_tool, refpkg.kind, str(refpkg.num_seqs),
+                                             refpkg.description, refpkg.date, refpkg.update]
+                                            ) + "\n"
         logging.info(refpkg_summary_str)
 
     return
@@ -105,13 +105,13 @@ def train(sys_args):
     treesapp_args.add_trainer_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_trainer = PhyTrainer()
+    ts_trainer = classy.PhyTrainer()
     ts_trainer.furnish_with_arguments(args)
     ts_trainer.check_previous_output(args.overwrite)
 
     # TODO: Prevent hmmalign_queries_aligned-BMGE.fasta.reduced file from being written to cwd
     log_file_name = args.output + os.sep + "TreeSAPP_trainer_log.txt"
-    prep_logging(log_file_name, args.verbose)
+    classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
@@ -188,6 +188,9 @@ def train(sys_args):
             trained_string += "\n"
         out_handler.write(trained_string)
 
+    if args.delete and os.path.isdir(ts_trainer.var_output_dir):
+        shutil.rmtree(ts_trainer.var_output_dir)
+
     return
 
 
@@ -196,12 +199,12 @@ def create(sys_args):
     treesapp_args.add_create_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_create = Creator()
+    ts_create = classy.Creator()
     ts_create.furnish_with_arguments(args)
     ts_create.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_create_" + args.refpkg_name + "_log.txt"
-    prep_logging(log_file_name, args.verbose)
+    classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
@@ -261,7 +264,8 @@ def create(sys_args):
     # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
-    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, ts_create.ref_pkg.molecule, args.acc_to_taxid, args.seq_names_to_taxa)
+    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, ts_create.ref_pkg.molecule,
+                                                    args.acc_to_taxid, args.seq_names_to_taxa)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
     prefilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
 
@@ -270,9 +274,10 @@ def create(sys_args):
         fasta_records = create_refpkg.screen_filter_taxa(fasta_records, args.screen, args.filter, ref_seqs.amendments)
         # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
         # TODO: Replace this function with one offered by TaxonomicHierarchy
-        fasta_records = create_refpkg.remove_by_truncated_lineages(fasta_records, args.min_taxonomic_rank, ref_seqs.amendments)
+        fasta_records = create_refpkg.remove_by_truncated_lineages(fasta_records,
+                                                                   args.min_taxonomic_rank, ref_seqs.amendments)
         # Ensure there are no records with redundant headers and sequences
-        fasta_records = dedup_records(ref_seqs, fasta_records)
+        fasta_records = classy.dedup_records(ref_seqs, fasta_records)
 
         if len(fasta_records.keys()) < 2:
             logging.error(str(len(fasta_records)) + " sequences post-homology + taxonomy filtering\n")
@@ -495,12 +500,12 @@ def update(sys_args):
     treesapp_args.add_update_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_updater = Updater()
+    ts_updater = classy.Updater()
     ts_updater.furnish_with_arguments(args)
     ts_updater.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_updater_log.txt"
-    prep_logging(log_file_name, args.verbose)
+    classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tUpdating TreeSAPP reference package\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
@@ -722,10 +727,10 @@ def layer(sys_args):
     treesapp_args.add_layer_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_layer = Layerer()
+    ts_layer = classy.Layerer()
 
     log_file_name = args.output + os.sep + "TreeSAPP_layer_log.txt"
-    prep_logging(log_file_name, args.verbose)
+    classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\t\tLayering extra annotations on TreeSAPP classifications\t\t\t\t##\n\n")
 
     annotate_extra.check_arguments(ts_layer, args)
@@ -840,12 +845,12 @@ def assign(sys_args):
     treesapp_args.add_classify_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_assign = Assigner()
+    ts_assign = classy.Assigner()
     ts_assign.furnish_with_arguments(args)
     ts_assign.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
-    prep_logging(log_file_name, args.verbose)
+    classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
@@ -1012,12 +1017,12 @@ def abundance(sys_args):
     treesapp_args.add_abundance_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_abund = Abundance()
+    ts_abund = classy.Abundance()
     ts_abund.furnish_with_arguments(args)
     abundance_dict = {}
 
     log_file_name = args.output + os.sep + "TreeSAPP_abundance_log.txt"
-    prep_logging(log_file_name, args.verbose)
+    classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCalculating abundance of classified sequences\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
@@ -1063,12 +1068,12 @@ def purity(sys_args):
     treesapp_args.add_purity_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_purity = Purity()
+    ts_purity = classy.Purity()
     ts_purity.furnish_with_arguments(args)
     ts_purity.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_purity_log.txt"
-    prep_logging(log_file_name, args.verbose)
+    classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tBeginning purity analysis\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
@@ -1139,12 +1144,12 @@ def evaluate(sys_args):
     treesapp_args.add_evaluate_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_evaluate = Evaluator()
+    ts_evaluate = classy.Evaluator()
     ts_evaluate.furnish_with_arguments(args)
     ts_evaluate.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_evaluation_log.txt"
-    prep_logging(log_file_name, args.verbose)
+    classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
@@ -1170,8 +1175,6 @@ def evaluate(sys_args):
 
     fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
-
-    # TODO: Add function in TaxonomicHierarchy to ensure no lineages have greater than 7 ranks
 
     logging.info("Selecting representative sequences for each taxon.\n")
 
@@ -1312,7 +1315,7 @@ def evaluate(sys_args):
         # everything has been prepared, only need to parse the classifications and map lineages
         logging.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
         for rank in sorted(ts_evaluate.taxa_tests):
-            for test_obj in ts_evaluate.taxa_tests[rank]:  # type: TaxonTest
+            for test_obj in ts_evaluate.taxa_tests[rank]:  # type: classy.TaxonTest
                 if test_obj.assignments:
                     marker_assignments = map_headers_to_lineage(test_obj.assignments, fasta_records)
                     # Return the number of correct, classified, and total sequences of that taxon at the current rank

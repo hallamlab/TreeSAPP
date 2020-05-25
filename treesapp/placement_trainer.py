@@ -19,6 +19,7 @@ from treesapp.jplace_utils import jplace_parser
 from treesapp.entish import map_internal_nodes_leaves
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.refpkg import ReferencePackage
+# from treesapp.clade_exclusion_evaluator import select_rep_seqs
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -357,24 +358,16 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     logging.info("\nEstimating branch-length placement distances for taxonomic ranks. Progress:\n")
     taxonomic_placement_distances = dict()
     taxonomy_filtered_query_seqs = dict()
-    pruned_ref_fasta_dict = dict()
     query_seq_name_map = dict()
     leaf_trimmed_taxa_map = dict()
     pqueries = list()
     intermediate_files = list()
-    aligner = "hmmalign"
 
     if output_dir[-1] != os.sep:
         output_dir += os.sep
-    temp_tree_file = output_dir + "tmp_tree.txt"
-    temp_ref_aln_prefix = output_dir + "taxonomy_filtered_ref_seqs"
-    temp_query_fasta_file = output_dir + "queries.fasta"
-    query_multiple_alignment = output_dir + aligner + "_queries_aligned.phy"
 
     # Read the tree as ete3 Tree instance
     ref_tree = Tree(ref_pkg.f__tree)
-    ref_fasta = fasta.FASTA(ref_pkg.f__msa)
-    ref_fasta.load_fasta()
 
     num_training_queries = 0
     for rank in rank_training_seqs:
@@ -382,10 +375,10 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
         for taxonomy in rank_training_seqs[rank]:
             num_rank_training_seqs += len(rank_training_seqs[rank][taxonomy])
         if len(rank_training_seqs[rank]) == 0:
-            logging.error("No sequences available for estimating " + rank + "-level placement distances.\n")
+            logging.error("No sequences available for estimating {}-level placement distances.\n".format(rank))
             return taxonomic_placement_distances, pqueries
         else:
-            logging.debug(str(num_rank_training_seqs) + " sequences to train " + rank + "-level placement distances\n")
+            logging.debug("{} sequences to train {}-level placement distances\n".format(num_rank_training_seqs, rank))
         num_training_queries += num_rank_training_seqs
 
     if num_training_queries < 30:
@@ -399,7 +392,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     # For each rank from Class to Species (Kingdom & Phylum-level classifications to be inferred by LCA):
     for rank in sorted(rank_training_seqs, reverse=True):
         if rank not in taxonomic_ranks:
-            logging.error("Rank '" + rank + "' not found in ranks being used for training.\n")
+            logging.error("Rank '{}' not found in ranks being used for training.\n".format(rank))
             sys.exit(33)
         taxonomic_placement_distances[rank] = list()
         for leaf_node, lineage in ref_pkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, rank).items():
@@ -410,89 +403,63 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             leaf.add_features(lineage=leaf_trimmed_taxa_map.get(leaf.name, "none"))
 
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
-        for taxonomy in sorted(rank_training_seqs[rank]):
-            logging.debug("Testing placements for " + taxonomy + ":\n")
-            query_name = re.sub(r"([ /])", '_', taxonomy.split("; ")[-1])
-            leaves_excluded = 0
+        for taxon in sorted(rank_training_seqs[rank]):
+            logging.debug("Testing placements for {}:\n".format(taxon))
+            query_name = re.sub(r"([ /])", '_', taxon.split("; ")[-1])
+            taxon_test_dir = output_dir + query_name + os.sep
+            os.mkdir(taxon_test_dir)
 
-            # Write query FASTA containing sequences belonging to `taxonomy`
+            # Create the cloned ReferencePackage to be used for this taxon's trials
+            clade_exclusion_json = taxon_test_dir + ref_pkg.prefix + "_build.json"
+            ce_refpkg = ref_pkg.clone(clade_exclusion_json)
+            ce_refpkg.exclude_clade_from_ref_files(tmp_dir=taxon_test_dir, target_clade=taxon, executables=executables)
+
+            ce_fasta = fasta.FASTA(ce_refpkg.f__msa)
+            ce_fasta.load_fasta()
+            ce_tree = Tree(ce_refpkg.f__tree)
+
+            # Paths to temporary files
+            query_fasta_file = taxon_test_dir + "queries.fa"
+            query_sto_file = os.path.splitext(query_fasta_file)[0] + ".sto"
+            all_msa = os.path.splitext(query_fasta_file)[0] + ".mfa"
+            query_msa = taxon_test_dir + "queries.mfa"
+            ref_msa = taxon_test_dir + "references.mfa"
+            intermediate_files += [query_fasta_file, query_sto_file, all_msa, query_msa, ref_msa]
+
+            # Write query FASTA containing sequences belonging to `taxon`
             query_seq_decrementor = -1
-            for seq_name in rank_training_seqs[rank][taxonomy]:
+            for seq_name in rank_training_seqs[rank][taxon]:
                 query_seq_name_map[query_seq_decrementor] = seq_name
                 taxonomy_filtered_query_seqs[str(query_seq_decrementor)] = test_fasta.fasta_dict[seq_name]
                 query_seq_decrementor -= 1
-            logging.debug("\t" + str(len(taxonomy_filtered_query_seqs.keys())) + " query sequences.\n")
+            logging.debug("\t{} query sequences.\n".format(len(taxonomy_filtered_query_seqs.keys())))
             acc += len(taxonomy_filtered_query_seqs.keys())
-            fasta.write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=temp_query_fasta_file)
-            intermediate_files.append(temp_query_fasta_file)
-
-            for node in ref_fasta.fasta_dict.keys():
-                # Node with truncated and/or unclassified lineages are not in `leaf_trimmed_taxa_map`
-                if node in leaf_trimmed_taxa_map and not re.match(taxonomy, leaf_trimmed_taxa_map[node]):
-                    pruned_ref_fasta_dict[node] = ref_fasta.fasta_dict[node]
-                else:
-                    leaves_excluded += 1
-
-            logging.debug("\t" + str(leaves_excluded) + " sequences pruned from tree.\n")
-
-            # Copy the tree since we are removing leaves of `taxonomy` and don't want this to be permanent
-            tmp_tree = ref_tree.copy(method="deepcopy")
-            # iteratively detaching the monophyletic clades generates a bad tree, so do it all at once
-            tmp_tree.prune(pruned_ref_fasta_dict.keys(), preserve_branch_length=True)
-            # Resolve any multifurcations
-            tmp_tree.resolve_polytomy()
-            logging.debug("\t" + str(len(tmp_tree.get_leaves())) + " leaves in pruned tree.\n")
-
-            # Write the new reference tree with sequences from `taxonomy` removed
-            tmp_tree.write(outfile=temp_tree_file, format=5)
-            intermediate_files.append(temp_tree_file)
+            fasta.write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=query_fasta_file)
 
             ##
-            # Run hmmalign, BMGE and RAxML to map sequences from the taxonomic rank onto the tree
+            # Run hmmalign, BMGE and EPA-NG to map sequences from the taxonomic rank onto the tree
             ##
-            if aligner == "papara":
-                temp_ref_phylip_file = temp_ref_aln_prefix + ".phy"
-                # Write the reference MSA with sequences of `taxonomy` removed
-                phy_dict = utilities.reformat_fasta_to_phy(pruned_ref_fasta_dict)
-                utilities.write_phy_file(temp_ref_phylip_file, phy_dict)
-                aln_stdout = wrapper.run_papara(executables["papara"],
-                                                temp_tree_file, temp_ref_phylip_file, temp_query_fasta_file,
-                                                "prot")
-                intermediate_files.append(temp_ref_phylip_file)
-                os.rename("papara_alignment.default", query_multiple_alignment)
-            elif aligner == "hmmalign":
-                temp_ref_fasta_file = temp_ref_aln_prefix + ".fasta"
-                temp_ref_profile = temp_ref_aln_prefix + ".hmm"
-                sto_file = re.sub(r"\.phy$", ".sto", query_multiple_alignment)
-                # Write the pruned reference FASTA file
-                fasta.write_new_fasta(pruned_ref_fasta_dict, temp_ref_fasta_file)
-                # Build the HMM profile that doesn't include pruned reference sequences
-                wrapper.build_hmm_profile(executables["hmmbuild"], temp_ref_fasta_file, temp_ref_profile)
-                # Currently not supporting rRNA references (phylogenetic_rRNA)
-                aln_stdout = wrapper.profile_aligner(executables, temp_ref_fasta_file, temp_ref_profile,
-                                                     temp_query_fasta_file, sto_file)
-                # Reformat the Stockholm format created by cmalign or hmmalign to Phylip
-                sto_dict = file_parsers.read_stockholm_to_dict(sto_file)
-                fasta.write_new_fasta(sto_dict, query_multiple_alignment)
-                intermediate_files += [temp_ref_fasta_file, temp_ref_profile, sto_file, query_multiple_alignment]
-            else:
-                logging.error("Unrecognised alignment tool '" + aligner + "'. Exiting now.\n")
-                sys.exit(33)
+            aln_stdout = wrapper.profile_aligner(executables, ce_refpkg.f__msa, ce_refpkg.f__profile,
+                                                 query_fasta_file, query_sto_file)
+            # Reformat the Stockholm format created by cmalign or hmmalign to FASTA
+            sto_dict = file_parsers.read_stockholm_to_dict(query_sto_file)
+            fasta.write_new_fasta(sto_dict, all_msa)
+
             logging.debug(str(aln_stdout) + "\n")
 
-            trim_command, combined_msa = wrapper.get_msa_trim_command(executables, query_multiple_alignment, ref_pkg.molecule)
+            trim_command, combined_msa = wrapper.get_msa_trim_command(executables, all_msa, ce_refpkg.molecule)
             launch_write_command(trim_command)
             intermediate_files += glob(combined_msa + "*")
 
-            # Ensure reference sequences haven't been removed
+            # Ensure reference sequences haven't been removed during MSA trimming
             msa_dict, failed_msa_files, summary_str = file_parsers.validate_alignment_trimming([combined_msa],
-                                                                                               set(pruned_ref_fasta_dict.keys()),
+                                                                                               set(ce_fasta.fasta_dict),
                                                                                                True)
             nrow, ncolumn = fasta.multiple_alignment_dimensions(mfa_file=combined_msa,
                                                                 seq_dict=fasta.read_fasta_to_dict(combined_msa))
             logging.debug("Columns = " + str(ncolumn) + "\n")
             if combined_msa not in msa_dict.keys():
-                logging.debug("Placements for '" + taxonomy + "' are being skipped after failing MSA validation.\n")
+                logging.debug("Placements for '" + taxon + "' are being skipped after failing MSA validation.\n")
                 for old_file in intermediate_files:
                     os.remove(old_file)
                     intermediate_files.clear()
@@ -500,15 +467,13 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             logging.debug("Number of sequences discarded: " + summary_str + "\n")
 
             # Create the query-only FASTA file required by EPA-ng
-            query_msa_file = output_dir + os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa"
-            ref_msa_file = output_dir + os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa"
-            fasta.split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file)
+            fasta.split_combined_ref_query_fasta(combined_msa, query_msa, ref_msa)
 
             raxml_files = wrapper.raxml_evolutionary_placement(epa_exe=executables["epa-ng"],
-                                                               refpkg_tree=temp_tree_file,
-                                                               refpkg_msa=ref_msa_file,
-                                                               refpkg_model=ref_pkg.f__model_info,
-                                                               query_msa=query_msa_file, query_name=query_name,
+                                                               refpkg_tree=ce_refpkg.f__tree,
+                                                               refpkg_msa=ref_msa,
+                                                               refpkg_model=ce_refpkg.f__model_info,
+                                                               query_msa=query_msa, query_name=query_name,
                                                                output_dir=output_dir, num_threads=raxml_threads)
 
             # Parse the JPlace file to pull distal_length+pendant_length for each placement
@@ -517,7 +482,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             node_map = map_internal_nodes_leaves(placement_tree)
             for pquery in jplace_data.placements:
                 top_lwr = 0.1
-                top_placement = PQuery(taxonomy, rank)
+                top_placement = PQuery(taxon, rank)
                 for name, info in pquery.items():
                     if name == 'p':
                         for placement in info:
@@ -533,7 +498,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                                 leaf_children = node_map[int(top_placement.inode)]
                                 if len(leaf_children) > 1:
                                     # Reference tree with clade excluded
-                                    parent = tmp_tree.get_common_ancestor(leaf_children)
+                                    parent = ce_tree.get_common_ancestor(leaf_children)
                                     tip_distances = parent_to_tip_distances(parent, leaf_children)
                                     top_placement.mean_tip = round(float(sum(tip_distances)/len(tip_distances)), 6)
                     elif name == 'n':
@@ -547,14 +512,13 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                     taxonomic_placement_distances[rank].append(top_placement.total_distance())
 
             # Remove intermediate files from the analysis of this taxon
-            intermediate_files += [query_msa_file, ref_msa_file]
             intermediate_files += list(raxml_files.values())
             for old_file in intermediate_files:
-                os.remove(old_file)
+                if os.path.isfile(old_file):
+                    os.remove(old_file)
             # Clear collections
             taxonomy_filtered_query_seqs.clear()
             intermediate_files.clear()
-            pruned_ref_fasta_dict.clear()
             query_seq_name_map.clear()
 
             while acc > step_proportion:

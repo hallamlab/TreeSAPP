@@ -313,7 +313,7 @@ def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, 
                 if incomplete:
                     continue
                 else:
-                    logging.error("Lineage information was not retrieved for accession '{}'.\n" +
+                    logging.error("Lineage information was not retrieved for accession '{}'.\n"
                                   "Please remove the output directory and restart.\n".format(ref_seq.accession))
                     sys.exit(13)
             # Add the species designation since it is often not included in the sequence record's lineage

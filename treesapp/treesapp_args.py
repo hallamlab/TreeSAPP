@@ -324,7 +324,7 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser) -> None:
                                choices=["treesapp", "graftm", "diamond"],
                                help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
     parser.optopt.add_argument("-t", "--taxon_rank",
-                               help="Comma-separated list of the taxonomic ranks to test. [ DEFAULT = 'species' ]",
+                               help="A list of the taxonomic ranks (space-separated) to test. [ DEFAULT = 'species' ]",
                                choices=["domain", "phylum", "class", "order", "family", "genus", "species"],
                                default="species", nargs='+', type=str,
                                required=False)

@@ -497,7 +497,7 @@ def select_rep_seqs(deduplicated_assignments: dict, test_sequences: dict, target
     for lineage in sorted(filtered_assignments):
         for accession in filtered_assignments[lineage]:
             matched = False
-            for treesapp_id, ref_seq in test_sequences.items():
+            for treesapp_id, ref_seq in test_sequences.items():  # type: (str, EntrezRecord)
                 if ref_seq.accession == accession:
                     deduplicated_fasta_dict[accession] = ref_seq.sequence
                     matched = True

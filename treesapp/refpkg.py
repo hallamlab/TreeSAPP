@@ -62,31 +62,30 @@ class ReferencePackage:
         for attr, value in self.__dict__.items():
             yield attr, value
 
+    def get_info(self):
+        return "\n\t".join(["ReferencePackage instance of %s (%s):" % (self.prefix, self.refpkg_code),
+                            "Molecule type:                                      " + self.molecule,
+                            "Substitution model used for phylogenetic inference: " + self.sub_model,
+                            "Number of reference sequences (leaf nodes):         " + str(self.num_seqs),
+                            "Software used to infer phylogeny:                   " + self.tree_tool,
+                            "Date of last update:                                " + self.update,
+                            "Description:                                        '%s'" % self.description]) + "\n"
+
     def clone(self, clone_path: str):
         refpkg_clone = ReferencePackage()
+        if not os.path.isfile(self.f__json):
+            self.write_json()
         refpkg_clone.f__json = self.f__json
         refpkg_clone.slurp()
         refpkg_clone.f__json = clone_path
         return refpkg_clone
 
-    def band(self):
-        """
-        Writes a JSON file containing all of the reference package files and metadata
-
-        :return:
-        """
-        refpkg_dict = {}
+    def write_json(self):
         if len(self.f__json) == 0:
-            logging.error("ReferencePackage.f__json not set. ReferencePackage band cannot be completed.\n")
+            logging.error("ReferencePackage.f__json not set. ReferencePackage band() cannot be completed.\n")
             sys.exit(11)
 
-        # Read the all of the individual reference package files that are available (e.g. MSA, HMM, phylogeny)
-        for a, v in self.__iter__():
-            if a.startswith('f__') and os.path.isfile(v):
-                dest = a.lstrip("f__")
-                if dest in self.__dict__:
-                    with open(v) as fh:
-                        self.__dict__[dest] = fh.readlines()
+        refpkg_dict = {}
 
         try:
             refpkg_handler = open(self.f__json, 'w')
@@ -102,6 +101,22 @@ class ReferencePackage:
         json.dump(obj=refpkg_dict, fp=refpkg_handler)
 
         refpkg_handler.close()
+        return
+
+    def band(self):
+        """
+        Writes a JSON file containing all of the reference package files and metadata
+
+        :return:
+        """
+        # Read the all of the individual reference package files that are available (e.g. MSA, HMM, phylogeny)
+        for a, v in self.__iter__():
+            if a.startswith('f__') and os.path.isfile(v):
+                dest = a.lstrip("f__")
+                if dest in self.__dict__:
+                    with open(v) as fh:
+                        self.__dict__[dest] = fh.readlines()
+        self.write_json()
 
         return
 
@@ -123,21 +138,6 @@ class ReferencePackage:
             logging.warning("Unable to write reference package component to '{}' for '{}'.\n".format(file_name,
                                                                                                      self.prefix))
         return
-
-    # def copy_refpkg_file_to_dest(self, destination_dir, prefix=None) -> None:
-    #     if prefix:
-    #         intermediate_prefix = destination_dir + os.sep + prefix
-    #     else:
-    #         intermediate_prefix = destination_dir + os.sep + self.prefix
-    #     copy(self.msa, intermediate_prefix + ".fa")
-    #     copy(self.profile, intermediate_prefix + ".hmm")
-    #     copy(self.search_profile, intermediate_prefix + "_search.hmm")
-    #     copy(self.tree, intermediate_prefix + "_tree.txt")
-    #     copy(self.model_info, intermediate_prefix + "_bestModel.txt")
-    #     if os.path.isfile(self.boot_tree):
-    #         copy(self.boot_tree, intermediate_prefix + "_bipartitions.txt")
-    #         os.remove(self.boot_tree)
-    #     return
 
     def change_file_paths(self, new_dir: str, move=False) -> None:
         """
@@ -495,8 +495,8 @@ class ReferencePackage:
 
         # Model parameters
         model_output_prefix = os.path.join(tmp_dir, "tree_data")
-        # model_parameters(executables["raxml-ng"], self.f__msa, self.f__tree, model_output_prefix, self.sub_model)
-        wrapper.model_parameters(executables["raxml-ng"], self.f__msa, self.f__tree, model_output_prefix, "LG+G4")
+        wrapper.model_parameters(executables["raxml-ng"],
+                                 self.f__msa, self.f__tree, model_output_prefix, self.sub_model)
         self.recover_raxmlng_model_outputs(model_output_prefix)
 
         self.band()
@@ -585,15 +585,6 @@ class ReferencePackage:
             self.pfit = [float(x) for x in build_param_fields[8].split(',')]
         return
 
-    def get_info(self):
-        return "\n\t".join(["MarkerBuild instance of %s (%s):" % (self.prefix, self.refpkg_code),
-                            "Molecule type:                                      " + self.molecule,
-                            "Substitution model used for phylogenetic inference: " + self.sub_model,
-                            "Number of reference sequences (leaf nodes):         " + str(self.num_seqs),
-                            "Software used to infer phylogeny:                   " + self.tree_tool,
-                            "Date of last update:                                " + self.update,
-                            "Description:                                        '%s'" % self.description]) + "\n"
-
     def all_possible_assignments(self):
         if len(self.lineage_ids) == 0:
             logging.error("ReferencePackage.lineage_ids is empty - information hasn't been slurped up yet.\n")
@@ -607,4 +598,3 @@ class ReferencePackage:
             lineage_list.append(lineage)
 
         return load_taxonomic_trie(lineage_list)
-
