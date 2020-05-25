@@ -67,7 +67,7 @@ class TreesappTester(unittest.TestCase):
                                  "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
                                  "-o", "./TreeSAPP_evaluate",
                                  "-m", "prot",
-                                 "--taxon_rank", "class", "species",
+                                 "--taxon_rank", "class", "order",
                                  "-n", str(2),
                                  "--trim_align", "--overwrite", "--delete"]
         evaluate(evaluate_command_list)
@@ -138,8 +138,9 @@ class TreesappTester(unittest.TestCase):
         from . import testing_utils as utils
         train_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
                               "--output", "./TreeSAPP_train",
-                              "--refpkg_path", "McrA",
-                              "--pkg_path", os.path.join(utils.get_treesapp_path(), "treesapp", "data"),
+                              "--refpkg_path", os.path.join(utils.get_treesapp_path(),
+                                                            "treesapp", "data", "McrA_build.json"),
+                              "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
                               "--num_proc", str(2),
                               "--molecule", "prot",
                               "--trim_align", "--delete", "--overwrite"]
