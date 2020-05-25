@@ -63,7 +63,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       "[ DEFAULT = treesapp/data/ ]")
 
     def add_refpkg_file_param(self):
-        self.reqs.add_argument("-p", "--refpkg_path", dest="pkg_path", required=True,
+        self.reqs.add_argument("-r", "--refpkg_path", dest="pkg_path", required=True,
                                help="Path to the reference package JSON file.\n")
 
     def add_seq_params(self):
@@ -121,6 +121,15 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
     def add_lineage_table_param(self):
         self.taxa_args.add_argument("--seqs2lineage", dest="seq_names_to_taxa", required=False, default=None,
                                     help="Path to a file mapping sequence names to taxonomic lineages.\n")
+
+    def add_cluster_args(self):
+        self.seqops.add_argument("--cluster",
+                                 help="Cluster input sequences at the proportional similarity indicated by identity",
+                                 action="store_true",
+                                 required=False, default=False)
+        self.seqops.add_argument("-p", "--similarity",
+                                 help="Proportional similarity (between 0.50 and 1.0) to cluster sequences.",
+                                 required=False, default=1.0, type=float)
 
     def add_taxa_args(self):
         self.taxa_args.add_argument("-s", "--screen",
@@ -228,6 +237,7 @@ def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_io()
     parser.add_seq_params()
     parser.add_taxa_args()
+    parser.add_cluster_args()
     parser.add_lineage_table_param()
     parser.add_phylogeny_params()
     parser.add_accession_params()
@@ -238,16 +248,6 @@ def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
                                   "Examples are 'McrA', 'DsrAB', and 'p_amoA'.",
                              required=True)
 
-    parser.seqops.add_argument("--cluster",
-                               help="Flag indicating usearch should be used to cluster sequences\n"
-                                    "at the fractional similarity indicated by identity (`-p`)",
-                               action="store_true",
-                               default=False)
-    parser.seqops.add_argument("-p", "--identity",
-                               help="Fractional identity value (between 0.50 and 1.0)\n"
-                                    "the input sequences were clustered at.",
-                               required=False, default=str(1.0),
-                               type=str)
     parser.seqops.add_argument("--multiple_alignment",
                                help='The FASTA input is also the multiple alignment file to be used.\n'
                                     'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
@@ -344,13 +344,14 @@ def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
 
     :return: None
     """
-    parser.add_io()
-    parser.add_seq_params()
-    parser.add_taxa_args()
-    parser.add_refpkg_file_param()
+    parser.add_io()  # i, o
+    parser.add_seq_params()  # w, m
+    parser.add_cluster_args()  # p
+    parser.add_taxa_args()  # s, f, t
+    parser.add_refpkg_file_param()  # r
     parser.add_lineage_table_param()
-    parser.add_phylogeny_params()
-    parser.add_compute_miscellany()
+    parser.add_phylogeny_params()  # b, e
+    parser.add_compute_miscellany()  # n
     parser.reqs.add_argument("--treesapp_output", dest="ts_out", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
@@ -366,10 +367,6 @@ def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "lineages", "rebuild"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
-    parser.seqops.add_argument("--cluster", required=False, default=False, action="store_true",
-                               help="Cluster sequences that mapped to the reference tree prior to updating")
-    parser.seqops.add_argument("-p", "--identity", required=False, type=float,
-                               help="Fractional similarity (between 0.50 and 1.0) to cluster sequences.")
     parser.miscellany.add_argument("--headless", action="store_true", default=False,
                                    help="Do not require any user input during runtime.")
 
@@ -552,7 +549,7 @@ def check_create_arguments(creator: Creator, args) -> None:
     else:
         creator.ref_pkg.tree_tool = "RAxML-NG"
     creator.ref_pkg.prefix = args.refpkg_name
-    creator.ref_pkg.pid = args.identity
+    creator.ref_pkg.pid = args.similarity
     creator.ref_pkg.molecule = args.molecule
     creator.ref_pkg.kind = args.kind
     creator.ref_pkg.sub_model = args.raxml_model
@@ -579,12 +576,12 @@ def check_create_arguments(creator: Creator, args) -> None:
         if args.uc:
             logging.error("--cluster and --uc are mutually exclusive!\n")
             sys.exit(13)
-        if not 0.5 <= float(args.identity) <= 1.0:
-            if 0.5 < float(args.identity)/100 < 1.0:
-                args.identity = str(float(args.identity)/100)
-                logging.warning("--identity  set to " + args.identity + " for compatibility with USEARCH \n")
+        if not 0.5 <= float(args.similarity) <= 1.0:
+            if 0.5 < float(args.similarity)/100 < 1.0:
+                args.similarity = str(float(args.similarity)/100)
+                logging.warning("--similarity  set to {} for compatibility with USEARCH.\n".format(args.similarity))
             else:
-                logging.error("--identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
+                logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
 
     if args.taxa_lca:
@@ -636,19 +633,19 @@ def check_updater_arguments(updater: Updater, args):
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
 
-    if not args.identity:
-        updater.prop_sim = updater.target_marker.pid
-    else:
-        updater.prop_sim = args.identity
-
     if args.cluster:
-        if not 0.5 <= float(updater.prop_sim) <= 1.0:
-            if 0.5 < float(updater.prop_sim)/100 < 1.0:
-                updater.prop_sim = str(float(updater.prop_sim) / 100)
-                logging.warning("--identity  set to " + updater.prop_sim + " for compatibility with USEARCH \n")
+        if not 0.5 <= float(args.similarity) <= 1.0:
+            if 0.5 < float(args.similarity) / 100 < 1.0:
+                args.similarity = str(float(args.similarity) / 100)
+                logging.warning("--similarity  set to {} for compatibility with USEARCH.\n".format(args.similarity))
             else:
-                logging.error("--identity " + updater.prop_sim + " is not between the supported range [0.5-1.0]\n")
+                logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
+
+    if not args.similarity:
+        updater.prop_sim = updater.ref_pkg.pid
+    else:
+        updater.prop_sim = args.similarity
 
     if updater.seq_names_to_taxa and not os.path.isfile(updater.seq_names_to_taxa):
         logging.error("Unable to find file mapping sequence names to taxonomic lineages '" +
@@ -661,7 +658,7 @@ def check_updater_arguments(updater: Updater, args):
     if updater.treesapp_output[-1] != os.sep:
         updater.treesapp_output += os.sep
     updater.final_output_dir = updater.treesapp_output + "final_outputs" + os.sep
-    updater.var_output_dir = updater.treesapp_output + "intermediates" + os.sep
+    # updater.var_output_dir = updater.treesapp_output + "intermediates" + os.sep
     updater.old_ref_fasta = updater.var_output_dir + "original_refs.fasta"
     updater.combined_fasta = updater.var_output_dir + "all_refs.fasta"
     updater.lineage_map_file = updater.var_output_dir + "accession_id_lineage_map.tsv"
@@ -669,7 +666,9 @@ def check_updater_arguments(updater: Updater, args):
     updater.cluster_input = updater.var_output_dir + updater.sample_prefix + "_uclust_input.fasta"
     updater.uclust_prefix = updater.var_output_dir + updater.sample_prefix + "_uclust" + str(updater.prop_sim)
     classified_seqs = glob(updater.final_output_dir + "*_classified.faa")
-    updater.metadata_file = updater.final_output_dir + updater.ref_pkg.prefix + "_build.json"
+    updater.updated_refpkg_path = os.path.join(updater.output_dir, "final_outputs",
+                                               os.path.basename(updater.ref_pkg.f__json))
+
     if len(classified_seqs) == 1:
         updater.query_sequences = classified_seqs.pop()
     else:

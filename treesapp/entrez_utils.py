@@ -38,8 +38,9 @@ class EntrezRecord:
         """
         info_string = "Information for EntrezRecord ID '" + str(self.short_id) + "':\n"
         info_string += "accession = " + self.accession + ", " + "acc.version = " + self.versioned + "\n"
-        info_string += "organism = " + str(self.organism) + ", " + "NCBI taxid = " + str(self.ncbi_tax) + "\n"
-        info_string += "bitflag = " + str(self.bitflag) + ", " + "lineage = " + str(self.lineage) + "\n"
+        info_string += "organism = " + str(self.organism) + ", " + "rank resolved = " + self.taxon_rank + "\n"
+        info_string += "NCBI taxid = " + str(self.ncbi_tax) + ", " + "bitflag = " + str(self.bitflag) + "\n"
+        info_string += "lineage = " + str(self.lineage) + "\n"
         info_string += "description = " + str(self.description) + ", " + "locus = " + str(self.locus) + "\n"
         return info_string
 
@@ -312,6 +313,8 @@ def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, 
             except KeyError:
                 if incomplete:
                     continue
+                elif ref_seq.versioned in accession_lineages:
+                    lineage = accession_lineages[ref_seq.versioned]
                 else:
                     logging.error("Lineage information was not retrieved for accession '{}'.\n"
                                   "Please remove the output directory and restart.\n".format(ref_seq.accession))
@@ -338,10 +341,17 @@ def entrez_record_snapshot(entrez_records: dict) -> dict:
     return er_snaps
 
 
-def jetison_taxa_from_hierarchy(entrez_records: list, t_hierarchy: TaxonomicHierarchy):
+def jetison_taxa_from_hierarchy(entrez_records: list, t_hierarchy: TaxonomicHierarchy) -> None:
+    """
+    Used for removing taxonomic lineages from the TaxonomicHierarchy
+
+    :param entrez_records: A list of EntrezRecord instances
+    :param t_hierarchy: A TaxonomicHierarchy instance
+    :return: None
+    """
     taxa = []
     for e_record in entrez_records:  # type: EntrezRecord
-        if e_record.organism:
+        if e_record.organism and not t_hierarchy.canonical_prefix.search(e_record.organism):
             taxa.append(e_record.taxon_rank[0] + t_hierarchy.taxon_sep + e_record.organism)
     logging.debug("Removing {0} taxa ({1} unique) from taxonomic hierarchy.\n".format(len(taxa),
                                                                                       len(set(taxa))))
@@ -794,6 +804,7 @@ def verify_lineage_information(accession_lineage_map: dict, fasta_record_objects
 
         ref_seq.lineage = t_hierarchy.check_lineage(lineage, ref_seq.organism)
         ref_seq.tracking_stamp()
+        ref_seq.taxon_rank = t_hierarchy.resolved_to(ref_seq.lineage)
         if ref_seq.bitflag >= 1:
             taxa_searched += 1
 

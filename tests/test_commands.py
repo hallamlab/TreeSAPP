@@ -41,7 +41,7 @@ class TreesappTester(unittest.TestCase):
         create_commands_list = ["--fastx_input", utils.get_test_data("create_test.faa"),
                                 "--accession2taxid", utils.get_test_data("create_test.accession2taxid"),
                                 "--refpkg_name", "Crt",
-                                "--identity", "0.95",
+                                "--similarity", "0.95",
                                 "--bootstraps", str(0),
                                 "--molecule", "prot",
                                 "--screen", "Bacteria,Archaea", "--filter", "Archaea",
@@ -118,12 +118,15 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_update(self):
+        import os
         from commands import update
         from . import testing_utils as utils
         update_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
-                               "--refpkg_name", "McrA",
-                               "--treesapp_output", utils.get_test_data("test_output_TarA/"),
-                               "--identity", str(0.97),
+                               "--refpkg_path", os.path.join(utils.get_treesapp_path(),
+                                                             "treesapp", "data", "McrA_build.json"),
+                               # "--treesapp_output", utils.get_test_data("test_output_TarA/"),
+                               "--treesapp_output", "./TreeSAPP_assign/",
+                               "--similarity", str(0.97),
                                "--output", "./TreeSAPP_update",
                                "--num_proc", str(2),
                                "--molecule", "prot",

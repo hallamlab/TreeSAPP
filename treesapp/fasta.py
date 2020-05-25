@@ -4,7 +4,6 @@ import sys
 import re
 import os
 import logging
-import traceback
 from time import sleep, time
 
 from math import ceil
@@ -256,7 +255,7 @@ class Header:
         self.accession = return_sequence_info_groups(sequence_info, header_db, self.original).accession
 
 
-def register_headers(header_list, drop=True):
+def register_headers(header_list: list, drop=True):
     acc = 1
     header_registry = dict()
     dup_checker = set()
@@ -444,7 +443,7 @@ class FASTA:
             else:
                 dropped += 1
         if dropped >= 1:
-            logging.debug(str(dropped) + " sequences were found to be shorter than " + str(min_len) + " and removed.\n")
+            logging.debug("{} sequences were found to be shorter than {} and removed.\n".format(dropped, min_len))
         self.keep_only(long_seqs)
         return
 
@@ -1030,11 +1029,12 @@ def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, st
         format_matches.pop("unformatted")
     if len(format_matches) > 1:
         if "ts_assign" in format_matches:
-            return header_regexes["ts_assign"], "ts_assign", "ambig"
-        logging.error("Header '" + header + "' matches multiple potential formats:\n\t" +
-                      ", ".join(format_matches) + "\n" +
-                      "TreeSAPP is unable to parse necessary information properly.\n")
-        sys.exit(5)
+            format_matches = {"ts_assign": format_matches["ts_assign"]}  # ts_assign over-rules all others
+        else:
+            logging.error("Header '" + header + "' matches multiple potential formats:\n\t" +
+                          ", ".join(format_matches) + "\n" +
+                          "TreeSAPP is unable to parse necessary information properly.\n")
+            sys.exit(5)
 
     header_db, info = format_matches.popitem()
     header_molecule, header_format_re = info

@@ -6,6 +6,7 @@ import os
 import re
 import logging
 import time
+from datetime import datetime as dt
 from shutil import rmtree, copy
 from multiprocessing import Process
 from glob import glob
@@ -602,7 +603,6 @@ class TreeSAPP:
             self.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
             self.ref_pkg.taxa_trie.validate_rank_prefixes()
             self.ref_pkg.taxa_trie.build_multifurcating_trie()
-
         if self.stage_status("lineages"):
             entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(entrez_record_dict)
             logging.debug("\tNumber of queries =\t" + str(len(entrez_query_list)) + "\n")
@@ -624,7 +624,13 @@ class TreeSAPP:
         else:
             logging.info("Reading cached lineages in '" + self.acc_to_lin + "'... ")
             self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
+            entrez_utils.fill_ref_seq_lineages(entrez_record_dict, self.seq_lineage_map)
+            ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
+            self.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+            self.ref_pkg.taxa_trie.validate_rank_prefixes()
+            self.ref_pkg.taxa_trie.build_multifurcating_trie()
             logging.info("done.\n")
+
         ref_seqs.change_dict_keys()
         return entrez_record_dict
 
@@ -640,9 +646,11 @@ class Updater(TreeSAPP):
         self.old_ref_fasta = ""  # Contains only the original reference sequences
         self.cluster_input = ""  # Used only if resolve is True
         self.uclust_prefix = ""  # Used only if resolve is True
+        self.updated_refpkg_path = ""
         self.rank_depth_map = None
         self.prop_sim = 1.0
         self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the refpkg
+        self.updated_refpkg = ReferencePackage()
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("lineages", 0),
@@ -658,6 +666,30 @@ class Updater(TreeSAPP):
                                     "Lineage map: " + str(self.seq_names_to_taxa)]) + "\n"
 
         return info_string
+
+    def update_refpkg_fields(self) -> None:
+        """
+        Using the original ReferencePackage as a template modify the following updated ReferencePackage attributes:
+1. original creation date
+2. update date
+3. code name
+4. description
+        :return: None
+        """
+        # Change the creation and update dates, code name and description
+        self.updated_refpkg.date = self.ref_pkg.date
+        self.updated_refpkg.update = dt.now().strftime("%Y-%m-%d")
+        self.updated_refpkg.refpkg_code = self.ref_pkg.refpkg_code
+        self.updated_refpkg.description = self.ref_pkg.description
+        self.updated_refpkg.write_json()
+
+        logging.info("Summary of the updated reference package:\n" + self.updated_refpkg.get_info() + "\n")
+
+        logging.debug("\tNew sequences  = " + str(self.updated_refpkg.num_seqs - self.ref_pkg.num_seqs) + "\n" +
+                      "\tOld HMM length = " + str(self.ref_pkg.hmm_length()) + "\n" +
+                      "\tNew HMM length = " + str(self.updated_refpkg.hmm_length()) + "\n")
+
+        return
 
 
 class Creator(TreeSAPP):

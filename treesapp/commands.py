@@ -460,7 +460,7 @@ def create(sys_args):
     ts_create.ref_pkg.band()
     # Build the regression model of placement distances to taxonomic ranks
     trainer_cmd = ["-i", ts_create.filtered_fasta,
-                   "-p", ts_create.ref_pkg.f__json,
+                   "-r", ts_create.ref_pkg.f__json,
                    "-o", ts_create.training_dir,
                    "-m", ts_create.ref_pkg.molecule,
                    "-a", ts_create.acc_to_lin,
@@ -496,7 +496,7 @@ def create(sys_args):
 
 
 def update(sys_args):
-    parser = treesapp_args.TreeSAPPArgumentParser(description='Update a TreeSAPP reference package with newly identified sequences.')
+    parser = treesapp_args.TreeSAPPArgumentParser(description='Update a TreeSAPP reference package with assigned sequences.')
     treesapp_args.add_update_arguments(parser)
     args = parser.parse_args(sys_args)
 
@@ -511,9 +511,8 @@ def update(sys_args):
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_updater_arguments(ts_updater, args)
     ts_updater.validate_continue(args)
-    ts_updater.ref_pkg.gather_package_files(ts_updater.refpkg_dir, ts_updater.molecule_type, "hierarchical")
     ts_updater.ref_pkg.validate()
-    ref_seq_lineage_info = ts_updater.ref_pkg.tax_ids_file_to_leaves()
+    ref_seq_lineage_info = ts_updater.ref_pkg.generate_tree_leaf_references_from_refpkg()
 
     ##
     # Pull out sequences from TreeSAPP output
@@ -541,7 +540,7 @@ def update(sys_args):
     ##
     classified_fasta.keep_only(classified_targets)
     logging.info(classified_fasta.summarize_fasta_sequences())
-    hmm_length = utilities.get_hmm_length(ts_updater.ref_pkg.profile)
+    hmm_length = utilities.get_hmm_length(ts_updater.ref_pkg.f__profile)
     # Use the smaller of the minimum sequence length or 2/3 HMM profile to remove sequence fragments
     if args.min_seq_length < 0.66*hmm_length:
         ts_updater.min_length = int(round(0.66*hmm_length))
@@ -709,10 +708,9 @@ def update(sys_args):
     ##
     # Summarize some key parts of the new reference package, compared to the old one
     ##
-    new_hmm_length = utilities.get_hmm_length(ts_updater.output_dir + "final_outputs" + os.sep +
-                                              ts_updater.ref_pkg.prefix + ".hmm")
-    logging.debug("\tOld HMM length = " + str(hmm_length) + "\n" +
-                  "\tNew HMM length = " + str(new_hmm_length) + "\n")
+    ts_updater.updated_refpkg.f__json = ts_updater.updated_refpkg_path
+    ts_updater.updated_refpkg.slurp()
+    ts_updater.update_refpkg_fields()
 
     return
 
@@ -749,7 +747,6 @@ def layer(sys_args):
     unique_markers_annotated = set()
     marker_tree_info = dict()
     internal_nodes = dict()
-    marker_build_dict = file_parsers.parse_ref_build_params(ts_layer.treesapp_dir, [])
     master_dat, field_order = annotate_extra.parse_marker_classification_table(ts_layer.final_output_dir +
                                                                                "marker_contig_map.tsv")
     refpkg_dict = file_parsers.gather_ref_packages(ts_layer.treesapp_dir, marker_build_dict)

@@ -566,7 +566,16 @@ class TaxonomicHierarchy:
 
         return self.lin_sep.join(lineage_list)
 
-    def remove_leaf_nodes(self, taxa):
+    def remove_leaf_nodes(self, taxa) -> None:
+        """
+        Decrements the coverage attribute for each taxon and all parent taxa (deeper ranks).
+        If coverage reaches zero, for a taxon its key is popped from the hierarchy dictionary
+
+        TaxonomicHierarchy.trie is rebuilt is any taxa are popped from the hierarchy.
+
+        :param taxa: A list of taxa names that exist within TaxonomicHierarchy.hierarchy keys
+        :return: None
+        """
         if type(taxa) is str:
             taxa = [taxa]
         for prefix_taxon_name in taxa:
