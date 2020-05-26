@@ -369,6 +369,20 @@ class ReferencePackage:
     def alignment_dims(self):
         return multiple_alignment_dimensions(self.f__msa)
 
+    def filter_refs_by_lineage(self, target_lineage: str) -> list:
+        """
+        Returns the TreeLeafReference instances from the reference package that match or are children of target_lineage
+
+        :param target_lineage: A string representing the lineage to fish for reference leaf nodes (e.g. d__Archaea)
+        :return: A list of all TreeLeafReference instances that belong to the target_lineage
+        """
+        children = []
+        lineage_re = re.compile(target_lineage)
+        for leaf_node in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
+            if lineage_re.search(leaf_node.lineage):
+                children.append(leaf_node)
+        return children
+
     def remove_taxon_from_lineage_ids(self, target_lineage) -> None:
         """
         Removes all sequences/leaves from the reference package that match the target taxon. Leaves with that have a
@@ -378,42 +392,36 @@ class ReferencePackage:
         :return: Nothing
         """
         off_target_ref_leaves = dict()
-        target_taxon = target_lineage.split(self.taxa_trie.lin_sep)[-1]
-        prefix, name = target_taxon.split(self.taxa_trie.taxon_sep)
-        rank = self.taxa_trie.rank_prefix_map[prefix]
-        depth = self.taxa_trie.accepted_ranks_depths[rank]-1
+        s_target = target_lineage.split(self.taxa_trie.lin_sep)
         n_match = 0
         n_shallow = 0
         n_unclassified = 0
 
         # Find the reference leaf node that need to be removed
         for ref_leaf in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
-            sc_lineage = ref_leaf.lineage.split(self.taxa_trie.lin_sep)
-            if len(sc_lineage) <= depth:
-                n_shallow += 1
-                continue
-            if target_taxon == sc_lineage[depth]:
-                n_match += 1
-                continue
-            if re.search("unclassified|environmental sample", ref_leaf.lineage, re.IGNORECASE):
-                i = 0
-                while i <= depth:
-                    if re.search("unclassified|environmental sample", sc_lineage[i], re.IGNORECASE):
-                        i -= 1
-                        break
-                    i += 1
-                if i < depth:
+            x = 0
+            s_query = ref_leaf.lineage.split(self.taxa_trie.lin_sep)
+            while x < min([len(s_query), len(s_target)]):
+                if re.search("unclassified|environmental sample|root", s_query[x], re.IGNORECASE):
                     n_unclassified += 1
-                    continue
-            off_target_ref_leaves[ref_leaf.number] = "{0} | {1}\t{2}".format(ref_leaf.description,
-                                                                             ref_leaf.accession,
-                                                                             ref_leaf.lineage)
+                    break
+                if s_query[x] != s_target[x]:
+                    off_target_ref_leaves[ref_leaf.number] = "{0} | {1}\t{2}".format(ref_leaf.description,
+                                                                                     ref_leaf.accession,
+                                                                                     ref_leaf.lineage)
+                    break
+                x += 1
+            if ref_leaf.number not in off_target_ref_leaves:
+                if len(s_query) < len(s_target):
+                    n_shallow += 1
+                else:
+                    n_match += 1
 
         # Update self.lineage_ids with the remaining reference leaf nodes
         self.lineage_ids = off_target_ref_leaves
         self.num_seqs = len(self.lineage_ids)
 
-        logging.debug("Reference sequence filtering stats for " + target_taxon + "\n" +
+        logging.debug("Reference sequence filtering stats for " + s_target[-1] + "\n" +
                       "\n".join(["Match taxon\t" + str(n_match),
                                  "Unclassified\t" + str(n_unclassified),
                                  "Too shallow\t" + str(n_shallow),
@@ -542,7 +550,7 @@ class ReferencePackage:
             logging.info("done.\n")
         else:
             ref_tree = Tree(self.f__tree)
-            ref_tree.prune(off_target_ref_headers)
+            ref_tree.prune(off_target_ref_headers, preserve_branch_length=True)
             logging.debug("\t" + str(len(ref_tree.get_leaves())) + " leaves in pruned tree.\n")
             ref_tree.write(outfile=self.f__tree, format=5)
 
@@ -570,7 +578,7 @@ class ReferencePackage:
         :return: None
         """
 
-        logging.info("Creating taxonomically-dereplicated HMM... ")
+        logging.debug("Creating taxonomically-dereplicated HMM... ")
 
         if not intermediates_dir:
             intermediates_dir = os.path.dirname(self.f__msa)
@@ -606,9 +614,6 @@ class ReferencePackage:
         for taxon in t:
             lineage_reps.append(t[taxon])
 
-        logging.debug("%i %s-dereplicated sequences retained for building HMM profile.\n" %
-                      (len(lineage_reps), dereplication_rank))
-
         # Remove all sequences from the FASTA instance that are not representatives
         mfa.keep_only(lineage_reps)
         mfa.unalign()
@@ -628,8 +633,10 @@ class ReferencePackage:
             if os.path.isfile(f_path):
                 os.remove(f_path)
 
-        logging.info("done.\n")
+        logging.debug("done.\n")
 
+        logging.debug("%i %s-dereplicated sequences retained for building HMM profile.\n" %
+                      (len(lineage_reps), dereplication_rank))
         return
 
     def load_pfit_params(self, build_param_line):
