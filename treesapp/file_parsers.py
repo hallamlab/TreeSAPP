@@ -25,10 +25,13 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
     :return: Dictionary of ReferencePackage.prefix keys indexing their respective instances
     """
     refpkg_dict = dict()
+    refpkgs_found = set()
     logging.debug("Gathering reference package files... ")
 
     if targets is None:
-        targets = []
+        targets = {}
+    else:
+        targets = set(targets)
 
     json_files = glob(refpkg_data_dir + os.sep + "*json")
     if len(json_files) == 0:
@@ -43,10 +46,8 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
             if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:
                 continue
             else:
-                try:
-                    targets.remove(refpkg.prefix)
-                except ValueError:
-                    targets.remove(refpkg.refpkg_code)
+                match = targets.intersection({refpkg.prefix, refpkg.refpkg_code}).pop()
+                refpkgs_found.add(match)
         refpkg.validate()
         refpkg_dict[refpkg.prefix] = refpkg
     logging.debug("done.\n")
@@ -56,6 +57,7 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
                       "Are there reference packages in '{}'?\n".format(refpkg_data_dir))
         sys.exit(3)
 
+    targets = targets.difference(refpkgs_found)
     if len(targets) > 0:
         logging.warning("Reference packages for targets {} could not be found.\n".format(", ".join(targets)))
 
