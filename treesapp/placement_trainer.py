@@ -167,15 +167,14 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None) -> 
     Wrapper for performing outlier removal, normalization via rarefaction, and regression
 
     :param taxonomic_placement_distances:
-    :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum)
-    to rank depth values where Kingdom is 0, Phylum is 1, etc.
+    :param taxonomic_ranks: A dictionary mapping rank names to rank depth values where domain is 0, phylum is 1, etc.
     :return: Tuple of floats representing the slope and intercept estimated from linear regression
     """
     if not taxonomic_placement_distances:
         return []
 
     if not taxonomic_ranks:
-        taxonomic_ranks = {"Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7, "Strain": 8}
+        taxonomic_ranks = {"phylum": 2, "class": 3, "order": 4, "family": 5, "genus": 6, "species": 7, "strain": 8}
 
     filtered_pds = dict()
     for rank in taxonomic_placement_distances:

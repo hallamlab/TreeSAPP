@@ -22,6 +22,7 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
 
     :param refpkg_data_dir: Path to the directory containing TreeSAPP reference packages (JSON-format)
     :param targets: List of refpkg codes that are desired or an empty list suggesting all refpkgs should be used
+    :return: Dictionary of ReferencePackage.prefix keys indexing their respective instances
     """
     refpkg_dict = dict()
     logging.debug("Gathering reference package files... ")

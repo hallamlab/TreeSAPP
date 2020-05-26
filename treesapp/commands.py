@@ -109,7 +109,6 @@ def train(sys_args):
     ts_trainer.furnish_with_arguments(args)
     ts_trainer.check_previous_output(args.overwrite)
 
-    # TODO: Prevent hmmalign_queries_aligned-BMGE.fasta.reduced file from being written to cwd
     log_file_name = args.output + os.sep + "TreeSAPP_trainer_log.txt"
     classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
@@ -148,7 +147,7 @@ def train(sys_args):
         ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
     ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule, args.acc_to_taxid)
-
+    rank_depth_map = ts_trainer.ref_pkg.taxa_trie.accepted_ranks_depths
     taxa_evo_dists = dict()
 
     # Goal is to use the distances already calculated but re-print
@@ -180,8 +179,7 @@ def train(sys_args):
     # Write the text file containing distances used in the regression analysis
     with open(ts_trainer.placement_summary, 'w') as out_handler:
         trained_string = "Regression parameters = " + re.sub(' ', '', str(pfit_array)) + "\n"
-        ranks = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
-        for rank in ranks:
+        for rank in sorted(rank_depth_map, key=lambda x: rank_depth_map[x]):
             trained_string += "# " + rank + "\n"
             if rank in taxa_evo_dists:
                 trained_string += str(sorted(taxa_evo_dists[rank], key=float)) + "\n"
@@ -749,7 +747,7 @@ def layer(sys_args):
     internal_nodes = dict()
     master_dat, field_order = annotate_extra.parse_marker_classification_table(ts_layer.final_output_dir +
                                                                                "marker_contig_map.tsv")
-    refpkg_dict = file_parsers.gather_ref_packages(ts_layer.treesapp_dir, marker_build_dict)
+    refpkg_dict = file_parsers.gather_ref_packages(ts_layer.refpkg_dir)
     tree_numbers_translation = read_refpkg_tax_ids(refpkg_dict)
 
     # structure of master dat:
@@ -757,33 +755,31 @@ def layer(sys_args):
     #  "Sequence_2": {"Field1": i, "Field2": j, "Extra": n}}
     for annot_f in ts_layer.annot_files:
         # Determine the marker being annotated
-        marker = data_type = refpkg = ""
-        for code in marker_build_dict:
-            marker = marker_build_dict[code].cog
-            annot_marker_re = re.compile(r"^{0}_(\w+).txt$".format(marker))
+        data_type, refpkg = "", ""
+        for refpkg_name in refpkg_dict:
+            annot_marker_re = re.compile(r"^{0}_(\w+).txt$".format(refpkg_name))
             if annot_marker_re.match(os.path.basename(annot_f)):
                 data_type = annot_marker_re.match(os.path.basename(annot_f)).group(1)
-                refpkg = code
+                refpkg = refpkg_name
                 break
             else:
-                marker = data_type = refpkg = ""
-        if marker not in master_dat.keys():
+                data_type, refpkg = "", ""
+        if refpkg not in master_dat.keys():
             continue
-        if marker and data_type:
+        if refpkg and data_type:
             unique_markers_annotated.add(refpkg)
             if data_type not in marker_subgroups:
                 marker_subgroups[data_type] = dict()
                 internal_nodes[data_type] = dict()
-            marker_subgroups[data_type][marker], internal_nodes[data_type][marker] = file_parsers.read_colours_file(annot_f,
-                                                                                                                    marker)
+            marker_subgroups[data_type][refpkg], internal_nodes[data_type][refpkg] = file_parsers.read_colours_file(annot_f,
+                                                                                                                    refpkg)
         else:
-            logging.warning("Unable to parse the marker and/or annotation type from " + annot_f + ".\n" +
-                            "Is it possible this reference package is not in " +
-                            ts_layer.treesapp_dir + os.sep + "data" + os.sep + "ref_build_parameters.tsv?\n")
+            logging.warning("Unable to parse the reference package name and/or annotation type from {}.\n"
+                            "Is it possible this reference package is not in {}?".format(annot_f, ts_layer.refpkg_dir))
     # Instantiate every query sequence in marker_contig_map with an empty string for each data_type
     for data_type in marker_subgroups:
-        for marker in master_dat:
-            for assignment in master_dat[marker]:  # type: annotate_extra.ClassifiedSequence
+        for refpkg_name in master_dat:
+            for assignment in master_dat[refpkg_name]:  # type: annotate_extra.ClassifiedSequence
                 assignment.layers[data_type] = "NA"
     # Update the field_order dictionary with new fields
     field_acc = len(field_order)
@@ -796,27 +792,27 @@ def layer(sys_args):
         logging.info("Annotating '%s' classifications for the following reference package(s):\n" % data_type)
         if data_type not in marker_tree_info:
             marker_tree_info[data_type] = dict()
-        for refpkg_code in unique_markers_annotated:
-            marker = marker_build_dict[refpkg_code].cog
-            jplace = os.sep.join([ts_layer.treesapp_output, "iTOL_output", marker, marker + "_complete_profile.jplace"])
+        for refpkg_name in unique_markers_annotated:
+            jplace = os.path.join(ts_layer.treesapp_output, "iTOL_output", refpkg_name,
+                                  refpkg_name + "_complete_profile.jplace")
 
-            if marker in marker_subgroups[data_type]:
-                logging.info("\t" + marker + "\n")
+            if refpkg_name in marker_subgroups[data_type]:
+                logging.info("\t" + refpkg_name + "\n")
                 # Create the dictionary mapping an internal node to all leaves
                 internal_node_map = entish.map_internal_nodes_leaves(jplace_parser(jplace).tree)
                 # Routine for exchanging any organism designations for their respective node number
-                taxa_map = tree_numbers_translation[refpkg_code]
+                taxa_map = tree_numbers_translation[refpkg_name]
 
-                if internal_nodes[data_type][marker]:
-                    clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][marker],
+                if internal_nodes[data_type][refpkg_name]:
+                    clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][refpkg_name],
                                                               internal_node_map,
                                                               taxa_map)
                 else:
                     # Convert the leaf node ranges to internal nodes for consistency
-                    clusters = utilities.convert_outer_to_inner_nodes(marker_subgroups[data_type][marker],
+                    clusters = utilities.convert_outer_to_inner_nodes(marker_subgroups[data_type][refpkg_name],
                                                                       internal_node_map)
 
-                marker_tree_info[data_type][marker], leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
+                marker_tree_info[data_type][refpkg_name], leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
                                                                                                                  clusters)
                 diff = len(taxa_map) - len(leaves_in_clusters)
                 if diff != 0:
