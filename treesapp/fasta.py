@@ -958,7 +958,7 @@ def load_fasta_header_regexes(code_name="") -> dict:
 
     # Ambiguous:
     # genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
-    accession_only = re.compile(r"^>?([A-Za-z_0-9.]+\.?[0-9]?)$")  # a
+    # accession_only = re.compile(r"^>?([A-Za-z_0-9.]+\.?[0-9]?)$")  # a
     ncbi_ambiguous = re.compile(r"^>?([A-Za-z0-9.\-_]+)\s+.*(?<!])$")  # a
     ncbi_org = re.compile(r"^>?([A-Z][A-Za-z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
     assign_re = re.compile(r"^>?(.*)\|({0})\|(\d+_\d+)$".format(re.escape(code_name)))  # a, d, l
@@ -987,8 +987,8 @@ def load_fasta_header_regexes(code_name="") -> dict:
                                eggnog_re: "eggnog",
                                eggnot_re: "eggnot"},
                       "dna": {treesapp_re: "treesapp"},
-                      "ambig": {accession_only: "bare",
-                                ncbi_ambiguous: "ncbi_ambig",
+                      "ambig": {ncbi_ambiguous: "ncbi_ambig",
+                                # accession_only: "bare",
                                 ncbi_org: "ncbi_org",
                                 custom_tax: "custom",
                                 assign_re: "ts_assign",
@@ -1031,9 +1031,9 @@ def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, st
         if "ts_assign" in format_matches:
             format_matches = {"ts_assign": format_matches["ts_assign"]}  # ts_assign over-rules all others
         else:
-            logging.error("Header '" + header + "' matches multiple potential formats:\n\t" +
-                          ", ".join(format_matches) + "\n" +
-                          "TreeSAPP is unable to parse necessary information properly.\n")
+            logging.error("Header '{}' matches multiple potential formats:\n\t{}\n"
+                          "TreeSAPP is unable to parse necessary information.\n".format(header,
+                                                                                        ", ".join(format_matches)))
             sys.exit(5)
 
     header_db, info = format_matches.popitem()
