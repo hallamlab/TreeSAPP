@@ -52,14 +52,14 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
         refpkg_dict[refpkg.prefix] = refpkg
     logging.debug("done.\n")
 
+    targets = targets.difference(refpkgs_found)
+    if len(targets) > 0:
+        logging.warning("Reference packages for targets {} could not be found.\n".format(", ".join(targets)))
+
     if len(refpkg_dict) == 0:
         logging.error("No reference package data was found.\n" +
                       "Are there reference packages in '{}'?\n".format(refpkg_data_dir))
         sys.exit(3)
-
-    targets = targets.difference(refpkgs_found)
-    if len(targets) > 0:
-        logging.warning("Reference packages for targets {} could not be found.\n".format(", ".join(targets)))
 
     return refpkg_dict
 
