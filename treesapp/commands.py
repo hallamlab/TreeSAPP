@@ -265,6 +265,7 @@ def create(sys_args):
     fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, ts_create.ref_pkg.molecule,
                                                     args.acc_to_taxid, args.seq_names_to_taxa)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
+    create_refpkg.strip_rank_prefix_from_organisms(fasta_records, ts_create.ref_pkg.taxa_trie)
     prefilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
 
     if ts_create.stage_status("clean"):
@@ -1083,7 +1084,7 @@ def purity(sys_args):
     if ts_purity.stage_status("assign"):
         assign_args = ["-i", ts_purity.formatted_input, "-o", ts_purity.assign_dir,
                        "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
-                       "-t", ts_purity.ref_pkg.prefix,
+                       "-t", ts_purity.ref_pkg.prefix, "--refpkg_dir", ts_purity.refpkg_dir,
                        "--overwrite", "--delete"]
         try:
             assign(assign_args)

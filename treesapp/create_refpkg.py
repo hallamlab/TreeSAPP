@@ -319,7 +319,7 @@ def screen_filter_taxa(fasta_records: dict, screen_strs="", filter_strs="", guar
     for treesapp_id in fasta_records:
         screen_pass = False
         filter_pass = True
-        ref_seq = fasta_records[treesapp_id]  # type: entrez_utils.ReferenceSequence
+        ref_seq = fasta_records[treesapp_id]  # type: entrez_utils.EntrezRecord
         # Screen
         if len(screen_terms) > 0:
             for term in screen_terms:
@@ -353,6 +353,22 @@ def screen_filter_taxa(fasta_records: dict, screen_strs="", filter_strs="", guar
         logging.debug('\t' + str(len(saved)) + " guaranteed sequences saved from taxonomic filtering.\n")
 
     return fasta_replace_dict
+
+
+def strip_rank_prefix_from_organisms(entrez_record_dict: dict, taxa_trie: TaxonomicHierarchy) -> None:
+    """
+    Used for removing the rank-prefix (e.g. n__, d__) from EntrezRecord.organism attributes.
+    This is purely for aesthetic reasons as the organism names only show up in the visualized phylogeny.
+
+    :param entrez_record_dict: A dictionary of EntrezRecord values indexed by numerical identifiers
+    :param taxa_trie: A TaxonomicHierarchy instance with the canonical_prefix attribute of a compiled re object
+    :return: None
+    """
+    for num_id in entrez_record_dict:  # type: entrez_utils.EntrezRecord
+        e_record = entrez_record_dict[num_id]
+        if taxa_trie.canonical_prefix.search(e_record.organism):
+            e_record.organism = taxa_trie.canonical_prefix.sub('', e_record.organism)
+    return
 
 
 def remove_by_truncated_lineages(fasta_records, min_taxonomic_rank, guarantees=None):
@@ -546,7 +562,7 @@ def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output
         tmp_dict[ref_seq.short_id] = ref_seq
 
     for seq_name in outlier_seqs:
-        ref_seq = tmp_dict[seq_name]  # type: entrez_utils.ReferenceSequence
+        ref_seq = tmp_dict[seq_name]  # type: entrez_utils.EntrezRecord
         ref_seq.cluster_rep = False
         outlier_names.append(ref_seq.accession)
 
@@ -639,6 +655,3 @@ def cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_registry:
         lineages.clear()
     formatted_to_num_map.clear()
     return
-
-
-

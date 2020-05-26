@@ -430,6 +430,7 @@ def check_parser_arguments(args, sys_args):
 def check_purity_arguments(purity_instance: Purity, args):
     purity_instance.ref_pkg.f__json = args.pkg_path
     purity_instance.ref_pkg.slurp()
+    purity_instance.refpkg_dir = os.path.dirname(purity_instance.ref_pkg.f__json)
 
     ##
     # Define locations of files TreeSAPP outputs
