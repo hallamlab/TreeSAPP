@@ -49,8 +49,7 @@ def make_dereplicated_hmm(refpkg_name: str, package_path: str, dereplication_ran
     :param intermediates_dir: A path to a directory to write intermediate files
     :return: None
     """
-
-    logging.info("Creating taxonomically-dereplicated HMM... ")
+    # TODO: Change command-line parameters to include fasta file
 
     refpkg = ReferencePackage(refpkg_name)
     refpkg.change_file_paths(package_path)
@@ -61,61 +60,7 @@ def make_dereplicated_hmm(refpkg_name: str, package_path: str, dereplication_ran
     if not mafft:
         mafft = which("mafft")
 
-    if not intermediates_dir:
-        intermediates_dir = os.path.dirname(refpkg.f__msa)
-    if intermediates_dir[-1] != os.sep:
-        intermediates_dir += os.sep
-    derep_fa = intermediates_dir + base_file_prefix(refpkg.f__msa) + "_derep.fa"
-    derep_aln = intermediates_dir + base_file_prefix(refpkg.f__msa) + "_derep.mfa"
-    intermediates = [derep_aln, derep_fa]
-
-    lineage_reps = []
-    t = {}
-
-    mfa = fasta.FASTA(refpkg.f__msa)
-    mfa.load_fasta()
-
-    # Trim the taxonomic lineages to the dereplication level
-    leaf_taxa_map = {leaf.number + "_" + refpkg_name: leaf.lineage for leaf in refpkg.generate_tree_leaf_references_from_refpkg()}
-    trimmed_lineages = refpkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, dereplication_rank)
-    # Add back the sequences with truncated lineages
-    for leaf_name in leaf_taxa_map:
-        if leaf_name not in trimmed_lineages:
-            trimmed_lineages[leaf_name] = leaf_taxa_map[leaf_name]
-
-    # Find the longest sequence that each lineage
-    for seq_name in mfa.get_seq_names():
-        taxon = trimmed_lineages[seq_name]
-        if taxon in t:
-            curr_rep = t[taxon]
-            if len(mfa.fasta_dict[curr_rep]) > len(mfa.fasta_dict[seq_name]):
-                continue
-        t[taxon] = seq_name
-    for taxon in t:
-        lineage_reps.append(t[taxon])
-
-    logging.debug("%i %s-dereplicated sequences retained for building HMM profile.\n" %
-                  (len(lineage_reps), dereplication_rank))
-
-    # Remove all sequences from the FASTA instance that are not representatives
-    mfa.keep_only(lineage_reps)
-    mfa.unalign()
-
-    # Write the dereplicated FASTA file
-    fasta.write_new_fasta(fasta_dict=mfa.fasta_dict, fasta_name=derep_fa)
-
-    # Re-align the sequences
-    run_mafft(mafft_exe=mafft, fasta_in=derep_fa, fasta_out=derep_aln, num_threads=n_threads)
-
-    # Build the new HMM profile
-    build_hmm_profile(hmmbuild_exe=hmmbuild, msa_in=derep_aln, output_hmm=hmm_file, name=refpkg_name)
-
-    # Clean up intermediates
-    for f_path in intermediates:
-        if os.path.isfile(f_path):
-            os.remove(f_path)
-
-    logging.info("done.\n")
+    refpkg.dereplicate_hmm(dereplication_rank, hmmbuild, mafft, n_threads, intermediates_dir)
 
     return
 
