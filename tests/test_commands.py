@@ -57,13 +57,34 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(68, test_refpkg.num_seqs)
         return
 
+    def test_create_eggnog(self):
+        from commands import create
+        from refpkg import ReferencePackage
+        from . import testing_utils as utils
+        create_commands_list = ["--fastx_input", utils.get_test_data("ENOG4111FIN.txt"),
+                                "--output", "./TreeSAPP_create_PuhA",
+                                "--refpkg_name", "PuhA",
+                                "--similarity", "0.97",
+                                "--bootstraps", str(0),
+                                "--molecule", "prot",
+                                "--screen", "Bacteria,Archaea",
+                                "--num_proc", str(2),
+                                "--min_taxonomic_rank", 'p',
+                                "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
+        create(create_commands_list)
+        test_refpkg = ReferencePackage()
+        test_refpkg.f__json = "./TreeSAPP_create_PuhA/final_outputs/PuhA_build.json"
+        test_refpkg.slurp()
+        test_refpkg.validate()
+        self.assertEqual(44, test_refpkg.num_seqs)
+        return
+
     def test_evaluate(self):
         from commands import evaluate
         from . import testing_utils as utils
         import os
         evaluate_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
-                                 "--refpkg_path", utils.get_treesapp_file(os.path.join("treesapp", "data",
-                                                                                       "McrA_build.json")),
+                                 "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "McrA_build.json")),
                                  "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
                                  "-o", "./TreeSAPP_evaluate",
                                  "-m", "prot",
@@ -98,8 +119,7 @@ class TreesappTester(unittest.TestCase):
         purity_command_list = ["--fastx_input", utils.get_treesapp_file("dev_utils/TIGRFAM_seed_named.faa"),
                                "--extra_info", utils.get_treesapp_file("dev_utils/TIGRFAM_info.tsv"),
                                "--output", "./TreeSAPP_purity",
-                               "--refpkg_path", os.path.join(utils.get_treesapp_path(),
-                                                             "treesapp", "data", "McrA_build.json"),
+                               "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "McrA_build.json")),
                                "--trim_align", "--molecule", "prot", "-n", str(2)]
         purity(purity_command_list)
         return
@@ -112,6 +132,7 @@ class TreesappTester(unittest.TestCase):
         classification_table = os.path.join(utils.get_example_output(), "final_outputs", "marker_contig_map.tsv")
         pre_lines = read_marker_classification_table(utils.get_test_data(classification_table))
         layer_command_list = ["--treesapp_output", utils.get_test_data("test_output_TarA/")]
+        layer_command_list += ["--refpkg_dir", utils.get_test_data("refpkgs/")]
         layer(layer_command_list)
         post_lines = read_marker_classification_table(utils.get_test_data(classification_table))
         self.assertEqual(len(pre_lines), len(post_lines))
@@ -120,19 +141,24 @@ class TreesappTester(unittest.TestCase):
     def test_update(self):
         import os
         from commands import update
+        from refpkg import ReferencePackage
         from . import testing_utils as utils
-        update_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
-                               "--refpkg_path", os.path.join(utils.get_treesapp_path(),
-                                                             "treesapp", "data", "McrA_build.json"),
-                               # "--treesapp_output", utils.get_test_data("test_output_TarA/"),
-                               "--treesapp_output", "./TreeSAPP_assign/",
+        update_command_list = ["--fastx_input", utils.get_test_data("Photosynthesis/PuhA/ENOG4111FIN_PF03967_seed.faa"),
+                               "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "PuhA_build.json")),
+                               "--treesapp_output", utils.get_test_data("assign_PF03967_seed/"),
                                "--similarity", str(0.97),
                                "--output", "./TreeSAPP_update",
                                "--num_proc", str(2),
                                "--molecule", "prot",
                                "-b", str(0),
-                               "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
+                               "--trim_align", "--cluster", "--fast", "--headless",
+                               "--overwrite", "--delete", "--skip_assign", "--resolve"]
         update(update_command_list)
+        test_refpkg = ReferencePackage()
+        test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.json"
+        test_refpkg.slurp()
+        test_refpkg.validate()
+        self.assertEqual(47, test_refpkg.num_seqs)
         return
 
     def test_train(self):
