@@ -594,6 +594,22 @@ class TaxonomicHierarchy:
         self.trie_check()
         return
 
+    def jetison_taxa_from_hierarchy(self, entrez_records: list) -> None:
+        """
+        Used for removing taxonomic lineages from the TaxonomicHierarchy
+
+        :param entrez_records: A list of EntrezRecord instances
+        :return: None
+        """
+        taxa = []
+        for e_record in entrez_records:  # type: entrez_utils.EntrezRecord
+            if e_record.organism and not self.canonical_prefix.search(e_record.organism):
+                taxa.append(e_record.taxon_rank[0] + self.taxon_sep + e_record.organism)
+        logging.debug("Removing {0} taxa ({1} unique) from taxonomic hierarchy.\n".format(len(taxa),
+                                                                                          len(set(taxa))))
+        self.remove_leaf_nodes(taxa)
+        return
+
     def summarize_taxa(self):
         """
         Function for enumerating the representation of each taxonomic rank within a TaxonomicHierarchy instance

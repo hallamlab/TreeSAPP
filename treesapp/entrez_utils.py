@@ -341,24 +341,6 @@ def entrez_record_snapshot(entrez_records: dict) -> dict:
     return er_snaps
 
 
-def jetison_taxa_from_hierarchy(entrez_records: list, t_hierarchy: TaxonomicHierarchy) -> None:
-    """
-    Used for removing taxonomic lineages from the TaxonomicHierarchy
-
-    :param entrez_records: A list of EntrezRecord instances
-    :param t_hierarchy: A TaxonomicHierarchy instance
-    :return: None
-    """
-    taxa = []
-    for e_record in entrez_records:  # type: EntrezRecord
-        if e_record.organism and not t_hierarchy.canonical_prefix.search(e_record.organism):
-            taxa.append(e_record.taxon_rank[0] + t_hierarchy.taxon_sep + e_record.organism)
-    logging.debug("Removing {0} taxa ({1} unique) from taxonomic hierarchy.\n".format(len(taxa),
-                                                                                      len(set(taxa))))
-    t_hierarchy.remove_leaf_nodes(taxa)
-    return
-
-
 def match_file_to_dict(file_handler, key_dict, sep="\t", join_by=0):
     """
     Generator function for mapping a particular field in a file, separated by 'sep', to dictionary keys
