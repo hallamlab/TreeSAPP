@@ -300,27 +300,29 @@ def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, 
     Adds lineage information from accession_lineages to fasta_record_objects
 
     :param fasta_record_objects: A dictionary indexed by TreeSAPP numeric identifiers mapped to EntrezRecord instances
-    :param accession_lineages: A dictionary mapping {accession: lineage}
+    :param accession_lineages: A dictionary mapping {accession: lineage}. acc.version format also accepted
     :param incomplete: Boolean indicating whether the accession_lineage contains lineages for all records or not.
     If True, iteration will continue when accession_lineages is missing an accession.
     :return: None
     """
+    lineage_added = 0
     for treesapp_id in fasta_record_objects:
         ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
         if not ref_seq.lineage:
             try:
                 lineage = accession_lineages[ref_seq.accession]
             except KeyError:
-                if incomplete:
-                    continue
-                elif ref_seq.versioned in accession_lineages:
+                if ref_seq.versioned in accession_lineages:
                     lineage = accession_lineages[ref_seq.versioned]
+                elif incomplete:
+                    continue
                 else:
                     logging.error("Lineage information was not retrieved for accession '{}'.\n"
                                   "Please remove the output directory and restart.\n".format(ref_seq.accession))
                     sys.exit(13)
             # Add the species designation since it is often not included in the sequence record's lineage
             ref_seq.lineage = lineage
+            lineage_added += 1
         if not ref_seq.organism and ref_seq.lineage:
             ref_seq.organism = ref_seq.lineage.split("; ")[-1]
         else:
@@ -329,6 +331,9 @@ def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, 
         if len(ref_seq.lineage.split("; ")) > 7 and not re.match(r"[a-z]__.*", ref_seq.organism):
             ref_seq.lineage = "; ".join(ref_seq.lineage.split("; ")[:-1])
         ref_seq.tracking_stamp()
+
+    if lineage_added == 0:
+        logging.warning("No lineages from the accession map were added to the EntrezRecord attributes.\n")
     return
 
 
@@ -1063,10 +1068,11 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
         parent_re = re.compile(seq_name)
         x = 0
         while x < len(treesapp_nums):
-            header = header_registry[treesapp_nums[x]].original
-            assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(refpkg_name), '', header)
+            header = header_registry[treesapp_nums[x]]
+            original = header.original
+            assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(refpkg_name), '', original)
             if parent_re.search(assigned_seq_name):
-                classified_seq_lineage_map[header] = seq_lineage_map[seq_name].build_lineage(add_organism=True)
+                classified_seq_lineage_map[header.first_split] = seq_lineage_map[seq_name].build_lineage(add_organism=True)
                 mapped_treesapp_nums.append(treesapp_nums.pop(x))
             else:
                 x += 1

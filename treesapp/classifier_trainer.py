@@ -324,7 +324,7 @@ def main():
         refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
 
         reps_fasta = FASTA(test_fasta.file)
-        reps_fasta.carry_over(test_fasta)
+        reps_fasta.clone(test_fasta)
         reps_fasta.file = evaluator.var_output_dir + base_file_prefix(test_fasta.file) + "_" + refpkg.prefix + "_subset.fasta"
         reps_fasta.keep_only(header_subset=[tp_seq.name for tp_seq in test_obj.tp[refpkg_code]])
         for acc in sorted(reps_fasta.header_registry, key=int):

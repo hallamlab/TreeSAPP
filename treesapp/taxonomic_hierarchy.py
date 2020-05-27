@@ -604,7 +604,10 @@ class TaxonomicHierarchy:
         taxa = []
         for e_record in entrez_records:  # type: entrez_utils.EntrezRecord
             if e_record.organism and not self.canonical_prefix.search(e_record.organism):
-                taxa.append(e_record.taxon_rank[0] + self.taxon_sep + e_record.organism)
+                try:
+                    taxa.append(e_record.taxon_rank[0] + self.taxon_sep + e_record.organism)
+                except IndexError:
+                    taxa.append(e_record.lineage.split(self.lin_sep)[-1])
         logging.debug("Removing {0} taxa ({1} unique) from taxonomic hierarchy.\n".format(len(taxa),
                                                                                           len(set(taxa))))
         self.remove_leaf_nodes(taxa)

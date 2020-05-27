@@ -631,6 +631,8 @@ def check_create_arguments(creator: Creator, args) -> None:
 def check_updater_arguments(updater: Updater, args):
     updater.ref_pkg.f__json = args.pkg_path
     updater.ref_pkg.slurp()
+    updater.updated_refpkg_path = os.path.join(updater.output_dir, "final_outputs", os.path.basename(args.pkg_path))
+    updater.ref_pkg.disband(os.path.join(updater.output_dir, "intermediates"))
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
 
@@ -667,8 +669,6 @@ def check_updater_arguments(updater: Updater, args):
     updater.cluster_input = updater.var_output_dir + updater.sample_prefix + "_uclust_input.fasta"
     updater.uclust_prefix = updater.var_output_dir + updater.sample_prefix + "_uclust" + str(updater.prop_sim)
     classified_seqs = glob(updater.final_output_dir + "*_classified.faa")
-    updater.updated_refpkg_path = os.path.join(updater.output_dir, "final_outputs",
-                                               os.path.basename(updater.ref_pkg.f__json))
 
     if len(classified_seqs) == 1:
         updater.query_sequences = classified_seqs.pop()

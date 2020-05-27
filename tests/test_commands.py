@@ -154,11 +154,14 @@ class TreesappTester(unittest.TestCase):
                                "--trim_align", "--cluster", "--fast", "--headless",
                                "--overwrite", "--delete", "--skip_assign", "--resolve"]
         update(update_command_list)
+        # Test 2 with a seq2lineage table
+        update_command_list += ["--seqs2lineage", utils.get_test_data("PF03967_seed_seqs2lineage.txt")]
+        update(update_command_list)
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.json"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(47, test_refpkg.num_seqs)
+        self.assertEqual(46, test_refpkg.num_seqs)
         return
 
     def test_train(self):

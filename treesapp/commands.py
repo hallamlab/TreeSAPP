@@ -365,7 +365,7 @@ def create(sys_args):
         filtered_ref_seqs = utilities.dict_diff(prefilter_ref_seqs, postfilter_ref_seqs)
         logging.debug("{0} references before and {1} remaining after filtering.\n".format(len(prefilter_ref_seqs),
                                                                                           len(postfilter_ref_seqs)))
-        entrez_utils.jetison_taxa_from_hierarchy(filtered_ref_seqs, ts_create.ref_pkg.taxa_trie)
+        ts_create.ref_pkg.taxa_trie.jetison_taxa_from_hierarchy(filtered_ref_seqs)
 
         taxonomic_summary = create_refpkg.summarize_reference_taxa(fasta_replace_dict, ts_create.ref_pkg.taxa_trie,
                                                                    args.taxa_lca)
@@ -519,10 +519,7 @@ def update(sys_args):
     classified_fasta = fasta.FASTA(ts_updater.query_sequences)  # These are the classified sequences
     classified_fasta.load_fasta()
     classified_lines = file_parsers.read_marker_classification_table(ts_updater.assignment_table)
-    high_likelihood_seqs = update_refpkg.filter_by_lwr(classified_lines, args.min_lwr)
-    resolved_seqs = update_refpkg.filter_by_lineage_depth(classified_lines,
-                                                          ts_updater.rank_depth_map[args.min_taxonomic_rank])
-    candidate_update_seqs = high_likelihood_seqs.intersection(resolved_seqs)
+    candidate_update_seqs = update_refpkg.filter_by_lwr(classified_lines, args.min_lwr)
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.get_seq_names())
     name_map = update_refpkg.strip_assigment_pattern(classified_fasta.get_seq_names(), ts_updater.ref_pkg.prefix)
     classified_targets = update_refpkg.intersect_incomparable_lists(classified_targets, candidate_update_seqs, name_map)
@@ -556,20 +553,16 @@ def update(sys_args):
     # Add lineages - use taxa if provided with a table mapping contigs to taxa, TreeSAPP-assigned taxonomy otherwise
     ##
     classified_seq_lineage_map = dict()
-    # need_lineage_list = set(classified_fasta.header_registry.keys())  # TreeSAPP IDs that still need lineages
-    querying_classified_fasta = classified_fasta
-    if ts_updater.seq_names_to_taxa:
-        lineage_map, mapped_treesapp_ids = entrez_utils.map_orf_lineages(ts_updater.seq_names_to_taxa,
-                                                                         querying_classified_fasta.header_registry)
-        classified_seq_lineage_map.update(lineage_map)
-        for ts_num in mapped_treesapp_ids:
-            querying_classified_fasta.header_registry.pop(ts_num)
+    querying_classified_fasta = fasta.FASTA("")
+    querying_classified_fasta.clone(classified_fasta)
+
     if args.skip_assign:
         name_map = update_refpkg.strip_assigment_pattern(querying_classified_fasta.get_seq_names(),
                                                          ts_updater.ref_pkg.prefix)
         querying_classified_fasta.synchronize_seqs_n_headers()
         querying_classified_fasta.swap_headers(name_map)
-        fasta_records = ts_updater.fetch_entrez_lineages(querying_classified_fasta, args.molecule)
+        fasta_records = ts_updater.fetch_entrez_lineages(ref_seqs=querying_classified_fasta, molecule=args.molecule,
+                                                         seqs_to_lineage=ts_updater.seq_names_to_taxa)
         entrez_utils.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
         deduped = []
         for treesapp_id in sorted(querying_classified_fasta.header_registry.keys(), key=int):
@@ -594,7 +587,6 @@ def update(sys_args):
         classified_seq_lineage_map.update(update_refpkg.map_classified_seqs(ts_updater.ref_pkg.prefix,
                                                                             assignments,
                                                                             querying_classified_fasta.get_seq_names()))
-    classified_seq_indices = classified_fasta.get_seq_names("num")
 
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
     ref_header_map = update_refpkg.reformat_ref_seq_descriptions(ref_header_map)
@@ -628,6 +620,10 @@ def update(sys_args):
     classified_fasta.unalign()
     
     if args.resolve:
+        ##
+        # The purpose of this block is to remove any former candidate reference sequences from the ref_fasta object
+        # that have a more truncated lineage that the new candidate reference sequences in classified_fasta
+        ##
         classified_fasta.change_dict_keys("num")
         # Write a FASTA for clustering containing the formatted headers since
         # not all clustering tools + versions keep whole header - spaces are replaced with underscores
@@ -651,13 +647,18 @@ def update(sys_args):
         collapsed = update_refpkg.prefilter_clusters(cluster_dict, entrez_records,
                                                      list(ref_fasta.original_header_map().keys()))
         if collapsed:
-            logging.warning(str(len(collapsed)) + " original reference sequences removed while resolving:\n\t" +
-                            "\n\t".join(collapsed) + "\n")
-        # Allow user to select the representative sequence based on organism name, sequence length and similarity
-        create_refpkg.present_cluster_rep_options(cluster_dict, entrez_records, classified_fasta.header_registry,
-                                                  classified_fasta.amendments, True)
-        # Set all the newly classified candidate reference sequences to cluster_reps to make sure they're still included
-        update_refpkg.break_clusters(entrez_records, classified_seq_indices)
+            logging.warning("{} original reference sequences removed while resolving:\n\t"
+                            "{}\n".format(len(collapsed), "\n\t".join(collapsed)))
+
+        # Ensure the EntrezRecord with the most resolved lineage is the representative
+        update_refpkg.resolve_cluster_lineages(cluster_dict, entrez_records, ts_updater.ref_pkg.taxa_trie)
+
+        if args.headless:
+            create_refpkg.finalize_cluster_reps(cluster_dict, entrez_records, classified_fasta.header_registry)
+        else:
+            # Allow user to select the representative sequence based on organism name, sequence length and similarity
+            create_refpkg.present_cluster_rep_options(cluster_dict, entrez_records, classified_fasta.header_registry,
+                                                      classified_fasta.amendments, True)
 
         # Remove sequences that were replaced by resolve from ts_updater.old_ref_fasta
         still_repping = []

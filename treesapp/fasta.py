@@ -294,12 +294,19 @@ class FASTA:
         self.amendments = set()  # Set of the TreeSAPP numerical identifiers for all guaranteed sequences
         self.index_form = None
 
-    def carry_over(self, fasta):
+    def clone(self, fasta) -> None:
+        """
+        Used for cloning a one FASTA instance into the current one.
+
+        :param fasta: A FASTA instance with attributes to copy into the current instance
+        :return: None
+        """
         self.file = fasta.file
-        self.fasta_dict = fasta.fasta_dict
-        self.header_registry = fasta.header_registry
-        self.amendments = fasta.amendments
+        self.fasta_dict.update(fasta.fasta_dict)
+        self.header_registry.update(fasta.header_registry)
+        self.amendments.update(fasta.amendments)
         self.index_form = fasta.index_form
+        return
 
     def load_fasta(self):
         self.fasta_dict = read_fasta_to_dict(self.file)
@@ -463,6 +470,10 @@ class FASTA:
     def change_dict_keys(self, index_replace="original"):
         # TODO: Include a value to track the fasta dict key-type (e.g. num, original)
         # TODO: Use utilities.rekey_dict
+        if len(self.header_registry) == 0:
+            logging.error("FASTA.header_registry is empty. Unable to change dictionary keys.\n")
+            raise AssertionError
+
         repl_fasta_dict = dict()
         for acc in sorted(self.header_registry, key=int):
             header = self.header_registry[acc]  # type: Header

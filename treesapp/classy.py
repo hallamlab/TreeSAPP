@@ -13,7 +13,7 @@ from glob import glob
 from collections import namedtuple
 from numpy import var
 
-from treesapp.phylo_seq import TreeProtein, convert_entrez_to_tree_leaf_references
+from treesapp.phylo_seq import TreeProtein, convert_entrez_to_tree_leaf_references, TreeLeafReference
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import fastx_split, write_new_fasta, get_header_format, FASTA, load_fasta_header_regexes
 from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle
@@ -606,6 +606,8 @@ class TreeSAPP:
         if self.stage_status("lineages"):
             entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(entrez_record_dict)
             logging.debug("\tNumber of queries =\t" + str(len(entrez_query_list)) + "\n")
+            if len(entrez_query_list) == 0:
+                return entrez_record_dict
             entrez_utils.map_accessions_to_lineages(entrez_query_list, self.ref_pkg.taxa_trie, molecule, acc_to_taxid)
             # Repair entrez_record instances either lacking lineages or whose lineages do not contain rank-prefixes
             entrez_utils.repair_lineages(entrez_record_dict, self.ref_pkg.taxa_trie)
