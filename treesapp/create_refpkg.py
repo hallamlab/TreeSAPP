@@ -203,7 +203,7 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects: dict, header_regis
     flags set to *False* so as to not be analyzed further.
 
     :param cluster_dict: A dictionary of unique cluster IDs mapped to Cluster instances
-    :param refseq_objects: A dictionary of numerical TreeSAPP IDs mapped to ReferenceSequence instances
+    :param refseq_objects: A dictionary of numerical TreeSAPP IDs mapped to EntrezRecord instances
     :param header_registry: A dictionary of Header() objects indexed by TreeSAPP IDs,
      each used to map various header formats to each other
     :return: Dictionary of ReferenceSequence objects with complete clustering information
@@ -218,7 +218,8 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects: dict, header_regis
         try:
             ref_seq = refseq_objects[treesapp_id]  # type: entrez_utils.EntrezRecord
         except KeyError:
-            continue
+            logging.error("TreeSAPP ID '{}' not found in EntrezRecord dictionary.\n".format(treesapp_id))
+            raise KeyError
         if header.original not in cluster_reps:
             ref_seq.cluster_rep = False
         else:
@@ -234,7 +235,7 @@ def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header
     Present the headers of identical sequences to user for them to decide on representative header
 
     :param cluster_dict: dictionary from read_uc(uc_file)
-    :param refseq_objects: A dictionary of numerical TreeSAPP IDs mapped to ReferenceSequence instances
+    :param refseq_objects: A dictionary of numerical TreeSAPP IDs mapped to EntrezRecord instances
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
     :param important_seqs: If --guarantee is provided, a dictionary mapping headers to seqs from format_read_fasta()
     :param each_lineage: If set to True, each candidate's lineage is shown as well as the cluster's LCA
@@ -258,6 +259,7 @@ def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header
             raise AssertionError("Unable to find " + cluster_info.representative + " in ReferenceSequence objects!")
 
         if len(cluster_info.members) >= 1 and cluster_info.representative not in important_seqs:
+            # Find the EntrezRecords corresponding to each member so they can be displayed
             for cluster_member_info in cluster_info.members:
                 for treesapp_id in sorted(refseq_objects, key=int):
                     formatted_header = header_registry[treesapp_id].original
@@ -630,7 +632,17 @@ def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:
     return nonredundant_guarantee_cluster_dict
 
 
-def cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_registry: dict):
+def cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_registry: dict) -> None:
+    """
+    Populates the cluster_lca attribute for Cluster instances by calculating the lowest common ancestor (LCA)
+    across all lineages of sequences in a cluster (inferred using a sequence clustering tool such as USEARCH)
+
+    :param cluster_dict: A dictionary of Cluster instanced indexed by their numerical cluster IDs
+    :param fasta_record_objects: A dictionary of EntrezRecord instances indexed by TreeSAPP numerical IDs
+    :param header_registry: A dictionary of Header instances indexed by TreeSAPP numerical IDs used for mapping
+    EntrezRecord headers to their original
+    :return: None
+    """
     # Create a temporary dictionary for faster mapping
     formatted_to_num_map = dict()
     for num_id in fasta_record_objects:
@@ -648,7 +660,9 @@ def cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_registry:
                 num_id = formatted_to_num_map[member]
                 lineages.append(fasta_record_objects[num_id].lineage)
             except KeyError:
-                logging.warning("Unable to map '" + str(member) + "' to a TreeSAPP numeric ID.\n")
+                logging.warning("Unable to map '{}' to a TreeSAPP numeric ID. "
+                                "It will not be used in determining the cluster LCA.\n".format(member))
+
         cleaned_lineages = clean_lineage_list(lineages)
         cluster_inst.lca = megan_lca(cleaned_lineages)
 

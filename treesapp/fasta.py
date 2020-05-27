@@ -314,11 +314,12 @@ class FASTA:
             header.find_accession(refpkg_name)
 
     def mapping_error(self, bad_headers):
-        logging.error("No classified sequences were mapped to '" + self.file + "' FASTA dictionary.\n" +
-                      "Here are some example names from the mapping list:\n\t" +
-                      "\n\t".join(sorted(bad_headers)[0:6]) + "\n" +
-                      "And example names from FASTA dict:\n\t" +
-                      "\n\t".join(list(sorted(self.fasta_dict.keys()))[0:6]) + "\n")
+        logging.error("No classified sequences were mapped to '{}' FASTA dictionary.\n"
+                      "Here are some example names from the mapping list:\n\t{}\n"
+                      "And example names from FASTA dict:\n\t{}\n".format(self.file,
+                                                                          "\n\t".join(sorted(bad_headers)[0:6]),
+                                                                          "\n\t".join(list(sorted(
+                                                                              self.fasta_dict.keys()))[0:6])))
         sys.exit(3)
 
     def n_seqs(self):
@@ -408,9 +409,8 @@ class FASTA:
             unmapped.clear()
 
         if unmapped:
-            logging.warning(str(len(unmapped)) + " sequences were not mapped to FASTA dictionary.\n")
-            logging.debug("Headers that were not mapped to FASTA dictionary:\n\t" +
-                          "\n\t".join(unmapped) + "\n")
+            logging.warning("{} sequences were not mapped to FASTA dictionary.\n".format(str(len(unmapped))))
+            logging.debug("Headers that were not mapped to FASTA dictionary:\n\t{}\n".format("\n\t".join(unmapped)))
 
         self.fasta_dict = pruned_fasta_dict
         self.synchronize_seqs_n_headers()
