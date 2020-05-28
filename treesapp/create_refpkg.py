@@ -218,8 +218,7 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects: dict, header_regis
         try:
             ref_seq = refseq_objects[treesapp_id]  # type: entrez_utils.EntrezRecord
         except KeyError:
-            logging.error("TreeSAPP ID '{}' not found in EntrezRecord dictionary.\n".format(treesapp_id))
-            raise KeyError
+            continue  # Sequence was likely removed
         if header.original not in cluster_reps:
             ref_seq.cluster_rep = False
         else:

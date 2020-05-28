@@ -29,7 +29,7 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
     logging.debug("Gathering reference package files... ")
 
     if targets is None:
-        targets = {}
+        targets = set()
     else:
         targets = set(targets)
 
