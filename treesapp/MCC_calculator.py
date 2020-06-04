@@ -21,9 +21,8 @@ from treesapp.external_command_interface import launch_write_command
 from treesapp.classy import prep_logging
 from refpkg import ReferencePackage
 from treesapp.entrez_utils import EntrezRecord, fetch_lineages_from_taxids
-from treesapp.lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
-    optimal_taxonomic_assignment, grab_graftm_taxa
-from treesapp.utilities import fish_refpkg_from_build_params, get_hmm_length
+from treesapp.lca_calculations import compute_taxonomic_distance, optimal_taxonomic_assignment, grab_graftm_taxa
+from treesapp.utilities import get_hmm_length
 
 
 class ClassifiedSequence:
@@ -243,6 +242,17 @@ class ConfusionTest:
         return
 
     def enumerate_optimal_rank_distances(self) -> dict:
+        """
+        Calculates the number of query sequences representing an excluded rank.
+
+        For each query sequence in self.tp (so just the true positives), the optimal taxonomy is identified based on
+        the query's true taxonomic lineage and all the taxonomic lineages in the ReferencePackage.taxa_trie.
+        The optimal taxonomic assignment's depth (i.e. numerical description of a rank where domain = 1,
+         phylum = 2, etc.) is found by determining the length of the list after splitting the lineage string by '; '.
+
+        :return: Dictionary mapping the numerical description of a taxonomic rank (i.e. depth) to the number of queries
+        that represent that rank.
+        """
         rank_representation = dict()
         for marker in self.tp:
             for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
@@ -326,14 +336,13 @@ class ConfusionTest:
                 unique_fn.update(self.fn[marker])
             return unique_fn
 
-    def bin_headers(self, test_seq_names: list, assignments: dict, annot_map: dict, marker_build_dict: dict) -> None:
+    def bin_headers(self, test_seq_names: list, assignments: dict, annot_map: dict) -> None:
         """
         Function for sorting/binning the classified sequences at T/F positives/negatives based on the
 
         :param test_seq_names: List of all headers in the input FASTA file
         :param assignments: Dictionary mapping taxonomic lineages to a list of headers that were classified as lineage
         :param annot_map: Dictionary mapping reference package (gene) name keys to database names values
-        :param marker_build_dict: Dictionary of MarkerBuild objects indexed by their refpkg code names
         :return: None
         """
         # False positives: those that do not belong to the annotation matching a reference package name
@@ -343,13 +352,12 @@ class ConfusionTest:
         mapping_dict = dict()
         positive_queries = dict()
 
-        for refpkg in annot_map:
-            marker = marker_build_dict[refpkg].cog
-            orthos = annot_map[refpkg]  # List of all orthologous genes corresponding to a reference package
+        for refpkg_name in annot_map:
+            orthos = annot_map[refpkg_name]  # List of all orthologous genes corresponding to a reference package
             for gene in orthos:
                 if gene not in mapping_dict:
                     mapping_dict[gene] = []
-                mapping_dict[gene].append(marker)
+                mapping_dict[gene].append(refpkg_name)
         og_names_mapped = list(mapping_dict.keys())
 
         logging.info("Labelling true test sequences... ")
@@ -396,7 +404,6 @@ class ConfusionTest:
                               ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
                 sys.exit(5)
             true_positives = set()
-            refpkg = fish_refpkg_from_build_params(marker, marker_build_dict).denominator
             for tax_lin in assignments[marker]:
                 classified_seqs = assignments[marker][tax_lin]
                 for seq_name in classified_seqs:
@@ -414,13 +421,13 @@ class ConfusionTest:
                         tp_inst.assigned_lineage = tax_lin
 
                         # Add the True Positive to the relevant collections
-                        self.tp[refpkg].append(tp_inst)
+                        self.tp[marker].append(tp_inst)
                         true_positives.add(seq_name)
                     else:
-                        self.fp[refpkg].add(seq_name)
+                        self.fp[marker].add(seq_name)
 
             # Identify the False Negatives using set difference - those that were not classified but should have been
-            self.fn[refpkg] = list(positives.difference(true_positives))
+            self.fn[marker] = list(positives.difference(true_positives))
         logging.info("done.\n")
         return
 
@@ -713,7 +720,7 @@ def validate_command(args, sys_args):
         args.pkg_path = args.treesapp + "data" + os.sep
 
     if sys.version_info < (2, 9):
-        logging.error("Python version '" + sys.version_info + "' not supported.\n")
+        logging.error("Python version '" + str(sys.version_info) + "' not supported.\n")
         sys.exit(3)
 
     if args.gpkg_dir and args.gpkg_dir[-1] != os.sep:
@@ -734,12 +741,20 @@ def validate_command(args, sys_args):
     return
 
 
-def read_annotation_mapping_file(annot_map_file):
+def read_annotation_mapping_file(annot_map_file: str):
+    """
+    Used for reading a file mapping the reference package name in the first column and the name of a
+    corresponding true positive in the second column.
+    There can be multiple true names of orthologs in the second column separated by commas.
+
+    :param annot_map_file: Path to a tab-delimited file
+    :return: A dictionary containing reference package names mapped to a list of matching database names
+    """
     annot_map = dict()
     try:
         annot_map_handler = open(annot_map_file)
     except IOError:
-        logging.error("Unable to open " + annot_map_file + " for reading!\n")
+        logging.error("Unable to open annotation file '{}' for reading!\n".format(annot_map_file))
         sys.exit(3)
 
     # Assuming the first column is the reference package name and the second is the database annotation name

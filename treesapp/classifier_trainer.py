@@ -6,90 +6,135 @@ import os
 import sys
 import logging
 import re
-import argparse
 import joblib
 import time
-from shutil import rmtree
+import glob
 
-from tqdm import tqdm
 import numpy as np
 import seaborn
 import pandas as pd
 import matplotlib
 from sklearn import model_selection, svm, metrics, preprocessing, manifold
 
-from treesapp.classy import prep_logging, Evaluator
+from treesapp.classy import prep_logging, PhyTrainer
 from treesapp.refpkg import ReferencePackage
-from treesapp.fasta import FASTA, Header, write_new_fasta
-from treesapp.utilities import get_hmm_length, base_file_prefix
-from treesapp.lca_calculations import all_possible_assignments
-from treesapp.clade_exclusion_evaluator import get_testable_lineages_for_rank, remove_clade_exclusion_files
-from treesapp.commands import assign
-from treesapp.placement_trainer import prepare_training_data
-from treesapp.wrapper import select_model
+from treesapp.fasta import FASTA
+from treesapp.utilities import base_file_prefix
+from treesapp.commands import assign, train, evaluate
 from treesapp import MCC_calculator as ts_MCC
 from treesapp import file_parsers as ts_fp
+from treesapp import treesapp_args
 
 
-def get_arguments():
-    parser = argparse.ArgumentParser(add_help=False,
-                                     description="A tool for training a support vector machine from TreeSAPP output")
-    required_args = parser.add_argument_group("Required arguments")
-    required_args.add_argument("--fasta_input", required=True, dest="input",
-                               help="FASTA-formatted file used for testing the classifiers")
-    required_args.add_argument("--annot_map", required=True,
+def add_classifier_arguments(parser: treesapp_args.TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp train*
+
+    :return: None
+    """
+    parser.add_refpkg_opt()
+    parser.add_refpkg_targets()
+    parser.add_accession_params()
+    treesapp_args.add_trainer_arguments(parser)
+
+    parser.optopt.add_argument("-p", "--model_pickle", required=False, default="./treesapp_svm.pkl", dest="model_file",
+                               help="Path to a directory for writing output files")
+    parser.optopt.add_argument("-k", "--svm_kernel", required=False, default="lin",
+                               choices=["lin", "rbf", "poly"], dest="kernel",
+                               help="Specifies the kernel type to be used in the SVM algorithm."
+                                    "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
+    parser.optopt.add_argument("--grid_search", default=False, required=False, action="store_true",
+                               help="Perform a grid search across hyperparameters.")
+    parser.optopt.add_argument("--tsne", default=False, required=False, action="store_true",
+                               help="Generate a tSNE plot. Output will be in the same directory as the model file.")
+    parser.optopt.add_argument("--classifier", required=False, choices=["occ", "bin"], default="bin",
+                               help="Specify the kind of classifier to be trained: one-class classifier (OCC) or "
+                                    "a binary classifier (bin).")
+    parser.optopt.add_argument("--annot_map", required=False, default=None,
                                help="Path to a tabular file mapping markers being tested to their database annotations."
-                                    " Columns are:  1. RefPkg code name 2. OG 3. PFam Accession.Version"
-                                    " 4. PFam Accession 5. RefPkg Name 6. Description 7. HMM Length")
-    required_args.add_argument("--treesapp_output", required=True,
-                               help="Path to the `treesapp assign` output directory")
+                                    " Columns are:  1. RefPkg name 2. Database name."
+                                    " All other columns will be ignored.")
 
-    optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument("-o", "--output", required=False, default="./classifier_trainer_outputs/",
-                        help="Path to write the intermediate files from training.")
-    optopt.add_argument("-m", "--molecule", required=False, default="prot", choices=["prot", "dna", "rna"],
-                        help="Molecule type of input sequences (prot [DEFAULT], dna, or rna)")
-    optopt.add_argument("-p", "--model_pickle", required=False, default="./treesapp_svm.pkl", dest="model_file",
-                        help="Path to a directory for writing output files")
-    optopt.add_argument("-r", "--refpkg_path", required=False, default=None, dest="pkg_path",
-                        help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = None ].")
-    optopt.add_argument("-k", "--svm_kernel", required=False, default="lin",
-                        choices=["lin", "rbf", "poly"], dest="kernel",
-                        help="Specifies the kernel type to be used in the SVM algorithm."
-                             "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
-    optopt.add_argument("--grid_search", default=False, required=False, action="store_true",
-                        help="Perform a grid search across hyperparameters.")
-    optopt.add_argument("--tsne", default=False, required=False, action="store_true",
-                        help="Generate a tSNE plot. Output will be in the same directory as the model file.")
-
-    miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
-    miscellaneous_opts.add_argument("-h", "--help",
-                                    action="help",
-                                    help="Show this help message and exit")
-    miscellaneous_opts.add_argument("-n", "--num_procs", required=False, default=2, dest="procs", type=int,
-                                    help="The number of parallel processes to use during grid search [ DEFAULT = 2 ]")
-    miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
-                                    help='overwrites previously processed output folders')
-    miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
-                                    help='Prints a more verbose runtime log')
-
-    args = parser.parse_args()
-
-    if args.output[-1] != os.sep:
-        args.output += os.sep
-    if args.treesapp_output[-1] != os.sep:
-        args.treesapp_output += os.sep
-    return args
+    return
 
 
-def validate_command(args, sys_args):
+def validate_command(args, trainer: PhyTrainer, sys_args) -> None:
     logging.debug("Command used:\n" + ' '.join(sys_args) + "\n")
 
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-    if not args.pkg_path:
-        args.pkg_path = args.treesapp + "data" + os.sep
+    if not args.refpkg_dir:
+        args.refpkg_dir = args.treesapp + "data" + os.sep
 
+    # Load the reference package directory if it is specified, otherwise load the package's path
+    if args.pkg_path:
+        trainer.ref_pkg.f__json = args.pkg_path
+        trainer.ref_pkg.slurp()
+        trainer.refpkg_dir = os.path.dirname(trainer.ref_pkg.f__json)
+    else:
+        trainer.refpkg_dir = args.refpkg_dir
+
+    if args.targets:
+        trainer.target_refpkgs = args.targets.split(',')
+    else:
+        trainer.target_refpkgs = []
     return
+
+
+def generate_training_data(ts_trainer: PhyTrainer, refpkg_dict: dict, accession_lineage_map: str,
+                           trim_align=False, num_procs=2) -> list:
+    """
+    Gathers the classification data for each reference package and returns a list of all the classification lines
+
+    :param ts_trainer: A PhyTrainer instance
+    :param refpkg_dict: A dictionary containing ReferencePackage instances indexed by their respective prefix attributes
+    :param accession_lineage_map: Path to a file mapping sequence accessions to taxonomic lineages. This is to be used
+    by treesapp evaluate during clade exclusion analysis.
+    :param trim_align: Boolean indicating whether the multiple alignments are trimmed prior to phylogenetic placement
+    :param num_procs: Number of processors/threads available to TreeSAPP and its dependencies
+    :return: A list of all lines from the classification tables
+    """
+    classification_lines = []
+    for name, refpkg in refpkg_dict.items():  # type: str, ReferencePackage
+        # Set up the output paths
+        assign_prefix = os.path.join(ts_trainer.var_output_dir, refpkg.prefix + "_assign")
+        clade_exclusion_prefix = os.path.join(ts_trainer.var_output_dir, refpkg.prefix + "_ce")
+
+        # Parameterize the commands for both treesapp assign and treesapp evaluate
+        assign_params = ["-i", ts_trainer.input_sequences,
+                         "-o", assign_prefix,
+                         "--num_procs", num_procs,
+                         "--refpkg_dir", os.path.dirname(refpkg.f__json),
+                         "--targets", refpkg.prefix,
+                         "--molecule", refpkg.molecule,
+                         "--delete"]
+        # TODO: Create a new fasta file with just the true positives to use in clade exclusion analysis
+        ce_params = ["-i", ts_trainer.input_sequences,
+                     "-o", assign_prefix,
+                     "--molecule", refpkg.molecule,
+                     "--accession2lin", accession_lineage_map,
+                     "--refpkg_path", refpkg.f__json,
+                     "--taxon_rank", "class", "order", "family", "genus", "species",
+                     "--num_procs", num_procs,
+                     "--delete"]
+        if trim_align:
+            assign_params.append("--trim_align")
+            ce_params.append("--trim_align")
+
+        # Run the commands if either of the output directories do not exist
+        if not os.path.isdir(assign_prefix):
+            assign(assign_params)
+        if not os.path.isdir(clade_exclusion_prefix):
+            evaluate(ce_params)
+
+        assign_table = os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")
+        clade_exclusion_outputs = glob.glob(os.path.join(clade_exclusion_prefix, "intermediates", '*',
+                                                         "treesapp_output", "final_outputs", "marker_contig_map.tsv"))
+        # Read the classification tables to gather the training data
+        classification_tables = clade_exclusion_outputs
+        classification_tables.append(assign_table)
+        for table in classification_tables:
+            classification_lines += ts_fp.read_marker_classification_table(table)
+    return classification_lines
 
 
 def vectorize_placement_data(condition_names: dict, classifieds: list,
@@ -214,25 +259,122 @@ def evaluate_grid_scores(kernel, x_train, x_test, y_train, y_test, score="f1", j
     print()
 
 
-def main():
-    args = get_arguments()
+def instantiate_classifier(kernel_name) -> svm.SVC:
+    """
+    Instantiate a particular support vector machine (SVM) classifier with a particular kernel based on the
+    command-line parameter 'kernel'.
+
+    :param kernel_name: Name of the kernel
+    :return: A SVC instance
+    """
+    if kernel_name == "lin":
+        clf = svm.LinearSVC(random_state=12345, max_iter=1E7, tol=1E-5, dual=False, C=10)  # Linear Kernel
+        k_name = "linear"
+    elif kernel_name == "rbf":
+        clf = svm.SVC(kernel="rbf", tol=1E-5, gamma="auto", C=100)
+        k_name = "Radial Basis Function (RBF)"
+    elif kernel_name == "poly":
+        clf = svm.SVC(kernel="poly", tol=1E-5, gamma="auto", C=100)
+        k_name = "polynomial"
+    else:
+        logging.error("Unknown SVM kernel '%s'.\n" % kernel_name)
+        # poly_clf = svm.SVC(kernel="poly", tol=1E-3, max_iter=1E6, degree=6, gamma="auto")
+        sys.exit(3)
+
+    logging.info("Using a '%s' kernel for the SVM classifier ".format(k_name))
+
+    return clf
+
+
+def evaluate_classifier(clf: svm.SVC, x_test: np.array, y_test: np.array,
+                        classified_data: np.array, conditions: np.array) -> None:
+    """
+    Performs 10-split cross-validation, computing F1-scores, as well as accuracy, precision and recall.
+    All stats are written to the logging info stream
+
+    :param clf: A scikit-learn classifier, either a svm.SVC or svm.LinearSVC
+    :param x_test: A Numpy array containing feature vectors of the true positives
+    :param y_test: A Numpy array containing feature vectors of the false positives
+    :param classified_data: A Numpy array containing feature vectors for all classified data (TP and FP)
+    :param conditions: A Numpy array containing the class condition of each feature vector in classified_data
+    :return: None
+    """
+    logging.info("Classifying test data... ")
+    # Predict the response for test dataset
+    y_pred = clf.predict(x_test)
+    logging.info("done.\n")
+
+    scores = model_selection.cross_val_score(clf, classified_data, conditions, cv=10, scoring='f1')
+    logging.info("F1-score\t%0.2f (+/- %0.2f)\n" % (scores.mean(), scores.std() * 2))
+    # Model Accuracy: how often is the classifier correct?
+    logging.info("Accuracy\t" + str(round(metrics.accuracy_score(y_test, y_pred), 2)) + "\n")
+    # Model Precision: what percentage of positive tuples are labeled as such?
+    logging.info("Precision\t" + str(round(metrics.precision_score(y_test, y_pred), 2)) + "\n")
+    # Model Recall: what percentage of positive tuples are labelled as such?
+    logging.info("Recall\t\t" + str(round(metrics.recall_score(y_test, y_pred), 2)) + "\n")
+    return
+
+
+def package_classifier(clf: svm.SVC, pickle_file: str) -> None:
+    logging.info("Pickling model... ")
+    try:
+        pkl_handler = open(pickle_file, 'wb')
+    except IOError:
+        logging.error("Unable to open model file '%s' for writing.\n" % pickle_file)
+        sys.exit(3)
+    joblib.dump(value=clf, filename=pkl_handler)
+    pkl_handler.close()
+    logging.info("done.\n")
+    return
+
+
+def summarize_training_rank_coverage(mcc_test: ts_MCC.ConfusionTest) -> None:
+    """
+    Enumerate the optimal placement ranks to determine the relative distance of reference packages to test dataset
+
+    :param mcc_test: A ConfusionTest instance
+    :return: None
+    """
+    rank_representation = mcc_test.enumerate_optimal_rank_distances()
+    logging.info("Rank coverage of clade exclusion:\n" + mcc_test.summarise_rank_coverage(rank_representation))
+    return
+
+
+def main(sys_args):
+    """
+    The classifier trainer is meant for training a classifier model within SciKit-learn on evolutionary placement data
+    to improve the precision while reducing the harm of recall
+
+    :param sys_args:
+    :return:
+    """
+    parser = treesapp_args.TreeSAPPArgumentParser(description='Build a classifier for evolutionary placement data')
+    add_classifier_arguments(parser)
+    args = parser.parse_args(sys_args)
+
+    ts_trainer = PhyTrainer()
+    ts_trainer.furnish_with_arguments(args)
+    ts_trainer.check_previous_output(args.overwrite)
+
     log_name = args.output + os.sep + "TreeSAPP_classifier_trainer_log.txt"
     pickled_model = args.model_file
     tsne_file = args.output + os.sep + base_file_prefix(pickled_model) + "_t-SNE.png"
 
-    evaluator = Evaluator()
-    evaluator.furnish_with_arguments(args)
-    evaluator.check_previous_output(args.overwrite)
-
     prep_logging(log_name, args.verbose)
     logging.info("\n##\t\t\tBeginning SVM classifier build\t\t\t##\n")
-    validate_command(args, sys.argv)
+    validate_command(args, ts_trainer, sys.argv)
 
-    pkg_name_dict = ts_MCC.read_annotation_mapping_file(args.annot_map)
-    marker_build_dict = ts_fp.parse_ref_build_params(args.treesapp, [])
-    test_obj = ts_MCC.ConfusionTest(pkg_name_dict.keys())
+    if args.annot_map:
+        pkg_dbname_dict = ts_MCC.read_annotation_mapping_file(args.annot_map)
+    else:
+        pkg_dbname_dict = None
+
+    ts_trainer.fetch_entrez_lineages(ref_seqs=ts_trainer.input_sequences, molecule=ts_trainer.molecule_type,
+                                     acc_to_taxid=args.acc_to_taxid)
+
+    refpkg_dict = ts_fp.gather_ref_packages(ts_trainer.refpkg_dir, ts_trainer.target_refpkgs)
+    test_obj = ts_MCC.ConfusionTest(refpkg_dict.keys())
     test_obj.map_data(output_dir=args.treesapp_output, tool="treesapp")
-    test_obj.rank_depth_map = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
 
     ##
     # Create internal node to leaf, HMM model length and refpkg name maps for each refpkg
@@ -240,28 +382,14 @@ def main():
     internal_nodes_dict = dict()
     refpkg_map = dict()
     hmm_lengths = dict()
-    for refpkg_code in test_obj.ref_packages:
-        refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
-        refpkg.prefix = marker_build_dict[refpkg_code].cog
-        refpkg.refpkg_code = refpkg_code
-        refpkg.gather_package_files(args.pkg_path)
-        refpkg.sub_model = select_model(evaluator.molecule_type)
-        refpkg_map[refpkg.prefix] = refpkg_code
-        internal_nodes_dict[refpkg.prefix] = ts_MCC.internal_node_leaf_map(refpkg.tree)
-        hmm_lengths[refpkg.prefix] = get_hmm_length(refpkg.profile)
-        test_obj.ref_packages[refpkg_code].taxa_trie = all_possible_assignments(test_obj.ref_packages[refpkg_code].lineage_ids)
 
-    ##
-    # Read the classification lines from the output
-    ##
-    classification_table = os.sep.join([args.treesapp_output, "final_outputs", "marker_contig_map.tsv"])
-    if not os.path.isfile(classification_table):
-        logging.error("Path to classification table '%s' doesn't exist.\n" % classification_table)
-        sys.exit(3)
-    classification_lines = ts_fp.read_marker_classification_table(classification_table)
+    classification_lines = generate_training_data(ts_trainer, refpkg_dict, ts_trainer.acc_to_lin,
+                                                  args.trim_align, args.num_threads)
     assignments = ts_fp.parse_assignments(classification_lines)
 
-    logging.info("Reading " + args.input + "... ")
+    # TODO: Convert the assignments into useful objects for training the classifier
+
+    logging.info("Reading '{}'... ".format(args.input))
     # Read all sequences that are related to the reference packages from the test data (e.g. EggNOG) into FASTA
     test_fasta = FASTA(args.input)
     test_fasta.load_fasta()
@@ -274,37 +402,15 @@ def main():
     ##
     # Bin the test sequence names into their respective confusion categories (TP, TN, FP, FN)
     ##
-    test_obj.bin_headers(test_seq_names, assignments, pkg_name_dict, marker_build_dict)
+    test_obj.bin_headers(test_seq_names, assignments, pkg_dbname_dict)
     test_seq_names.clear()
     _TAXID_GROUP = 2
     test_obj.retrieve_lineages(_TAXID_GROUP)
     test_obj.map_lineages()
     test_obj.validate_false_positives()
-    test_obj.validate_false_negatives(pkg_name_dict)
+    test_obj.validate_false_negatives(refpkg_dict)
 
-    ##
-    # Enumerate the optimal placement ranks to determine the relative distance of reference packages to test dataset
-    ##
-    rank_representation = test_obj.enumerate_optimal_rank_distances()
-    ceiling = rank_representation[max(rank_representation.keys(),
-                                      key=(lambda key: rank_representation[key]))]
-    logging.info("Rank coverage before clade exclusion:\n" + test_obj.summarise_rank_coverage(rank_representation))
-
-    ##
-    # Find the best set of representative sequences
-    ##
-    training_lineages = 0
-    positive_headers = set()
-    training_seq_reps = {}
-    test_obj.populate_true_positive_lineage_map()
-    training_ranks = {r for r in test_obj.rank_depth_map if test_obj.rank_depth_map[r] > 2}
-    logging.info("Subsetting the true positives from the FASTA '%s'... " % test_fasta.file)
-    # Subset the sequences in args.input to only contain the true positives. False negatives will probably be useless
-    for refpkg_code in test_obj.tp:
-        for tp_seq in test_obj.tp[refpkg_code]:  # type: ts_MCC.ClassifiedSequence
-            positive_headers.add(tp_seq.name)
-    test_fasta.keep_only(list(positive_headers))
-    logging.info("done.\n")
+    summarize_training_rank_coverage(test_obj)
 
     # Convert the true positive dictionary to the same format, flattening the ClassifiedSequence instances
     flattened_tp = dict()
@@ -313,103 +419,7 @@ def main():
         for classified_seq in test_obj.tp[refpkg]:  # type: ts_MCC.ClassifiedSequence
             flattened_tp[refpkg].add(classified_seq.name)
 
-    pre_fp = len(vectorize_placement_data(condition_names=test_obj.fp, classifieds=classification_lines,
-                                  hmm_lengths=hmm_lengths, internal_nodes=internal_nodes_dict, refpkg_map=refpkg_map))
-    pre_tp = len(vectorize_placement_data(condition_names=flattened_tp, classifieds=classification_lines,
-                                  hmm_lengths=hmm_lengths, internal_nodes=internal_nodes_dict, refpkg_map=refpkg_map))
-
-    logging.info("Determining the set of test query sequences for each reference package... ")
-    for refpkg_code in test_obj.ref_packages:  # type: str
-        # Write a FASTA file for each of the reference packages
-        refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
-
-        reps_fasta = FASTA(test_fasta.file)
-        reps_fasta.clone(test_fasta)
-        reps_fasta.file = evaluator.var_output_dir + base_file_prefix(test_fasta.file) + "_" + refpkg.prefix + "_subset.fasta"
-        reps_fasta.keep_only(header_subset=[tp_seq.name for tp_seq in test_obj.tp[refpkg_code]])
-        for acc in sorted(reps_fasta.header_registry, key=int):
-            header = reps_fasta.header_registry[acc]  # type: Header
-            header.accession = header.original
-
-        leaf_taxa_map = {leaf.number: leaf.lineage for leaf in refpkg.tax_ids_file_to_leaves()}
-
-        reps_fasta.change_dict_keys("accession")
-        training_seq_reps[refpkg_code] = prepare_training_data(reps_fasta, evaluator.var_output_dir,
-                                                               evaluator.executables,
-                                                               leaf_taxa_map, test_obj.tp_lineage_map[refpkg_code],
-                                                               training_ranks)
-        training_lineages += sum([len(training_seq_reps[refpkg_code][rank]) for rank in training_seq_reps[refpkg_code]])
-        write_new_fasta(reps_fasta.fasta_dict, reps_fasta.file)
-    logging.info("done.\n")
-
-    ##
-    # Simulate data using clade exclusion analysis to ensure coverage across different ranks is even
-    ##
-    test_fasta.change_dict_keys("accession")
-    refpkg_testable_lineages = {}
-    pbar = tqdm(total=training_lineages)
-    for rank in sorted(training_ranks, key=lambda r: test_obj.rank_depth_map[r]):
-        logging.debug("Simulating %s-level relationship data... " % rank)
-        # Collect the lineages that can be tested for each reference package
-        for refpkg_code in test_obj.ref_packages:
-            refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
-            ref_lineages = {leaf.number: leaf.lineage for leaf in refpkg.tax_ids_file_to_leaves()}
-            refpkg_testable_lineages[refpkg_code] = get_testable_lineages_for_rank(rank=rank,
-                                                                                   ref_lineage_map=ref_lineages,
-                                                                                   query_lineage_map=test_obj.tp_lineage_map[refpkg_code])
-        depth = test_obj.rank_depth_map[rank]
-        testable_refpkgs = list(refpkg_testable_lineages.keys())
-        while ceiling*0.51 > rank_representation[depth] and testable_refpkgs:
-            # Pick a random reference package
-            for refpkg_code in testable_refpkgs:
-                refpkg = test_obj.ref_packages[refpkg_code]
-                try:
-                    lineage = refpkg_testable_lineages[refpkg_code].pop()
-                except (ValueError, IndexError):
-                    # Pop the refpkg code from the list being iterated over, since the dictionary value was exhausted
-                    testable_refpkgs.pop(testable_refpkgs.index(refpkg_code))
-                    continue
-                try:
-                    lineage_seqs = {seq_name: test_fasta.fasta_dict[seq_name] for seq_name in
-                                    training_seq_reps[refpkg_code][rank][lineage]}
-                except KeyError:
-                    logging.debug("Unable to test lineage '%s' as its missing in %s training sequences.\n" %
-                                  (lineage, refpkg_code))
-                    continue
-                taxon_test = evaluator.clade_exclusion_outputs(lineage, rank, refpkg.prefix)
-                classification_table = taxon_test.classifier_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
-                if not os.path.isfile(classification_table):
-                    assign_args = evaluator.prep_for_clade_exclusion(refpkg, taxon_test, lineage, lineage_seqs,
-                                                                     trim_align=True, num_threads=args.procs,
-                                                                     no_svm=True, targeted=True)
-                    try:
-                        assign(assign_args)
-                    except:  # Just in case treesapp assign fails, just continue
-                        pass
-
-                    refpkg.restore_reference_package(taxon_test.temp_files_prefix, taxon_test.intermediates_dir)
-                    if not os.path.isfile(classification_table):
-                        # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
-                        logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
-                        rmtree(taxon_test.intermediates_dir + "TreeSAPP_output" + os.sep)
-                        continue
-                    remove_clade_exclusion_files(evaluator.var_output_dir + refpkg.prefix + os.sep)
-
-                if not os.path.isfile(classification_table):
-                    logging.error("marker_contig_map.tsv is missing from output directory '" +
-                                  os.path.dirname(classification_table) + "'\n" +
-                                  "Please remove this directory and re-run.\n")
-                    sys.exit(21)
-
-                assigned_lines = ts_fp.read_marker_classification_table(classification_table)
-                classification_lines += assigned_lines
-                rank_representation[depth] += len(assigned_lines)
-                pbar.update(1)
-        refpkg_testable_lineages.clear()
-        logging.info("done.\n")
-    pbar.close()
-    # Summarise the number of classifications for each rank
-    logging.info("Rank coverage after clade exclusion:\n" + test_obj.summarise_rank_coverage(rank_representation))
+    # TODO: Create a separate workflow for the one-class classifier
 
     logging.info("Extracting features from TreeSAPP classifications... ")
     fp = vectorize_placement_data(condition_names=test_obj.fp, classifieds=classification_lines,
@@ -424,8 +434,6 @@ def main():
         sys.exit(5)
     logging.info("done.\n")
 
-    print("%d false positives and %d true positives prior to clade exclusion additions" % (pre_fp, pre_tp))
-
     logging.info("Using %d true positives and %d false positives to train and test.\n" % (len(tp), len(fp)))
 
     # Split dataset into the two training and testing sets - 60% training and 40% testing
@@ -436,56 +444,25 @@ def main():
         generate_tsne(classified_data, conditions, tsne_file)
 
     if args.grid_search:
+        # Test all the available kernels and return/exit
         kernels = ["lin", "rbf", "poly"]
         for k in kernels:
             evaluate_grid_scores(k, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, jobs=args.procs)
         return
 
     # Create a SVM Classifier
-    if args.kernel == "lin":
-        clf = svm.LinearSVC(random_state=12345, max_iter=1E7, tol=1E-5, dual=False, C=10)  # Linear Kernel
-        k_name = "linear"
-    elif args.kernel == "rbf":
-        clf = svm.SVC(kernel="rbf", tol=1E-5, gamma="auto", C=100)
-        k_name = "Radial Basis Function (RBF)"
-    elif args.kernel == "poly":
-        clf = svm.SVC(kernel="poly", tol=1E-5, gamma="auto", C=100)
-        k_name = "polynomial"
-    else:
-        logging.error("Unknown SVM kernel '%s'.\n" % args.kernel)
-        # poly_clf = svm.SVC(kernel="poly", tol=1E-3, max_iter=1E6, degree=6, gamma="auto")
-        sys.exit(3)
+    clf = instantiate_classifier(args.kernel)
 
-    logging.info("Training the SVM with a %s kernel... " % k_name)
+    logging.info("Training the classifier... ")
     # Train the model using the training sets
     clf.fit(x_train, y_train)
     logging.info("done.\n")
 
-    logging.info("Classifying test data... ")
-    # Predict the response for test dataset
-    y_pred = clf.predict(x_test)
-    logging.info("done.\n")
+    evaluate_classifier(clf, x_test, y_test, classified_data, conditions)
 
-    scores = model_selection.cross_val_score(clf, classified_data, conditions, cv=10, scoring='f1')
-    logging.info("F1-score\t%0.2f (+/- %0.2f)\n" % (scores.mean(), scores.std() * 2))
-    # Model Accuracy: how often is the classifier correct?
-    logging.info("Accuracy\t" + str(round(metrics.accuracy_score(y_test, y_pred), 2)) + "\n")
-    # Model Precision: what percentage of positive tuples are labeled as such?
-    logging.info("Precision\t" + str(round(metrics.precision_score(y_test, y_pred), 2)) + "\n")
-    # Model Recall: what percentage of positive tuples are labelled as such?
-    logging.info("Recall\t\t" + str(round(metrics.recall_score(y_test, y_pred), 2)) + "\n")
-
-    logging.info("Pickling model... ")
-    try:
-        pkl_handler = open(pickled_model, 'wb')
-    except IOError:
-        logging.error("Unable to open model file '%s' for writing.\n" % pickled_model)
-        sys.exit(3)
-    joblib.dump(value=clf, filename=pkl_handler)
-    pkl_handler.close()
-    logging.info("done.\n")
+    package_classifier(clf, args.model)
 
     return
 
 
-main()
+main(sys.argv)
