@@ -62,6 +62,12 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                  help="Path to the directory containing reference package JSON files. "
                                       "[ DEFAULT = treesapp/data/ ]")
 
+    def add_refpkg_targets(self):
+        self.optopt.add_argument('-t', '--targets', default='', type=str, dest="targets",
+                                 help="A comma-separated list specifying which reference packages to use. "
+                                      "They are to be referenced by their 'prefix' attribute. "
+                                      "Use `treesapp info -v` to get the available list [ DEFAULT = ALL ]")
+
     def add_refpkg_file_param(self):
         self.reqs.add_argument("-r", "--refpkg_path", dest="pkg_path", required=True,
                                help="Path to the reference package JSON file.\n")
@@ -165,8 +171,8 @@ def add_layer_arguments(parser: TreeSAPPArgumentParser):
                              help="The TreeSAPP output directory.")
     parser.optopt.add_argument("-c", "--colours_style", required=False, nargs='+',
                                help="The colours_style file exported from iTOL with the annotation information. "
-                                     "For the variable name to be automatically inferred (rather than through `names`). "
-                                     "Format of the file should be `marker`_`var`.txt. For example: mcrA_Metabolism.txt "
+                                     "To automatically infer the variable name (rather than through `names`). "
+                                     "File name format should be `marker`_`var`.txt. For example: McrA_Metabolism.txt "
                                      "would create a new column in marker_contig_map.tsv named 'Metabolism'.")
     parser.optopt.add_argument("-d", "--annot_dir", required=False, default=None,
                                help="Path to a directory containing iTOL annotation files for layering.")
@@ -181,6 +187,7 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     """
     parser.add_io()
     parser.add_refpkg_opt()
+    parser.add_refpkg_targets()
     parser.add_rpkm_params()
     parser.add_seq_params()
     parser.add_search_params()
@@ -193,10 +200,6 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.optopt.add_argument("-l", "--min_likelihood", default=0.1, type=float,
                                help="The minimum likelihood weight ratio required for an EPA placement. "
                                "[DEFAULT = 0.1]")
-    parser.optopt.add_argument('-t', '--targets', default='', type=str,
-                               help="A comma-separated list specifying which reference packages to use. "
-                                    "They are to be referenced by their 'prefix' attribute. "
-                                    "Use `treesapp info -v` to get the available list [DEFAULT = ALL]")
     parser.optopt.add_argument("--no_svm", default=False, required=False, action="store_true",
                                help="Disables the support vector machine (SVM) classifier. "
                                     "WARNING: Unless you *really* know your refpkg, you probably don't want this.")

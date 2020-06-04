@@ -1498,6 +1498,7 @@ class PhyTrainer(TreeSAPP):
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
         self.placement_table = ""
         self.placement_summary = ""
+        self.target_refpkgs = list()
 
         # Limit this to just Class, Family, and Species - other ranks are inferred through regression
         self.training_ranks = {"class": 3, "species": 7}

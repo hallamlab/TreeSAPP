@@ -104,7 +104,7 @@ def read_graftm_classifications(assignment_file):
     return assignments
 
 
-def parse_assignments(classified_lines: list):
+def parse_assignments(classified_lines: list) -> dict:
     """
     Parses the marker_contig_map.tsv lines loaded to retrieve lineage assignment and marker information
 
@@ -149,7 +149,7 @@ def parse_assignments(classified_lines: list):
     return assignments
 
 
-def read_marker_classification_table(assignment_file):
+def read_marker_classification_table(assignment_file) -> list:
     """
     Function for reading the tabular assignments file (currently marker_contig_map.tsv)
     Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
