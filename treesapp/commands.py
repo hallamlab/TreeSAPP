@@ -485,11 +485,10 @@ def create(sys_args):
             logging.warning("Linear regression parameters could not be estimated. " +
                             "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
             ts_create.ref_pkg.pfit = [0.0, 7.0]
-        ts_create.print_terminal_commands()
 
     ts_create.ref_pkg.band()
-    logging.info("Data for " + ts_create.ref_pkg.prefix + " has been generated successfully.\n")
     ts_create.remove_intermediates(args.delete)
+    ts_create.print_terminal_commands()
 
     return
 
