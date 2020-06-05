@@ -6,27 +6,28 @@ Stage: build
     /usr/local/bin/usearch
 
 %post
-    export TS_VERSION="0.6.7"
+    export TS_VERSION="0.8.0"
 
 	##
     # Install the linux package dependencies, this is currently including Python 3.6.5
     ##
     apt -y update
-    apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk time \
+    apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk time libssl-dev \
+    autotools-dev libtool flex bison cmake automake autoconf \
     python3 python3-distutils python3-dev
     ln -s /usr/bin/python3 /usr/bin/python
     curl https://bootstrap.pypa.io/get-pip.py | python
-    mkdir TreeSAPP/; cd TreeSAPP/
     python -V
+
+    ##
+    # Pull TreeSAPP
+    ##
+    git clone https://github.com/hallamlab/TreeSAPP.git
+    cd TreeSAPP; git checkout ng-update; git pull
 
 	##
     # Install TreeSAPP dependencies
     ##
-    # RAxML-v8.2.12
-    curl -LJ0 --output v8.2.12.tar.gz https://github.com/stamatak/standard-RAxML/archive/v8.2.12.tar.gz
-    tar -xzf v8.2.12.tar.gz; cd standard-RAxML-8.2.12/;
-    make -f Makefile.SSE3.PTHREADS.gcc; rm *.o; cd -; cp standard-RAxML-8.2.12/raxmlHPC-PTHREADS-SSE3 /usr/bin/raxmlHPC
-    rm v8.2.12.tar.gz
 
     # MAFFT
 	curl -LJ0 --output mafft.deb https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
@@ -60,14 +61,28 @@ Stage: build
 	curl -LJ0 --output /usr/bin/FastTree http://microbesonline.org/fasttree/FastTreeDbl
     chmod +x /usr/bin/FastTree
 
+    # RAxML-NG
+    curl -LJ0 --output raxml-ng.zip https://github.com/amkozlov/raxml-ng/releases/download/0.9.0/raxml-ng_v0.9.0_linux_x86_64_MPI.zip
+    unzip raxml-ng.zip; unzip -d raxml-ng/ raxml-ng.zip; cd raxml-ng
+    ./install.sh; cp bin/raxml-ng /usr/bin/; cd -
+    rm raxml-ng.zip
+
+    # EPA-NG
+    curl -LJ0 --output epa-ng.tar.gz https://github.com/Pbdas/epa-ng/archive/v0.3.6.tar.gz
+    tar -xzf epa-ng.tar.gz; cd epa-ng-0.3.6/
+    make; cp bin/epa-ng /usr/bin/; cd -
+    rm epa-ng.tar.gz
+
 	##
     # Install TreeSAPP
     ##
-    pip install treesapp==$TS_VERSION
+    # pip install treesapp==$TS_VERSION
+    python setup.py sdist; python3 -m pip install dist/treesapp-${TS_VERSION}.tar.gz
+
 
 %labels
     Author Connor Morgan-Lang
-    Version v0.6.7
+    Version v0.8.0
 
 %help
     This container installs the latest TreeSAPP release from PyPI at https://pypi.org/project/treesapp/
