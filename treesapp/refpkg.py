@@ -63,13 +63,14 @@ class ReferencePackage:
             yield attr, value
 
     def get_info(self):
-        return "\n\t".join(["ReferencePackage instance of %s (%s):" % (self.prefix, self.refpkg_code),
-                            "Molecule type:                                      " + self.molecule,
-                            "Substitution model used for phylogenetic inference: " + self.sub_model,
-                            "Number of reference sequences (leaf nodes):         " + str(self.num_seqs),
-                            "Software used to infer phylogeny:                   " + self.tree_tool,
-                            "Date of last update:                                " + self.update,
-                            "Description:                                        '%s'" % self.description]) + "\n"
+        return "\n\t".join(["ReferencePackage instance of {} ({}):".format(self.prefix, self.refpkg_code),
+                            "Molecule type:                                      '{}'".format(self.molecule),
+                            "Substitution model used for phylogenetic inference: '{}'".format(self.sub_model),
+                            "Number of reference sequences (leaf nodes):          {}".format(self.num_seqs),
+                            "Software used to infer phylogeny:                   '{}'".format(self.tree_tool),
+                            "Date of last update:                                '{}'".format(self.update),
+                            "Description:                                        '{}'\n".format(self.description)
+                            ])
 
     def bail(self, msg=""):
         """
@@ -244,21 +245,22 @@ class ReferencePackage:
         :return: Boolean
         """
         # Check to ensure all files exist
-        valid = True
         if check_files:
             for ref_file in self.core_ref_files:
                 if not os.path.isfile(ref_file):
                     self.bail("File '{}' does not exist for ReferencePackage {}\n".format(ref_file, self.prefix))
-                    valid = False
+                    return False
 
         # Compare the number of sequences in the multiple sequence alignment
         refpkg_fa = self.get_fasta()
+        if not refpkg_fa:
+            return False
         if self.num_seqs != refpkg_fa.n_seqs():
             self.bail("Number of sequences in {} "
                       "ReferencePackage.num_seqs ({}) and MSA ({}) differ.\n".format(self.prefix,
                                                                                      self.num_seqs,
                                                                                      refpkg_fa.n_seqs()))
-            valid = False
+            return False
 
         # TODO: Compare the number of sequences in the Hidden-Markov model
         # TODO: Compare the number of sequences in the Tree files
@@ -269,14 +271,11 @@ class ReferencePackage:
                       "ReferencePackage.num_seqs ({}) and leaf nodes ({}) differ.\n".format(self.prefix,
                                                                                             self.num_seqs,
                                                                                             n_leaf_nodes))
-            valid = False
+            return False
 
         if not self.sub_model:
             self.bail("Unable to find the substitution model used for ReferencePackage '{}'.\n".format(self.prefix))
-            valid = False
-
-        if not valid:
-            raise AttributeError
+            return False
 
         return True
 
@@ -287,8 +286,8 @@ class ReferencePackage:
         :return: A FASTA instance populated by the reference package's msa attribute
         """
         if not self.msa:
-            logging.error("ReferencePackage MSA hasn't been slurped, unable to read FASTA.\n")
-            sys.exit(3)
+            logging.debug("ReferencePackage MSA hasn't been slurped, unable to read FASTA.\n")
+            return
 
         refpkg_fa = FASTA(self.f__msa)
         name, seq = "", ""
