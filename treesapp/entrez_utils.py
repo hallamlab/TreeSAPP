@@ -4,6 +4,7 @@ import sys
 import time
 import re
 import logging
+import traceback
 import csv
 
 from Bio import Entrez
@@ -333,7 +334,8 @@ def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, 
         ref_seq.tracking_stamp()
 
     if lineage_added == 0:
-        logging.warning("No lineages from the accession map were added to the EntrezRecord attributes.\n")
+        logging.debug("No lineages from the accession map were added to the EntrezRecord attributes.\n")
+
     return
 
 
@@ -464,6 +466,7 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
     :return: None
     """
     tax_id_map = dict()
+    pulled_tax_ids = set()
     if not t_hierarchy:
         t_hierarchy = TaxonomicHierarchy()
     prep_for_entrez_query()
@@ -489,6 +492,8 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
         tax_id = parse_gbseq_info_from_entrez_xml(record, "TaxId")
         if len(tax_id) == 0:
             logging.warning("Empty TaxId returned in Entrez XML.\n")
+            continue
+        pulled_tax_ids.add(tax_id)
         tax_lineage = parse_gbseq_info_from_entrez_xml(record, "Lineage")
         tax_organism = parse_gbseq_info_from_entrez_xml(record, "ScientificName")
         tax_rank = parse_gbseq_info_from_entrez_xml(record, "Rank")
@@ -513,7 +518,14 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
                 e_record.taxon_rank = t_hierarchy.resolved_to(lineage_anno)
                 e_record.tracking_stamp()
         except KeyError:
-            logging.error("Why is this missing?\n")
+            continue
+
+    if len(pulled_tax_ids.symmetric_difference(set(tax_id_map.keys()))) > 0:
+        dl_taxids = set(tax_id_map.keys())
+        logging.debug("The following NCBI taxids are unique to the queries:\n{}\n"
+                      "The following NCBI taxids are unique to the downloads:\n{}\n"
+                      "".format(", ".join(dl_taxids.difference(pulled_tax_ids)),
+                                ", ".join(pulled_tax_ids.difference(dl_taxids))))
     return
 
 
