@@ -12,6 +12,7 @@ from scipy import log2
 from treesapp.utilities import Autovivify, mean
 from treesapp.phylo_seq import TreeLeafReference
 
+
 def get_node(tree: str, pos: int) -> (int, int):
     """
     Retrieves an internal node name from a Newick tree string
@@ -179,8 +180,8 @@ def validate_internal_node_map(node_map):
 
 def map_internal_nodes_leaves(tree: str) -> dict:
     """
-    Loads a Newick-formatted tree with internal nodes into a dictionary of all internal nodes (keys)
-    and a list of child leaves (values). The Newick tree already contains internal nodes?
+    Loads a Newick-formatted tree into a dictionary of all internal nodes (keys) and a list of child leaves (values).
+    NOTE: the Newick tree must already contain internal nodes in braces. These trees are returned by EPA-NG.
 
     :param tree: A string of an already read Newick tree file. Tree text exists on a single line.
     :return: Dictionary of all internal nodes (keys) and a list of child leaves (values)

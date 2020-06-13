@@ -400,6 +400,33 @@ class TreeProtein(ItolJplace):
         return children
 
 
+def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
+    """
+    Used for converting the TreeSAPP-assignment information of classified sequences (found in self.classifications)
+    into ItolJplace instances such that these can be reproducibly modified and written again, if needed.
+
+    :param classified_lines: A list of lists. Each sub-list represents a line from self.classifications
+    :param refpkg_dict: A dictionary of MarkerBuild instances indexed by their RefPkg codes
+    :return: A dictionary of ItolJplace instances, indexed by their respective names (ReferencePackage.prefix)
+    """
+    pqueries = dict()
+    for fields in classified_lines:
+        tree_sap = TreeProtein()
+        try:
+            _, tree_sap.contig_name, tree_sap.name, tree_sap.seq_len, tree_sap.lct, tree_sap.recommended_lineage,\
+            _, tree_sap.inode, tree_sap.lwr, tree_sap.avg_evo_dist, tree_sap.distances = fields
+        except ValueError:
+            logging.error("Bad line in classification table:\n" +
+                          '\t'.join(fields) + "\n")
+            sys.exit(21)
+        refpkg = refpkg_dict[tree_sap.name]  # type: refpkg.ReferencePackage
+        try:
+            pqueries[refpkg.prefix].append(tree_sap)
+        except KeyError:
+            pqueries[refpkg.prefix] = [tree_sap]
+    return pqueries
+
+
 class TreeLeafReference:
     """
     Objects for each leaf in a tree

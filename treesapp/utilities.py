@@ -363,7 +363,6 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
     seq_info = namedtuple(typename="seq_info",
                           field_names=["accession", "version", "description", "locus", "organism", "lineage", "taxid"])
     accession = ""
-    description = ""
     locus = ""
     organism = ""
     lineage = ""
@@ -374,24 +373,20 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
         if header_db == "custom":
             lineage = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
-            description = regex_match_groups.group(3)
         elif header_db in ["eggnog", "eggnot"]:
             taxid = regex_match_groups.group(1)
             accession = regex_match_groups.group(1) + '.' + regex_match_groups.group(2)
         elif header_db == "ts_assign":
             accession = '|'.join(regex_match_groups.groups())
-            description = regex_match_groups.group(1)
             locus = regex_match_groups.group(3)
         elif header_db == "unformatted":
             accession = re.sub(r"^>", '', header)
         elif header_db == "silva":
             locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
             lineage = regex_match_groups.group(4)
-            description = regex_match_groups.group(4)
         elif header_db == "pfam":
             accession = str(regex_match_groups.group(2))
         elif len(regex_match_groups.groups()) == 3:
-            description = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
         elif len(regex_match_groups.groups()) == 2:
             organism = regex_match_groups.group(2)
@@ -412,7 +407,7 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
         sys.exit(13)
     if not accession:
         accession = re.sub(r"^>", '', header)
-    seq_info = seq_info(accession, version, description, locus, organism, lineage, taxid)
+    seq_info = seq_info(accession, version, header, locus, organism, lineage, taxid)
 
     return seq_info
 

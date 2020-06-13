@@ -381,8 +381,9 @@ class ReferencePackage:
 
         return
 
-    def hmm_length(self):
+    def hmm_length(self) -> None:
         self.profile_length = get_hmm_length(self.f__profile)
+
 
     def alignment_dims(self):
         return multiple_alignment_dimensions(self.f__msa)

@@ -50,7 +50,7 @@ def grab_graftm_taxa(tax_ids_file):
     return taxonomic_tree
 
 
-def optimal_taxonomic_assignment(trie, query_taxon):
+def optimal_taxonomic_assignment(trie: StringTrie, query_taxon: str):
     while not trie.__contains__(query_taxon) and len(query_taxon.split('; ')) > 1:
         query_taxon = "; ".join(query_taxon.split('; ')[:-1])
     if not trie.__contains__(query_taxon):

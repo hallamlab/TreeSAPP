@@ -179,6 +179,20 @@ class TreesappTester(unittest.TestCase):
         train(train_command_list)
         return
 
+    def test_classifier_trainer(self):
+        import os
+        from classifier_trainer import classifier_trainer as ct_main
+        from . import testing_utils as utils
+        command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
+                        "--output", "./TreeSAPP_svc_train",
+                        "--refpkg_path", os.path.join(utils.get_treesapp_path(),
+                                                      "treesapp", "data", "McrA_build.json"),
+                        "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
+                        "--num_proc", str(2),
+                        "--molecule", "prot",
+                        "--trim_align", "--delete", "--overwrite"]
+        ct_main(command_list)
+
 
 if __name__ == '__main__':
     unittest.main()

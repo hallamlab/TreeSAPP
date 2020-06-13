@@ -587,7 +587,20 @@ class TreeSAPP:
 
         return exec_paths
 
-    def fetch_entrez_lineages(self, ref_seqs: FASTA, molecule, acc_to_taxid=None, seqs_to_lineage=None):
+    def fetch_entrez_lineages(self, ref_seqs: FASTA, molecule: str, acc_to_taxid=None, seqs_to_lineage=None) -> dict:
+        """
+        The root function orchestrating download of taxonomic lineage information using BioPython's Entrez API.
+        In addition to this, the function supports a couple different tables containing taxonomic lineage information
+        such as organism names, NCBI 'taxid's, and complete lineages associated with their respective sequence names.
+
+        :param ref_seqs: A populated FASTA instance. From this instance, the header_registry is parsed and the format
+        (i.e. database-specific header format) is assumed using a host of regular expressions to pull the relevant
+        information that can be used for downloading the whole taxonomic lineage using the Entrez API.
+        :param molecule: The molecule type of the sequences in ref_seqs. Either 'prot', 'dna', 'rrna', or 'ambig'.
+        :param acc_to_taxid: Path to a table mapping NCBI accessions to NCBI taxids
+        :param seqs_to_lineage: Path to a table mapping sequence names to their respective taxonomic lineage
+        :return: A dictionary mapping unique numerical TreeSAPP identifiers to EntrezRecord instances
+        """
         # Get the lineage information for the training/query sequences
         entrez_record_dict = get_header_info(ref_seqs.header_registry, self.ref_pkg.prefix)
         entrez_record_dict = dedup_records(ref_seqs, entrez_record_dict)
@@ -1270,51 +1283,6 @@ class Evaluator(TreeSAPP):
         test_obj.classifier_output = test_obj.intermediates_dir + "TreeSAPP_output" + os.sep
         return test_obj
 
-    def prep_for_clade_exclusion(self, refpkg: ReferencePackage, taxa_test: TaxonTest, lineage: str, lineage_seqs: dict,
-                                 trim_align=False, no_svm=False, min_seq_len=0, targeted=False, num_threads=2) -> list:
-        """
-        Calls ReferencePackage.exlude_clade_from_ref_files() to remove all reference sequences/leaf nodes from the
-        reference package that are descendents of `lineage`.
-
-        Creates the TreeSAPP assign arguments list, which is to be called outside of this function.
-
-        :param refpkg: The ReferencePackage object that is to be used for clade exclusion, of which reference sequences
-         that are descendents of `lineage` will be removed.
-        :param lineage: Taxonomic lineage which is going to be used in this clade exclusion analysis
-        :param lineage_seqs: A fasta-like dictionary where headers are sequence names (accessions) and values are
-         their respective nucleotide or amino acid sequences.
-        :param taxa_test:
-        :param trim_align: Flag determining whether TreeSAPP should use BMGE to trim the multiple sequence alignments
-         prior to phylogenetic placement
-        :param no_svm: Flag controlling whether SVM-filtering is applied to placements
-        :param min_seq_len: The minimum sequence length argument for TreeSAPP
-        :param num_threads: The maximum number or threads and processes TreeSAPP and its dependencies can use
-        :param targeted: Boolean controlling whether homology search against the query sequences just uses this
-         reference package's HMM (True) or all HMMs available in TreeSAPP (False)
-        :return: A list of arguments to be called by TreeSAPP's assign function and a TaxonTest object
-        """
-        # Copy reference files, then exclude all clades belonging to the taxon being tested
-        taxa_test.temp_files_prefix = refpkg.exclude_clade_from_ref_files(self.refpkg_dir, self.molecule_type,
-                                                                          self.var_output_dir + refpkg.prefix + os.sep,
-                                                                          lineage, self.executables)
-        # Write the query sequences
-        taxa_test.queries = lineage_seqs.keys()
-        write_new_fasta(lineage_seqs, taxa_test.test_query_fasta)
-
-        assign_args = ["-i", taxa_test.test_query_fasta, "-o", taxa_test.classifier_output,
-                       "-m", self.molecule_type, "-n", str(num_threads),
-                       "--overwrite", "--delete"]
-        if trim_align:
-            assign_args.append("--trim_align")
-        if no_svm:
-            assign_args.append("--no_svm")
-        if min_seq_len:
-            assign_args += ["--min_seq_length", str(min_seq_len)]
-        if targeted:
-            assign_args += ["--targets", refpkg.refpkg_code]
-
-        return assign_args
-
 
 class Layerer(TreeSAPP):
     def __init__(self):
@@ -1354,32 +1322,6 @@ class Abundance(TreeSAPP):
         self.validate_refpkg_dir(args.refpkg_dir)
 
         return
-
-    def assignments_to_treesaps(self, classified_lines: list, refpkg_dict: dict) -> dict:
-        """
-        Used for converting the TreeSAPP-assignment information of classified sequences (found in self.classifications)
-        into ItolJplace instances such that these can be reproducibly modified and written again, if needed.
-
-        :param classified_lines: A list of lists. Each sub-list represents a line from self.classifications
-        :param refpkg_dict: A dictionary of MarkerBuild instances indexed by their RefPkg codes
-        :return: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
-        """
-        pqueries = dict()
-        for fields in classified_lines:
-            tree_sap = TreeProtein()
-            try:
-                _, tree_sap.contig_name, tree_sap.name, tree_sap.seq_len, tree_sap.lct, tree_sap.recommended_lineage,\
-                _, tree_sap.inode, tree_sap.lwr, tree_sap.avg_evo_dist, tree_sap.distances = fields
-            except ValueError:
-                logging.error("Bad line in classification table {}:\n".format(self.classifications) +
-                              '\t'.join(fields) + "\n")
-                sys.exit(21)
-            refpkg = refpkg_dict[tree_sap.name]  # type: ReferencePackage
-            try:
-                pqueries[refpkg.prefix].append(tree_sap)
-            except KeyError:
-                pqueries[refpkg.prefix] = [tree_sap]
-        return pqueries
 
 
 class Assigner(TreeSAPP):

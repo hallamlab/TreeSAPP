@@ -22,7 +22,7 @@ from treesapp import update_refpkg
 from treesapp import annotate_extra
 from treesapp import treesapp_args
 from treesapp import classy
-from treesapp.phylo_seq import TreeProtein
+from treesapp.phylo_seq import TreeProtein, assignments_to_treesaps
 from treesapp.refpkg import ReferencePackage
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
@@ -95,7 +95,13 @@ def info(sys_args):
     return
 
 
-def package(sys_args):
+def package(**kwargs):
+    """
+    Perform specific operations on JSON-formatted single-file reference packages
+
+    :param kwargs: Keyword arguments
+    :return:
+    """
     parser = treesapp_args.TreeSAPPArgumentParser(description='')
     return
 
@@ -1045,7 +1051,7 @@ def abundance(sys_args):
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
         assignments = file_parsers.read_marker_classification_table(ts_abund.classifications)
         # Convert assignments to TreeProtein instances
-        tree_saps = ts_abund.assignments_to_treesaps(assignments, refpkg_dict)
+        tree_saps = assignments_to_treesaps(assignments, refpkg_dict)
         summarize_placements_rpkm(tree_saps, abundance_dict, refpkg_dict, ts_abund.final_output_dir)
         write_classification_table(tree_saps, ts_abund.sample_prefix, ts_abund.classifications)
 

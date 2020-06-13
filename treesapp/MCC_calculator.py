@@ -4,23 +4,23 @@ __author__ = 'Connor Morgan-Lang'
 
 import argparse
 import os
-import sys
-import re
-import logging
 import shutil
 import sys
 import logging
 import re
 from glob import glob
 from numpy import sqrt
+
 from ete3 import Tree
+
 from treesapp import file_parsers
+from treesapp.phylo_seq import ItolJplace
+from treesapp.refpkg import ReferencePackage
 from treesapp.commands import assign
 from treesapp.fasta import get_headers
 from treesapp.external_command_interface import launch_write_command
 from treesapp.classy import prep_logging
-from refpkg import ReferencePackage
-from treesapp.entrez_utils import EntrezRecord, fetch_lineages_from_taxids
+from treesapp.entrez_utils import EntrezRecord
 from treesapp.lca_calculations import compute_taxonomic_distance, optimal_taxonomic_assignment, grab_graftm_taxa
 from treesapp.utilities import get_hmm_length
 
@@ -46,7 +46,7 @@ class ClassifiedSequence:
 class ConfusionTest:
     def __init__(self, gene_list):
         self._MAX_TAX_DIST = -1
-        self.header_regex = None
+        self.header_regex = re.compile(r"^>?(COG[A-Z0-9]+|ENOG[A-Z0-9]+)_(\d+)\..*")
         self.ref_packages = {key: ReferencePackage() for key in gene_list}
         self.fn = {key: [] for key in gene_list}
         self.fp = {key: set() for key in gene_list}
@@ -86,7 +86,7 @@ class ConfusionTest:
 
         return info_string
 
-    def map_data(self, output_dir, tool):
+    def map_data(self, output_dir, tool: str):
         if tool == "treesapp":
             self.data_dir = output_dir + os.sep + "TreeSAPP_output" + os.sep
             self.classification_table = self.data_dir + "final_outputs" + os.sep + "marker_contig_map.tsv"
@@ -101,8 +101,11 @@ class ConfusionTest:
 
     def summarise_rank_coverage(self, rank_coverage: dict) -> str:
         summary_string = "Rank\tClassifications\n"
-        for rank in self.rank_depth_map:
-            summary_string += rank + "\t" + str(rank_coverage[self.rank_depth_map[rank]]) + "\n"
+        for rank in sorted(self.rank_depth_map, key=lambda x: self.rank_depth_map[x]):
+            try:
+                summary_string += rank + "\t" + str(rank_coverage[self.rank_depth_map[rank]]) + "\n"
+            except KeyError:
+                continue
         return summary_string
 
     def marker_classification_summary(self, refpkg_name):
@@ -124,57 +127,41 @@ class ConfusionTest:
         summary_string += "\tTrue negatives\t\t" + str(self.get_true_negatives(refpkg_name)) + "\n"
         return summary_string
 
-    def populate_tax_lineage_map(self, classified_seq_list, records_list, group=1):
-        for seq_name in classified_seq_list:  # type: str
-            try:
-                tax_id = self.header_regex.search(seq_name).group(group)
-            except (KeyError, TypeError):
-                logging.error("Header '" + str(seq_name) + "' in test FASTA doesn't match the supported format.\n")
-                sys.exit(5)
+    def populate_tax_lineage_map(self, entrez_record_dict: dict) -> None:
+        """
+        Used for pulling the NCBI taxid from a sequence name (header). This is most effective for handling
+        EggNOG-formatted headers where the NCBI taxid is the first part, followed by a period, then the organism name
+
+        :param entrez_record_dict: A dictionary mapping unique numerical TreeSAPP identifiers to EntrezRecord instances
+        :return: None
+        """
+        for ts_id in entrez_record_dict:  # type: str
+            e_record = entrez_record_dict[ts_id]  # type: EntrezRecord
+            if not e_record.description:
+                logging.error("No description for the following EntrezRecord:\n{}\n".format(e_record.get_info()))
+                sys.exit(3)
 
             # Only make Entrez records for new NCBI taxonomy IDs
-            if tax_id not in self.tax_lineage_map:
-                e_record = EntrezRecord(seq_name, "")
-                e_record.ncbi_tax = tax_id
-                e_record.bitflag = 3
-                records_list.append(e_record)
-                self.tax_lineage_map[e_record.ncbi_tax] = "Root; "
-        return records_list
+            if e_record.description not in self.tax_lineage_map:
+                if not e_record.lineage:
+                    logging.warning("Lineage information unavailable for accession '{}'\n".format(e_record.accession))
+                    self.tax_lineage_map[e_record.description] = ''
+                else:
+                    self.tax_lineage_map[e_record.description] = e_record.lineage
+
+        return
 
     def populate_true_positive_lineage_map(self):
         for refpkg_code in self.ref_packages:
             self.tp_lineage_map[refpkg_code] = {tp_inst.name: tp_inst.true_lineage
                                                 for tp_inst in self.tp[refpkg_code]}
-
-    def retrieve_lineages(self, group=1):
-        if not self.header_regex:
-            logging.error("Unable to parse taxonomic identifiers from header without a regular expression.\n")
-            sys.exit(19)
-
-        # Gather the unique taxonomy IDs and store in EntrezRecord instances
-        entrez_records = list()
-        for marker in self.tp:
-            entrez_records = self.populate_tax_lineage_map([tp_inst.name for tp_inst in self.tp[marker]],
-                                                           entrez_records, group)
-        for marker in self.fn:
-            entrez_records = self.populate_tax_lineage_map(self.fn[marker], entrez_records, group)
-
-        # Query the Entrez database for these unique taxonomy IDs
-        fetch_lineages_from_taxids(entrez_records)
-
-        for e_record in entrez_records:  # type: EntrezRecord
-            if not e_record.lineage:
-                logging.warning("Lineage information unavailable for taxonomy ID '" + e_record.ncbi_tax + "'\n")
-                self.tax_lineage_map[e_record.ncbi_tax] = ''
-            else:
-                self.tax_lineage_map[e_record.ncbi_tax] += e_record.lineage
         return
 
     def map_lineages(self):
         for marker in self.tp:
             for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
                 try:
-                    tp_inst.true_lineage = self.tax_lineage_map[tp_inst.ncbi_tax]
+                    tp_inst.true_lineage = self.tax_lineage_map[tp_inst.name]
                 except KeyError:
                     continue
         return
@@ -224,7 +211,8 @@ class ConfusionTest:
             self.dist_wise_tp[marker] = dict()
             for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
                 # Find the optimal taxonomic assignment
-                optimal_taxon = optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie, self.tax_lineage_map[tp_inst.ncbi_tax])
+                optimal_taxon = optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie,
+                                                             self.tax_lineage_map[tp_inst.ncbi_tax])
                 if not optimal_taxon:
                     logging.debug("Optimal taxonomic assignment '" + tp_inst.true_lineage + "' for " +
                                   tp_inst.name + " not found in reference hierarchy.\n")
@@ -255,12 +243,16 @@ class ConfusionTest:
         """
         rank_representation = dict()
         for marker in self.tp:
+            refpkg = self.ref_packages[marker]  # type: ReferencePackage
+            if refpkg.taxa_trie.lineages_fed != refpkg.taxa_trie.lineages_into_trie:
+                refpkg.taxa_trie.build_multifurcating_trie()
+
             for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
                 # Find the optimal taxonomic assignment
-                optimal_taxon = optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie, tp_inst.true_lineage)
+                optimal_taxon = optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
                 if not optimal_taxon:
-                    logging.debug("Optimal taxonomic assignment '" + tp_inst.true_lineage + "' for " +
-                                  tp_inst.name + " not found in reference hierarchy.\n")
+                    logging.debug("Optimal taxonomic assignment '{}' for {} "
+                                  "not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.name))
                     continue
                 try:
                     rank_representation[len(optimal_taxon.split("; "))] += 1
@@ -338,10 +330,11 @@ class ConfusionTest:
 
     def bin_headers(self, test_seq_names: list, assignments: dict, annot_map: dict) -> None:
         """
-        Function for sorting/binning the classified sequences at T/F positives/negatives based on the
+        Function for sorting/binning the classified sequences at T/F positives/negatives based on the annot_map file
+        that specifies which queries belong to which orthologous group/protein family and reference package.
 
         :param test_seq_names: List of all headers in the input FASTA file
-        :param assignments: Dictionary mapping taxonomic lineages to a list of headers that were classified as lineage
+        :param assignments: Dictionary mapping the ReferencePackage.prefix to TreeProtein instances
         :param annot_map: Dictionary mapping reference package (gene) name keys to database names values
         :return: None
         """
@@ -349,51 +342,22 @@ class ConfusionTest:
         # False negatives: those whose annotations match a reference package name and were not classified
         # True positives: those with a matching annotation and reference package name and were classified
         # True negatives: those that were not classified and should not have been
-        mapping_dict = dict()
-        positive_queries = dict()
-
-        for refpkg_name in annot_map:
-            orthos = annot_map[refpkg_name]  # List of all orthologous genes corresponding to a reference package
-            for gene in orthos:
-                if gene not in mapping_dict:
-                    mapping_dict[gene] = []
-                mapping_dict[gene].append(refpkg_name)
-        og_names_mapped = list(mapping_dict.keys())
-
-        logging.info("Labelling true test sequences... ")
-        for header in test_seq_names:
-            try:
-                ref_g, tax_id = self.header_regex.match(header).groups()
-            except (TypeError, KeyError):
-                logging.error("Header '" + header + "' in test FASTA file does not match the supported format.\n")
-                sys.exit(5)
-            if ref_g in mapping_dict:
-                markers = mapping_dict[ref_g]
-                ##
-                # This leads to double-counting and is therefore deduplicated later
-                ##
-                for marker in markers:
-                    if not marker:
-                        logging.error("Bad marker name in " + str(mapping_dict.keys()) + "\n")
-                        sys.exit(5)
-                    try:
-                        positive_queries[marker].append(header)
-                    except KeyError:
-                        positive_queries[marker] = [header]
-                    if ref_g in og_names_mapped:
-                        i = 0
-                        while i < len(og_names_mapped):
-                            if og_names_mapped[i] == ref_g:
-                                og_names_mapped.pop(i)
-                                i = len(og_names_mapped)
-                            i += 1
-        logging.info("done.\n")
-
-        # Ensure all reference genes in mapping_dict have been used
-        if len(og_names_mapped) > 0:
-            logging.warning("Some orthologous groups in the annotation mapping file were not found in the FASTA file." +
-                            " Perhaps a mistake was made when making this file? The following OGs will be skipped:\n" +
-                            '\n'.join([str(og) + ": " + str(mapping_dict[og]) for og in og_names_mapped]) + "\n")
+        if annot_map:
+            mapping_dict = expand_annotation_map(annot_map)
+            og_names_mapped = list(mapping_dict.keys())
+            positive_queries = label_positive_classifications(test_seq_names, mapping_dict,
+                                                              og_names_mapped, self.header_regex)
+            # Ensure all reference genes in mapping_dict have been used
+            if len(og_names_mapped) > 0:
+                logging.warning(
+                    "Some orthologous groups in the annotation mapping file were not found in the FASTA file." +
+                    " Perhaps a mistake was made when making this file? The following OGs will be skipped:\n" +
+                    '\n'.join([str(og) + ": " + str(mapping_dict[og]) for og in og_names_mapped]) + "\n")
+        else:
+            mapping_dict = {}
+            positive_queries = {}
+            for refpkg_name, pqueries in assignments.items():
+                positive_queries[refpkg_name] = [pquery.contig_name for pquery in pqueries]
 
         logging.info("Assigning test sequences to the four class conditions... ")
         for marker in assignments:
@@ -404,55 +368,33 @@ class ConfusionTest:
                               ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
                 sys.exit(5)
             true_positives = set()
-            for tax_lin in assignments[marker]:
-                classified_seqs = assignments[marker][tax_lin]
-                for seq_name in classified_seqs:
-                    try:
-                        ref_g, tax_id = self.header_regex.match(seq_name).groups()
-                    except (TypeError, KeyError, AttributeError):
-                        logging.error(
-                            "Classified sequence name '" + seq_name + "' does not match the supported format.\n")
-                        sys.exit(5)
-                    if ref_g in mapping_dict and marker in mapping_dict[ref_g]:
-                        # Populate the relevant information for the classified sequence
-                        tp_inst = ClassifiedSequence(seq_name)
-                        tp_inst.ncbi_tax = tax_id
-                        tp_inst.ref = marker
-                        tp_inst.assigned_lineage = tax_lin
-
+            for pquery in assignments[marker]:  # type: ItolJplace
+                # Populate the relevant information for the classified sequence
+                tp_inst = ClassifiedSequence(pquery.contig_name)
+                tp_inst.ref = marker
+                tp_inst.assigned_lineage = pquery.recommended_lineage
+                # Bin it if the mapping_dict is present, otherwise classify it as a TP
+                if len(mapping_dict) > 0:
+                    if marker in mapping_dict and tp_inst.name in mapping_dict[marker]:
                         # Add the True Positive to the relevant collections
                         self.tp[marker].append(tp_inst)
-                        true_positives.add(seq_name)
+                        true_positives.add(tp_inst.name)
                     else:
-                        self.fp[marker].add(seq_name)
-
+                        self.fp[marker].add(tp_inst.name)
+                else:
+                    self.tp[marker].append(tp_inst)
+                    true_positives.add(tp_inst.name)
             # Identify the False Negatives using set difference - those that were not classified but should have been
             self.fn[marker] = list(positives.difference(true_positives))
         logging.info("done.\n")
         return
 
-    def og_names(self, seq_names):
-        og_names = []
-        for query in seq_names:
-            try:
-                seq_name = query.name
-            except AttributeError:
-                seq_name = query
-            og = self.header_regex.match(seq_name).group(1)
-            original_name = re.sub(og, '', seq_name)
-            if original_name[0] == '>':
-                original_name = original_name[1:]
-            if original_name[0] == '_':
-                original_name = original_name[1:]
-            og_names.append(original_name)
-        return og_names
-
     def validate_false_positives(self):
         # Get all the original Orthologous Group (OG) headers for sequences classified as TP or FN
         tp_names = []
         for marker in list(self.ref_packages.keys()):
-            tp_names += self.og_names(self.tp[marker])
-            tp_names += self.og_names(self.fn[marker])
+            tp_names += [pquery.name for pquery in self.tp[marker]]
+            tp_names += [pquery.name for pquery in self.fn[marker]]
 
         for marker in self.fp:
             validated_fp = set()
@@ -466,11 +408,11 @@ class ConfusionTest:
             self.fp[marker] = validated_fp
         return
 
-    def validate_false_negatives(self, pkg_name_dict):
+    def validate_false_negatives(self, refpkg_dbname_dict: dict):
         # Invert the dictionary
         refpkg_og_map = dict()
-        for refpkg_name in pkg_name_dict:
-            ogs = pkg_name_dict[refpkg_name]
+        for refpkg_name in refpkg_dbname_dict:
+            ogs = refpkg_dbname_dict[refpkg_name]
             for og in ogs:
                 try:
                     refpkg_og_map[og].append(refpkg_name)
@@ -479,7 +421,7 @@ class ConfusionTest:
 
         for marker in self.fn:
             homologous_tps = set()
-            for og in pkg_name_dict[marker]:
+            for og in refpkg_dbname_dict[marker]:
                 for homolgous_marker in refpkg_og_map[og]:
                     if homolgous_marker != marker:
                         homologous_tps.update(set(cs.name for cs in self.tp[homolgous_marker]))
@@ -583,6 +525,62 @@ class ConfusionTest:
             lineage_count_dict.clear()
 
         return summary_string
+
+
+def expand_annotation_map(annot_map):
+    mapping_dict = {}
+    for refpkg_name in annot_map:
+        orthos = annot_map[refpkg_name]  # List of all orthologous genes corresponding to a reference package
+        for gene in orthos:
+            if gene not in mapping_dict:
+                mapping_dict[gene] = []
+            mapping_dict[gene].append(refpkg_name)
+    return mapping_dict
+
+
+def label_positive_classifications(test_seq_names: list, annot_map: dict, og_names_mapped: list, header_regex) -> dict:
+    """
+    Collects the headers that are meant to be classified (i.e. could be either true positives or false negatives)
+    for each reference package. A dictionary is returned where the ReferencePackage.prefix (or what the query was
+    classified as) are keys and a list of all query sequence names (headers) are the values.
+
+    :param test_seq_names:
+    :param annot_map:
+    :param og_names_mapped:
+    :param header_regex: A regular expression matching annotated EggNOG headers
+    :return: A dictionary mapping refpkg names to a list of corresponding query sequences
+    """
+    # TODO: Fix to make compatible with the new verison of the annot_map file
+    positive_queries = dict()
+    logging.info("Labelling true test sequences... ")
+    for header in test_seq_names:
+        try:
+            ref_g, tax_id = header_regex.match(header).groups()
+        except (TypeError, KeyError):
+            logging.error("Header '{}' in test FASTA file does not match the supported format.\n".format(header))
+            sys.exit(5)
+        if ref_g in annot_map:
+            markers = annot_map[ref_g]
+            ##
+            # This leads to double-counting and is therefore deduplicated later
+            ##
+            for marker in markers:
+                if not marker:
+                    logging.error("Bad marker name in annotation map:\n'{}'\n".format(', '.join(annot_map.keys())))
+                    sys.exit(5)
+                try:
+                    positive_queries[marker].append(header)
+                except KeyError:
+                    positive_queries[marker] = [header]
+                if ref_g in og_names_mapped:
+                    i = 0
+                    while i < len(og_names_mapped):
+                        if og_names_mapped[i] == ref_g:
+                            og_names_mapped.pop(i)
+                            i = len(og_names_mapped)
+                        i += 1
+    logging.info("done.\n")
+    return positive_queries
 
 
 def summarize_taxonomy(taxa_list, rank, rank_depth_map=None):
