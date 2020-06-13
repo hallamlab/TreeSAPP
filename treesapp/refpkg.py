@@ -8,7 +8,7 @@ import json
 from ete3 import Tree
 
 from treesapp.phylo_seq import TreeLeafReference
-from treesapp.entish import annotate_partition_tree
+from treesapp.entish import annotate_partition_tree, map_internal_nodes_leaves
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
@@ -234,6 +234,9 @@ class ReferencePackage:
         for a, v in refpkg_data.items():
             self.__dict__[a] = v
 
+        if type(self.tree) is list:
+            self.tree = self.tree[0]
+
         self.load_taxonomic_hierarchy()
 
         return
@@ -308,6 +311,22 @@ class ReferencePackage:
             sys.exit(3)
 
         return refpkg_fa
+
+    def get_internal_node_leaf_map(self):
+        node_map = dict()
+        leaf_stack = list()
+        i = 0
+        rt = Tree(self.tree)
+        for inode in rt.traverse(strategy="postorder"):
+            if inode.name:
+                node_map[i] = [inode.name]
+                leaf_stack.append(node_map[i])
+            else:
+                node_map[i] = leaf_stack.pop() + leaf_stack.pop()
+                leaf_stack.append(node_map[i])
+            i += 1
+        node_map[i] = leaf_stack.pop() + leaf_stack.pop()
+        return node_map
 
     def generate_tree_leaf_references_from_refpkg(self) -> list:
         """

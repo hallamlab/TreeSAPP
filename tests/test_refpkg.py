@@ -48,6 +48,11 @@ class RefPkgTester(unittest.TestCase):
     def test_bail(self):
         self.db.bail()
 
+    def test_get_internal_node_leaf_map(self):
+        node_map = self.db.get_internal_node_leaf_map()
+        self.assertEqual((2*self.db.num_seqs)-1, len(node_map))
+        self.assertEqual(self.db.num_seqs, len(node_map[max(node_map.keys())]))
+
 
 if __name__ == '__main__':
     unittest.main()
