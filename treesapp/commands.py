@@ -24,6 +24,7 @@ from treesapp import treesapp_args
 from treesapp import classy
 from treesapp.phylo_seq import TreeProtein, assignments_to_treesaps
 from treesapp.refpkg import ReferencePackage, view, edit
+from treesapp.training_utils import train_classification_filter
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
@@ -217,6 +218,13 @@ def train(sys_args):
             logging.info("Placement distance model complete.\n")
         else:
             logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
+
+    refpkg_pqueries = placement_trainer.flatten_pquery_dict(pqueries, ts_trainer.ref_pkg.prefix)
+    tp_names = {ts_trainer.ref_pkg.prefix:
+                    [pquery.contig_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
+    refpkg_classifiers = train_classification_filter(refpkg_pqueries, tp_names,
+                                                     refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+    ts_trainer.ref_pkg.svc = refpkg_classifiers[ts_trainer.ref_pkg.prefix]
 
     # Write the text file containing distances used in the regression analysis
     with open(ts_trainer.placement_summary, 'w') as out_handler:
