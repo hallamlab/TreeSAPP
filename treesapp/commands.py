@@ -103,7 +103,7 @@ def package(sys_args):
     :return: None
     """
     pkg_usage = """
-treesapp package <subcommand> [<args>]
+treesapp package <subcommand> <attributes> [<args>]
 ** Subcommands include:
 view        Print reference package attributes to the console
 edit        Change reference package attributes
@@ -120,8 +120,11 @@ Use '-h' to get subcommand-specific help, e.g.
     treesapp_args.add_package_arguments(parser)
     args = parser.parse_args(sys_args)
 
+    if not args.output:
+        args.output = os.path.dirname(args.pkg_path)
     if not os.path.isdir(args.output):
         os.mkdir(args.output)
+
     classy.prep_logging(os.path.join(args.output, 'TreeSAPP_package_log.txt'))
 
     refpkg = ReferencePackage()

@@ -704,10 +704,10 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
 
 def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool) -> None:
     if len(attributes) > 2:
-        logging.error("package edit only edits a single attribute at a time")
+        logging.error("`treesapp package edit` only edits a single attribute at a time.\n")
         sys.exit(3)
     elif len(attributes) == 1:
-        logging.error("package edit requires a value to change")
+        logging.error("`treesapp package edit` requires a value to change.\n")
         sys.exit(3)
     else:
         k, v = attributes
@@ -723,6 +723,9 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool
     refpkg.__dict__[k] = v
     if not overwrite:
         refpkg.f__json = os.path.join(output_dir, os.path.basename(refpkg.f__json))
+        if os.path.isfile(refpkg.f__json):
+            logging.warning("RefPkg file '{}' already exists.\n".format(refpkg.f__json))
+            return
     refpkg.write_json()
 
     return
