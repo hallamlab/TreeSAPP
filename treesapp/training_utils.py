@@ -95,6 +95,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     # Create the cloned ReferencePackage to be used for this taxon's trials
     clade_exclusion_json = taxon_test_dir + ref_pkg.prefix + ref_pkg.refpkg_suffix
     ce_refpkg = ref_pkg.clone(clade_exclusion_json)
+    # Remove all sequences belonging to a taxonomic rank from the reference package
     ce_refpkg.exclude_clade_from_ref_files(tmp_dir=taxon_test_dir, target_clade=taxon, executables=executables)
 
     ce_fasta = fasta.FASTA(ce_refpkg.f__msa)

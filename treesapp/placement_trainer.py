@@ -6,7 +6,6 @@ import argparse
 import logging
 import re
 
-from ete3 import Tree
 from tqdm import tqdm
 
 from treesapp import file_parsers
@@ -311,9 +310,6 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     if output_dir[-1] != os.sep:
         output_dir += os.sep
 
-    # Read the tree as ete3 Tree instance
-    ref_tree = Tree(ref_pkg.f__tree)
-
     num_training_queries = 0
     for rank in rank_training_seqs:
         num_rank_training_seqs = 0
@@ -327,10 +323,10 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
         num_training_queries += num_rank_training_seqs
 
     if num_training_queries < 30:
-        logging.error("Too few (" + str(num_training_queries) + ") sequences for training placement distance model.\n")
+        logging.error("Too few ({}) sequences for training placement distance model.\n".format(num_training_queries))
         return pqueries
     if num_training_queries < 50:
-        logging.warning("Only " + str(num_training_queries) + " sequences for training placement distance model.\n")
+        logging.warning("Only {} sequences for training placement distance model.\n".format(num_training_queries))
 
     pbar = tqdm(total=num_training_queries)
 
@@ -342,12 +338,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             sys.exit(33)
         for leaf_node, lineage in ref_pkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, rank).items():
             leaf_trimmed_taxa_map[leaf_node + "_" + ref_pkg.prefix] = lineage
-        
-        # Add the lineages to the Tree instance
-        for leaf in ref_tree:
-            leaf.add_features(lineage=leaf_trimmed_taxa_map.get(leaf.name, "none"))
 
-        # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
         for taxon in sorted(rank_training_seqs[rank]):
             logging.debug("Testing placements for {}:\n".format(taxon))
             pqueries[rank][taxon] = generate_pquery_data_for_trainer(ref_pkg, taxon,

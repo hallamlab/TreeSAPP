@@ -53,9 +53,9 @@ class RefPkgTester(unittest.TestCase):
         self.assertEqual((2*self.db.num_seqs)-1, len(node_map))
         self.assertEqual(self.db.num_seqs, len(node_map[max(node_map.keys())]))
 
-    def test_write_json(self):
+    def test_pickle_package(self):
         self.db.f__json = "./test_write_json" + self.db.refpkg_suffix
-        self.db.write_json()
+        self.db.pickle_package()
         self.db.slurp()
         self.assertTrue("McrA" == self.db.prefix)
 

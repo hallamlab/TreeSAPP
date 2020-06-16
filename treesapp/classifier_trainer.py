@@ -264,7 +264,7 @@ def classifier_trainer(sys_args):
             continue
         refpkg.svc = classifiers[refpkg_name]
         refpkg.f__json = ts_trainer.final_output_dir + os.path.basename(refpkg.f__json)
-        refpkg.write_json()
+        refpkg.pickle_package()
 
     return
 

@@ -696,7 +696,7 @@ class Updater(TreeSAPP):
         self.updated_refpkg.update = dt.now().strftime("%Y-%m-%d")
         self.updated_refpkg.refpkg_code = self.ref_pkg.refpkg_code
         self.updated_refpkg.description = self.ref_pkg.description
-        self.updated_refpkg.write_json()
+        self.updated_refpkg.pickle_package()
 
         logging.info("Summary of the updated reference package:\n" + self.updated_refpkg.get_info() + "\n")
 
@@ -1453,7 +1453,8 @@ class PhyTrainer(TreeSAPP):
         self.stages = {0: ModuleFunction("search", 0),
                        1: ModuleFunction("lineages", 1),
                        2: ModuleFunction("place", 2),
-                       3: ModuleFunction("regress", 3)}
+                       3: ModuleFunction("regress", 3),
+                       4: ModuleFunction("update", 4)}
 
     def get_info(self):
         info_string = "PhyTrainer instance summary:\n"

@@ -219,12 +219,27 @@ def train(sys_args):
         else:
             logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
+    # Reformat the pqueries dictionary for classifier training and testing
     refpkg_pqueries = placement_trainer.flatten_pquery_dict(pqueries, ts_trainer.ref_pkg.prefix)
     tp_names = {ts_trainer.ref_pkg.prefix:
                     [pquery.contig_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
+    # Train the one-class SVM model
     refpkg_classifiers = train_classification_filter(refpkg_pqueries, tp_names,
                                                      refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
-    ts_trainer.ref_pkg.svc = refpkg_classifiers[ts_trainer.ref_pkg.prefix]
+
+    if ts_trainer.stage_status("update"):
+        ts_trainer.ref_pkg.pfit = pfit_array
+        if not ts_trainer.ref_pkg.pfit:
+            logging.warning("Linear regression parameters could not be estimated. " +
+                            "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
+            ts_trainer.ref_pkg.pfit = [0.0, 7.0]
+
+        ts_trainer.ref_pkg.svc = refpkg_classifiers[ts_trainer.ref_pkg.prefix]
+        ts_trainer.ref_pkg.f__json = os.path.join(ts_trainer.final_output_dir,
+                                                  os.path.basename(ts_trainer.ref_pkg.f__json))
+
+        ts_trainer.ref_pkg.validate()
+        ts_trainer.ref_pkg.pickle_package()
 
     # Write the text file containing distances used in the regression analysis
     with open(ts_trainer.placement_summary, 'w') as out_handler:
@@ -516,6 +531,7 @@ def create(sys_args):
                    "-n", str(args.num_threads)]
     if args.trim_align:
         trainer_cmd.append("--trim_align")
+
     if ts_create.stage_status("train"):
         train(trainer_cmd)
     else:
@@ -525,18 +541,13 @@ def create(sys_args):
     # Finish validating the file and append the reference package build parameters to the master table
     ##
     if ts_create.stage_status("update"):
-        ts_create.ref_pkg.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir +
-                                                                      os.sep.join(["placement_trainer",
-                                                                                   "final_outputs",
-                                                                                   "placement_trainer_results.txt"]))
+        ts_create.ref_pkg.f__json = os.path.join(ts_create.var_output_dir, "placement_trainer", "final_outputs",
+                                                 ts_create.ref_pkg.prefix + ts_create.ref_pkg.refpkg_suffix)
+        ts_create.ref_pkg.slurp()
         ts_create.ref_pkg.validate()
+        ts_create.ref_pkg.change_file_paths(ts_create.final_output_dir)
+        ts_create.ref_pkg.pickle_package()
 
-        if not ts_create.ref_pkg.pfit:
-            logging.warning("Linear regression parameters could not be estimated. " +
-                            "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
-            ts_create.ref_pkg.pfit = [0.0, 7.0]
-
-    ts_create.ref_pkg.band()
     ts_create.remove_intermediates(args.delete)
     ts_create.print_terminal_commands()
 

@@ -87,13 +87,13 @@ class ReferencePackage:
     def clone(self, clone_path: str):
         refpkg_clone = ReferencePackage()
         if not os.path.isfile(self.f__json):
-            self.write_json()
+            self.pickle_package()
         refpkg_clone.f__json = self.f__json
         refpkg_clone.slurp()
         refpkg_clone.f__json = clone_path
         return refpkg_clone
 
-    def write_json(self):
+    def pickle_package(self) -> None:
         if len(self.f__json) == 0:
             self.bail("ReferencePackage.f__json not set. ReferencePackage band() cannot be completed.\n")
             raise AttributeError
@@ -115,11 +115,12 @@ class ReferencePackage:
         refpkg_handler.close()
         return
 
-    def band(self):
+    def band(self) -> None:
         """
-        Writes a pickled file containing all of the reference package files and metadata
+        Reads each of the individual reference package component files (e.g. 'f__msa', 'f__tree', 'f__model_info') and
+        writes a pickle file containing all of the reference package files and metadata.
 
-        :return:
+        :return: None
         """
         # Read the all of the individual reference package files that are available (e.g. MSA, HMM, phylogeny)
         for a, v in self.__iter__():
@@ -128,7 +129,7 @@ class ReferencePackage:
                 if dest in self.__dict__:
                     with open(v) as fh:
                         self.__dict__[dest] = fh.readlines()
-        self.write_json()
+        self.pickle_package()
 
         return
 
@@ -169,7 +170,7 @@ class ReferencePackage:
                 self.__dict__[a] = new_path
         return
 
-    def update_file_names(self):
+    def update_file_names(self) -> None:
         for a, v in self.__iter__():
             if a.startswith('f__'):
                 path, name = os.path.split(v)
@@ -699,6 +700,8 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
         if type(v) is list:
             v = ''.join(v)
         logging.info("{}\t{}\n".format(k, v))
+
+    # TODO: optionally use ReferencePackage.write_refpkg_component
     return
 
 
@@ -726,6 +729,6 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool
         if os.path.isfile(refpkg.f__json):
             logging.warning("RefPkg file '{}' already exists.\n".format(refpkg.f__json))
             return
-    refpkg.write_json()
+    refpkg.pickle_package()
 
     return
