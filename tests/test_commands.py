@@ -3,7 +3,7 @@ import unittest
 
 class TreesappTester(unittest.TestCase):
     def test_assign_prot(self):
-        ref_pkgs = ["M0701", "M0702", "S0001"]
+        ref_pkgs = ["McrA", "M0702", "S0001"]
         from treesapp import commands
         from treesapp import file_parsers
         from . import testing_utils as utils
@@ -51,7 +51,7 @@ class TreesappTester(unittest.TestCase):
                                 "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.json"
+        test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
         self.assertEqual(68, test_refpkg.num_seqs)
@@ -73,7 +73,7 @@ class TreesappTester(unittest.TestCase):
                                 "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_create_PuhA/final_outputs/PuhA_build.json"
+        test_refpkg.f__json = "./TreeSAPP_create_PuhA/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
         self.assertEqual(44, test_refpkg.num_seqs)
@@ -84,7 +84,7 @@ class TreesappTester(unittest.TestCase):
         from . import testing_utils as utils
         import os
         evaluate_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
-                                 "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "McrA_build.json")),
+                                 "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
                                  "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
                                  "-o", "./TreeSAPP_evaluate",
                                  "-m", "prot",
@@ -119,7 +119,7 @@ class TreesappTester(unittest.TestCase):
         purity_command_list = ["--fastx_input", utils.get_treesapp_file("dev_utils/TIGRFAM_seed_named.faa"),
                                "--extra_info", utils.get_treesapp_file("dev_utils/TIGRFAM_info.tsv"),
                                "--output", "./TreeSAPP_purity",
-                               "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "McrA_build.json")),
+                               "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
                                "--trim_align", "--molecule", "prot", "-n", str(2)]
         purity(purity_command_list)
         return
@@ -170,8 +170,7 @@ class TreesappTester(unittest.TestCase):
         from . import testing_utils as utils
         train_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
                               "--output", "./TreeSAPP_train",
-                              "--refpkg_path", os.path.join(utils.get_treesapp_path(),
-                                                            "treesapp", "data", "McrA_build.json"),
+                              "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
                               "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
                               "--num_proc", str(2),
                               "--molecule", "prot",
@@ -185,8 +184,7 @@ class TreesappTester(unittest.TestCase):
         from . import testing_utils as utils
         command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
                         "--output", "./TreeSAPP_svc_train",
-                        "--refpkg_path", os.path.join(utils.get_treesapp_path(),
-                                                      "treesapp", "data", "McrA_build.json"),
+                        "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
                         "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
                         "--num_proc", str(2),
                         "--molecule", "prot",

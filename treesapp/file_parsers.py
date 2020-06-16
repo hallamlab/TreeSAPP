@@ -33,14 +33,14 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
     else:
         targets = set(targets)
 
-    json_files = glob(refpkg_data_dir + os.sep + "*json")
-    if len(json_files) == 0:
-        logging.error("No JSON files were found in {}".format(refpkg_data_dir))
+    refpkg_files = glob(refpkg_data_dir + os.sep + "*_build.pkl")
+    if len(refpkg_files) == 0:
+        logging.error("No reference package files were found in {}".format(refpkg_data_dir))
         sys.exit(3)
 
-    for json_file in json_files:
+    for rp_file in refpkg_files:
         refpkg = ReferencePackage()
-        refpkg.f__json = json_file
+        refpkg.f__json = rp_file
         refpkg.slurp()
         if targets:  # type: list
             if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:

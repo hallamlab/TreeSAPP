@@ -1091,7 +1091,7 @@ def purity(sys_args):
         assign_args = ["-i", ts_purity.formatted_input, "-o", ts_purity.assign_dir,
                        "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
                        "-t", ts_purity.ref_pkg.prefix, "--refpkg_dir", ts_purity.refpkg_dir,
-                       "--overwrite", "--delete"]
+                       "--overwrite", "--delete", "--no_svm"]
         try:
             assign(assign_args)
         except:  # Just in case treesapp assign fails, just continue
@@ -1267,7 +1267,7 @@ def evaluate(sys_args):
                     test_obj.assignments = {ts_evaluate.ref_pkg.prefix: graftm_assignments}
                     test_obj.filter_assignments(ts_evaluate.ref_pkg.prefix)
                 else:
-                    clade_exclusion_json = intermediates_path + ts_evaluate.ref_pkg.prefix + "_build.json"
+                    clade_exclusion_json = intermediates_path + ts_evaluate.ref_pkg.prefix + ts_evaluate.ref_pkg.refpkg_suffix
                     ce_refpkg = ts_evaluate.ref_pkg.clone(clade_exclusion_json)
                     classification_table = classifier_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
 

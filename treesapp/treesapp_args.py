@@ -558,7 +558,7 @@ def check_create_arguments(creator: Creator, args) -> None:
     creator.ref_pkg.kind = args.kind
     creator.ref_pkg.sub_model = args.raxml_model
     creator.ref_pkg.date = dt.now().strftime("%Y-%m-%d")
-    creator.ref_pkg.f__json = creator.final_output_dir + creator.ref_pkg.prefix + "_build.json"
+    creator.ref_pkg.f__json = creator.final_output_dir + creator.ref_pkg.prefix + creator.ref_pkg.refpkg_suffix
     # TODO: Create placement trainer output directory and make it an attribute
     if not args.output:
         args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep

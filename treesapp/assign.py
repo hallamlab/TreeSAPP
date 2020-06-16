@@ -1528,11 +1528,11 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: st
             # hmm_perc = round((int(tree_sap.seq_len) * 100) / refpkg.profile_length, 1)
 
             if svm:
-                call = svm.predict(preprocessing.normalize(np_array([len(leaf_children),
-                                                                     round(tree_sap.lwr, 2),
-                                                                     distal_length,
-                                                                     pendant_length,
-                                                                     avg_tip_dist]).reshape(1, -1)))
+                call = refpkg.svc.predict(preprocessing.normalize(np_array([len(leaf_children),
+                                                                            round(tree_sap.lwr, 2),
+                                                                            distal_length,
+                                                                            pendant_length,
+                                                                            avg_tip_dist]).reshape(1, -1)))
                 # Discard this placement as a false positive classifier calls this a 0
                 if call == 0:
                     unclassified_seqs[tree_sap.name]["svm"].append(tree_sap)

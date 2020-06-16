@@ -36,8 +36,6 @@ def add_classifier_arguments(parser: treesapp_args.TreeSAPPArgumentParser) -> No
     parser.add_refpkg_targets()
     treesapp_args.add_trainer_arguments(parser)
 
-    parser.optopt.add_argument("-p", "--model_pickle", required=False, default="./treesapp_svm.pkl", dest="model_file",
-                               help="Path to a directory for writing output files")
     parser.optopt.add_argument("-k", "--svm_kernel", required=False, default="lin",
                                choices=["lin", "rbf", "poly"], dest="kernel",
                                help="Specifies the kernel type to be used in the SVM algorithm."
@@ -68,16 +66,16 @@ def validate_command(args, trainer: PhyTrainer, sys_args) -> None:
 
     # Load the reference package directory if it is specified, otherwise load the package's path
     if args.pkg_path:
-        trainer.ref_pkg.f__json = args.pkg_path
-        trainer.ref_pkg.slurp()
-        trainer.refpkg_dir = os.path.dirname(trainer.ref_pkg.f__json)
+        target_refpkg = ReferencePackage()
+        target_refpkg.f__json = args.pkg_path
+        target_refpkg.slurp()
+        trainer.refpkg_dir = os.path.dirname(target_refpkg.f__json) + os.sep
+        trainer.target_refpkgs = [target_refpkg.prefix]
     else:
         trainer.refpkg_dir = args.refpkg_dir
 
     if args.targets:
         trainer.target_refpkgs = args.targets.split(',')
-    else:
-        trainer.target_refpkgs = []
 
     if args.acc_to_lin:
         trainer.acc_to_lin = args.acc_to_lin
@@ -116,8 +114,8 @@ def generate_training_data(ts_trainer: PhyTrainer, refpkg_dict: dict, accession_
                          "--refpkg_dir", os.path.dirname(refpkg.f__json),
                          "--targets", refpkg.prefix,
                          "--molecule", refpkg.molecule,
-                         "--delete"]
-
+                         "--delete", "--no_svm"]
+        # TODO: Allow the ranks to be controlled via command-line
         ce_params = ["-i", clade_exclusion_prefix + ".faa",
                      "-o", clade_exclusion_prefix,
                      "--molecule", refpkg.molecule,
@@ -423,7 +421,7 @@ def train_oc_classifier(tp: np.array, kernel: str):
 
 
 def train_classification_filter(assignments: dict, rp_true_positives: dict, false_positives: dict, refpkg_map: dict,
-                                pickle_file: str, kernel="lin", tsne="", grid_search=False, num_procs=2) -> None:
+                                kernel="lin", tsne="", grid_search=False, num_procs=2) -> dict:
     """
     Trains a sklearn classifier (e.g. Support Vector Machine or SVC) using the TreeSAPP assignments and writes
     the trained model to a pickle file.
@@ -436,7 +434,6 @@ def train_classification_filter(assignments: dict, rp_true_positives: dict, fals
     :param rp_true_positives: A dictionary of true positive query names indexed by refpkg names
     :param false_positives: A dictionary of false positive query names indexed by refpkg names
     :param refpkg_map: A dictionary of ReferencePackage instances indexed by their respective prefix values
-    :param pickle_file: Path to a file to write the pickled classifier
     :param kernel: Specifies the kernel type to be used in the SVM algorithm. Choices are 'lin' 'poly' or 'rbf'.
     [ DEFAULT = lin ]
     :param tsne: Path to a file for writing the TSNE plot. Also used to decide whether to create the TSNE plot
@@ -450,6 +447,7 @@ def train_classification_filter(assignments: dict, rp_true_positives: dict, fals
 
     # Convert the true positive dictionary to the same format, flattening the ClassifiedSequence instances
     flattened_tp = dict()
+    classifiers = dict()
     for refpkg in rp_true_positives:
         flattened_tp[refpkg] = set()
         for classified_seq in rp_true_positives[refpkg]:  # type: ts_MCC.ClassifiedSequence
@@ -462,12 +460,16 @@ def train_classification_filter(assignments: dict, rp_true_positives: dict, fals
 
     if len(fp) > 0:
         clf = train_binary_classifier(tp, fp, tsne, kernel, grid_search, num_procs)
+        for refpkg in refpkg_map:  # type: str
+            if refpkg in flattened_tp:
+                classifiers[refpkg] = clf
     else:
-        clf = train_oc_classifier(tp, kernel)
+        for refpkg_prefix in flattened_tp:
+            refpkg = refpkg_map[refpkg_prefix]  # type: ReferencePackage
+            clf = train_oc_classifier(tp, kernel)
+            classifiers[refpkg.prefix] = clf
 
-    package_classifier(clf, pickle_file)
-
-    return
+    return classifiers
 
 
 def classifier_trainer(sys_args):
@@ -487,9 +489,8 @@ def classifier_trainer(sys_args):
     ts_trainer.check_previous_output(args.overwrite)
 
     log_name = args.output + os.sep + "TreeSAPP_classifier_trainer_log.txt"
-    pickled_model = args.model_file
     if args.tsne:
-        tsne_file = args.output + os.sep + base_file_prefix(pickled_model) + "_t-SNE.png"
+        tsne_file = args.output + os.sep + "t-SNE.png"
     else:
         tsne_file = ""
 
@@ -541,8 +542,19 @@ def classifier_trainer(sys_args):
 
     summarize_training_rank_coverage(test_obj)
 
-    train_classification_filter(assignments, test_obj.tp, test_obj.fp, test_obj.ref_packages,
-                                pickled_model, args.kernel, tsne_file, args.grid_search, args.num_threads)
+    classifiers = train_classification_filter(assignments, test_obj.tp, test_obj.fp, test_obj.ref_packages,
+                                              args.kernel, tsne_file, args.grid_search, args.num_threads)
+
+    for refpkg_name in classifiers:
+        try:
+            refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
+        except KeyError:
+            logging.warning("A classifier wasn't trained for the ReferencePackage '{}'"
+                            " likely because no true positives were identified.\n".format(refpkg_name))
+            continue
+        refpkg.svc = classifiers[refpkg_name]
+        refpkg.f__json = ts_trainer.final_output_dir + os.path.basename(refpkg.f__json)
+        refpkg.write_json()
 
     return
 

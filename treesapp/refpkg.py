@@ -4,11 +4,12 @@ import re
 import sys
 from shutil import copy
 import json
+import joblib
 
 from ete3 import Tree
 
 from treesapp.phylo_seq import TreeLeafReference
-from treesapp.entish import annotate_partition_tree, map_internal_nodes_leaves
+from treesapp.entish import annotate_partition_tree
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
@@ -23,7 +24,9 @@ class ReferencePackage:
         self.refpkg_code = "Z1111"  # AKA denominator
 
         # These are files (with '_f' suffix) and their respective data (read with file.readlines())
-        self.f__json = self.prefix + "_build.json"  # Path to the JSON reference package file
+        # TODO: Rename to f__pkl
+        self.refpkg_suffix = "_build.pkl"
+        self.f__json = self.prefix + self.refpkg_suffix  # Path to the pickled reference package file
         self.msa = ""  # Reference MSA FASTA
         self.f__msa = self.prefix + ".fa"
         self.profile = ""
@@ -36,6 +39,7 @@ class ReferencePackage:
         self.f__boot_tree = self.prefix + "_bipart.nwk"
         self.model_info = ""
         self.f__model_info = self.prefix + "_epa.model"  # RAxML-NG --evaluate model file
+        self.svc = ""
         self.lineage_ids = dict()  # Reference sequence lineage map
 
         # These are metadata values
@@ -95,9 +99,9 @@ class ReferencePackage:
             raise AttributeError
 
         try:
-            refpkg_handler = open(self.f__json, 'w')
+            refpkg_handler = open(self.f__json, 'wb')
         except IOError:
-            self.bail("Unable to open reference package JSON file '{}' for writing.\n".format(self.f__json))
+            self.bail("Unable to open reference package pickled file '{}' for writing.\n".format(self.f__json))
             raise IOError
 
         refpkg_dict = {}
@@ -106,14 +110,14 @@ class ReferencePackage:
             if a not in non_primitives:
                 refpkg_dict[a] = v
 
-        json.dump(obj=refpkg_dict, fp=refpkg_handler)
+        joblib.dump(value=refpkg_dict, filename=refpkg_handler)
 
         refpkg_handler.close()
         return
 
     def band(self):
         """
-        Writes a JSON file containing all of the reference package files and metadata
+        Writes a pickled file containing all of the reference package files and metadata
 
         :return:
         """
@@ -174,8 +178,8 @@ class ReferencePackage:
 
     def disband(self, output_dir: str) -> None:
         """
-        From a ReferencePackage's JSON file, the individual file components (e.g. profile HMM, MSA, phylogeny) are
-        written to their separate files in a new directory, a sub-directory of where the JSON is located.
+        From a ReferencePackage's pickled file, the individual file components (e.g. profile HMM, MSA, phylogeny) are
+        written to their separate files in a new directory, a sub-directory of where the pickle is located.
         The directory name follows the format: self.prefix + '_' self.refpkg_code + '_' + self.date
 
         Their file paths (e.g. self.f__msa, self.f__tree) are updated with the output_dir as the directory path.
@@ -211,28 +215,31 @@ class ReferencePackage:
 
     def slurp(self) -> None:
         """
-        Reads the reference package's JSON-formatted file and stores the elements in their respective variables
+        Reads the reference package's pickled-formatted file and stores the elements in their respective variables
 
         :return: None
         """
+        new_path = self.f__json
         if len(self.f__json) == 0:
             logging.error("ReferencePackage.f__json was not set.\n")
             sys.exit(11)
 
         if not os.path.isfile(self.f__json):
-            logging.error("ReferencePackage JSON file '{}' doesn't exist.\n".format(self.f__json))
+            logging.error("ReferencePackage pickle file '{}' doesn't exist.\n".format(self.f__json))
             sys.exit(7)
 
         try:
+            refpkg_data = joblib.load(self.f__json)
+        except KeyError:
             refpkg_handler = open(self.f__json, 'r')
-        except IOError:
-            logging.error("Unable to open reference package JSON file '{}' for reading.\n".format(self.f__json))
-            sys.exit(3)
-        refpkg_data = json.load(refpkg_handler)
-        refpkg_handler.close()
+            refpkg_data = json.load(refpkg_handler)
+            refpkg_handler.close()
 
         for a, v in refpkg_data.items():
             self.__dict__[a] = v
+
+        # Fix the pickle path
+        self.f__json = new_path
 
         if type(self.tree) is list:
             self.tree = self.tree[0]
