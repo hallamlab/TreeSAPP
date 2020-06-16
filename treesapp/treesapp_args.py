@@ -59,7 +59,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
 
     def add_refpkg_opt(self):
         self.optopt.add_argument("--refpkg_dir", dest="refpkg_dir", default=None,
-                                 help="Path to the directory containing reference package JSON files. "
+                                 help="Path to the directory containing reference package pickle (.pkl) files. "
                                       "[ DEFAULT = treesapp/data/ ]")
 
     def add_refpkg_targets(self):
@@ -70,7 +70,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
 
     def add_refpkg_file_param(self):
         self.reqs.add_argument("-r", "--refpkg_path", dest="pkg_path", required=True,
-                               help="Path to the reference package JSON file.\n")
+                               help="Path to the reference package pickle (.pkl) file.\n")
 
     def add_seq_params(self):
         self.optopt.add_argument("--trim_align", default=False, action="store_true",
@@ -162,6 +162,18 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
 
 def add_info_arguments(parser: TreeSAPPArgumentParser):
     parser.add_refpkg_opt()
+    return
+
+
+def add_package_arguments(parser: TreeSAPPArgumentParser):
+    parser.reqs.add_argument("attributes", nargs="+",
+                             help="One or more reference package attributes to view."
+                                  "Note: edit will only modify a single attribute at a time.")
+    parser.add_refpkg_file_param()
+    parser.optopt.add_argument('-o', '--output', default='./output/', required=False,
+                               help='Path to an output directory [DEFAULT = ./output/]')
+    parser.optopt.add_argument("--overwrite", default=False, required=False, action="store_true",
+                               help="When editing a reference package, should the current file be overwritten?")
     return
 
 

@@ -23,7 +23,7 @@ from treesapp import annotate_extra
 from treesapp import treesapp_args
 from treesapp import classy
 from treesapp.phylo_seq import TreeProtein, assignments_to_treesaps
-from treesapp.refpkg import ReferencePackage
+from treesapp.refpkg import ReferencePackage, view, edit
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
@@ -95,14 +95,47 @@ def info(sys_args):
     return
 
 
-def package(**kwargs):
+def package(sys_args):
     """
     Perform specific operations on JSON-formatted single-file reference packages
 
-    :param kwargs: Keyword arguments
-    :return:
+    :param sys_args: Arguments from the command-line
+    :return: None
     """
-    parser = treesapp_args.TreeSAPPArgumentParser(description='')
+    pkg_usage = """
+treesapp package <subcommand> [<args>]
+** Subcommands include:
+view        Print reference package attributes to the console
+edit        Change reference package attributes
+**
+Use '-h' to get subcommand-specific help, e.g.
+"""
+    parser = treesapp_args.TreeSAPPArgumentParser(description='Facilitate operations on reference packages')
+    parser.add_argument("subcommand", nargs='?')
+    args = parser.parse_args(sys_args[0:1])
+    if not args.subcommand:
+        sys.stderr.write(pkg_usage)
+        sys.exit(1)
+
+    treesapp_args.add_package_arguments(parser)
+    args = parser.parse_args(sys_args)
+
+    if not os.path.isdir(args.output):
+        os.mkdir(args.output)
+    classy.prep_logging(os.path.join(args.output, 'TreeSAPP_package_log.txt'))
+
+    refpkg = ReferencePackage()
+    refpkg.f__json = args.pkg_path
+    refpkg.slurp()
+
+    if args.subcommand == "view":
+        view(refpkg, args.attributes)
+    elif args.subcommand == "edit":
+        edit(refpkg, args.attributes, args.output, args.overwrite)
+    else:
+        logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
+        sys.exit(1)
+
     return
 
 

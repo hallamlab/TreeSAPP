@@ -684,3 +684,45 @@ class ReferencePackage:
             lineage_list.append(lineage)
 
         return load_taxonomic_trie(lineage_list)
+
+
+def view(refpkg: ReferencePackage, attributes: list) -> None:
+    view_dict = {}
+    for attr in attributes:
+        try:
+            view_dict[attr] = refpkg.__dict__[attr]
+        except KeyError:
+            logging.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(attr))
+            sys.exit(1)
+
+    for k, v in view_dict.items():
+        if type(v) is list:
+            v = ''.join(v)
+        logging.info("{}\t{}\n".format(k, v))
+    return
+
+
+def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool) -> None:
+    if len(attributes) > 2:
+        logging.error("package edit only edits a single attribute at a time")
+        sys.exit(3)
+    elif len(attributes) == 1:
+        logging.error("package edit requires a value to change")
+        sys.exit(3)
+    else:
+        k, v = attributes
+
+    try:
+        current_v = refpkg.__dict__[k]
+    except KeyError:
+        logging.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(k))
+        sys.exit(1)
+
+    logging.info("Replacing attribute '{}' (currently '{}')\n".format(k, current_v))
+
+    refpkg.__dict__[k] = v
+    if not overwrite:
+        refpkg.f__json = os.path.join(output_dir, os.path.basename(refpkg.f__json))
+    refpkg.write_json()
+
+    return

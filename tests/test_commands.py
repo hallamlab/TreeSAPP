@@ -1,4 +1,5 @@
 import unittest
+import os
 
 
 class TreesappTester(unittest.TestCase):
@@ -82,7 +83,6 @@ class TreesappTester(unittest.TestCase):
     def test_evaluate(self):
         from commands import evaluate
         from . import testing_utils as utils
-        import os
         evaluate_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
                                  "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
                                  "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
@@ -95,7 +95,6 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_abundance(self):
-        import os
         from commands import abundance
         from file_parsers import read_marker_classification_table
         from . import testing_utils as utils
@@ -114,7 +113,6 @@ class TreesappTester(unittest.TestCase):
 
     def test_purity(self):
         from commands import purity
-        import os
         from . import testing_utils as utils
         purity_command_list = ["--fastx_input", utils.get_treesapp_file("dev_utils/TIGRFAM_seed_named.faa"),
                                "--extra_info", utils.get_treesapp_file("dev_utils/TIGRFAM_info.tsv"),
@@ -125,7 +123,6 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_layer(self):
-        import os
         from commands import layer
         from . import testing_utils as utils
         from file_parsers import read_marker_classification_table
@@ -139,7 +136,6 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_update(self):
-        import os
         from commands import update
         from refpkg import ReferencePackage
         from . import testing_utils as utils
@@ -165,7 +161,6 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_train(self):
-        import os
         from commands import train
         from . import testing_utils as utils
         train_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
@@ -179,7 +174,6 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_classifier_trainer(self):
-        import os
         from classifier_trainer import classifier_trainer as ct_main
         from . import testing_utils as utils
         command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
@@ -190,6 +184,16 @@ class TreesappTester(unittest.TestCase):
                         "--molecule", "prot",
                         "--trim_align", "--delete", "--overwrite"]
         ct_main(command_list)
+
+    def test_package(self):
+        from commands import package
+        from . import testing_utils as utils
+        command_list = ["view",
+                        "prefix",
+                        "--refpkg_path", utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
+                        "--output", "./TreeSAPP_package"]
+        package(command_list)
+        return
 
 
 if __name__ == '__main__':
