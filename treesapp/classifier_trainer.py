@@ -18,7 +18,6 @@ from sklearn import model_selection, svm, metrics, preprocessing, manifold
 from treesapp.classy import prep_logging, PhyTrainer
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import FASTA, write_new_fasta
-from treesapp.utilities import base_file_prefix
 from treesapp.commands import assign, evaluate
 from treesapp.phylo_seq import assignments_to_treesaps, ItolJplace
 from treesapp import MCC_calculator as ts_MCC
