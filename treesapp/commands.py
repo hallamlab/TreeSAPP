@@ -222,7 +222,13 @@ def train(sys_args):
         else:
             logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
-    # Generate placement data without clade exclusion
+    logging.info("Generating placement data without clade exclusion for OC-SVM... ")
+    # TODO: Pause logging just to console and continue writing to log file
+    # Option 1. No logging to console or file
+    cl_log = logging.getLogger()
+    cl_log.disabled = True
+    # Option 2... ?
+
     assign_prefix = os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_assign")
     assign_params = ["-i", ts_trainer.hmm_purified_seqs,
                      "-o", assign_prefix,
@@ -234,6 +240,12 @@ def train(sys_args):
     if args.trim_align:
         assign_params.append("--trim_align")
     assign(assign_params)
+
+    # Re-enable logging at the previous level
+    cl_log.disabled = False
+
+    logging.info("done.\n")
+
     pqueries.update(assignments_to_treesaps(
         file_parsers.read_classification_table(os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")),
         {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
@@ -1029,7 +1041,7 @@ def assign(sys_args):
     if ts_assign.stage_status("classify"):
         tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, refpkg_dict)
         select_query_placements(tree_saps)
-        filter_placements(tree_saps, refpkg_dict, ts_assign.clf, ts_assign.tree_dir, args.min_likelihood)
+        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_likelihood)
         fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         for refpkg_code in tree_saps:

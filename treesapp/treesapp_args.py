@@ -548,7 +548,7 @@ def check_classify_arguments(assigner: Assigner, args):
             sys.exit(3)
 
     if args.no_svm:
-        assigner.clf = None
+        assigner.svc_filter = False
 
     # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
     # Parameterizing the hmmsearch output parsing:

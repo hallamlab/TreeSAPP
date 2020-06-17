@@ -1333,13 +1333,13 @@ class Assigner(TreeSAPP):
         """
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
+        self.svc_filter = True
         self.aa_orfs_file = ""
         self.nuc_orfs_file = ""
         self.classified_aa_seqs = ""
         self.classified_nuc_seqs = ""
         self.composition = ""
         self.target_refpkgs = list()
-        self.clf = load_pickle(self.refpkg_dir + "treesapp_svm.pkl")
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("orf-call", 0, self.predict_orfs),
