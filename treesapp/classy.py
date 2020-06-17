@@ -696,7 +696,7 @@ class Updater(TreeSAPP):
         self.updated_refpkg.update = dt.now().strftime("%Y-%m-%d")
         self.updated_refpkg.refpkg_code = self.ref_pkg.refpkg_code
         self.updated_refpkg.description = self.ref_pkg.description
-        self.updated_refpkg.write_json()
+        self.updated_refpkg.pickle_package()
 
         logging.info("Summary of the updated reference package:\n" + self.updated_refpkg.get_info() + "\n")
 
@@ -785,7 +785,9 @@ class Creator(TreeSAPP):
 
     def print_terminal_commands(self):
         logging.info("\nTo integrate this package for use in TreeSAPP the following steps must be performed:\n"
-                     "1. Write a properly formatted reference package 'refpkg_code' in {0}, replacing 'Z1111'\n"
+                     "1. Replace the current refpkg_code 'Z1111' with:\n"
+                     "`treesapp package edit refpkg_code $code --overwrite --refpkg_path {0}`"
+                     " where $code is a unique identifier.\n"
                      "2. Copy {0} to a directory containing other reference packages you want to analyse. "
                      "This may be in {1}/data/ or elsewhere\n"
                      "".format(self.ref_pkg.f__json, self.treesapp_dir))
@@ -1331,13 +1333,13 @@ class Assigner(TreeSAPP):
         """
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
+        self.svc_filter = True
         self.aa_orfs_file = ""
         self.nuc_orfs_file = ""
         self.classified_aa_seqs = ""
         self.classified_nuc_seqs = ""
         self.composition = ""
         self.target_refpkgs = list()
-        self.clf = load_pickle(self.refpkg_dir + "treesapp_svm.pkl")
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("orf-call", 0, self.predict_orfs),
@@ -1444,15 +1446,14 @@ class PhyTrainer(TreeSAPP):
         self.placement_table = ""
         self.placement_summary = ""
         self.target_refpkgs = list()
-
-        # Limit this to just Class, Family, and Species - other ranks are inferred through regression
-        self.training_ranks = {"class": 3, "species": 7}
+        self.training_ranks = {}
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("search", 0),
                        1: ModuleFunction("lineages", 1),
                        2: ModuleFunction("place", 2),
-                       3: ModuleFunction("regress", 3)}
+                       3: ModuleFunction("regress", 3),
+                       4: ModuleFunction("update", 4)}
 
     def get_info(self):
         info_string = "PhyTrainer instance summary:\n"

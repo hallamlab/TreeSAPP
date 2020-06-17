@@ -39,21 +39,6 @@ def launch_write_command(cmd_list, collect_all=True):
     return stdout, proc.returncode
 
 
-def setup_progress_bar(num_items):
-    if num_items > 50:
-        progress_bar_width = 50
-        step_proportion = float(num_items) / progress_bar_width
-    else:
-        progress_bar_width = num_items
-        step_proportion = 1
-
-    sys.stdout.write("[%s]" % (" " * progress_bar_width))
-    sys.stdout.write("\b" * (progress_bar_width+1))
-    sys.stdout.flush()
-
-    return step_proportion
-
-
 class CommandLineWorker(Process):
     def __init__(self, task_queue, commander):
         Process.__init__(self)

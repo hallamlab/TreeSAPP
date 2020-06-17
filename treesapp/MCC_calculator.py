@@ -853,7 +853,7 @@ def mcc_calculator():
             if args.no_svm:
                 classify_args.append("--no_svm")
             assign(classify_args)
-        classification_lines = file_parsers.read_marker_classification_table(classification_table)
+        classification_lines = file_parsers.read_classification_table(classification_table)
         assignments = file_parsers.parse_assignments(classification_lines)
     else:
         # Since you are only able to analyze a single reference package at a time with GraftM, this is ran iteratively

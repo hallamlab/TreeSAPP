@@ -672,7 +672,7 @@ class TaxonomicHierarchy:
             lineage = leaf_taxa_map[node_name].split(self.lin_sep)
 
             # Remove lineage from testing if the rank doesn't exist (unclassified at a high rank)
-            if len(lineage) < depth:
+            if len(lineage) == 1 or len(lineage) < depth:
                 truncated += 1
                 continue
 

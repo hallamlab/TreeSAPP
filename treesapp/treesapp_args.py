@@ -59,7 +59,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
 
     def add_refpkg_opt(self):
         self.optopt.add_argument("--refpkg_dir", dest="refpkg_dir", default=None,
-                                 help="Path to the directory containing reference package JSON files. "
+                                 help="Path to the directory containing reference package pickle (.pkl) files. "
                                       "[ DEFAULT = treesapp/data/ ]")
 
     def add_refpkg_targets(self):
@@ -70,7 +70,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
 
     def add_refpkg_file_param(self):
         self.reqs.add_argument("-r", "--refpkg_path", dest="pkg_path", required=True,
-                               help="Path to the reference package JSON file.\n")
+                               help="Path to the reference package pickle (.pkl) file.\n")
 
     def add_seq_params(self):
         self.optopt.add_argument("--trim_align", default=False, action="store_true",
@@ -147,7 +147,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                     help="Keywords for removing specific taxa; the opposite of `--screen`.\n"
                                          "[ DEFAULT is no filter ]",
                                     default="", required=False)
-        self.taxa_args.add_argument("-t", "--min_taxonomic_rank",
+        self.taxa_args.add_argument("--min_taxonomic_rank",
                                     required=False, default='k', choices=['k', 'p', 'c', 'o', 'f', 'g', 's'],
                                     help="The minimum taxonomic resolution for reference sequences [ DEFAULT = k ].\n")
         self.taxa_args.add_argument("--taxa_lca",
@@ -159,9 +159,30 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                          "A comma-separated argument with the Rank (e.g. Phylum) and\n"
                                          "number of representatives is required.\n")
 
+    def add_taxa_ranks_param(self):
+        self.optopt.add_argument("--taxonomic_ranks", dest="taxon_rank", required=False, nargs='+',
+                                 default=["class", "species"],
+                                 help="A list of the taxonomic ranks (space-separated) to test."
+                                      "[ DEFAULT = class species ]",
+                                 choices=["domain", "phylum", "class", "order", "family", "genus", "species"])
+
 
 def add_info_arguments(parser: TreeSAPPArgumentParser):
     parser.add_refpkg_opt()
+    return
+
+
+def add_package_arguments(parser: TreeSAPPArgumentParser, attributes: list):
+    parser.add_refpkg_file_param()
+
+    parser.reqs.add_argument("attributes", nargs="+",
+                             help="One or more reference package attributes to view. "
+                                  "Note: edit will only modify a single attribute at a time. "
+                                  "Choices include: {}\n".format(', '.join(attributes)))
+    parser.optopt.add_argument('-o', '--output', default=None, required=False,
+                               help='Path to an output directory. Default is the same directory as reference package.')
+    parser.optopt.add_argument("--overwrite", default=False, required=False, action="store_true",
+                               help="When editing a reference package, should the current file be overwritten?")
     return
 
 
@@ -319,6 +340,7 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_refpkg_file_param()
     parser.add_accession_params()
     parser.add_compute_miscellany()
+    parser.add_taxa_ranks_param()
 
     parser.optopt.add_argument("--fresh", default=False, required=False, action="store_true",
                                help="Recalculate a fresh phylogenetic tree with the target clades removed instead of"
@@ -326,11 +348,6 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.optopt.add_argument("--tool", default="treesapp", required=False,
                                choices=["treesapp", "graftm", "diamond"],
                                help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
-    parser.optopt.add_argument("-t", "--taxon_rank",
-                               help="A list of the taxonomic ranks (space-separated) to test. [ DEFAULT = 'species' ]",
-                               choices=["domain", "phylum", "class", "order", "family", "genus", "species"],
-                               default="species", nargs='+', type=str,
-                               required=False)
     parser.optopt.add_argument("-l", "--length",
                                required=False, type=int, default=0,
                                help="Arbitrarily slice the input sequences to this length. "
@@ -384,6 +401,7 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_refpkg_file_param()
     parser.add_seq_params()
     parser.add_accession_params()
+    parser.add_taxa_ranks_param()
     parser.add_compute_miscellany()
     parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
                                help="Flag indicating input sequences need to be purified using an HMM profile.")
@@ -481,19 +499,24 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args):
     return
 
 
-def check_trainer_arguments(trainer_instance: PhyTrainer, args):
-    trainer_instance.ref_pkg.f__json = args.pkg_path
-    trainer_instance.ref_pkg.slurp()
+def check_trainer_arguments(phy_trainer: PhyTrainer, args):
+    phy_trainer.ref_pkg.f__json = args.pkg_path
+    phy_trainer.ref_pkg.slurp()
+    phy_trainer.ref_pkg.validate()
 
     ##
     # Define locations of files TreeSAPP outputs
     ##
-    trainer_instance.placement_table = trainer_instance.final_output_dir + "placement_info.tsv"
-    trainer_instance.placement_summary = trainer_instance.final_output_dir + "placement_trainer_results.txt"
-    trainer_instance.hmm_purified_seqs = trainer_instance.output_dir + trainer_instance.ref_pkg.prefix + "_hmm_purified.fasta"
+    phy_trainer.placement_table = phy_trainer.final_output_dir + "placement_info.tsv"
+    phy_trainer.placement_summary = phy_trainer.final_output_dir + "placement_trainer_results.txt"
+    phy_trainer.hmm_purified_seqs = phy_trainer.output_dir + phy_trainer.ref_pkg.prefix + "_hmm_purified.fasta"
 
-    if not os.path.isdir(trainer_instance.var_output_dir):
-        os.makedirs(trainer_instance.var_output_dir)
+    # Make the directory for storing intermediate outputs
+    if not os.path.isdir(phy_trainer.var_output_dir):
+        os.makedirs(phy_trainer.var_output_dir)
+
+    for rank in args.taxon_rank:
+        phy_trainer.training_ranks[rank] = phy_trainer.ref_pkg.taxa_trie.accepted_ranks_depths[rank]
 
     return
 
@@ -525,7 +548,7 @@ def check_classify_arguments(assigner: Assigner, args):
             sys.exit(3)
 
     if args.no_svm:
-        assigner.clf = None
+        assigner.svc_filter = False
 
     # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
     # Parameterizing the hmmsearch output parsing:
@@ -558,7 +581,7 @@ def check_create_arguments(creator: Creator, args) -> None:
     creator.ref_pkg.kind = args.kind
     creator.ref_pkg.sub_model = args.raxml_model
     creator.ref_pkg.date = dt.now().strftime("%Y-%m-%d")
-    creator.ref_pkg.f__json = creator.final_output_dir + creator.ref_pkg.prefix + "_build.json"
+    creator.ref_pkg.f__json = creator.final_output_dir + creator.ref_pkg.prefix + creator.ref_pkg.refpkg_suffix
     # TODO: Create placement trainer output directory and make it an attribute
     if not args.output:
         args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep

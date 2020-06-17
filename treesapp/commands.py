@@ -23,7 +23,8 @@ from treesapp import annotate_extra
 from treesapp import treesapp_args
 from treesapp import classy
 from treesapp.phylo_seq import TreeProtein, assignments_to_treesaps
-from treesapp.refpkg import ReferencePackage
+from treesapp.refpkg import ReferencePackage, view, edit
+from treesapp.training_utils import train_classification_filter
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
@@ -95,14 +96,52 @@ def info(sys_args):
     return
 
 
-def package(**kwargs):
+def package(sys_args):
     """
     Perform specific operations on JSON-formatted single-file reference packages
 
-    :param kwargs: Keyword arguments
-    :return:
+    :param sys_args: Arguments from the command-line
+    :return: None
     """
-    parser = treesapp_args.TreeSAPPArgumentParser(description='')
+    pkg_usage = """
+treesapp package <subcommand> <attributes> [<args>]
+** Subcommands include:
+view        Print reference package attributes to the console
+edit        Change reference package attributes
+**
+Use '-h' to get subcommand-specific help, e.g.
+"""
+    parser = treesapp_args.TreeSAPPArgumentParser(description='Facilitate operations on reference packages')
+    parser.add_argument("subcommand", nargs='?', choices=["view", "edit"],
+                        help="A subcommand specifying the type of operation to perform")
+    args = parser.parse_args(sys_args[0:1])
+    if not args.subcommand:
+        sys.stderr.write(pkg_usage)
+        sys.exit(1)
+
+    refpkg = ReferencePackage()
+
+    treesapp_args.add_package_arguments(parser, refpkg.get_public_attributes())
+    args = parser.parse_args(sys_args)
+
+    if not args.output:
+        args.output = os.path.dirname(args.pkg_path)
+    if not os.path.isdir(args.output):
+        os.mkdir(args.output)
+
+    classy.prep_logging(os.path.join(args.output, 'TreeSAPP_package_log.txt'))
+
+    refpkg.f__json = args.pkg_path
+    refpkg.slurp()
+
+    if args.subcommand == "view":
+        view(refpkg, args.attributes)
+    elif args.subcommand == "edit":
+        edit(refpkg, args.attributes, args.output, args.overwrite)
+    else:
+        logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
+        sys.exit(1)
+
     return
 
 
@@ -122,7 +161,6 @@ def train(sys_args):
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_trainer_arguments(ts_trainer, args)
     ts_trainer.validate_continue(args)
-    ts_trainer.ref_pkg.validate()
     ts_trainer.ref_pkg.disband(os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_RefPkg"))
 
     train_seqs = fasta.FASTA(ts_trainer.input_sequences)
@@ -176,11 +214,65 @@ def train(sys_args):
         # Write the tab-delimited file with metadata included for each placement
         placement_trainer.write_placement_table(pqueries, ts_trainer.placement_table, ts_trainer.ref_pkg.prefix)
     else:
+        # TODO: Regenerate pqueries from ts_trainer.placement_table
+        pqueries = dict()
         pfit_array = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
         if pfit_array:
             logging.info("Placement distance model complete.\n")
         else:
             logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
+
+    logging.info("Generating placement data without clade exclusion for OC-SVM... ")
+    # TODO: Pause logging just to console and continue writing to log file
+    # Option 1. No logging to console or file
+    cl_log = logging.getLogger()
+    cl_log.disabled = True
+    # Option 2... ?
+
+    assign_prefix = os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_assign")
+    assign_params = ["-i", ts_trainer.hmm_purified_seqs,
+                     "-o", assign_prefix,
+                     "--num_procs", str(args.num_threads),
+                     "--refpkg_dir", os.path.dirname(ts_trainer.ref_pkg.f__json),
+                     "--targets", ts_trainer.ref_pkg.prefix,
+                     "--molecule", ts_trainer.ref_pkg.molecule,
+                     "--delete", "--no_svm"]
+    if args.trim_align:
+        assign_params.append("--trim_align")
+    assign(assign_params)
+
+    # Re-enable logging at the previous level
+    cl_log.disabled = False
+
+    logging.info("done.\n")
+
+    pqueries.update(assignments_to_treesaps(
+        file_parsers.read_classification_table(os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")),
+        {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+    )
+
+    # Reformat the pqueries dictionary for classifier training and testing
+    refpkg_pqueries = placement_trainer.flatten_pquery_dict(pqueries, ts_trainer.ref_pkg.prefix)
+    tp_names = {ts_trainer.ref_pkg.prefix:
+                    [pquery.contig_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
+
+    # Train the one-class SVM model
+    refpkg_classifiers = train_classification_filter(refpkg_pqueries, tp_names,
+                                                     refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+
+    if ts_trainer.stage_status("update"):
+        ts_trainer.ref_pkg.pfit = pfit_array
+        if not ts_trainer.ref_pkg.pfit:
+            logging.warning("Linear regression parameters could not be estimated. " +
+                            "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
+            ts_trainer.ref_pkg.pfit = [0.0, 7.0]
+
+        ts_trainer.ref_pkg.svc = refpkg_classifiers[ts_trainer.ref_pkg.prefix]
+        ts_trainer.ref_pkg.f__json = os.path.join(ts_trainer.final_output_dir,
+                                                  os.path.basename(ts_trainer.ref_pkg.f__json))
+
+        ts_trainer.ref_pkg.validate()
+        ts_trainer.ref_pkg.pickle_package()
 
     # Write the text file containing distances used in the regression analysis
     with open(ts_trainer.placement_summary, 'w') as out_handler:
@@ -472,6 +564,7 @@ def create(sys_args):
                    "-n", str(args.num_threads)]
     if args.trim_align:
         trainer_cmd.append("--trim_align")
+
     if ts_create.stage_status("train"):
         train(trainer_cmd)
     else:
@@ -481,18 +574,13 @@ def create(sys_args):
     # Finish validating the file and append the reference package build parameters to the master table
     ##
     if ts_create.stage_status("update"):
-        ts_create.ref_pkg.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir +
-                                                                      os.sep.join(["placement_trainer",
-                                                                                   "final_outputs",
-                                                                                   "placement_trainer_results.txt"]))
+        ts_create.ref_pkg.f__json = os.path.join(ts_create.var_output_dir, "placement_trainer", "final_outputs",
+                                                 ts_create.ref_pkg.prefix + ts_create.ref_pkg.refpkg_suffix)
+        ts_create.ref_pkg.slurp()
         ts_create.ref_pkg.validate()
+        ts_create.ref_pkg.change_file_paths(ts_create.final_output_dir)
+        ts_create.ref_pkg.pickle_package()
 
-        if not ts_create.ref_pkg.pfit:
-            logging.warning("Linear regression parameters could not be estimated. " +
-                            "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
-            ts_create.ref_pkg.pfit = [0.0, 7.0]
-
-    ts_create.ref_pkg.band()
     ts_create.remove_intermediates(args.delete)
     ts_create.print_terminal_commands()
 
@@ -523,7 +611,7 @@ def update(sys_args):
     ##
     classified_fasta = fasta.FASTA(ts_updater.query_sequences)  # These are the classified sequences
     classified_fasta.load_fasta()
-    classified_lines = file_parsers.read_marker_classification_table(ts_updater.assignment_table)
+    classified_lines = file_parsers.read_classification_table(ts_updater.assignment_table)
     candidate_update_seqs = update_refpkg.filter_by_lwr(classified_lines, args.min_lwr)
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.get_seq_names())
     name_map = update_refpkg.strip_assigment_pattern(classified_fasta.get_seq_names(), ts_updater.ref_pkg.prefix)
@@ -953,7 +1041,7 @@ def assign(sys_args):
     if ts_assign.stage_status("classify"):
         tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, refpkg_dict)
         select_query_placements(tree_saps)
-        filter_placements(tree_saps, refpkg_dict, ts_assign.clf, ts_assign.tree_dir, args.min_likelihood)
+        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_likelihood)
         fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         for refpkg_code in tree_saps:
@@ -1049,7 +1137,7 @@ def abundance(sys_args):
 
     # TODO: Index each TreeProtein's abundance by the dataset name, write a new row for each dataset's abundance
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
-        assignments = file_parsers.read_marker_classification_table(ts_abund.classifications)
+        assignments = file_parsers.read_classification_table(ts_abund.classifications)
         # Convert assignments to TreeProtein instances
         tree_saps = assignments_to_treesaps(assignments, refpkg_dict)
         summarize_placements_rpkm(tree_saps, abundance_dict, refpkg_dict, ts_abund.final_output_dir)
@@ -1091,7 +1179,7 @@ def purity(sys_args):
         assign_args = ["-i", ts_purity.formatted_input, "-o", ts_purity.assign_dir,
                        "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
                        "-t", ts_purity.ref_pkg.prefix, "--refpkg_dir", ts_purity.refpkg_dir,
-                       "--overwrite", "--delete"]
+                       "--overwrite", "--delete", "--no_svm"]
         try:
             assign(assign_args)
         except:  # Just in case treesapp assign fails, just continue
@@ -1101,7 +1189,7 @@ def purity(sys_args):
         metadat_dict = dict()
         # Parse classification table and identify the groups that were assigned
         if os.path.isfile(ts_purity.classifications):
-            assigned_lines = file_parsers.read_marker_classification_table(ts_purity.classifications)
+            assigned_lines = file_parsers.read_classification_table(ts_purity.classifications)
             ts_purity.assignments = file_parsers.parse_assignments(assigned_lines)
         else:
             logging.error("marker_contig_map.tsv is missing from output directory '" +
@@ -1267,7 +1355,7 @@ def evaluate(sys_args):
                     test_obj.assignments = {ts_evaluate.ref_pkg.prefix: graftm_assignments}
                     test_obj.filter_assignments(ts_evaluate.ref_pkg.prefix)
                 else:
-                    clade_exclusion_json = intermediates_path + ts_evaluate.ref_pkg.prefix + "_build.json"
+                    clade_exclusion_json = intermediates_path + ts_evaluate.ref_pkg.prefix + ts_evaluate.ref_pkg.refpkg_suffix
                     ce_refpkg = ts_evaluate.ref_pkg.clone(clade_exclusion_json)
                     classification_table = classifier_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
 
@@ -1301,7 +1389,7 @@ def evaluate(sys_args):
 
                     test_obj.taxonomic_tree = ce_refpkg.all_possible_assignments()
                     if os.path.isfile(classification_table):
-                        assigned_lines = file_parsers.read_marker_classification_table(classification_table)
+                        assigned_lines = file_parsers.read_classification_table(classification_table)
                         test_obj.assignments = file_parsers.parse_assignments(assigned_lines)
                         test_obj.filter_assignments(ts_evaluate.ref_pkg.prefix)
                         test_obj.distances = parse_distances(assigned_lines)

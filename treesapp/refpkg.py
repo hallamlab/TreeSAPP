@@ -2,13 +2,16 @@ import logging
 import os
 import re
 import sys
-from shutil import copy
 import json
+import inspect
+from shutil import copy
 
+from packaging import version
 from ete3 import Tree
+import joblib
 
 from treesapp.phylo_seq import TreeLeafReference
-from treesapp.entish import annotate_partition_tree, map_internal_nodes_leaves
+from treesapp.entish import annotate_partition_tree
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
@@ -17,25 +20,31 @@ from treesapp import wrapper
 from treesapp import __version__ as ts_version
 
 
+_COMPATIBLE_VERSION = "0.8.2"
+
+
 class ReferencePackage:
     def __init__(self, refpkg_name=""):
         self.prefix = refpkg_name
         self.refpkg_code = "Z1111"  # AKA denominator
 
         # These are files (with '_f' suffix) and their respective data (read with file.readlines())
-        self.f__json = self.prefix + "_build.json"  # Path to the JSON reference package file
-        self.msa = ""  # Reference MSA FASTA
+        # TODO: Rename to f__pkl
+        self.refpkg_suffix = "_build.pkl"
+        self.f__json = self.prefix + self.refpkg_suffix  # Path to the pickled reference package file
+        self.msa = []  # Reference MSA FASTA
         self.f__msa = self.prefix + ".fa"
-        self.profile = ""
+        self.profile = []
         self.f__profile = self.prefix + ".hmm"  # HMM file
-        self.search_profile = ""
+        self.search_profile = []
         self.f__search_profile = self.prefix + '_' + "search.hmm"  # profile HMM that has been dereplicated
-        self.tree = ""  # Reference tree
+        self.tree = []  # Reference tree
         self.f__tree = self.prefix + ".nwk"
-        self.boot_tree = ""  # Reference tree with support values
+        self.boot_tree = []  # Reference tree with support values
         self.f__boot_tree = self.prefix + "_bipart.nwk"
-        self.model_info = ""
+        self.model_info = []
         self.f__model_info = self.prefix + "_epa.model"  # RAxML-NG --evaluate model file
+        self.svc = None
         self.lineage_ids = dict()  # Reference sequence lineage map
 
         # These are metadata values
@@ -54,13 +63,18 @@ class ReferencePackage:
         self.cmd = ""  # The command used for building the reference package
 
         # These are attributes only used during runtime
-        self.core_ref_files = [self.f__msa, self.f__profile, self.f__search_profile,
-                               self.f__tree, self.f__boot_tree, self.f__model_info]
+        self.__core_ref_files = [self.f__msa, self.f__profile, self.f__search_profile,
+                                 self.f__tree, self.f__boot_tree, self.f__model_info]
         self.taxa_trie = TaxonomicHierarchy()
 
     def __iter__(self):
         for attr, value in self.__dict__.items():
             yield attr, value
+
+    def get_public_attributes(self) -> list:
+        return [attr[0] for attr in inspect.getmembers(self) if
+                type(attr[1]) in [int, float, str, list, dict] and
+                not attr[0].startswith('_')]
 
     def get_info(self):
         return "\n\t".join(["ReferencePackage instance of {} ({}):".format(self.prefix, self.refpkg_code),
@@ -83,39 +97,40 @@ class ReferencePackage:
     def clone(self, clone_path: str):
         refpkg_clone = ReferencePackage()
         if not os.path.isfile(self.f__json):
-            self.write_json()
+            self.pickle_package()
         refpkg_clone.f__json = self.f__json
         refpkg_clone.slurp()
         refpkg_clone.f__json = clone_path
         return refpkg_clone
 
-    def write_json(self):
+    def pickle_package(self) -> None:
         if len(self.f__json) == 0:
             self.bail("ReferencePackage.f__json not set. ReferencePackage band() cannot be completed.\n")
             raise AttributeError
 
         try:
-            refpkg_handler = open(self.f__json, 'w')
+            refpkg_handler = open(self.f__json, 'wb')
         except IOError:
-            self.bail("Unable to open reference package JSON file '{}' for writing.\n".format(self.f__json))
+            self.bail("Unable to open reference package pickled file '{}' for writing.\n".format(self.f__json))
             raise IOError
 
         refpkg_dict = {}
-        non_primitives = ["core_ref_files", "taxa_trie"]
+        non_primitives = ["__core_ref_files", "taxa_trie"]
         for a, v in self.__iter__():
             if a not in non_primitives:
                 refpkg_dict[a] = v
 
-        json.dump(obj=refpkg_dict, fp=refpkg_handler)
+        joblib.dump(value=refpkg_dict, filename=refpkg_handler)
 
         refpkg_handler.close()
         return
 
-    def band(self):
+    def band(self) -> None:
         """
-        Writes a JSON file containing all of the reference package files and metadata
+        Reads each of the individual reference package component files (e.g. 'f__msa', 'f__tree', 'f__model_info') and
+        writes a pickle file containing all of the reference package files and metadata.
 
-        :return:
+        :return: None
         """
         # Read the all of the individual reference package files that are available (e.g. MSA, HMM, phylogeny)
         for a, v in self.__iter__():
@@ -124,7 +139,7 @@ class ReferencePackage:
                 if dest in self.__dict__:
                     with open(v) as fh:
                         self.__dict__[dest] = fh.readlines()
-        self.write_json()
+        self.pickle_package()
 
         return
 
@@ -165,7 +180,7 @@ class ReferencePackage:
                 self.__dict__[a] = new_path
         return
 
-    def update_file_names(self):
+    def update_file_names(self) -> None:
         for a, v in self.__iter__():
             if a.startswith('f__'):
                 path, name = os.path.split(v)
@@ -174,8 +189,8 @@ class ReferencePackage:
 
     def disband(self, output_dir: str) -> None:
         """
-        From a ReferencePackage's JSON file, the individual file components (e.g. profile HMM, MSA, phylogeny) are
-        written to their separate files in a new directory, a sub-directory of where the JSON is located.
+        From a ReferencePackage's pickled file, the individual file components (e.g. profile HMM, MSA, phylogeny) are
+        written to their separate files in a new directory, a sub-directory of where the pickle is located.
         The directory name follows the format: self.prefix + '_' self.refpkg_code + '_' + self.date
 
         Their file paths (e.g. self.f__msa, self.f__tree) are updated with the output_dir as the directory path.
@@ -211,28 +226,31 @@ class ReferencePackage:
 
     def slurp(self) -> None:
         """
-        Reads the reference package's JSON-formatted file and stores the elements in their respective variables
+        Reads the reference package's pickled-formatted file and stores the elements in their respective variables
 
         :return: None
         """
+        new_path = self.f__json
         if len(self.f__json) == 0:
             logging.error("ReferencePackage.f__json was not set.\n")
             sys.exit(11)
 
         if not os.path.isfile(self.f__json):
-            logging.error("ReferencePackage JSON file '{}' doesn't exist.\n".format(self.f__json))
+            logging.error("ReferencePackage pickle file '{}' doesn't exist.\n".format(self.f__json))
             sys.exit(7)
 
         try:
+            refpkg_data = joblib.load(self.f__json)
+        except KeyError:
             refpkg_handler = open(self.f__json, 'r')
-        except IOError:
-            logging.error("Unable to open reference package JSON file '{}' for reading.\n".format(self.f__json))
-            sys.exit(3)
-        refpkg_data = json.load(refpkg_handler)
-        refpkg_handler.close()
+            refpkg_data = json.load(refpkg_handler)
+            refpkg_handler.close()
 
         for a, v in refpkg_data.items():
             self.__dict__[a] = v
+
+        # Fix the pickle path
+        self.f__json = new_path
 
         if type(self.tree) is list:
             self.tree = self.tree[0]
@@ -243,16 +261,23 @@ class ReferencePackage:
 
     def validate(self, check_files=False):
         """
-        Function that ensures the number of sequences is equal across all files and that in the ref_build_parameters.tsv
+        Function that ensures the number of sequences is equal across all files and
+        the version of TreeSAPP used to create this reference package is compatible with the current version.
 
         :return: Boolean
         """
         # Check to ensure all files exist
         if check_files:
-            for ref_file in self.core_ref_files:
+            for ref_file in self.__core_ref_files:
                 if not os.path.isfile(ref_file):
                     self.bail("File '{}' does not exist for ReferencePackage {}\n".format(ref_file, self.prefix))
                     return False
+
+        if version.parse(self.ts_version) < version.parse(_COMPATIBLE_VERSION):
+            self.bail("'{}' reference package (created with version '{}')"
+                      " is not compatible with this version of TreeSAPP ('{}').\n".format(self.prefix,
+                                                                                          self.ts_version, ts_version))
+            return False
 
         # Compare the number of sequences in the multiple sequence alignment
         refpkg_fa = self.get_fasta()
@@ -677,3 +702,50 @@ class ReferencePackage:
             lineage_list.append(lineage)
 
         return load_taxonomic_trie(lineage_list)
+
+
+def view(refpkg: ReferencePackage, attributes: list) -> None:
+    view_dict = {}
+    for attr in attributes:
+        try:
+            view_dict[attr] = refpkg.__dict__[attr]
+        except KeyError:
+            logging.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(attr))
+            sys.exit(1)
+
+    for k, v in view_dict.items():
+        if type(v) is list and k not in ["pfit"]:
+            v = ''.join(v)
+        logging.info("{}\t{}\n".format(k, v))
+
+    # TODO: optionally use ReferencePackage.write_refpkg_component
+    return
+
+
+def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool) -> None:
+    if len(attributes) > 2:
+        logging.error("`treesapp package edit` only edits a single attribute at a time.\n")
+        sys.exit(3)
+    elif len(attributes) == 1:
+        logging.error("`treesapp package edit` requires a value to change.\n")
+        sys.exit(3)
+    else:
+        k, v = attributes
+
+    try:
+        current_v = refpkg.__dict__[k]
+    except KeyError:
+        logging.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(k))
+        sys.exit(1)
+
+    logging.info("Replacing attribute '{}' (currently '{}')\n".format(k, current_v))
+
+    refpkg.__dict__[k] = v
+    if not overwrite:
+        refpkg.f__json = os.path.join(output_dir, os.path.basename(refpkg.f__json))
+        if os.path.isfile(refpkg.f__json):
+            logging.warning("RefPkg file '{}' already exists.\n".format(refpkg.f__json))
+            return
+    refpkg.pickle_package()
+
+    return

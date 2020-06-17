@@ -33,14 +33,14 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
     else:
         targets = set(targets)
 
-    json_files = glob(refpkg_data_dir + os.sep + "*json")
-    if len(json_files) == 0:
-        logging.error("No JSON files were found in {}".format(refpkg_data_dir))
+    refpkg_files = glob(refpkg_data_dir + os.sep + "*_build.pkl")
+    if len(refpkg_files) == 0:
+        logging.error("No reference package files were found in {}".format(refpkg_data_dir))
         sys.exit(3)
 
-    for json_file in json_files:
+    for rp_file in refpkg_files:
         refpkg = ReferencePackage()
-        refpkg.f__json = json_file
+        refpkg.f__json = rp_file
         refpkg.slurp()
         if targets:  # type: list
             if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:
@@ -48,8 +48,8 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
             else:
                 match = targets.intersection({refpkg.prefix, refpkg.refpkg_code}).pop()
                 refpkgs_found.add(match)
-        refpkg.validate()
-        refpkg_dict[refpkg.prefix] = refpkg
+        if refpkg.validate():
+            refpkg_dict[refpkg.prefix] = refpkg
     logging.debug("done.\n")
 
     targets = targets.difference(refpkgs_found)
@@ -115,7 +115,7 @@ def parse_assignments(classified_lines: list) -> dict:
       Alternatively, the number of query sequences could be calculated from the classification tables
       but we don't think this is the best route as unclassified seqs would wreak havoc.
 
-    :param classified_lines: A list of classification lines returned by read_marker_classification_table
+    :param classified_lines: A list of classification lines returned by read_classification_table
     :return: A dictionary of lineage information for each assignment, indexed by the marker gene it was classified as
     """
     classified = namedtuple("classified", ["refpkg", "taxon", "length"])
@@ -149,7 +149,7 @@ def parse_assignments(classified_lines: list) -> dict:
     return assignments
 
 
-def read_marker_classification_table(assignment_file) -> list:
+def read_classification_table(assignment_file) -> list:
     """
     Function for reading the tabular assignments file (currently marker_contig_map.tsv)
     Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header

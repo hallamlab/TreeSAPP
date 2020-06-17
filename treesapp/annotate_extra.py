@@ -77,7 +77,7 @@ class ClassifiedSequence:
 def parse_marker_classification_table(marker_classification_file):
     """
     Function to read marker_contig_map.tsv and gather the relevant information for adding extra annotations
-    This function is different from Clade_exclusion_analyzer::read_marker_classification_table(assignment_file)
+    This function is different from Clade_exclusion_analyzer::read_classification_table(assignment_file)
     as we are interested in all fields in this function.
     :param marker_classification_file:
     :return:
