@@ -115,7 +115,7 @@ def parse_assignments(classified_lines: list) -> dict:
       Alternatively, the number of query sequences could be calculated from the classification tables
       but we don't think this is the best route as unclassified seqs would wreak havoc.
 
-    :param classified_lines: A list of classification lines returned by read_marker_classification_table
+    :param classified_lines: A list of classification lines returned by read_classification_table
     :return: A dictionary of lineage information for each assignment, indexed by the marker gene it was classified as
     """
     classified = namedtuple("classified", ["refpkg", "taxon", "length"])
@@ -149,7 +149,7 @@ def parse_assignments(classified_lines: list) -> dict:
     return assignments
 
 
-def read_marker_classification_table(assignment_file) -> list:
+def read_classification_table(assignment_file) -> list:
     """
     Function for reading the tabular assignments file (currently marker_contig_map.tsv)
     Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header

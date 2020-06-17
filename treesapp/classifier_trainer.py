@@ -143,7 +143,7 @@ def generate_training_data(ts_trainer: PhyTrainer, refpkg_dict: dict, accession_
         classification_tables = clade_exclusion_outputs
         classification_tables.append(assign_table)
         for table in classification_tables:
-            classification_lines += ts_fp.read_marker_classification_table(table)
+            classification_lines += ts_fp.read_classification_table(table)
 
     assignments = assignments_to_treesaps(classification_lines, refpkg_dict)
 

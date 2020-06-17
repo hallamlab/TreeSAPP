@@ -16,7 +16,7 @@ class TreesappTester(unittest.TestCase):
                                 "--stringency", "relaxed",
                                 "--trim_align", "--no_svm", "--overwrite", "--delete"]
         commands.assign(assign_commands_list)
-        lines = file_parsers.read_marker_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
+        lines = file_parsers.read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(15, len(lines))
 
     def test_assign_dna(self):
@@ -32,7 +32,7 @@ class TreesappTester(unittest.TestCase):
                                 "--stringency", "strict",
                                 "--trim_align", "--no_svm", "--overwrite", "--delete"]
         commands.assign(assign_commands_list)
-        lines = file_parsers.read_marker_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
+        lines = file_parsers.read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(6, len(lines))
 
     def test_create(self):
@@ -88,7 +88,7 @@ class TreesappTester(unittest.TestCase):
                                  "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
                                  "-o", "./TreeSAPP_evaluate",
                                  "-m", "prot",
-                                 "--taxon_rank", "class", "order",
+                                 "--taxonomic_ranks", "class", "order",
                                  "-n", str(2),
                                  "--trim_align", "--overwrite", "--delete"]
         evaluate(evaluate_command_list)
@@ -96,10 +96,10 @@ class TreesappTester(unittest.TestCase):
 
     def test_abundance(self):
         from commands import abundance
-        from file_parsers import read_marker_classification_table
+        from file_parsers import read_classification_table
         from . import testing_utils as utils
         classification_table = os.path.join(utils.get_example_output(), "final_outputs", "marker_contig_map.tsv")
-        pre_lines = read_marker_classification_table(utils.get_test_data(classification_table))
+        pre_lines = read_classification_table(utils.get_test_data(classification_table))
         abundance_command_list = ["--treesapp_output", utils.get_test_data("test_output_TarA/"),
                                   "--reads", utils.get_test_data("test_TarA.1.fq"),
                                   "--reverse", utils.get_test_data("test_TarA.2.fq"),
@@ -107,7 +107,7 @@ class TreesappTester(unittest.TestCase):
                                   "--num_procs", str(2),
                                   "--delete"]
         abundance(abundance_command_list)
-        post_lines = read_marker_classification_table(utils.get_test_data(classification_table))
+        post_lines = read_classification_table(utils.get_test_data(classification_table))
         self.assertEqual(len(pre_lines), len(post_lines))
         return
 
@@ -125,13 +125,13 @@ class TreesappTester(unittest.TestCase):
     def test_layer(self):
         from commands import layer
         from . import testing_utils as utils
-        from file_parsers import read_marker_classification_table
+        from file_parsers import read_classification_table
         classification_table = os.path.join(utils.get_example_output(), "final_outputs", "marker_contig_map.tsv")
-        pre_lines = read_marker_classification_table(utils.get_test_data(classification_table))
+        pre_lines = read_classification_table(utils.get_test_data(classification_table))
         layer_command_list = ["--treesapp_output", utils.get_test_data("test_output_TarA/")]
         layer_command_list += ["--refpkg_dir", utils.get_test_data("refpkgs/")]
         layer(layer_command_list)
-        post_lines = read_marker_classification_table(utils.get_test_data(classification_table))
+        post_lines = read_classification_table(utils.get_test_data(classification_table))
         self.assertEqual(len(pre_lines), len(post_lines))
         return
 

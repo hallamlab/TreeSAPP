@@ -202,7 +202,6 @@ def train(sys_args):
         estimated_ranks = set(taxa_evo_dists.keys())
         for rank_key in estimated_ranks.difference(set(ts_trainer.training_ranks.keys())):
             taxa_evo_dists.pop(rank_key)
-        # TODO: Regenerate pqueries from ts_trainer.placement_table
 
     if len(set(ts_trainer.training_ranks.keys()).difference(set(taxa_evo_dists.keys()))) > 0:
         pfit_array, taxa_evo_dists, pqueries = placement_trainer.regress_rank_distance(ts_trainer.hmm_purified_seqs,
@@ -215,16 +214,36 @@ def train(sys_args):
         # Write the tab-delimited file with metadata included for each placement
         placement_trainer.write_placement_table(pqueries, ts_trainer.placement_table, ts_trainer.ref_pkg.prefix)
     else:
+        # TODO: Regenerate pqueries from ts_trainer.placement_table
+        pqueries = dict()
         pfit_array = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
         if pfit_array:
             logging.info("Placement distance model complete.\n")
         else:
             logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
+    # Generate placement data without clade exclusion
+    assign_prefix = os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_assign")
+    assign_params = ["-i", ts_trainer.hmm_purified_seqs,
+                     "-o", assign_prefix,
+                     "--num_procs", str(args.num_threads),
+                     "--refpkg_dir", os.path.dirname(ts_trainer.ref_pkg.f__json),
+                     "--targets", ts_trainer.ref_pkg.prefix,
+                     "--molecule", ts_trainer.ref_pkg.molecule,
+                     "--delete", "--no_svm"]
+    if args.trim_align:
+        assign_params.append("--trim_align")
+    assign(assign_params)
+    pqueries.update(assignments_to_treesaps(
+        file_parsers.read_classification_table(os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")),
+        {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+    )
+
     # Reformat the pqueries dictionary for classifier training and testing
     refpkg_pqueries = placement_trainer.flatten_pquery_dict(pqueries, ts_trainer.ref_pkg.prefix)
     tp_names = {ts_trainer.ref_pkg.prefix:
                     [pquery.contig_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
+
     # Train the one-class SVM model
     refpkg_classifiers = train_classification_filter(refpkg_pqueries, tp_names,
                                                      refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
@@ -580,7 +599,7 @@ def update(sys_args):
     ##
     classified_fasta = fasta.FASTA(ts_updater.query_sequences)  # These are the classified sequences
     classified_fasta.load_fasta()
-    classified_lines = file_parsers.read_marker_classification_table(ts_updater.assignment_table)
+    classified_lines = file_parsers.read_classification_table(ts_updater.assignment_table)
     candidate_update_seqs = update_refpkg.filter_by_lwr(classified_lines, args.min_lwr)
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.get_seq_names())
     name_map = update_refpkg.strip_assigment_pattern(classified_fasta.get_seq_names(), ts_updater.ref_pkg.prefix)
@@ -1106,7 +1125,7 @@ def abundance(sys_args):
 
     # TODO: Index each TreeProtein's abundance by the dataset name, write a new row for each dataset's abundance
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
-        assignments = file_parsers.read_marker_classification_table(ts_abund.classifications)
+        assignments = file_parsers.read_classification_table(ts_abund.classifications)
         # Convert assignments to TreeProtein instances
         tree_saps = assignments_to_treesaps(assignments, refpkg_dict)
         summarize_placements_rpkm(tree_saps, abundance_dict, refpkg_dict, ts_abund.final_output_dir)
@@ -1158,7 +1177,7 @@ def purity(sys_args):
         metadat_dict = dict()
         # Parse classification table and identify the groups that were assigned
         if os.path.isfile(ts_purity.classifications):
-            assigned_lines = file_parsers.read_marker_classification_table(ts_purity.classifications)
+            assigned_lines = file_parsers.read_classification_table(ts_purity.classifications)
             ts_purity.assignments = file_parsers.parse_assignments(assigned_lines)
         else:
             logging.error("marker_contig_map.tsv is missing from output directory '" +
@@ -1358,7 +1377,7 @@ def evaluate(sys_args):
 
                     test_obj.taxonomic_tree = ce_refpkg.all_possible_assignments()
                     if os.path.isfile(classification_table):
-                        assigned_lines = file_parsers.read_marker_classification_table(classification_table)
+                        assigned_lines = file_parsers.read_classification_table(classification_table)
                         test_obj.assignments = file_parsers.parse_assignments(assigned_lines)
                         test_obj.filter_assignments(ts_evaluate.ref_pkg.prefix)
                         test_obj.distances = parse_distances(assigned_lines)

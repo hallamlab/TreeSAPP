@@ -12,10 +12,11 @@ from treesapp import file_parsers
 from treesapp import utilities
 from treesapp import wrapper
 from treesapp import fasta
+from treesapp.phylo_seq import ItolJplace
 from treesapp.phylo_dist import cull_outliers, regress_ranks
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.refpkg import ReferencePackage
-from treesapp.training_utils import rarefy_rank_distances, generate_pquery_data_for_trainer
+from treesapp.training_utils import rarefy_rank_distances, generate_pquery_data_for_trainer, PQuery
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -78,11 +79,28 @@ def write_placement_table(pqueries: dict, placement_table_file, marker):
 
 
 def flatten_pquery_dict(pqueries: dict, refpkg_prefix: str) -> dict:
+    """
+    Takes a dictionary storing PQuery (or some other subclass of ITOLJplace) in values and extracts them to a new
+    dictionary where the key is refpkg_prefix and the value is a list of PQuery instances.
+
+    :param pqueries: A dictionary mapping keys (function is agnostic though some examples are taxonomic rank or lineage)
+    to an iterable - either a list containing ITolJPlace instances (or a subclass) or a dictionary whose values are
+    a list of ITolJPlace instances.
+    :param refpkg_prefix: A ReferencePackage.prefix to which the PQueries were classified by
+    :return: A dictionary indexed by refpkg_prefix mapped to a list of ITolJPlace instances
+    """
     refpkg_pqueries = {refpkg_prefix: []}
-    for rank, taxa in pqueries.items():
-        for taxon in taxa:
-            for pquery in taxa[taxon]:
-                refpkg_pqueries[refpkg_prefix].append(pquery)
+    for _, taxa in pqueries.items():  # type: (str, dict)
+        for taxon in taxa:  # type: str
+            try:
+                for pquery in taxa[taxon]:  # type: PQuery
+                    refpkg_pqueries[refpkg_prefix].append(pquery)
+            except TypeError:
+                if isinstance(taxon, ItolJplace):
+                    refpkg_pqueries[refpkg_prefix].append(taxon)
+                else:
+                    logging.error("An instance of type PQuery was expected, found '{}' instead.\n".format(type(taxon)))
+                    raise TypeError
     return refpkg_pqueries
 
 
@@ -302,21 +320,20 @@ def train_placement_distances(rank_training_seqs: dict,
 
     :return: tuple(Dictionary of ranks indexing placement distances, list of PQuery instances)
     """
-
-    logging.info("\nEstimating branch-length placement distances for taxonomic ranks. Progress:\n")
     leaf_trimmed_taxa_map = dict()
     pqueries = dict()
 
     if output_dir[-1] != os.sep:
         output_dir += os.sep
 
+    logging.debug("Calculating the total number of queries to be used for training... ")
     num_training_queries = 0
     for rank in rank_training_seqs:
         num_rank_training_seqs = 0
         for taxonomy in rank_training_seqs[rank]:
             num_rank_training_seqs += len(rank_training_seqs[rank][taxonomy])
         if len(rank_training_seqs[rank]) == 0:
-            logging.error("No sequences available for estimating {}-level placement distances.\n".format(rank))
+            logging.debug("No sequences available for estimating {}-level placement distances.\n".format(rank))
             continue
         else:
             logging.debug("{} sequences to train {}-level placement distances\n".format(num_rank_training_seqs, rank))
@@ -327,11 +344,13 @@ def train_placement_distances(rank_training_seqs: dict,
         return pqueries
     if num_training_queries < 50:
         logging.warning("Only {} sequences for training placement distance model.\n".format(num_training_queries))
+    logging.debug("done.\n")
 
-    pbar = tqdm(total=num_training_queries)
+    logging.info("Estimating branch-length placement distances for taxonomic ranks\n")
+    pbar = tqdm(total=num_training_queries, ncols=100)
 
-    # For each rank from Class to Species (Kingdom & Phylum-level classifications to be inferred by LCA):
     for rank in sorted(rank_training_seqs, reverse=True):
+        pbar.set_description("Processing %s" % rank)
         pqueries[rank] = {}
         for leaf_node, lineage in ref_pkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, rank).items():
             leaf_trimmed_taxa_map[leaf_node + "_" + ref_pkg.prefix] = lineage
@@ -346,6 +365,7 @@ def train_placement_distances(rank_training_seqs: dict,
             logging.debug("No samples available for " + rank + ".\n")
 
         leaf_trimmed_taxa_map.clear()
+    pbar.close()
 
     return pqueries
 

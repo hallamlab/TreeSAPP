@@ -364,17 +364,17 @@ def instantiate_classifier(kernel_name, occ=False):
             clf = svm.SVC(kernel="poly", tol=1E-5, gamma="auto", C=100)
         k_name = "polynomial"
     else:
-        logging.error("Unknown SVM kernel '%s'.\n" % kernel_name)
+        logging.error("Unknown SVM kernel '{}'.\n".format(kernel_name))
         # poly_clf = svm.SVC(kernel="poly", tol=1E-3, max_iter=1E6, degree=6, gamma="auto")
         sys.exit(3)
 
-    logging.info("Using a '%s' kernel for the SVM classifier ".format(k_name))
+    logging.info("Using a '{}' kernel for the SVM classifier\n".format(k_name))
 
     return clf
 
 
-def evaluate_binary_classifier(clf: svm.SVC, x_test: np.array, y_test: np.array,
-                               classified_data: np.array, conditions: np.array) -> None:
+def evaluate_classifier(clf, x_test: np.array, y_test: np.array,
+                        classified_data: np.array, conditions: np.array) -> None:
     """
     Performs 10-fold cross-validation, computing F1-scores, as well as accuracy, precision and recall.
     All stats are written to the logging info stream
@@ -434,19 +434,20 @@ def train_binary_classifier(tp: np.array, fp: np.array, kernel: str, tsne: str, 
     clf.fit(x_train, y_train)
     logging.info("done.\n")
 
-    evaluate_binary_classifier(clf, x_test, y_test, classified_data, conditions)
+    evaluate_classifier(clf, x_test, y_test, classified_data, conditions)
     return clf
 
 
 def train_oc_classifier(tp: np.array, kernel: str):
-    x_train, x_test, _, _ = model_selection.train_test_split(tp, np.array([0] * len(tp)),
-                                                             test_size=0.4, random_state=12345)
+    conditions = np.array([1] * len(tp))
+    x_train, x_test, y_train, y_test = model_selection.train_test_split(tp, conditions, test_size=0.4, random_state=123)
     clf = instantiate_classifier(kernel, occ=True)  # type: svm.OneClassSVM
+
     logging.info("Training the classifier... ")
     clf.fit(x_train)
     logging.info("done.\n")
 
-    clf.predict(x_test)
+    evaluate_classifier(clf, x_test, y_test, tp, conditions)
     return clf
 
 
