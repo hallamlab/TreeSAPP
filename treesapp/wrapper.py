@@ -7,7 +7,7 @@ from shutil import copy
 
 from tqdm import tqdm
 
-from treesapp.external_command_interface import launch_write_command, setup_progress_bar, CommandLineFarmer
+from treesapp.external_command_interface import launch_write_command, CommandLineFarmer
 from treesapp.fasta import read_fasta_to_dict
 
 
