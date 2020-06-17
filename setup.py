@@ -43,9 +43,14 @@ SETUP_METADATA = \
                                   language="c++",
                                   include_dirs=["./treesapp/include"])
                         ],
-        "install_requires": ["samsum>=0.1.0", "pygtrie>=2.3.3", "ete3>=3.1.1",
-                             "numpy>=1.18.1", "biopython>=1.68", "scipy", "six>=1.14.0",
-                             "scikit-learn>=0.22.1", "joblib", "pyfastx==0.6.10", "seaborn"]
+        "install_requires": ["samsum", "pyfastx",
+                             "pygtrie", "six",
+                             "biopython", "ete3",
+                             "numpy", "scipy", "scikit-learn", "joblib",
+                             "seaborn", "matplotlib", "tqdm", "packaging"],
+        "extras_require": {
+            'test': ['pytest', 'pytest-cov'],
+        }
     }
 
 setup(**SETUP_METADATA)

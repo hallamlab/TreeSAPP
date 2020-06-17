@@ -2,6 +2,7 @@ biopython >=1.76
 ete3 >=3.1.1
 joblib ==0.15.1
 numpy >=1.18.1
+packaging >=20.3
 pyfastx >=0.6.12
 pygtrie >=2.3.3
 samsum >=0.1.2
