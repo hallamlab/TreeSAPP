@@ -5,6 +5,8 @@ import re
 import logging
 from shutil import copy
 
+from tqdm import tqdm
+
 from treesapp.external_command_interface import launch_write_command, setup_progress_bar, CommandLineFarmer
 from treesapp.fasta import read_fasta_to_dict
 
@@ -526,23 +528,22 @@ def hmmsearch_orfs(hmmsearch_exe: str, refpkg_dict: dict, fasta_file: str, outpu
             else:
                 nucl_target_hmm_files.append(refpkg.f__search_profile)
 
-    acc = 0.0
     logging.info("Searching for marker proteins in ORFs using hmmsearch.\n")
-    step_proportion = setup_progress_bar(len(prot_target_hmm_files) + len(nucl_target_hmm_files))
+    if logging.getLogger().disabled:
+        pbar = None
+    else:
+        pbar = tqdm(total=len(prot_target_hmm_files) + len(nucl_target_hmm_files), ncols=120)
 
     # Create and launch the hmmsearch commands iteratively.
     for hmm_file in prot_target_hmm_files:
+        if pbar:
+            pbar.set_description("Processing {}".format(os.path.basename(hmm_file)))
+
         # TODO: Parallelize this by allocating no more than 2 threads per process
         hmm_domtbl_files += run_hmmsearch(hmmsearch_exe, hmm_file, fasta_file, output_dir, num_threads, e_value)
 
-        # Update the progress bar
-        acc += 1.0
-        if acc >= step_proportion:
-            acc -= step_proportion
-            time.sleep(0.1)
-            sys.stdout.write("-")
-            sys.stdout.flush()
-    sys.stdout.write("-]\n")
+        if pbar:
+            pbar.update()
 
     return hmm_domtbl_files
 
