@@ -28,7 +28,7 @@ class RefPkgTester(unittest.TestCase):
 
     def test_disband(self):
         self.db.disband("./")
-        self.assertTrue(os.path.isfile("./McrA_M0701_/McrA.fa"))
+        self.assertTrue(os.path.isfile("./McrA_Z1111_2020-06-15/McrA.fa"))
 
     def test_remove_taxon_from_lineage_ids(self):
         self.db.remove_taxon_from_lineage_ids("d__Archaea; p__Euryarchaeota; c__Methanobacteria; o__Methanobacteriales;"
@@ -49,6 +49,9 @@ class RefPkgTester(unittest.TestCase):
         self.db.bail()
 
     def test_get_internal_node_leaf_map(self):
+        from . import testing_utils as utils
+        self.db.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        self.db.slurp()
         node_map = self.db.get_internal_node_leaf_map()
         self.assertEqual((2*self.db.num_seqs)-1, len(node_map))
         self.assertEqual(self.db.num_seqs, len(node_map[max(node_map.keys())]))
