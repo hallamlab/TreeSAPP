@@ -2,11 +2,12 @@ import logging
 import os
 import re
 import sys
-from shutil import copy
 import json
-import joblib
+from shutil import copy
 
+from packaging import version
 from ete3 import Tree
+import joblib
 
 from treesapp.phylo_seq import TreeLeafReference
 from treesapp.entish import annotate_partition_tree
@@ -16,6 +17,9 @@ from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.utilities import get_hmm_length, base_file_prefix, load_taxonomic_trie, match_file
 from treesapp import wrapper
 from treesapp import __version__ as ts_version
+
+
+_COMPATIBLE_VERSION = "0.8.2"
 
 
 class ReferencePackage:
@@ -251,7 +255,8 @@ class ReferencePackage:
 
     def validate(self, check_files=False):
         """
-        Function that ensures the number of sequences is equal across all files and that in the ref_build_parameters.tsv
+        Function that ensures the number of sequences is equal across all files and
+        the version of TreeSAPP used to create this reference package is compatible with the current version.
 
         :return: Boolean
         """
@@ -261,6 +266,12 @@ class ReferencePackage:
                 if not os.path.isfile(ref_file):
                     self.bail("File '{}' does not exist for ReferencePackage {}\n".format(ref_file, self.prefix))
                     return False
+
+        if version.parse(self.ts_version) < version.parse(_COMPATIBLE_VERSION):
+            self.bail("'{}' reference package (created with version '{}')"
+                      " is not compatible with this version of TreeSAPP ('{}').\n".format(self.prefix,
+                                                                                          self.ts_version, ts_version))
+            return False
 
         # Compare the number of sequences in the multiple sequence alignment
         refpkg_fa = self.get_fasta()

@@ -48,8 +48,8 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
             else:
                 match = targets.intersection({refpkg.prefix, refpkg.refpkg_code}).pop()
                 refpkgs_found.add(match)
-        refpkg.validate()
-        refpkg_dict[refpkg.prefix] = refpkg
+        if refpkg.validate():
+            refpkg_dict[refpkg.prefix] = refpkg
     logging.debug("done.\n")
 
     targets = targets.difference(refpkgs_found)
