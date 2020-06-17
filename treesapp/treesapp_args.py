@@ -165,10 +165,11 @@ def add_info_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_package_arguments(parser: TreeSAPPArgumentParser):
+def add_package_arguments(parser: TreeSAPPArgumentParser, attributes: list):
     parser.reqs.add_argument("attributes", nargs="+",
-                             help="One or more reference package attributes to view."
-                                  "Note: edit will only modify a single attribute at a time.")
+                             help="One or more reference package attributes to view. "
+                                  "Note: edit will only modify a single attribute at a time. "
+                                  "Choices include: {}\n".format(', '.join(attributes)))
     parser.add_refpkg_file_param()
     parser.optopt.add_argument('-o', '--output', default=None, required=False,
                                help='Path to an output directory. Default is the same directory as reference package.')

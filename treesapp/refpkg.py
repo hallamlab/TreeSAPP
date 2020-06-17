@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import json
+import inspect
 from shutil import copy
 
 from packaging import version
@@ -31,19 +32,19 @@ class ReferencePackage:
         # TODO: Rename to f__pkl
         self.refpkg_suffix = "_build.pkl"
         self.f__json = self.prefix + self.refpkg_suffix  # Path to the pickled reference package file
-        self.msa = ""  # Reference MSA FASTA
+        self.msa = []  # Reference MSA FASTA
         self.f__msa = self.prefix + ".fa"
-        self.profile = ""
+        self.profile = []
         self.f__profile = self.prefix + ".hmm"  # HMM file
-        self.search_profile = ""
+        self.search_profile = []
         self.f__search_profile = self.prefix + '_' + "search.hmm"  # profile HMM that has been dereplicated
-        self.tree = ""  # Reference tree
+        self.tree = []  # Reference tree
         self.f__tree = self.prefix + ".nwk"
-        self.boot_tree = ""  # Reference tree with support values
+        self.boot_tree = []  # Reference tree with support values
         self.f__boot_tree = self.prefix + "_bipart.nwk"
-        self.model_info = ""
+        self.model_info = []
         self.f__model_info = self.prefix + "_epa.model"  # RAxML-NG --evaluate model file
-        self.svc = ""
+        self.svc = None
         self.lineage_ids = dict()  # Reference sequence lineage map
 
         # These are metadata values
@@ -62,13 +63,18 @@ class ReferencePackage:
         self.cmd = ""  # The command used for building the reference package
 
         # These are attributes only used during runtime
-        self.core_ref_files = [self.f__msa, self.f__profile, self.f__search_profile,
-                               self.f__tree, self.f__boot_tree, self.f__model_info]
+        self.__core_ref_files = [self.f__msa, self.f__profile, self.f__search_profile,
+                                 self.f__tree, self.f__boot_tree, self.f__model_info]
         self.taxa_trie = TaxonomicHierarchy()
 
     def __iter__(self):
         for attr, value in self.__dict__.items():
             yield attr, value
+
+    def get_public_attributes(self) -> list:
+        return [attr[0] for attr in inspect.getmembers(self) if
+                type(attr[1]) in [int, float, str, list, dict] and
+                not attr[0].startswith('_')]
 
     def get_info(self):
         return "\n\t".join(["ReferencePackage instance of {} ({}):".format(self.prefix, self.refpkg_code),
@@ -109,7 +115,7 @@ class ReferencePackage:
             raise IOError
 
         refpkg_dict = {}
-        non_primitives = ["core_ref_files", "taxa_trie"]
+        non_primitives = ["__core_ref_files", "taxa_trie"]
         for a, v in self.__iter__():
             if a not in non_primitives:
                 refpkg_dict[a] = v
@@ -262,7 +268,7 @@ class ReferencePackage:
         """
         # Check to ensure all files exist
         if check_files:
-            for ref_file in self.core_ref_files:
+            for ref_file in self.__core_ref_files:
                 if not os.path.isfile(ref_file):
                     self.bail("File '{}' does not exist for ReferencePackage {}\n".format(ref_file, self.prefix))
                     return False
@@ -708,7 +714,7 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
             sys.exit(1)
 
     for k, v in view_dict.items():
-        if type(v) is list:
+        if type(v) is list and k not in ["pfit"]:
             v = ''.join(v)
         logging.info("{}\t{}\n".format(k, v))
 

@@ -112,13 +112,16 @@ edit        Change reference package attributes
 Use '-h' to get subcommand-specific help, e.g.
 """
     parser = treesapp_args.TreeSAPPArgumentParser(description='Facilitate operations on reference packages')
-    parser.add_argument("subcommand", nargs='?')
+    parser.add_argument("subcommand", nargs='?', choices=["view", "edit"],
+                        help="A subcommand specifying the type of operation to perform")
     args = parser.parse_args(sys_args[0:1])
     if not args.subcommand:
         sys.stderr.write(pkg_usage)
         sys.exit(1)
 
-    treesapp_args.add_package_arguments(parser)
+    refpkg = ReferencePackage()
+
+    treesapp_args.add_package_arguments(parser, refpkg.get_public_attributes())
     args = parser.parse_args(sys_args)
 
     if not args.output:
@@ -128,7 +131,6 @@ Use '-h' to get subcommand-specific help, e.g.
 
     classy.prep_logging(os.path.join(args.output, 'TreeSAPP_package_log.txt'))
 
-    refpkg = ReferencePackage()
     refpkg.f__json = args.pkg_path
     refpkg.slurp()
 
