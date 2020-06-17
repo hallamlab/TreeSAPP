@@ -1445,9 +1445,7 @@ class PhyTrainer(TreeSAPP):
         self.placement_table = ""
         self.placement_summary = ""
         self.target_refpkgs = list()
-
-        # Limit this to just Class, Family, and Species - other ranks are inferred through regression
-        self.training_ranks = {"class": 3, "species": 7}
+        self.training_ranks = {}
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("search", 0),

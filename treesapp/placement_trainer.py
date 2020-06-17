@@ -149,7 +149,7 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None) -> 
 
 
 def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: dict, leaf_taxa_map: dict,
-                          t_hierarchy: TaxonomicHierarchy, accession_lineage_map: dict, taxonomic_ranks: set) -> dict:
+                          t_hierarchy: TaxonomicHierarchy, accession_lineage_map: dict, taxonomic_ranks=None) -> dict:
     """
     Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
     linear model. Removes sequences that share an identical accession, are more than 97% similar and limits the
@@ -180,6 +180,9 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     rank_test_seqs = 0
     test_seq_found = 0
     warning_threshold = 10
+
+    if not taxonomic_ranks:
+        taxonomic_ranks = set([rank for rank, depth in t_hierarchy.accepted_ranks_depths.items() if depth > 1])
 
     # Cluster the training sequences to mitigate harmful redundancy
     # Remove fasta records with duplicate accessions
@@ -231,9 +234,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
             test_taxa_summary.append("\t" + str(len(taxon_training_queries)) + "\t" + taxonomy)
             taxon_training_queries.clear()
         taxonomic_coverage = float(rank_test_seqs*100/num_lineages)
-        if rank_test_seqs == 0:
-            logging.error("No sequences were found in input FASTA that could be used to train " + rank + ".\n")
-            return rank_training_seqs
+
         if taxonomic_coverage < warning_threshold:
             logging.warning("Less than %d%% of the reference package has sequences to be used for training %s.\n" %
                             (warning_threshold, rank))
@@ -282,7 +283,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     return rank_training_seqs
 
 
-def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
+def train_placement_distances(rank_training_seqs: dict,
                               test_fasta: fasta.FASTA, ref_pkg: ReferencePackage,
                               leaf_taxa_map: dict, executables: dict,
                               output_dir="./", raxml_threads=4) -> dict:
@@ -291,7 +292,6 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     yielding an estimate of placement distances corresponding to taxonomic ranks.
 
     :param rank_training_seqs: A dictionary storing the sequence names being used to test each taxon within each rank
-    :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum)
      to rank depth values where Kingdom is 0, Phylum is 1, etc.
     :param test_fasta: Dictionary with headers as keys and sequences as values for deduplicated training sequences
     :param ref_pkg: A ReferencePackage instance
@@ -317,7 +317,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             num_rank_training_seqs += len(rank_training_seqs[rank][taxonomy])
         if len(rank_training_seqs[rank]) == 0:
             logging.error("No sequences available for estimating {}-level placement distances.\n".format(rank))
-            return pqueries
+            continue
         else:
             logging.debug("{} sequences to train {}-level placement distances\n".format(num_rank_training_seqs, rank))
         num_training_queries += num_rank_training_seqs
@@ -333,9 +333,6 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     # For each rank from Class to Species (Kingdom & Phylum-level classifications to be inferred by LCA):
     for rank in sorted(rank_training_seqs, reverse=True):
         pqueries[rank] = {}
-        if rank not in taxonomic_ranks:
-            logging.error("Rank '{}' not found in ranks being used for training.\n".format(rank))
-            sys.exit(33)
         for leaf_node, lineage in ref_pkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, rank).items():
             leaf_trimmed_taxa_map[leaf_node + "_" + ref_pkg.prefix] = lineage
 
@@ -358,13 +355,13 @@ def regress_rank_distance(fasta_input: str, executables: dict, ref_pkg: Referenc
                           training_ranks=None, num_threads=2) -> (tuple, dict, list):
     """
 
-    :param fasta_input:
-    :param executables:
+    :param fasta_input: Path to a FASTA file containing query sequences to be used during training
+    :param executables: A dictionary containing executable names mapped to absolute paths of the executables
     :param ref_pkg: A ReferencePackage instance
-    :param accession_lineage_map:
-    :param output_dir:
-    :param num_threads:
-    :param training_ranks:
+    :param accession_lineage_map: Path to a file mapping query sequence accessions to their taxonomic lineage
+    :param output_dir: Path the a directory to write the temporary files
+    :param num_threads: The number of threads to be used by the various dependencies during phylogenetic placement
+    :param training_ranks: A dictionary mapping the name of a taxonomic rank to its depth in the hierarchy
     :return:
     """
     if not training_ranks:
@@ -375,23 +372,30 @@ def regress_rank_distance(fasta_input: str, executables: dict, ref_pkg: Referenc
     ref_pkg.load_taxonomic_hierarchy()
     for ref_seq in ref_pkg.generate_tree_leaf_references_from_refpkg():
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
-    # Find non-redundant set of diverse sequences to train
+    # Load the query FASTA and
     test_seqs = fasta.FASTA(fasta_input)
     test_seqs.load_fasta()
     test_seqs.add_accession_to_headers(ref_pkg.prefix)
+    # Find non-redundant set of diverse sequences to train for all taxonomic ranks
     rank_training_seqs = prepare_training_data(test_seqs, output_dir, executables, leaf_taxa_map,
-                                               ref_pkg.taxa_trie, accession_lineage_map, set(training_ranks.keys()))
+                                               ref_pkg.taxa_trie, accession_lineage_map)
     if len(rank_training_seqs) == 0:
         return (0.0, 7.0), {}, []
+
     # Perform the rank-wise clade exclusion analysis for estimating placement distances
-    pqueries = train_placement_distances(rank_training_seqs, training_ranks, test_seqs, ref_pkg, leaf_taxa_map,
+    pqueries = train_placement_distances(rank_training_seqs, test_seqs, ref_pkg, leaf_taxa_map,
                                          executables, output_dir, num_threads)
 
     # Create the dictionary of evolutionary distances indexed by rank and taxon
-    for rank in pqueries:
+    for rank in training_ranks:
         taxonomic_placement_distances[rank] = []
-        for taxon in pqueries[rank]:
-            taxonomic_placement_distances[rank] += [pquery.total_distance() for pquery in pqueries[rank][taxon]]
+        try:
+            for taxon in pqueries[rank]:
+                taxonomic_placement_distances[rank] += [pquery.total_distance() for pquery in pqueries[rank][taxon]]
+        except KeyError:
+            logging.warning("Clade-exclusion could not be performed for '{}'."
+                            "No phylogenetic placement data was generated for training.".format(rank))
+            continue
 
         stats_string = "RANK: " + rank + "\n"
         stats_string += "\tSamples = " + str(len(taxonomic_placement_distances[rank])) + "\n"

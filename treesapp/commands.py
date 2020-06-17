@@ -161,7 +161,6 @@ def train(sys_args):
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_trainer_arguments(ts_trainer, args)
     ts_trainer.validate_continue(args)
-    ts_trainer.ref_pkg.validate()
     ts_trainer.ref_pkg.disband(os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_RefPkg"))
 
     train_seqs = fasta.FASTA(ts_trainer.input_sequences)
@@ -203,6 +202,7 @@ def train(sys_args):
         estimated_ranks = set(taxa_evo_dists.keys())
         for rank_key in estimated_ranks.difference(set(ts_trainer.training_ranks.keys())):
             taxa_evo_dists.pop(rank_key)
+        # TODO: Regenerate pqueries from ts_trainer.placement_table
 
     if len(set(ts_trainer.training_ranks.keys()).difference(set(taxa_evo_dists.keys()))) > 0:
         pfit_array, taxa_evo_dists, pqueries = placement_trainer.regress_rank_distance(ts_trainer.hmm_purified_seqs,
