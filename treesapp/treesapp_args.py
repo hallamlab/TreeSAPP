@@ -163,8 +163,22 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.optopt.add_argument("--taxonomic_ranks", dest="taxon_rank", required=False, nargs='+',
                                  default=["class", "species"],
                                  help="A list of the taxonomic ranks (space-separated) to test."
-                                      "[ DEFAULT = class species ]",
+                                      " [ DEFAULT = class species ]",
                                  choices=["domain", "phylum", "class", "order", "family", "genus", "species"])
+
+    def add_classifier_model_params(self):
+        self.optopt.add_argument("-k", "--svm_kernel", required=False, default="lin",
+                                 choices=["lin", "rbf", "poly"], dest="kernel",
+                                 help="Specifies the kernel type to be used in the SVM algorithm. "
+                                      "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
+        self.optopt.add_argument("--grid_search", default=False, required=False, action="store_true",
+                                 help="Perform a grid search across hyperparameters. Binary classifier only.")
+        self.optopt.add_argument("--tsne", default=False, required=False, action="store_true",
+                                 help="Generate a tSNE plot. Output will be in the same directory as the model file. "
+                                      "Binary classifier only.")
+        self.optopt.add_argument("--classifier", required=False, choices=["occ", "bin"], default="bin",
+                                 help="Specify the kind of classifier to be trained: one-class classifier (OCC) or "
+                                      "a binary classifier (bin).")
 
 
 def add_info_arguments(parser: TreeSAPPArgumentParser):
@@ -403,6 +417,8 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_accession_params()
     parser.add_taxa_ranks_param()
     parser.add_compute_miscellany()
+    parser.add_classifier_model_params()
+
     parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
                                help="Flag indicating input sequences need to be purified using an HMM profile.")
     parser.optopt.add_argument("--stage", default="continue", required=False,

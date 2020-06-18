@@ -203,6 +203,7 @@ def train(sys_args):
         for rank_key in estimated_ranks.difference(set(ts_trainer.training_ranks.keys())):
             taxa_evo_dists.pop(rank_key)
 
+    pqueries = dict()
     if len(set(ts_trainer.training_ranks.keys()).difference(set(taxa_evo_dists.keys()))) > 0:
         pfit_array, taxa_evo_dists, pqueries = placement_trainer.regress_rank_distance(ts_trainer.hmm_purified_seqs,
                                                                                        ts_trainer.executables,
@@ -215,7 +216,6 @@ def train(sys_args):
         placement_trainer.write_placement_table(pqueries, ts_trainer.placement_table, ts_trainer.ref_pkg.prefix)
     else:
         # TODO: Regenerate pqueries from ts_trainer.placement_table
-        pqueries = dict()
         pfit_array = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
         if pfit_array:
             logging.info("Placement distance model complete.\n")
@@ -258,7 +258,9 @@ def train(sys_args):
 
     # Train the one-class SVM model
     refpkg_classifiers = train_classification_filter(refpkg_pqueries, tp_names,
-                                                     refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+                                                     refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg},
+                                                     kernel=args.kernel, tsne=args.tsne, grid_search=args.grid_search,
+                                                     num_procs=args.num_threads)
 
     if ts_trainer.stage_status("update"):
         ts_trainer.ref_pkg.pfit = pfit_array

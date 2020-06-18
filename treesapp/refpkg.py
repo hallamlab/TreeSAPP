@@ -20,7 +20,7 @@ from treesapp import wrapper
 from treesapp import __version__ as ts_version
 
 
-_COMPATIBLE_VERSION = "0.8.2"
+_COMPATIBLE_VERSION = "0.8.3"
 
 
 class ReferencePackage:

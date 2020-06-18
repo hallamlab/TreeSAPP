@@ -4,6 +4,7 @@ import re
 import logging
 import sys
 import time
+import itertools
 from glob import glob
 
 from ete3 import Tree
@@ -38,6 +39,7 @@ class PQuery(ItolJplace):
         # Known from outer scope
         self.lineage = lineage_str
         self.rank = rank_str
+        self.feature_vec = None
 
     def total_distance(self):
         return round(sum([self.pendant, self.mean_tip, self.distal]), 5)
@@ -206,7 +208,8 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     return pqueries
 
 
-def vectorize_placement_data(condition_names: dict, classifieds: dict, refpkg_map: dict, annot_map=None) -> np.array:
+def vectorize_placement_data(condition_names: dict, classifieds: dict, refpkg_map: dict,
+                             annot_map=None) -> (np.array, list):
     """
     Parses out the relevant fields from the *treesapp assign* classification table (marker_contig_map.tsv) to create
 a numpy array from each query's data:
@@ -220,10 +223,12 @@ a numpy array from each query's data:
     :param condition_names: A dictionary of header names indexed by refpkg names. Used to determine whether the query
      belongs to this class condition (e.g. true positive, false positive)
     :param classifieds: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
-    :param refpkg_map: Dictionary mapping refpkg names to
+    :param refpkg_map: A dictionary of ReferencePackage instances indexed by their respective prefix values
+    :param annot_map: A dictionary mapping ReferencePackage.prefix values to the names of database sequence names
     :return: Summary of the distances and internal nodes for each of the false positives
     """
     features = []
+    pqueries_used = []
 
     for refpkg_name, pqueries in classifieds.items():
         refpkg = refpkg_map[refpkg_name]  # type: ReferencePackage
@@ -244,7 +249,7 @@ a numpy array from each query's data:
                     distal, pendant, avg = [round(float(x), 3) for x in pquery.distances.split(',')]
 
                 lwr_bin = round(float(pquery.lwr), 2)
-                hmm_perc = round((int(pquery.seq_len)*100)/refpkg.profile_length, 1)
+                # hmm_perc = round((int(pquery.seq_len)*100)/refpkg.profile_length, 1)
 
                 try:
                     leaf_children = len(internal_nodes[int(pquery.inode)])
@@ -255,12 +260,20 @@ a numpy array from each query's data:
                     sys.exit(5)
 
                 features.append(np.array([leaf_children, lwr_bin, distal, pendant, avg]))
+                pqueries_used.append(pquery)
 
+    # Match the normalized feature vectors with their respective PQuery instance and set PQuery.feature_vec
     if len(features) == 0:
-        return np.array(features)
+        return np.array(features), pqueries_used
     else:
-        return preprocessing.normalize(np.array(features), norm='l1')
+        norm_array = preprocessing.normalize(np.array(features), norm='l1')
+        i = 0
+        end = len(norm_array)
+        while i < end:
+            pqueries_used[i].feature_vec = norm_array[i]
+            i += 1
 
+        return norm_array, pqueries_used
 
 
 def generate_tsne(x, y, tsne_file):
@@ -374,7 +387,7 @@ def instantiate_classifier(kernel_name, occ=False):
 
 
 def evaluate_classifier(clf, x_test: np.array, y_test: np.array,
-                        classified_data: np.array, conditions: np.array) -> None:
+                        classified_data: np.array, conditions: np.array) -> np.array:
     """
     Performs 10-fold cross-validation, computing F1-scores, as well as accuracy, precision and recall.
     All stats are written to the logging info stream
@@ -399,33 +412,102 @@ def evaluate_classifier(clf, x_test: np.array, y_test: np.array,
     logging.info("Precision\t" + str(round(metrics.precision_score(y_test, y_pred), 2)) + "\n")
     # Model Recall: what percentage of positive tuples are labelled as such?
     logging.info("Recall\t\t" + str(round(metrics.recall_score(y_test, y_pred), 2)) + "\n")
+
+    return y_pred
+
+
+def summarize_pquery_ranks(pqueries: list) -> None:
+    rank_counts = {}
+    n_skipped = 0
+    for pq in pqueries:  # type: PQuery
+        try:
+            rank_counts[pq.rank] += 1
+        except KeyError:
+            rank_counts[pq.rank] = 1
+        except AttributeError:
+            n_skipped += 1
+
+    logging.info("\n".join(["{}\t{}".format(rank, rank_counts[rank]) for
+                            rank in sorted(rank_counts, key=lambda x: rank_counts[x])]) + "\n")
+
+    logging.debug("{} ITolJPlace instances not included in rank summary.\n".format(n_skipped))
+
     return
 
 
-def train_binary_classifier(tp: np.array, fp: np.array, kernel: str, tsne: str, grid_search: bool, num_procs=2):
-    classified_data = np.append(fp, tp, axis=0)
-    conditions = np.append(np.array([0] * len(fp)), np.array([1] * len(tp)))
+def characterize_predictions(preds: np.array, pquery_test_map: dict) -> None:
+    # Summarise the number of samples for each rank
+    logging.info("Rank representation across clade-exclusion samples tested:\n")
+    summarize_pquery_ranks(list(itertools.chain.from_iterable(pquery_test_map.values())))
+
+    # Summarise the number of false negatives for each rank
+    fn_pqueries = []
+    for i in pquery_test_map:
+        if preds[i] == -1:
+            fn_pqueries += pquery_test_map[i]
+    logging.info("Rank representation across clade-exclusion false negatives:\n")
+    summarize_pquery_ranks(fn_pqueries)
+    return
+
+
+def map_test_indices_to_pqueries(feature_vectors, pqueries) -> dict:
+    """
+
+    :param feature_vectors:
+    :param pqueries:
+    :return:
+    """
+    index_pquery_map = {}
+    i = 0
+    while i < len(feature_vectors):
+        vec = feature_vectors[i]  # type: np.ndarray
+        index_pquery_map[i] = []
+        for pquery in pqueries:  # type: PQuery
+            if np.array_equal(vec, pquery.feature_vec):
+                index_pquery_map[i].append(pquery)
+        i += 1
+    return index_pquery_map
+
+
+def generate_train_test_data(true_ps: np.array, true_pqueries: list, test_pr=0.4, false_ps=None):
+    """
+    Used for splitting the total dataset into training ana testing arrays and mapping indices
+    in the positive test fraction to PQueries. This map is to be later used for characterizing predictions by
+    rank and lineage.
+
+    Conditions [0|1] are set for the dataset based on whether they are false positives (0) or true positives (1).
+    If no false positives are present, a numpy.array of length true_ps is used.
+
+
+    :param true_ps:
+    :param true_pqueries:
+    :param test_pr:
+    :param false_ps:
+    :return:
+    """
+    if false_ps:
+        classified_data = np.append(false_ps, true_ps, axis=0)
+        conditions = np.append(np.array([0] * len(false_ps)),
+                               np.array([1] * len(true_ps)))
+    else:
+        classified_data = true_ps
+        conditions = np.array([1] * len(true_ps))
+
     if len(conditions) != len(classified_data):
         logging.error("Inconsistent array lengths between data points (%d) and targets (%d).\n"
                       % (len(classified_data), len(conditions)))
         sys.exit(5)
 
-    logging.info("Using %d true positives and %d false positives to train and test.\n" % (len(tp), len(fp)))
-
     # Split dataset into the two training and testing sets - 60% training and 40% testing
     x_train, x_test, y_train, y_test = model_selection.train_test_split(classified_data, conditions,
-                                                                        test_size=0.2, random_state=12345)
+                                                                        test_size=test_pr, random_state=12345)
 
-    if tsne:
-        generate_tsne(classified_data, conditions, tsne)
+    index_pquery_map = map_test_indices_to_pqueries(x_test, true_pqueries)
 
-    if grid_search:
-        # Test all the available kernels and return/exit
-        kernels = ["lin", "rbf", "poly"]
-        for k in kernels:
-            evaluate_grid_scores(k, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, jobs=num_procs)
-        return
+    return classified_data, conditions, x_train, x_test, y_train, y_test, index_pquery_map
 
+
+def train_binary_classifier(x_train: np.array, y_train: np.array, kernel: str):
     # Create a SVM Classifier
     clf = instantiate_classifier(kernel)  # type: svm.SVC
 
@@ -434,36 +516,32 @@ def train_binary_classifier(tp: np.array, fp: np.array, kernel: str, tsne: str, 
     clf.fit(x_train, y_train)
     logging.info("done.\n")
 
-    evaluate_classifier(clf, x_test, y_test, classified_data, conditions)
     return clf
 
 
-def train_oc_classifier(tp: np.array, kernel: str):
-    conditions = np.array([1] * len(tp))
-    x_train, x_test, y_train, y_test = model_selection.train_test_split(tp, conditions, test_size=0.4, random_state=123)
+def train_oc_classifier(x_train: np.array, kernel: str):
     clf = instantiate_classifier(kernel, occ=True)  # type: svm.OneClassSVM
 
     logging.info("Training the classifier... ")
     clf.fit(x_train)
     logging.info("done.\n")
 
-    evaluate_classifier(clf, x_test, y_test, tp, conditions)
     return clf
 
 
-def train_classification_filter(assignments: dict, rp_true_positives: dict, refpkg_map: dict,
-                                kernel="lin", tsne="", grid_search=False, false_positives=None, num_procs=2) -> dict:
+def train_classification_filter(assignments: dict, true_pos: dict, refpkg_map: dict, kernel: str,
+                                tsne="", grid_search=False, false_pos=None, num_procs=2) -> (dict, dict):
     """
-    Trains a sklearn classifier (e.g. Support Vector Machine or SVC) using the TreeSAPP assignments and writes
+    Trains a sklearn classifier (e.g. Support Vector Machine) using the TreeSAPP assignments and writes
     the trained model to a pickle file.
     The classifier is tested using 10-fold cross-validation and reports precision, recall, accuracy and F1-scores.
 
-    Optionally, a grid search can be performed that will automatically test mutliple different classifiers and kernels,
+    Optionally, a grid search can be performed that will automatically test multiple different classifiers and kernels,
     not just the one specified, and return (classifier isn't written).
 
     :param assignments: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
-    :param rp_true_positives: A dictionary of true positive query names indexed by refpkg names
-    :param false_positives: A dictionary of false positive query names indexed by refpkg names
+    :param true_pos: A dictionary of true positive query names indexed by refpkg names
+    :param false_pos: A dictionary of false positive query names indexed by refpkg names
     :param refpkg_map: A dictionary of ReferencePackage instances indexed by their respective prefix values
     :param kernel: Specifies the kernel type to be used in the SVM algorithm. Choices are 'lin' 'poly' or 'rbf'.
     [ DEFAULT = lin ]
@@ -475,25 +553,41 @@ def train_classification_filter(assignments: dict, rp_true_positives: dict, refp
     classifiers = dict()
 
     logging.info("Extracting features from TreeSAPP classifications... ")
-    tp = vectorize_placement_data(condition_names=rp_true_positives, classifieds=assignments, refpkg_map=refpkg_map)
-    if false_positives:
-        fp = vectorize_placement_data(condition_names=false_positives, classifieds=assignments, refpkg_map=refpkg_map)
+    tp, t_pqs = vectorize_placement_data(condition_names=true_pos, classifieds=assignments, refpkg_map=refpkg_map)
+    if false_pos:
+        fp, f_pqs = vectorize_placement_data(condition_names=false_pos, classifieds=assignments, refpkg_map=refpkg_map)
     else:
-        fp = np.array([])
+        fp, f_pqs = np.array([]), []
     logging.info("done.\n")
 
     if len(tp) == 0:
         logging.error("No true positives are available for training.\n")
         sys.exit(17)
     elif len(fp) > 0:
-        clf = train_binary_classifier(tp, fp, tsne, kernel, grid_search, num_procs)
-        for refpkg in refpkg_map:  # type: str
-            if refpkg in rp_true_positives:
-                classifiers[refpkg] = clf
+        classified_data, conditions, x_train, x_test, y_train, y_test, pquery_test_map = generate_train_test_data(tp, t_pqs, false_ps=fp)
+        if tsne:
+            generate_tsne(classified_data, conditions, tsne)
+
+        if grid_search:
+            # Test all the available kernels and return/exit
+            kernels = ["lin", "rbf", "poly"]
+            for k in kernels:
+                evaluate_grid_scores(k, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, jobs=num_procs)
+            return
+
+        clf = train_binary_classifier(tp, fp, kernel)
+
+        for refpkg_prefix in refpkg_map:  # type: str
+            if refpkg_prefix in true_pos:
+                classifiers[refpkg_prefix] = clf
+                preds = evaluate_classifier(clf, x_test, y_test, classified_data, conditions)
+                characterize_predictions(preds, pquery_test_map)
     else:
-        for refpkg_prefix in rp_true_positives:
-            refpkg = refpkg_map[refpkg_prefix]  # type: ReferencePackage
-            clf = train_oc_classifier(tp, kernel)
-            classifiers[refpkg.prefix] = clf
+        for refpkg_prefix in true_pos:
+            classified_data, conditions, x_train, x_test, y_train, y_test, pquery_test_map = generate_train_test_data(tp, t_pqs)
+            clf = train_oc_classifier(x_train, kernel)
+            classifiers[refpkg_prefix] = clf
+            preds = evaluate_classifier(clf, x_test, y_test, classified_data, conditions)
+            characterize_predictions(preds, pquery_test_map)
 
     return classifiers

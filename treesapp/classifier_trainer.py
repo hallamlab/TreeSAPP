@@ -29,19 +29,9 @@ def add_classifier_arguments(parser: treesapp_args.TreeSAPPArgumentParser) -> No
     """
     parser.add_refpkg_opt()
     parser.add_refpkg_targets()
+    parser.add_classifier_model_params()
     treesapp_args.add_trainer_arguments(parser)
 
-    parser.optopt.add_argument("-k", "--svm_kernel", required=False, default="lin",
-                               choices=["lin", "rbf", "poly"], dest="kernel",
-                               help="Specifies the kernel type to be used in the SVM algorithm."
-                                    "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
-    parser.optopt.add_argument("--grid_search", default=False, required=False, action="store_true",
-                               help="Perform a grid search across hyperparameters.")
-    parser.optopt.add_argument("--tsne", default=False, required=False, action="store_true",
-                               help="Generate a tSNE plot. Output will be in the same directory as the model file.")
-    parser.optopt.add_argument("--classifier", required=False, choices=["occ", "bin"], default="bin",
-                               help="Specify the kind of classifier to be trained: one-class classifier (OCC) or "
-                                    "a binary classifier (bin).")
     parser.optopt.add_argument("--annot_map", required=False, default=None,
                                help="Path to a tabular file mapping markers being tested to their database annotations."
                                     " Columns are:  1. RefPkg name 2. Database name."
