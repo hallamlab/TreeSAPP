@@ -423,10 +423,10 @@ def regress_rank_distance(fasta_input: str, executables: dict, ref_pkg: Referenc
     # Create the dictionary of evolutionary distances indexed by rank and taxon
     for rank in training_ranks:
         taxonomic_placement_distances[rank] = []
-        try:
+        if rank in pqueries and len(pqueries[rank]) > 0:
             for taxon in pqueries[rank]:
                 taxonomic_placement_distances[rank] += [pquery.total_distance() for pquery in pqueries[rank][taxon]]
-        except KeyError:
+        else:
             logging.warning("Clade-exclusion could not be performed for '{}'.\n"
                             "No phylogenetic placement data was generated for training.\n".format(rank))
             continue
