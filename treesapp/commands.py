@@ -441,11 +441,10 @@ def create(sys_args):
             pass
 
     if ts_create.stage_status("build"):
-        # TODO: Have a command-line flag to toggle this on (DEFAULT) and off
-        fasta_records = create_refpkg.remove_outlier_sequences(fasta_records,
-                                                               ts_create.executables["OD-seq"],
-                                                               ts_create.executables["mafft"],
-                                                               ts_create.var_output_dir, args.num_threads)
+        if args.od_seq:
+            create_refpkg.remove_outlier_sequences(fasta_records,
+                                                   ts_create.executables["OD-seq"], ts_create.executables["mafft"],
+                                                   ts_create.var_output_dir, args.num_threads)
 
         # This precautionary measure is for `create` called from `update` and reference seqs have the assign signature
         accession_ids = [fasta_records[num_id].accession for num_id in fasta_records]
@@ -784,6 +783,8 @@ def update(sys_args):
                   "--bootstraps", str(args.bootstraps)]
     if args.trim_align:
         create_cmd.append("--trim_align")
+    if args.od_seq:
+        create_cmd.append("--outdet_align")
     if args.fast:
         create_cmd.append("--fast")
     if args.taxa_lca:

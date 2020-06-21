@@ -71,7 +71,8 @@ class TreesappTester(unittest.TestCase):
                                 "--screen", "Bacteria,Archaea",
                                 "--num_proc", str(2),
                                 "--min_taxonomic_rank", 'p',
-                                "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
+                                "--trim_align", "--outdet_align", "--cluster", "--fast", "--headless",
+                                "--overwrite", "--delete"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_create_PuhA/final_outputs/PuhA_build.pkl"

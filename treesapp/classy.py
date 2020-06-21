@@ -568,9 +568,12 @@ class TreeSAPP:
             dependencies += ["bwa"]
 
         if self.command in ["create", "update", "train", "evaluate"]:
-            dependencies += ["usearch", "mafft", "OD-seq"]
+            dependencies += ["usearch", "mafft"]
             if hasattr(args, "fast") and args.fast:
                 dependencies.append("FastTree")
+
+            if hasattr(args, "od_seq") and args.od_seq:
+                dependencies.append("OD-seq")
 
         if self.molecule_type == "rrna":
             dependencies += ["cmalign", "cmsearch", "cmbuild"]
@@ -582,7 +585,7 @@ class TreeSAPP:
             elif which(dep):
                 exec_paths[dep] = which(dep)
             else:
-                logging.error("Could not find a valid executable for " + dep + ".\n")
+                logging.error("Could not find a valid executable for '{}'.\n".format(dep))
                 sys.exit(13)
 
         return exec_paths

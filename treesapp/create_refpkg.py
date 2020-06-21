@@ -541,7 +541,8 @@ def parse_model_parameters(placement_trainer_file):
     return params
 
 
-def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output_dir="./outliers", num_threads=2):
+def remove_outlier_sequences(fasta_record_objects: dict, od_seq_exe: str, mafft_exe: str,
+                             output_dir="./outliers", num_threads=2) -> None:
     od_input = output_dir + "od_input.fasta"
     od_output = output_dir + "outliers.fasta"
     outlier_names = list()
@@ -571,7 +572,7 @@ def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output
     logging.debug(str(len(outlier_seqs)) + " outlier sequences detected and discarded.\n\t" +
                   "\n\t".join([outseq for outseq in outlier_names]) + "\n")
 
-    return fasta_record_objects
+    return
 
 
 def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:

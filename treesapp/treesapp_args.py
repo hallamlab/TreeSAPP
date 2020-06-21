@@ -108,6 +108,10 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.optopt.add_argument("--fast",
                                  help="A flag indicating the tree should be built rapidly, using FastTree.",
                                  required=False, default=False, action="store_true")
+        # Doesn't _really_ fit in here but good enough. Needs to be used by create and update.
+        self.optopt.add_argument("--outdet_align", default=False, action="store_true", dest="od_seq",
+                                 help="Flag to activate outlier detection and removal from multiple sequence alignments"
+                                      " using OD-seq. [DEFAULT = False]")
 
     def add_compute_miscellany(self):
         self.miscellany.add_argument('--overwrite', action='store_true', default=False,
