@@ -187,7 +187,7 @@ def augment_training_set(row: np.array, n_reps=3, feature_scale=0.2):
         # add to test case
         new_row = row + gauss
         # store in test set
-        training_set = np.append(training_set, [new_row])
+        training_set = np.append(training_set, [new_row.clip(min=0)])
     return training_set.reshape(n_reps, n_features)
 
 

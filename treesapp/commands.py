@@ -835,7 +835,7 @@ def layer(sys_args):
 
     ##
     # Worklow:
-    #   1. Read data/tree_data/ref_build_parameters.tsv to get marker codes, denominators, and more (oh my!)
+    #   1. Slurp up reference packages into a dictionary
     #   2. Read the marker_contig_map.tsv file from the output directory to create the master data structure
     #   3. For each of the colours_styles files provided (potentially multiple for the same marker):
     #       3.1) Add the annotation variable to master_dat for every sequence (instantiate with "NA")
