@@ -12,11 +12,11 @@ from treesapp import file_parsers
 from treesapp import utilities
 from treesapp import wrapper
 from treesapp import fasta
-from treesapp.phylo_seq import ItolJplace
+from treesapp.phylo_seq import JPlace, PQuery
 from treesapp.phylo_dist import cull_outliers, regress_ranks
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.refpkg import ReferencePackage
-from treesapp.training_utils import rarefy_rank_distances, generate_pquery_data_for_trainer, PQuery
+from treesapp.training_utils import rarefy_rank_distances, generate_pquery_data_for_trainer
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -80,14 +80,14 @@ def write_placement_table(pqueries: dict, placement_table_file, marker):
 
 def flatten_pquery_dict(pqueries: dict, refpkg_prefix: str) -> dict:
     """
-    Takes a dictionary storing PQuery (or some other subclass of ITOLJplace) in values and extracts them to a new
+    Takes a dictionary storing PQuery instances in values and extracts them to a new
     dictionary where the key is refpkg_prefix and the value is a list of PQuery instances.
 
     :param pqueries: A dictionary mapping keys (function is agnostic though some examples are taxonomic rank or lineage)
     to an iterable - either a list containing ITolJPlace instances (or a subclass) or a dictionary whose values are
-    a list of ITolJPlace instances.
-    :param refpkg_prefix: A ReferencePackage.prefix to which the PQueries were classified by
-    :return: A dictionary indexed by refpkg_prefix mapped to a list of ITolJPlace instances
+    a list of PQuery instances.
+    :param refpkg_prefix: A ReferencePackage.prefix to which the PQuery instances were classified by
+    :return: A dictionary indexed by refpkg_prefix mapped to a list of PQuery instances
     """
     refpkg_pqueries = {refpkg_prefix: []}
     for _, taxa in pqueries.items():  # type: (str, dict)
@@ -96,7 +96,7 @@ def flatten_pquery_dict(pqueries: dict, refpkg_prefix: str) -> dict:
                 for pquery in taxa[taxon]:  # type: PQuery
                     refpkg_pqueries[refpkg_prefix].append(pquery)
             except TypeError:
-                if isinstance(taxon, ItolJplace):
+                if isinstance(taxon, JPlace):
                     refpkg_pqueries[refpkg_prefix].append(taxon)
                 else:
                     logging.error("An instance of type PQuery was expected, found '{}' instead.\n".format(type(taxon)))

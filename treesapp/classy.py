@@ -13,10 +13,10 @@ from glob import glob
 from collections import namedtuple
 from numpy import var
 
-from treesapp.phylo_seq import TreeProtein, convert_entrez_to_tree_leaf_references, TreeLeafReference
+from treesapp.phylo_seq import convert_entrez_to_tree_leaf_references, PQuery
 from treesapp.refpkg import ReferencePackage
-from treesapp.fasta import fastx_split, write_new_fasta, get_header_format, FASTA, load_fasta_header_regexes
-from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle
+from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes
+from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
@@ -864,7 +864,7 @@ class Purity(TreeSAPP):
         tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
         for leaf in tree_leaves:
             leaf_map[leaf.number + "_" + self.ref_pkg.prefix] = leaf.description
-        for p_query in p_queries:  # type: TreeProtein
+        for p_query in p_queries:  # type: PQuery
             p_query.name = self.ref_pkg.prefix
             if type(p_query.contig_name) is list and len(p_query.contig_name):
                 p_query.contig_name = p_query.contig_name[0]

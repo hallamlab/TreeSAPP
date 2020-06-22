@@ -5,7 +5,7 @@ from copy import deepcopy
 from json import loads, dumps
 
 
-class ItolJplace:
+class JPlace:
     """
     A class to hold all data relevant to a jplace file to be viewed in iTOL
     """
@@ -40,7 +40,7 @@ class ItolJplace:
 
     def summarize(self):
         """
-        Prints a summary of the ItolJplace object (equivalent to a single marker) to stderr
+        Prints a summary of the JPlace object (equivalent to a single marker) to stderr
         Summary include the number of marks found, the tree used, and the tree-placement of each sequence identified
         Written solely for testing purposes
 
@@ -321,11 +321,40 @@ class ItolJplace:
         return confident_assignment
 
 
-class TreeProtein(ItolJplace):
+class PQuery(JPlace):
     """
     A class for sequences that were properly mapped to its gene tree.
-    While it mostly contains RAxML outputs, functions are used to make 'biological' sense out of these outputs.
+    While it mostly contains EPA outputs, functions are used to make 'biological' sense out of these outputs.
     """
+    def __init__(self, lineage_str="", rank_str=""):
+        super(PQuery, self).__init__()
+        # Inferred from JPlace file
+        self.pendant = 0.0
+        self.mean_tip = 0.0
+        self.distal = 0.0
+        self.parent_node = ""
+
+        # Known from outer scope
+        self.lineage = lineage_str
+        self.rank = rank_str
+        self.feature_vec = None
+
+    def total_distance(self):
+        return round(sum([self.pendant, self.mean_tip, self.distal]), 5)
+
+    def summarize_placement(self):
+        summary_string = "Placement of " + self.name + " at rank " + self.rank + \
+                         ":\nLineage = " + self.lineage + \
+                         "\nInternal node = " + str(self.inode) + \
+                         "\nDistances:" + \
+                         "\n\tDistal = " + str(self.distal) +\
+                         "\n\tPendant = " + str(self.pendant) +\
+                         "\n\tTip = " + str(self.mean_tip) +\
+                         "\nLikelihood = " + str(self.likelihood) +\
+                         "\nL.W.R. = " + str(self.lwr) +\
+                         "\n"
+        return summary_string
+
     def transfer(self, itol_jplace_object):
         self.placements = itol_jplace_object.placements
         self.tree = itol_jplace_object.tree
@@ -403,27 +432,27 @@ class TreeProtein(ItolJplace):
 def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
     """
     Used for converting the TreeSAPP-assignment information of classified sequences (found in self.classifications)
-    into ItolJplace instances such that these can be reproducibly modified and written again, if needed.
+    into JPlace instances such that these can be reproducibly modified and written again, if needed.
 
     :param classified_lines: A list of lists. Each sub-list represents a line from self.classifications
     :param refpkg_dict: A dictionary of MarkerBuild instances indexed by their RefPkg codes
-    :return: A dictionary of ItolJplace instances, indexed by their respective names (ReferencePackage.prefix)
+    :return: A dictionary of JPlace instances, indexed by their respective names (ReferencePackage.prefix)
     """
     pqueries = dict()
     for fields in classified_lines:
-        tree_sap = TreeProtein()
+        pquery = PQuery()
         try:
-            _, tree_sap.contig_name, tree_sap.name, tree_sap.seq_len, tree_sap.lct, tree_sap.recommended_lineage,\
-            _, tree_sap.inode, tree_sap.lwr, tree_sap.avg_evo_dist, tree_sap.distances = fields
+            _, pquery.contig_name, pquery.name, pquery.seq_len, pquery.lct, pquery.recommended_lineage,\
+            _, pquery.inode, pquery.lwr, pquery.avg_evo_dist, pquery.distances = fields
         except ValueError:
             logging.error("Bad line in classification table:\n" +
                           '\t'.join(fields) + "\n")
             sys.exit(21)
-        refpkg = refpkg_dict[tree_sap.name]  # type: refpkg.ReferencePackage
+        refpkg = refpkg_dict[pquery.name]  # type: refpkg.ReferencePackage
         try:
-            pqueries[refpkg.prefix].append(tree_sap)
+            pqueries[refpkg.prefix].append(pquery)
         except KeyError:
-            pqueries[refpkg.prefix] = [tree_sap]
+            pqueries[refpkg.prefix] = [pquery]
     return pqueries
 
 

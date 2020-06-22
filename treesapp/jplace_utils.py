@@ -7,7 +7,7 @@ import os
 import logging
 from json import load, loads, dumps
 
-from treesapp.phylo_seq import ItolJplace, TreeProtein
+from treesapp.phylo_seq import JPlace, PQuery
 
 
 def pquery_likelihood_weight_ratio(pquery, position):
@@ -31,14 +31,14 @@ def pquery_likelihood_weight_ratio(pquery, position):
     return lwr
 
 
-def jplace_parser(filename: str) -> ItolJplace:
+def jplace_parser(filename: str) -> JPlace:
     """
     Parses the jplace file using the load function from the JSON library
 
     :param filename: jplace file output by RAxML
-    :return: ItolJplace object
+    :return: JPlace object
     """
-    itol_datum = ItolJplace()
+    itol_datum = JPlace()
     with open(filename) as jplace:
         jplace_dat = load(jplace, encoding="utf-8")
         itol_datum.tree = jplace_dat["tree"]
@@ -67,7 +67,7 @@ def demultiplex_pqueries(jplace_data) -> list:
     """
     tree_placement_queries = list()
     for pquery in jplace_data.placements:
-        pquery_obj = TreeProtein()
+        pquery_obj = PQuery()
         pquery_obj.transfer(jplace_data)
         pquery_obj.placements = [pquery]
         pquery_obj.name_placed_sequence()
@@ -77,7 +77,7 @@ def demultiplex_pqueries(jplace_data) -> list:
     return tree_placement_queries
 
 
-def filter_jplace_data(jplace_data: ItolJplace, tree_saps: list):
+def filter_jplace_data(jplace_data: JPlace, tree_saps: list):
     """
     Removes unclassified pqueries from the placements element in jplace_data
 
@@ -115,12 +115,12 @@ def filter_jplace_data(jplace_data: ItolJplace, tree_saps: list):
     return jplace_data
 
 
-def write_jplace(itol_datum: ItolJplace, jplace_file: str):
+def write_jplace(itol_datum: JPlace, jplace_file: str):
     """
     A hacky function for writing jplace files with concatenated placements
      which are also compatible with iTOL's jplace parser
 
-    :param itol_datum: A ItolJplace class object
+    :param itol_datum: A JPlace class object
     :param jplace_file: A JPlace file path to write to
     :return:
     """
@@ -220,7 +220,7 @@ def add_bipartitions(itol_datum, bipartition_file):
     Adds bootstrap values read from a NEWICK tree-file where they are indicated by values is square-brackets
     and inserts them into a JPlace-formatted NEWICK tree (Internal nodes in curly braces are required)
 
-    :param itol_datum: An ItolJplace object
+    :param itol_datum: An JPlace object
     :param bipartition_file: Path to file containing the bootstrapped tree
     :return: Updated ItolJPlace object
     """

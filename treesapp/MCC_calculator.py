@@ -14,7 +14,7 @@ from numpy import sqrt
 from ete3 import Tree
 
 from treesapp import file_parsers
-from treesapp.phylo_seq import ItolJplace
+from treesapp.phylo_seq import JPlace
 from treesapp.refpkg import ReferencePackage
 from treesapp.commands import assign
 from treesapp.fasta import get_headers
@@ -368,7 +368,7 @@ class ConfusionTest:
                               ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
                 sys.exit(5)
             true_positives = set()
-            for pquery in assignments[marker]:  # type: ItolJplace
+            for pquery in assignments[marker]:  # type: JPlace
                 # Populate the relevant information for the classified sequence
                 tp_inst = ClassifiedSequence(pquery.contig_name)
                 tp_inst.ref = marker

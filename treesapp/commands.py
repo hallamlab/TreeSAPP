@@ -22,7 +22,7 @@ from treesapp import update_refpkg
 from treesapp import annotate_extra
 from treesapp import treesapp_args
 from treesapp import classy
-from treesapp.phylo_seq import TreeProtein, assignments_to_treesaps
+from treesapp.phylo_seq import assignments_to_treesaps, PQuery
 from treesapp.refpkg import ReferencePackage, view, edit
 from treesapp.training_utils import train_classification_filter
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
@@ -255,6 +255,10 @@ def train(sys_args):
     refpkg_pqueries = placement_trainer.flatten_pquery_dict(pqueries, ts_trainer.ref_pkg.prefix)
     tp_names = {ts_trainer.ref_pkg.prefix:
                     [pquery.contig_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
+
+    for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]:
+        if not pquery.rank:
+            pquery.rank = "species"
 
     # Train the one-class SVM model
     refpkg_classifiers = train_classification_filter(refpkg_pqueries, tp_names,
@@ -1048,7 +1052,7 @@ def assign(sys_args):
         fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         for refpkg_code in tree_saps:
-            for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
+            for placed_seq in tree_saps[refpkg_code]:  # type: PQuery
                 abundance_dict[placed_seq.contig_name] = 1.0
         if args.molecule == "dna":
             if os.path.isfile(ts_assign.nuc_orfs_file):
@@ -1138,10 +1142,10 @@ def abundance(sys_args):
 
     delete_files(args.delete, ts_abund.var_output_dir, 4)
 
-    # TODO: Index each TreeProtein's abundance by the dataset name, write a new row for each dataset's abundance
+    # TODO: Index each PQuery's abundance by the dataset name, write a new row for each dataset's abundance
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
         assignments = file_parsers.read_classification_table(ts_abund.classifications)
-        # Convert assignments to TreeProtein instances
+        # Convert assignments to PQuery instances
         tree_saps = assignments_to_treesaps(assignments, refpkg_dict)
         summarize_placements_rpkm(tree_saps, abundance_dict, refpkg_dict, ts_abund.final_output_dir)
         write_classification_table(tree_saps, ts_abund.sample_prefix, ts_abund.classifications)

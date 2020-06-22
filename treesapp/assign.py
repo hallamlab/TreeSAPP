@@ -26,7 +26,7 @@ try:
     from sklearn import preprocessing
 
     from treesapp.classy import CommandLineFarmer, NodeRetrieverWorker
-    from treesapp.phylo_seq import ItolJplace, TreeProtein, TreeLeafReference
+    from treesapp.phylo_seq import JPlace, PQuery, TreeLeafReference
     from treesapp.refpkg import ReferencePackage
     from treesapp.treesapp_args import TreeSAPPArgumentParser
     from treesapp.fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA,\
@@ -1303,7 +1303,7 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, refpkg_dict
     The abundance_dict contains RPKM values of contigs whereas tree_saps may be fragments of contigs,
     and if multiple fragments are classified this could "inflate" the RPKM values. Currently, this is not handled.
 
-    :param tree_saps: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
+    :param tree_saps: A dictionary of JPlace instances, indexed by their respective RefPkg codes (denominators)
     :param abundance_dict: A dictionary mapping predicted (not necessarily classified) seq_names to abundance values
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :param final_output_dir:
@@ -1315,7 +1315,7 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, refpkg_dict
 
     # Identify the internal node each sequence was placed, used for iTOL outputs
     for denominator in tree_saps:
-        for placed_sequence in tree_saps[denominator]:  # type ItolJplace
+        for placed_sequence in tree_saps[denominator]:  # type JPlace
             if not placed_sequence.classified:
                 continue
             seq_name = re.sub(r"\|{0}\|\d+_\d+$".format(placed_sequence.name), '', placed_sequence.contig_name)
@@ -1385,15 +1385,15 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, refpkg_dict
 
 def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
     """
-    Add abundance (RPKM or presence count) values to the TreeProtein instances (abundance variable)
+    Add abundance (RPKM or presence count) values to the PQuery instances (abundance variable)
 
-    :param tree_saps: Dictionary mapping refpkg codes to all TreeProtein instances for classified sequences
+    :param tree_saps: Dictionary mapping refpkg codes to all PQuery instances for classified sequences
     :param abundance_dict: Dictionary mapping sequence names to floats
     :return: None
     """
     abundance_mapped_acc = 0
     for refpkg_code in tree_saps:
-        for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
+        for placed_seq in tree_saps[refpkg_code]:  # type: PQuery
             if not placed_seq.abundance:
                 # Filter out RPKMs for contigs not associated with the target marker
                 try:
@@ -1415,7 +1415,7 @@ def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
     From the basic RPKM output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
 
     :param target_marker:
-    :param tree_protein_list: A list of TreeProtein objects, for single sequences
+    :param tree_protein_list: A list of PQuery objects, for single sequences
     :param itol_bar_file: The name of the file to write the simple-bar data for iTOL
     :return:
     """
@@ -1466,7 +1466,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
 
-    :param tree_saps: A dictionary containing TreeProtein objects
+    :param tree_saps: A dictionary containing PQuery objects
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :param svc: A boolean indicating whether placements should be filtered using ReferencePackage.svc
     :param min_likelihood: Likelihood-weight-ratio (LWR) threshold for filtering pqueries
@@ -1486,7 +1486,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
 
         tree = Tree(refpkg.f__tree)
 
-        for tree_sap in tree_saps[refpkg.prefix]:  # type: TreeProtein
+        for tree_sap in tree_saps[refpkg.prefix]:  # type: PQuery
             tree_sap.filter_min_weight_threshold(min_likelihood)
             if not tree_sap.classified:
                 unclassified_seqs[refpkg.prefix]["low_lwr"].append(tree_sap)
@@ -1556,8 +1556,8 @@ def select_query_placements(tree_saps: dict):
 
 
     :return:
-        1. Dictionary of TreeProtein instances indexed by denominator (refpkg code e.g. M0701)
-        2. Dictionary of an ItolJplace instance (values) mapped to marker name
+        1. Dictionary of PQuery instances indexed by denominator (refpkg code e.g. M0701)
+        2. Dictionary of an JPlace instance (values) mapped to marker name
     """
 
     logging.info('Selecting the optimal query placements... ')
@@ -1566,7 +1566,7 @@ def select_query_placements(tree_saps: dict):
     classified_seqs = 0
 
     for refpkg_code in tree_saps:
-        for pquery in tree_saps[refpkg_code]:  # type: TreeProtein
+        for pquery in tree_saps[refpkg_code]:  # type: PQuery
             seq_info = re.match(r"(.*)\|" + re.escape(pquery.name) + r"\|(\d+)_(\d+)$", pquery.contig_name)
             if seq_info:
                 # pquery.contig_name = seq_info.group(1)  # Messes up key mapping downstream
@@ -1607,15 +1607,15 @@ def select_query_placements(tree_saps: dict):
 def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict):
     """
     For every JPlace file found in the directory **epa_output_dir**, all placed query sequences in the JPlace
-    are demultiplexed, each becoming a TreeProtein instance.
+    are demultiplexed, each becoming a PQuery instance.
     The JPlace data are validated by ensuring the distal placement lengths reported by EPA are less than or equal to
     the corresponding edge length in the JPlace tree.
 
     :param epa_output_dir: Directory where EPA wrote the JPlace files
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :return:
-        1. Dictionary of TreeProtein instances indexed by denominator (refpkg code e.g. M0701)
-        2. Dictionary of an ItolJplace instance (values) mapped to marker name
+        1. Dictionary of PQuery instances indexed by denominator (refpkg code e.g. M0701)
+        2. Dictionary of an JPlace instance (values) mapped to marker name
     """
 
     logging.info('Parsing the EPA-NG outputs... ')
@@ -1631,12 +1631,12 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict):
         if refpkg.prefix not in tree_saps:
             tree_saps[refpkg.prefix] = list()
         for filename in jplace_list:
-            # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
+            # Load the JSON placement (jplace) file containing >= 1 pquery into JPlace object
             jplace_data = jplace_utils.jplace_parser(filename)
             edge_dist_index = index_tree_edges(jplace_data.tree)
             internal_node_leaf_map = map_internal_nodes_leaves(jplace_data.tree)
-            # Demultiplex all pqueries in jplace_data into individual TreeProtein objects
-            for pquery in jplace_utils.demultiplex_pqueries(jplace_data):  # type: TreeProtein
+            # Demultiplex all pqueries in jplace_data into individual PQuery objects
+            for pquery in jplace_utils.demultiplex_pqueries(jplace_data):  # type: PQuery
                 # Flesh out the internal-leaf node map
                 pquery.name = refpkg.prefix
                 pquery.node_map = internal_node_leaf_map
@@ -1673,7 +1673,7 @@ def determine_confident_lineage(tree_saps, tree_numbers_translation, refpkg_dict
 2. the lowest common ancestor of all children to the placement edge
 3. the optimal rank recommended by the linear model
 
-    :param tree_saps: A dictionary containing TreeProtein objects
+    :param tree_saps: A dictionary containing PQuery objects
     :param tree_numbers_translation: Dictionary containing taxonomic information for each leaf in the reference tree
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :return: None
@@ -1689,7 +1689,7 @@ def determine_confident_lineage(tree_saps, tree_numbers_translation, refpkg_dict
             leaf_taxa_map[leaf.number] = leaf.lineage
         taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 
-        for tree_sap in tree_saps[refpkg_name]:  # type: TreeProtein
+        for tree_sap in tree_saps[refpkg_name]:  # type: PQuery
             if not tree_sap.classified:
                 continue
 
@@ -1724,7 +1724,7 @@ def write_classification_table(tree_saps, sample_name, output_file):
     """
     Write the final classification table
 
-    :param tree_saps: A dictionary containing TreeProtein objects
+    :param tree_saps: A dictionary containing PQuery objects
     :param sample_name: String representing the name of the sample (i.e. Assign.sample_prefix)
     :param output_file: Path to write the classification table
     :return: None
@@ -1734,7 +1734,7 @@ def write_classification_table(tree_saps, sample_name, output_file):
                      "iNode\tLWR\tEvoDist\tDistances\n"
 
     for refpkg_name in tree_saps:
-        for tree_sap in tree_saps[refpkg_name]:  # type: TreeProtein
+        for tree_sap in tree_saps[refpkg_name]:  # type: PQuery
             if not tree_sap.classified:
                 continue
 

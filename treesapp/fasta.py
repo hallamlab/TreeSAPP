@@ -732,7 +732,7 @@ def merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index):
 def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fasta_file: str) -> None:
     """
     Function to write the nucleotide sequences representing the full-length ORF for each classified sequence
-    Sequence names are from ItolJplace.contig_name values so output format is:
+    Sequence names are from JPlace.contig_name values so output format is:
 
      >contig_name|RefPkg|StartCoord_StopCoord
 
@@ -750,7 +750,7 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
         break
 
     for denominator in tree_saps:
-        for placed_sequence in tree_saps[denominator]:  # type ItolJplace
+        for placed_sequence in tree_saps[denominator]:  # type JPlace
             if placed_sequence.classified:
                 output_fasta_dict[placed_sequence.contig_name] = ""
                 try:

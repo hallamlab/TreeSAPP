@@ -19,43 +19,12 @@ from sklearn import model_selection, svm, metrics, preprocessing, manifold
 from treesapp import file_parsers
 from treesapp import wrapper
 from treesapp import fasta
-from treesapp.phylo_seq import ItolJplace
+from treesapp.phylo_seq import PQuery
 from treesapp.external_command_interface import launch_write_command
 from treesapp.jplace_utils import jplace_parser
 from treesapp.entish import map_internal_nodes_leaves
 from treesapp.phylo_dist import parent_to_tip_distances
 from treesapp.refpkg import ReferencePackage
-
-
-class PQuery(ItolJplace):
-    def __init__(self, lineage_str, rank_str):
-        super(PQuery, self).__init__()
-        # Inferred from JPlace file
-        self.pendant = 0.0
-        self.mean_tip = 0.0
-        self.distal = 0.0
-        self.parent_node = ""
-
-        # Known from outer scope
-        self.lineage = lineage_str
-        self.rank = rank_str
-        self.feature_vec = None
-
-    def total_distance(self):
-        return round(sum([self.pendant, self.mean_tip, self.distal]), 5)
-
-    def summarize_placement(self):
-        summary_string = "Placement of " + self.name + " at rank " + self.rank + \
-                         ":\nLineage = " + self.lineage + \
-                         "\nInternal node = " + str(self.inode) + \
-                         "\nDistances:" + \
-                         "\n\tDistal = " + str(self.distal) +\
-                         "\n\tPendant = " + str(self.pendant) +\
-                         "\n\tTip = " + str(self.mean_tip) +\
-                         "\nLikelihood = " + str(self.likelihood) +\
-                         "\nL.W.R. = " + str(self.lwr) +\
-                         "\n"
-        return summary_string
 
 
 def rarefy_rank_distances(rank_distances: dict) -> dict:
@@ -208,6 +177,20 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     return pqueries
 
 
+def augment_training_set(row: np.array, n_reps=3, feature_scale=0.2):
+    n_features = len(row)
+    # make copies of row
+    training_set = np.array([])
+    for _ in range(n_reps):
+        # create vector of random gaussians
+        gauss = np.random.normal(loc=0.0, scale=feature_scale, size=len(row))
+        # add to test case
+        new_row = row + gauss
+        # store in test set
+        training_set = np.append(training_set, [new_row])
+    return training_set.reshape(n_reps, n_features)
+
+
 def vectorize_placement_data(condition_names: dict, classifieds: dict, refpkg_map: dict,
                              annot_map=None) -> (np.array, list):
     """
@@ -222,14 +205,16 @@ a numpy array from each query's data:
 
     :param condition_names: A dictionary of header names indexed by refpkg names. Used to determine whether the query
      belongs to this class condition (e.g. true positive, false positive)
-    :param classifieds: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
+    :param classifieds: A dictionary of JPlace instances, indexed by their respective RefPkg codes (denominators)
     :param refpkg_map: A dictionary of ReferencePackage instances indexed by their respective prefix values
     :param annot_map: A dictionary mapping ReferencePackage.prefix values to the names of database sequence names
     :return: Summary of the distances and internal nodes for each of the false positives
     """
-    features = []
+    rank_feature_vectors = {}
+    feature_vectors = np.array([])
     pqueries_used = []
 
+    # Generate feature vectors for each rank and index them in the rank_feature_vectors dictionary
     for refpkg_name, pqueries in classifieds.items():
         refpkg = refpkg_map[refpkg_name]  # type: ReferencePackage
         if not refpkg.profile_length:
@@ -259,21 +244,42 @@ a numpy array from each query's data:
                                   "Was the correct output directory provided?".format(pquery.inode, pquery.name))
                     sys.exit(5)
 
-                features.append(np.array([leaf_children, lwr_bin, distal, pendant, avg]))
+                raw_array = np.array([leaf_children, lwr_bin, distal, pendant, avg])
+                try:
+                    rank_feature_vectors[pquery.rank].append(raw_array)
+                except KeyError:
+                    rank_feature_vectors[pquery.rank] = [raw_array]
                 pqueries_used.append(pquery)
 
     # Match the normalized feature vectors with their respective PQuery instance and set PQuery.feature_vec
-    if len(features) == 0:
-        return np.array(features), pqueries_used
+    if len(rank_feature_vectors) == 0:
+        return np.array(feature_vectors), pqueries_used
     else:
-        norm_array = preprocessing.normalize(np.array(features), norm='l1')
-        i = 0
-        end = len(norm_array)
-        while i < end:
-            pqueries_used[i].feature_vec = norm_array[i]
-            i += 1
+        for rank in rank_feature_vectors:
+            if len(rank_feature_vectors[rank]) > 0:
+                rank_feature_vectors[rank] = preprocessing.normalize(rank_feature_vectors[rank], norm='l1')
+                i = 0
+                end = len(rank_feature_vectors[rank])
+                while i < end:
+                    pqueries_used[i].feature_vec = rank_feature_vectors[rank][i]
+                    i += 1
 
-        return norm_array, pqueries_used
+    # Augment the training data based on the number of samples available at each rank
+    limit = max(len(rank_feature_vectors[r]) for r in rank_feature_vectors)
+    for rank in rank_feature_vectors:
+        for sample in rank_feature_vectors[rank]:
+            if len(rank_feature_vectors[rank]) < limit:
+                synthetic_samples = augment_training_set(sample)
+                rank_feature_vectors[rank] = np.append(rank_feature_vectors[rank], synthetic_samples, axis=0)
+            else:
+                break
+        # TODO: replace this, seems hacky
+        try:
+            feature_vectors = np.append(feature_vectors, rank_feature_vectors[rank], axis=0)
+        except ValueError:
+            feature_vectors = rank_feature_vectors[rank]
+
+    return feature_vectors, pqueries_used
 
 
 def generate_tsne(x, y, tsne_file):
@@ -430,7 +436,7 @@ def summarize_pquery_ranks(pqueries: list) -> None:
     logging.info("\n".join(["{}\t{}".format(rank, rank_counts[rank]) for
                             rank in sorted(rank_counts, key=lambda x: rank_counts[x])]) + "\n")
 
-    logging.debug("{} ITolJPlace instances not included in rank summary.\n".format(n_skipped))
+    logging.debug("{} PQuery instances not included in rank summary.\n".format(n_skipped))
 
     return
 
@@ -539,7 +545,7 @@ def train_classification_filter(assignments: dict, true_pos: dict, refpkg_map: d
     Optionally, a grid search can be performed that will automatically test multiple different classifiers and kernels,
     not just the one specified, and return (classifier isn't written).
 
-    :param assignments: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
+    :param assignments: A dictionary of JPlace instances, indexed by their respective RefPkg codes (denominators)
     :param true_pos: A dictionary of true positive query names indexed by refpkg names
     :param false_pos: A dictionary of false positive query names indexed by refpkg names
     :param refpkg_map: A dictionary of ReferencePackage instances indexed by their respective prefix values
