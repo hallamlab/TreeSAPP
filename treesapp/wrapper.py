@@ -545,6 +545,9 @@ def hmmsearch_orfs(hmmsearch_exe: str, refpkg_dict: dict, fasta_file: str, outpu
         if pbar:
             pbar.update()
 
+    if pbar:
+        pbar.close()
+
     return hmm_domtbl_files
 
 
