@@ -579,7 +579,8 @@ class ReferencePackage:
 
         # profile HMM used for homology search
         self.dereplicate_hmm(dereplication_rank="genus",
-                             hmmbuild_exe=executables["hmmbuild"], mafft_exe=executables["mafft"])
+                             hmmbuild_exe=executables["hmmbuild"], mafft_exe=executables["mafft"],
+                             realign=False)
 
         # Trees
         if fresh:
@@ -612,7 +613,7 @@ class ReferencePackage:
         return
 
     def dereplicate_hmm(self, dereplication_rank: str, hmmbuild_exe, mafft_exe,
-                        n_threads=2, intermediates_dir=None) -> None:
+                        n_threads=2, intermediates_dir=None, realign=True) -> None:
         """
         Function to create a taxonomically-dereplicated hidden Markov model (HMM) profile. This reduces the bias from
         potentially over-represented clades, increasing the weight of their conserved positions.
@@ -622,6 +623,7 @@ class ReferencePackage:
         :param mafft_exe: Path to a MAFFT executable
         :param n_threads: Number of threads MAFFT should use
         :param intermediates_dir: A path to a directory to write intermediate files
+        :param realign: Boolean indicating whether the sequences with a lineage excluded should be realigned using MAFFT
         :return: None
         """
 
@@ -663,13 +665,14 @@ class ReferencePackage:
 
         # Remove all sequences from the FASTA instance that are not representatives
         mfa.keep_only(lineage_reps)
-        mfa.unalign()
-
-        # Write the dereplicated FASTA file
-        write_new_fasta(fasta_dict=mfa.fasta_dict, fasta_name=derep_fa)
-
-        # Re-align the sequences
-        wrapper.run_mafft(mafft_exe=mafft_exe, fasta_in=derep_fa, fasta_out=derep_aln, num_threads=n_threads)
+        if realign:
+            mfa.unalign()
+            # Write the dereplicated FASTA file
+            write_new_fasta(fasta_dict=mfa.fasta_dict, fasta_name=derep_fa)
+            # Re-align the sequences
+            wrapper.run_mafft(mafft_exe=mafft_exe, fasta_in=derep_fa, fasta_out=derep_aln, num_threads=n_threads)
+        else:
+            write_new_fasta(fasta_dict=mfa.fasta_dict, fasta_name=derep_aln)
 
         # Build the new HMM profile
         wrapper.build_hmm_profile(hmmbuild_exe=hmmbuild_exe, msa_in=derep_aln,
