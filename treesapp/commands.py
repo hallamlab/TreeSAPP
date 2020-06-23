@@ -236,7 +236,7 @@ def train(sys_args):
                      "--refpkg_dir", os.path.dirname(ts_trainer.ref_pkg.f__json),
                      "--targets", ts_trainer.ref_pkg.prefix,
                      "--molecule", ts_trainer.ref_pkg.molecule,
-                     "--delete", "--no_svm"]
+                     "--delete"]
     if args.trim_align:
         assign_params.append("--trim_align")
     assign(assign_params)

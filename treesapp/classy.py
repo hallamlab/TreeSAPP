@@ -1336,7 +1336,7 @@ class Assigner(TreeSAPP):
         """
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
-        self.svc_filter = True
+        self.svc_filter = False
         self.aa_orfs_file = ""
         self.nuc_orfs_file = ""
         self.classified_aa_seqs = ""

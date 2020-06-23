@@ -1483,6 +1483,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
         unclassified_seqs[refpkg.prefix]["low_lwr"] = list()
         unclassified_seqs[refpkg.prefix]["np"] = list()
         unclassified_seqs[refpkg.prefix]["svm"] = list()
+        svc_attempt = False
 
         tree = Tree(refpkg.f__tree)
 
@@ -1527,15 +1528,23 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
             # hmm_perc = round((int(tree_sap.seq_len) * 100) / refpkg.profile_length, 1)
 
             if svc:
-                call = refpkg.svc.predict(preprocessing.normalize(np_array([len(leaf_children),
-                                                                            round(tree_sap.lwr, 2),
-                                                                            distal_length,
-                                                                            pendant_length,
-                                                                            avg_tip_dist]).reshape(1, -1)))
+                if refpkg.svc is None:
+                    svc_attempt = True
+                    call = 1
+                else:
+                    call = refpkg.svc.predict(preprocessing.normalize(np_array([len(leaf_children),
+                                                                                round(tree_sap.lwr, 2),
+                                                                                distal_length,
+                                                                                pendant_length,
+                                                                                avg_tip_dist]).reshape(1, -1)))
                 # Discard this placement as a false positive classifier calls this a 0
                 if call == 0:
                     unclassified_seqs[tree_sap.name]["svm"].append(tree_sap)
                     tree_sap.classified = False
+
+        if svc_attempt:
+            logging.warning("SVM classifier unavailable for reference package '{}'\n".format(refpkg.prefix))
+
         parent_leaf_memoizer.clear()
 
     logging.info("done.\n")

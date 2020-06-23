@@ -14,7 +14,7 @@ class TreesappTester(unittest.TestCase):
                                 "-m", "prot",
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "relaxed",
-                                "--trim_align", "--no_svm", "--overwrite", "--delete"]
+                                "--trim_align", "--overwrite", "--delete"]
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(15, len(lines))
@@ -30,7 +30,7 @@ class TreesappTester(unittest.TestCase):
                                 "-m", "dna",
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "strict",
-                                "--trim_align", "--no_svm", "--overwrite", "--delete"]
+                                "--trim_align", "--overwrite", "--delete"]
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(6, len(lines))

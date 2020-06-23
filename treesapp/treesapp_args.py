@@ -239,8 +239,8 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.optopt.add_argument("-l", "--min_likelihood", default=0.1, type=float,
                                help="The minimum likelihood weight ratio required for an EPA placement. "
                                "[DEFAULT = 0.1]")
-    parser.optopt.add_argument("--no_svm", default=False, required=False, action="store_true",
-                               help="Disables the support vector machine (SVM) classifier. "
+    parser.optopt.add_argument("--svm", default=False, required=False, action="store_true",
+                               help="Uses the support vector machine (SVM) classification filter. "
                                     "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "orf-call", "search", "align", "place", "classify"],
@@ -567,8 +567,8 @@ def check_classify_arguments(assigner: Assigner, args):
             logging.error("Unable to calculate RPKM values for protein sequences.\n")
             sys.exit(3)
 
-    if args.no_svm:
-        assigner.svc_filter = False
+    if args.svm:
+        assigner.svc_filter = True
 
     # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
     # Parameterizing the hmmsearch output parsing:
