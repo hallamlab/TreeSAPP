@@ -573,7 +573,7 @@ def create(sys_args):
     if ts_create.stage_status("train"):
         train(trainer_cmd)
     else:
-        logging.info("Skipping training:\n$ treesapp train" + ' '.join(trainer_cmd))
+        logging.info("Skipping training:\n$ treesapp train {}.\n".format(' '.join(trainer_cmd)))
 
     ##
     # Finish validating the file and append the reference package build parameters to the master table

@@ -6,7 +6,7 @@ Stage: build
     /usr/local/bin/usearch
 
 %post
-    export TS_VERSION="0.8.0"
+    export TS_VERSION="0.8.4"
 
 	##
     # Install the linux package dependencies, this is currently including Python 3.6.5

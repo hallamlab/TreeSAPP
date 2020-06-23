@@ -494,6 +494,9 @@ class ReferencePackage:
                                            bootstraps, num_threads)
 
         if self.tree_tool == "FastTree":
+            etree = Tree(best_tree)
+            etree.resolve_polytomy(recursive=True)
+            etree.write(outfile=best_tree, format=5)
             if int(bootstraps) != 0:
                 wrapper.support_tree_raxml(raxml_exe=executables["raxml-ng"], ref_tree=best_tree, ref_msa=input_msa,
                                            model=self.sub_model, tree_prefix=phylogeny_dir + self.prefix,
