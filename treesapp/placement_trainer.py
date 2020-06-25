@@ -188,7 +188,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     max_reps = 30  # The maximum number of representative sequences from a specific taxon for training
     warning_threshold = 10  # Emit a warning if the number of taxa representing a rank drops below this proportion
     min_refpkg_size = 10  # Minimum number of sequences in a clade-excluded reference package for it to be used
-    min_refpkg_proportion = int(test_seqs.n_seqs()*0.2)
+    min_refpkg_proportion = int(len(leaf_taxa_map)*0.5)
     uclust_prefix = output_dir + os.sep + "uclust" + str(similarity)
     uclust_input = output_dir + os.sep + "uclust_input.fasta"
     lin_sep = t_hierarchy.lin_sep
