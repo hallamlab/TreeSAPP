@@ -682,7 +682,7 @@ def check_updater_arguments(updater: Updater, args):
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
 
-    if not args.similarity:
+    if args.similarity == 1.0:
         updater.prop_sim = updater.ref_pkg.pid
     else:
         updater.prop_sim = args.similarity
