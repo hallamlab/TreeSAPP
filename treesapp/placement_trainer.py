@@ -225,7 +225,9 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
         logging.error("No sequences were retained after filtering reference sequences by domains '%s'\n" %
                       str(', '.join(ref_domains)))
         sys.exit(5)
-    test_seqs.keep_only(related_queries)
+
+    related_queries_in_fasta = list(set(test_seqs.fasta_dict.keys()).intersection(set(related_queries)))
+    test_seqs.keep_only(related_queries_in_fasta)
     test_seqs.change_dict_keys("accession")
     [accession_lineage_map.pop(seq_name) for seq_name in unrelated_queries]
 

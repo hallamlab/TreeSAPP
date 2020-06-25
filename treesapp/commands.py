@@ -254,7 +254,7 @@ def train(sys_args):
     # Reformat the pqueries dictionary for classifier training and testing
     refpkg_pqueries = placement_trainer.flatten_pquery_dict(pqueries, ts_trainer.ref_pkg.prefix)
     tp_names = {ts_trainer.ref_pkg.prefix:
-                    [pquery.contig_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
+                [pquery.contig_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
 
     for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]:
         if not pquery.rank:
@@ -536,8 +536,8 @@ def create(sys_args):
             logging.debug("Number of sequences discarded: " + summary_str + "\n")
             if len(qc_ma_dict.keys()) == 0:
                 # At least one of the reference sequences were discarded and therefore this package is invalid.
-                logging.error("Trimming removed reference sequences. This indicates non-homologous sequences.\n" +
-                              "Please improve sequence quality-control and/or re-run without the '--trim_align' flag.\n")
+                logging.error("Trimming removed reference sequences. This could indicate non-homologous sequences.\n" +
+                              "Please improve sequence quality-control and/or rerun without the '--trim_align' flag.\n")
                 sys.exit(13)
             elif len(qc_ma_dict.keys()) > 1:
                 logging.error("Multiple trimmed alignment files are found when only one is expected:\n" +
@@ -593,7 +593,7 @@ def create(sys_args):
 
 
 def update(sys_args):
-    parser = treesapp_args.TreeSAPPArgumentParser(description='Update a TreeSAPP reference package with assigned sequences.')
+    parser = treesapp_args.TreeSAPPArgumentParser(description='Update a reference package with assigned sequences.')
     treesapp_args.add_update_arguments(parser)
     args = parser.parse_args(sys_args)
 
@@ -645,7 +645,7 @@ def update(sys_args):
         ts_updater.min_length = args.min_seq_length
     classified_fasta.remove_shorter_than(ts_updater.min_length)
     if classified_fasta.n_seqs() == 0:
-        logging.error("No classified sequences exceed minimum length threshold of " + str(ts_updater.min_length) + ".\n")
+        logging.error("No classified sequences exceed minimum length threshold of {}.\n".format(ts_updater.min_length))
         return
 
     ##
@@ -724,18 +724,20 @@ def update(sys_args):
     ref_fasta.swap_headers(ref_header_map)
     ref_fasta.custom_lineage_headers(ref_name_lineage_map)
 
-    classified_fasta.update(ref_fasta.fasta_dict, False)
-    classified_fasta.unalign()
-    
+    combined_fasta = fasta.FASTA("")
+    combined_fasta.clone(classified_fasta)
+    combined_fasta.update(ref_fasta.fasta_dict, False)
+    combined_fasta.unalign()
+
     if args.resolve:
         ##
         # The purpose of this block is to remove any former candidate reference sequences from the ref_fasta object
-        # that have a more truncated lineage that the new candidate reference sequences in classified_fasta
+        # that have a more truncated lineage that the new candidate reference sequences in combined_fasta
         ##
-        classified_fasta.change_dict_keys("num")
+        combined_fasta.change_dict_keys("num")
         # Write a FASTA for clustering containing the formatted headers since
         # not all clustering tools + versions keep whole header - spaces are replaced with underscores
-        fasta.write_new_fasta(fasta_dict=classified_fasta.fasta_dict,
+        fasta.write_new_fasta(fasta_dict=combined_fasta.fasta_dict,
                               fasta_name=ts_updater.cluster_input)
         wrapper.cluster_sequences(ts_updater.executables["usearch"], ts_updater.cluster_input,
                                   ts_updater.uclust_prefix, ts_updater.prop_sim)
@@ -744,43 +746,57 @@ def update(sys_args):
         cluster_dict = file_parsers.read_uc(ts_updater.uc)
 
         # Revert headers in cluster_dict from 'formatted' back to 'original'
-        fasta.rename_cluster_headers(cluster_dict, classified_fasta.header_registry)
+        fasta.rename_cluster_headers(cluster_dict, combined_fasta.header_registry)
         logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
 
         # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
-        entrez_records = update_refpkg.simulate_entrez_records(classified_fasta, classified_seq_lineage_map)
-        create_refpkg.cluster_lca(cluster_dict, entrez_records, classified_fasta.header_registry)
+        entrez_records = update_refpkg.simulate_entrez_records(combined_fasta, classified_seq_lineage_map)
+        create_refpkg.cluster_lca(cluster_dict, entrez_records, combined_fasta.header_registry)
 
         # Ensure centroids are the original reference sequences and skip clusters with identical lineages
-        collapsed = update_refpkg.prefilter_clusters(cluster_dict, entrez_records,
-                                                     list(ref_fasta.original_header_map().keys()))
-        if collapsed:
-            logging.warning("{} original reference sequences removed while resolving:\n\t"
-                            "{}\n".format(len(collapsed), "\n\t".join(collapsed)))
+        update_refpkg.prefilter_clusters(cluster_dict, entrez_records, list(ref_fasta.original_header_map().keys()))
 
         # Ensure the EntrezRecord with the most resolved lineage is the representative
         update_refpkg.resolve_cluster_lineages(cluster_dict, entrez_records, ts_updater.ref_pkg.taxa_trie)
 
         if args.headless:
-            create_refpkg.finalize_cluster_reps(cluster_dict, entrez_records, classified_fasta.header_registry)
+            create_refpkg.finalize_cluster_reps(cluster_dict, entrez_records, combined_fasta.header_registry)
         else:
             # Allow user to select the representative sequence based on organism name, sequence length and similarity
-            create_refpkg.present_cluster_rep_options(cluster_dict, entrez_records, classified_fasta.header_registry,
-                                                      classified_fasta.amendments, True)
+            create_refpkg.present_cluster_rep_options(cluster_dict, entrez_records, combined_fasta.header_registry,
+                                                      combined_fasta.amendments, True)
 
         # Remove sequences that were replaced by resolve from ts_updater.old_ref_fasta
         still_repping = []
-        for num_id in entrez_records:
-            ref_seq = entrez_records[num_id]  # type: entrez_utils.EntrezRecord
+        refs_resolved = []
+        for num_id, ref_seq in entrez_records.items():  # type: (str, entrez_utils.EntrezRecord)
+            seq_name = ref_seq.versioned + ' ' + ref_seq.description
             if ref_seq.cluster_rep:
-                still_repping.append(ref_seq.versioned + ' ' + ref_seq.description)
+                still_repping.append(seq_name)
+            elif seq_name in set(ref_fasta.fasta_dict.keys()):
+                refs_resolved.append(ref_seq)
+            else:
+                pass
         ref_fasta.keep_only(still_repping, True)  # This removes the original reference sequences to be replaced
-        classified_fasta.change_dict_keys("original")
-        classified_fasta.keep_only(still_repping)
+        classified_fasta.keep_only(still_repping, True)  # This removes the original reference sequences to be replaced
+        combined_fasta.change_dict_keys("original")
+        combined_fasta.keep_only(still_repping)
+
+        if refs_resolved:
+            logging.info("{} reference sequences were resolved by updating sequences:\n\t"
+                         "{}\n".format(len(refs_resolved),
+                                       "\n\t".join([ref_seq.accession + ' ' + ref_seq.description
+                                                    for ref_seq in refs_resolved])))
+
+    if classified_fasta.n_seqs() > 0:
+        logging.info("{} assigned sequences will be used in the update.\n".format(classified_fasta.n_seqs()))
+    else:
+        logging.warning("No assigned sequences were retained for updating the reference package. Stopping now.\n")
+        return
 
     # Write only the sequences that have been properly classified
-    classified_fasta.change_dict_keys("original")
-    fasta.write_new_fasta(classified_fasta.fasta_dict, ts_updater.combined_fasta)
+    combined_fasta.change_dict_keys("original")
+    fasta.write_new_fasta(combined_fasta.fasta_dict, ts_updater.combined_fasta)
     fasta.write_new_fasta(ref_fasta.fasta_dict, ts_updater.old_ref_fasta)
 
     ##

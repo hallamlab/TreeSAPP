@@ -173,7 +173,7 @@ def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict
 
 def resolve_cluster_lineages(cluster_dict: dict, entrez_records: dict, taxa_trie: TaxonomicHierarchy) -> None:
     """
-    Sets the 'cluster_rep' atrribute to True for the EntrezRecord with the most resolved lineage out of the
+    Sets the 'cluster_rep' attribute to True for the EntrezRecord with the most resolved lineage out of the
     cluster members and cluster representative. If the cluster representative has a less resolved lineage its
     'cluster_rep' attribute is set to False and it is moved into the members list.
 
@@ -208,7 +208,7 @@ def resolve_cluster_lineages(cluster_dict: dict, entrez_records: dict, taxa_trie
     return
 
 
-def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list, lineage_collapse=True) -> list:
+def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list, lineage_collapse=True) -> None:
     """
     Switches the representative sequence of a Cluster instance based on a priority list.
 
@@ -227,7 +227,8 @@ def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list,
     # cluster_ids list is used for iterating through dictionary keys and allowing dict to change size with 'pop's
     cluster_ids = list(cluster_dict.keys())
     # Track the number of priority sequences that remained members of clusters
-    guaranteed_redundant = list()
+    guaranteed_redundant = []
+    cluster_num = len(cluster_dict)
 
     for cluster_id in sorted(cluster_ids, key=int):
         cluster = cluster_dict[cluster_id]  # type: Cluster
@@ -243,7 +244,14 @@ def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list,
             seq_name, seq_similarity = cluster.members[i]
             if seq_name in priority:
                 if rep_found:
-                    guaranteed_redundant.append(seq_name)
+                    # Save the reference sequence from being absorbed into another reference sequence's cluster
+                    cluster_break = Cluster(seq_name)
+                    while str(cluster_num) in cluster_dict:
+                        cluster_num += 1
+                    guaranteed_redundant.append(cluster_break)
+                    cluster_dict[str(cluster_num)] = cluster_break
+                    cluster.members.pop(i)
+                    i -= 1
                 else:
                     cluster.members[i] = [cluster.representative, seq_similarity]
                     cluster.representative = seq_name
@@ -258,4 +266,10 @@ def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list,
                     identical = False
             if identical:
                 cluster.members = []
-    return guaranteed_redundant
+
+    if guaranteed_redundant:
+        logging.warning("{} original reference sequences saved from clustering:\n\t"
+                        "{}\n".format(len(guaranteed_redundant),
+                                      "\n\t".join(clust.representative for clust in guaranteed_redundant)))
+
+    return

@@ -718,8 +718,11 @@ def check_updater_arguments(updater: Updater, args):
 
     if len(classified_seqs) == 1:
         updater.query_sequences = classified_seqs.pop()
+    elif len(classified_seqs) == 0:
+        logging.error("No classified sequence files found in {}.\n".format(updater.final_output_dir))
     else:
-        logging.error("Multiple classified sequence files in '" + updater.final_output_dir + "' but only 1 expected.\n")
+        logging.error("Multiple classified sequence files in '{}'"
+                      " where only one expected.\n".format(updater.final_output_dir))
         sys.exit(5)
 
     return
