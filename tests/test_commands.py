@@ -55,7 +55,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(68, test_refpkg.num_seqs)
+        self.assertEqual(69, test_refpkg.num_seqs)
         return
 
     def test_create_eggnog(self):
@@ -141,9 +141,9 @@ class TreesappTester(unittest.TestCase):
         from refpkg import ReferencePackage
         from .testing_utils import get_test_data
         update_command_list = ["--fastx_input", get_test_data("Photosynthesis/PuhA/ENOG4111FIN_PF03967_seed.faa"),
-                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.json")),
+                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
                                "--treesapp_output", get_test_data("assign_PF03967_seed/"),
-                               "--similarity", str(0.97),
+                               # "--similarity", str(0.97),
                                "--output", "./TreeSAPP_update",
                                "--num_proc", str(2),
                                "--molecule", "prot",
@@ -155,10 +155,10 @@ class TreesappTester(unittest.TestCase):
         update_command_list += ["--seqs2lineage", get_test_data("PF03967_seed_seqs2lineage.txt")]
         update(update_command_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.json"
+        test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(46, test_refpkg.num_seqs)
+        self.assertEqual(48, test_refpkg.num_seqs)
         return
 
     def test_train(self):

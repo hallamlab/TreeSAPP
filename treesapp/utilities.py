@@ -377,7 +377,7 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
             taxid = regex_match_groups.group(1)
             accession = regex_match_groups.group(1) + '.' + regex_match_groups.group(2)
         elif header_db == "ts_assign":
-            accession = '|'.join(regex_match_groups.groups())
+            accession = regex_match_groups.group(1)
             locus = regex_match_groups.group(3)
         elif header_db == "unformatted":
             accession = re.sub(r"^>", '', header)
@@ -392,11 +392,13 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
             organism = regex_match_groups.group(2)
         if not accession:
             accession = regex_match_groups.group(1)
-        if accession.find('.'):
+        if accession.find('.') >= 0:
             pieces = accession.split('.')
-            if len(pieces) == 2 and re.match(r"\d+", pieces[1]):
-                version = accession
+            version_match = re.match(r"^(\d{1,2})( (.*)?)?", pieces[1])
+            if version_match:
                 accession = pieces[0]
+                version = '.'.join([accession, version_match.group(1)])
+
     else:
         logging.error("Unable to handle header: '" + header + "'\n")
         sys.exit(13)

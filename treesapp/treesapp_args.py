@@ -682,6 +682,11 @@ def check_updater_arguments(updater: Updater, args):
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
 
+    if not args.similarity:
+        updater.prop_sim = updater.ref_pkg.pid
+    else:
+        updater.prop_sim = args.similarity
+
     if args.cluster:
         if not 0.5 <= float(args.similarity) <= 1.0:
             if 0.5 < float(args.similarity) / 100 < 1.0:
@@ -690,11 +695,6 @@ def check_updater_arguments(updater: Updater, args):
             else:
                 logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
-
-    if not args.similarity:
-        updater.prop_sim = updater.ref_pkg.pid
-    else:
-        updater.prop_sim = args.similarity
 
     if updater.seq_names_to_taxa and not os.path.isfile(updater.seq_names_to_taxa):
         logging.error("Unable to find file mapping sequence names to taxonomic lineages '" +

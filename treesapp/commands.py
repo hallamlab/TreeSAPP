@@ -616,6 +616,7 @@ def update(sys_args):
     ##
     classified_fasta = fasta.FASTA(ts_updater.query_sequences)  # These are the classified sequences
     classified_fasta.load_fasta()
+    classified_fasta.add_accession_to_headers(ts_updater.ref_pkg.prefix)
     classified_lines = file_parsers.read_classification_table(ts_updater.assignment_table)
     candidate_update_seqs = update_refpkg.filter_by_lwr(classified_lines, args.min_lwr)
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.get_seq_names())
@@ -672,7 +673,7 @@ def update(sys_args):
             classified_seq_lineage_map[record.accession] = record.lineage
         if deduped:
             logging.warning(str(len(deduped)) + " sequences were not assigned a taxonomic lineage.\n" +
-                            "This should match the number of accessions deduplicated while fetching lineage information.\n")
+                            "This should match the number of accessions deduplicated while fetching lineages.\n")
             for treesapp_id in deduped:
                 logging.debug("Unable to find '" + treesapp_id + "' in fasta records. More info:\n" +
                               querying_classified_fasta.header_registry[treesapp_id].original + "\n")
@@ -688,15 +689,24 @@ def update(sys_args):
 
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
     ref_header_map = update_refpkg.reformat_ref_seq_descriptions(ref_header_map)
-    ref_seq_lineage_map = {ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix]:
-                           leaf.lineage for leaf in ref_seq_lineage_info}
+    ref_name_lineage_map = {ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix]:
+                            leaf.lineage for leaf in ref_seq_lineage_info}
+    ref_accession_lineage_map = {ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix].split(' ')[0]:
+                                 leaf.lineage for leaf in ref_seq_lineage_info}
     num_assigned_candidates = len(classified_seq_lineage_map)
-    num_ref_seqs = len(ref_seq_lineage_map)
-    classified_seq_lineage_map.update({ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix].split(' ')[0]:
-                                       leaf.lineage for leaf in ref_seq_lineage_info})
+    num_ref_seqs = len(ref_name_lineage_map)
+
+    novel = set(classified_seq_lineage_map).difference(set(ref_accession_lineage_map.keys()))
+
+    classified_seq_lineage_map.update(ref_accession_lineage_map)
     diff = num_ref_seqs + num_assigned_candidates - len(classified_seq_lineage_map)
     if diff > 0:
-        logging.warning(str(diff) + "candidate sequences are already in the reference package.\n")
+        logging.warning("{} candidate sequences are already in the reference package."
+                        " These will be excluded from any further analysis.\n".format(diff))
+        # Remove the classified sequences that are redundant with the reference set
+        classified_fasta.change_dict_keys("accession")
+        classified_fasta.keep_only(list(novel))
+        classified_fasta.change_dict_keys("original")
     elif diff < 0:
         logging.error("Something's not adding up between the reference (%d), candidate (%d) and complete (%d) "
                       "sequence collections. Reference and candidate should sum to equal complete.\n" %
@@ -712,7 +722,7 @@ def update(sys_args):
     ref_fasta.load_fasta()
     # Update the original reference headers using info from the tax_ids file
     ref_fasta.swap_headers(ref_header_map)
-    ref_fasta.custom_lineage_headers(ref_seq_lineage_map)
+    ref_fasta.custom_lineage_headers(ref_name_lineage_map)
 
     classified_fasta.update(ref_fasta.fasta_dict, False)
     classified_fasta.unalign()
