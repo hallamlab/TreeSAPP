@@ -295,13 +295,13 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     return
 
 
-def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, incomplete=False) -> None:
+def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, complete=True) -> None:
     """
     Adds lineage information from accession_lineages to fasta_record_objects
 
     :param fasta_record_objects: A dictionary indexed by TreeSAPP numeric identifiers mapped to EntrezRecord instances
     :param accession_lineages: A dictionary mapping {accession: lineage}. acc.version format also accepted
-    :param incomplete: Boolean indicating whether the accession_lineage contains lineages for all records or not.
+    :param complete: Boolean indicating whether the accession_lineage contains lineages for all records or not.
     If True, iteration will continue when accession_lineages is missing an accession.
     :return: None
     """
@@ -314,10 +314,10 @@ def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, 
             except KeyError:
                 if ref_seq.versioned in accession_lineages:
                     lineage = accession_lineages[ref_seq.versioned]
-                elif incomplete:
+                elif not complete:
                     continue
                 else:
-                    logging.error("Lineage information was not retrieved for accession '{}'.\n"
+                    logging.error("Lineage information not retrieved for, or could not be mapped to, accession '{}'.\n"
                                   "Please remove the output directory and restart.\n".format(ref_seq.accession))
                     sys.exit(13)
             # Add the species designation since it is often not included in the sequence record's lineage

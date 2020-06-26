@@ -15,8 +15,8 @@ from numpy import var
 
 from treesapp.phylo_seq import convert_entrez_to_tree_leaf_references, PQuery
 from treesapp.refpkg import ReferencePackage
-from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes
-from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table
+from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes, sequence_info_groups
+from treesapp.utilities import median, which, is_exe, write_dict_to_table
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
@@ -78,7 +78,7 @@ def get_header_info(header_registry, code_name=''):
         original_header = header_registry[treesapp_id].original
         header_format_re, header_db, header_molecule = get_header_format(original_header, header_regexes)
         sequence_info = header_format_re.match(original_header)
-        seq_info_tuple = return_sequence_info_groups(sequence_info, header_db, original_header)
+        seq_info_tuple = sequence_info_groups(sequence_info, header_db, original_header, header_regexes)
 
         # Load the parsed sequences info into the EntrezRecord objects
         ref_seq = entrez_utils.EntrezRecord(seq_info_tuple.accession, seq_info_tuple.version)
@@ -614,7 +614,8 @@ class TreeSAPP:
         if seqs_to_lineage:
             lineage_map, refs_mapped = entrez_utils.map_orf_lineages(seqs_to_lineage, ref_seqs.header_registry)
             # Add lineage information to entrez records for each reference sequence
-            entrez_utils.fill_ref_seq_lineages(entrez_record_dict, lineage_map, incomplete=True)
+            entrez_utils.fill_ref_seq_lineages(entrez_record_dict, lineage_map,
+                                               complete=(len(refs_mapped) == ref_seqs.n_seqs()))
             ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
             self.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
             self.ref_pkg.taxa_trie.validate_rank_prefixes()

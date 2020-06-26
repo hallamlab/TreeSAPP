@@ -9,8 +9,7 @@ import sys
 import re
 from glob import glob
 
-from treesapp.fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes
-from treesapp.utilities import return_sequence_info_groups
+from treesapp.fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes, sequence_info_groups
 from treesapp.external_command_interface import launch_write_command
 from treesapp.classy import get_header_format, Evaluator
 from treesapp.refpkg import ReferencePackage
@@ -237,7 +236,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
                 else:
                     header_format_re, header_db, header_molecule = get_header_format(original_header, header_regex_dict)
                     sequence_info = header_format_re.match(original_header)
-                    q_accession = return_sequence_info_groups(sequence_info, header_db, original_header).accession
+                    q_accession = sequence_info_groups(sequence_info, header_db, original_header).accession
                 # print(q_accession)
                 entrez_query_list.append((q_accession, database))
                 marker_assignments[robust_classification].append(q_accession)

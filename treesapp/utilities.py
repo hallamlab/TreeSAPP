@@ -351,69 +351,6 @@ class Autovivify(dict):
             return value
 
 
-def return_sequence_info_groups(regex_match_groups, header_db: str, header: str):
-    """
-    Depending on the header formats, returns a namedtuple with certain fields filled
-
-    :param regex_match_groups: regular expression (re) match groups
-    :param header_db: The name of the assumed database/source of the sequence
-    :param header: Header i.e. sequence name that was analyzed
-    :return: namedtuple called seq_info with "description", "locus", "organism", "lineage" and "taxid" fields
-    """
-    seq_info = namedtuple(typename="seq_info",
-                          field_names=["accession", "version", "description", "locus", "organism", "lineage", "taxid"])
-    accession = ""
-    locus = ""
-    organism = ""
-    lineage = ""
-    taxid = ""
-    version = ""
-
-    if regex_match_groups:
-        if header_db == "custom":
-            lineage = regex_match_groups.group(2)
-            organism = regex_match_groups.group(3)
-        elif header_db in ["eggnog", "eggnot"]:
-            taxid = regex_match_groups.group(1)
-            accession = regex_match_groups.group(1) + '.' + regex_match_groups.group(2)
-        elif header_db == "ts_assign":
-            accession = regex_match_groups.group(1)
-            locus = regex_match_groups.group(3)
-        elif header_db == "unformatted":
-            accession = re.sub(r"^>", '', header)
-        elif header_db == "silva":
-            locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
-            lineage = regex_match_groups.group(4)
-        elif header_db == "pfam":
-            accession = str(regex_match_groups.group(2))
-        elif len(regex_match_groups.groups()) == 3:
-            organism = regex_match_groups.group(3)
-        elif len(regex_match_groups.groups()) == 2:
-            organism = regex_match_groups.group(2)
-        if not accession:
-            accession = regex_match_groups.group(1)
-        if accession.find('.') >= 0:
-            pieces = accession.split('.')
-            version_match = re.match(r"^(\d{1,2})( (.*)?)?", pieces[1])
-            if version_match:
-                accession = pieces[0]
-                version = '.'.join([accession, version_match.group(1)])
-
-    else:
-        logging.error("Unable to handle header: '" + header + "'\n")
-        sys.exit(13)
-
-    if not (accession or organism or lineage or taxid):
-        logging.error("Insufficient information was loaded for header:\n" +
-                      header + "\n" + "regex_match: " + header_db + '\n')
-        sys.exit(13)
-    if not accession:
-        accession = re.sub(r"^>", '', header)
-    seq_info = seq_info(accession, version, header, locus, organism, lineage, taxid)
-
-    return seq_info
-
-
 def remove_dashes_from_msa(fasta_in, fasta_out):
     """
     fasta_out is the new FASTA file written with no dashes (unaligned)

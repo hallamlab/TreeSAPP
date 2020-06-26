@@ -5,12 +5,13 @@ import re
 import os
 import logging
 from time import sleep, time
-
 from math import ceil
+
 import pyfastx
 from pyfastxcli import fastx_format_check
+from collections import namedtuple
 
-from treesapp.utilities import median, reformat_string, rekey_dict, return_sequence_info_groups
+from treesapp.utilities import median, reformat_string, rekey_dict
 
 
 # No bioinformatic software would be complete without a contribution from Heng Li.
@@ -252,7 +253,7 @@ class Header:
         header_regexes = load_fasta_header_regexes(refpkg_name)
         header_format_re, header_db, header_molecule = get_header_format(self.original, header_regexes)
         sequence_info = header_format_re.match(self.original)
-        self.accession = return_sequence_info_groups(sequence_info, header_db, self.original).accession
+        self.accession = sequence_info_groups(sequence_info, header_db, self.original, header_regexes).accession
 
 
 def register_headers(header_list: list, drop=True):
@@ -327,7 +328,7 @@ class FASTA:
                                                                           "\n\t".join(sorted(bad_headers)[0:6]),
                                                                           "\n\t".join(list(sorted(
                                                                               self.fasta_dict.keys()))[0:6])))
-        sys.exit(3)
+        raise AssertionError
 
     def n_seqs(self):
         if len(self.header_registry) != len(self.fasta_dict):
@@ -939,7 +940,7 @@ def load_fasta_header_regexes(code_name="") -> dict:
         1. create a new compiled regex pattern, like below
         2. add the name of the compiled regex pattern to the header_regexes dictionary
         3. if the regex groups are new and complicated (parsing more than the accession and organism info),
-        alter return_sequence_info_groups in create_treesapp_ref_data to add another case
+        alter sequence_info_groups in create_treesapp_ref_data to add another case
 
     :param code_name: Reference package name/prefix (e.g. DsrAB, p_amoA)
     :return: Dictionary of regular expressions that match database-specific fasta headers indexed by molecule type (str)
@@ -970,9 +971,9 @@ def load_fasta_header_regexes(code_name="") -> dict:
     # Ambiguous:
     # genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
     # accession_only = re.compile(r"^>?([A-Za-z_0-9.]+\.?[0-9]?)$")  # a
-    ncbi_ambiguous = re.compile(r"^>?([A-Za-z0-9.\-_]+)\s+.*(?<!])$")  # a
+    ncbi_ambiguous = re.compile(r"^>?([A-Za-z]{1,6}_[0-9.\-]{5,11})\s+.*(?<!])$")  # a
     ncbi_org = re.compile(r"^>?([A-Z][A-Za-z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
-    assign_re = re.compile(r"^>?(.*)\|({0})\|(\d+_\d+)$".format(re.escape(code_name)))  # a, d, l
+    assign_re = re.compile(r"^>?(\w+)?(.*)\|({0})\|(\d+_\d+)$".format(re.escape(code_name)))  # a, d, l
 
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
@@ -980,7 +981,7 @@ def load_fasta_header_regexes(code_name="") -> dict:
     # The lineage must be formatted like:
     #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
     custom_tax = re.compile(r"^>?(.*) lineage=([A-Za-z ]+.*) \[(.*)\]$")  # a, l, o
-    unformat_re = re.compile(r"(.*)")
+    unformat_re = re.compile(r"^>?(\w+)?(.*)")
 
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",
@@ -1006,6 +1007,77 @@ def load_fasta_header_regexes(code_name="") -> dict:
                                 unformat_re: "unformatted"}
                       }
     return header_regexes
+
+
+def sequence_info_groups(regex_match_groups, header_db: str, header: str, header_regexes=None):
+    """
+    Depending on the header formats, returns a namedtuple with certain fields filled
+
+    :param regex_match_groups: regular expression (re) match groups
+    :param header_db: The name of the assumed database/source of the sequence
+    :param header: Header i.e. sequence name that was analyzed
+    :param header_regexes: Dictionary of regular expressions matching database-specific headers indexed by molecule type
+    :return: namedtuple called seq_info with "description", "locus", "organism", "lineage" and "taxid" fields
+    """
+    seq_info = namedtuple(typename="seq_info",
+                          field_names=["accession", "version", "description", "locus", "organism", "lineage", "taxid"])
+    accession = ""
+    locus = ""
+    organism = ""
+    lineage = ""
+    taxid = ""
+    version = ""
+
+    if regex_match_groups:
+        if header_db == "custom":
+            lineage = regex_match_groups.group(2)
+            organism = regex_match_groups.group(3)
+        elif header_db in ["eggnog", "eggnot"]:
+            taxid = regex_match_groups.group(1)
+            accession = regex_match_groups.group(1) + '.' + regex_match_groups.group(2)
+        elif header_db == "ts_assign":
+            stripped_header = '|'.join(header.split('|')[:-2])
+            header_format_re, stripped_header_db, _ = get_header_format(stripped_header, header_regexes)
+            stripped_info = sequence_info_groups(header_format_re.match(stripped_header),
+                                                 stripped_header_db, stripped_header)
+            accession, version = stripped_info.accession, stripped_info.version
+            locus = regex_match_groups.group(3)
+        elif header_db == "unformatted":
+            if regex_match_groups.group(1):
+                accession = regex_match_groups.group(1)
+            else:
+                accession = re.sub(r"^>", '', header)
+        elif header_db == "silva":
+            locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
+            lineage = regex_match_groups.group(4)
+        elif header_db == "pfam":
+            accession = str(regex_match_groups.group(2))
+        elif len(regex_match_groups.groups()) == 3:
+            organism = regex_match_groups.group(3)
+        elif len(regex_match_groups.groups()) == 2:
+            organism = regex_match_groups.group(2)
+        if not accession:
+            accession = regex_match_groups.group(1)
+        if accession.find('.') >= 0:
+            pieces = accession.split('.')
+            version_match = re.match(r"^(\d{1,2})( (.*)?)?", pieces[1])
+            if version_match:
+                accession = pieces[0]
+                version = '.'.join([accession, version_match.group(1)])
+
+    else:
+        logging.error("Unable to handle header: '" + header + "'\n")
+        sys.exit(13)
+
+    if not (accession or organism or lineage or taxid):
+        logging.error("Insufficient information was loaded for header:\n" +
+                      header + "\n" + "regex_match: " + header_db + '\n')
+        sys.exit(13)
+    if not accession:
+        accession = re.sub(r"^>", '', header)
+    seq_info = seq_info(accession, version, header, locus, organism, lineage, taxid)
+
+    return seq_info
 
 
 def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, str):
