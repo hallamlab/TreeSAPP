@@ -4,7 +4,6 @@ import sys
 import time
 import re
 import logging
-import traceback
 import csv
 
 from Bio import Entrez
@@ -1095,6 +1094,10 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
                   "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n")
 
     logging.info("done.\n")
+
+    if len(mapped_treesapp_nums) == 0:
+        logging.error("Unable to match any sequence names in {}.\n".format(seq_lineage_tbl))
+        sys.exit(13)
 
     return classified_seq_lineage_map, mapped_treesapp_nums
 
