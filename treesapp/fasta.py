@@ -360,11 +360,22 @@ class FASTA:
                 header_map[fs_h] = [header]
         return header_map
 
-    def unversion_first_split_header_map(self) -> dict:
-        first_splits = self.first_split_header_map()
+    def get_accession_header_map(self) -> dict:
         accession_header_map = dict()
-        for accession in first_splits:
-            accession_header_map[re.sub(r'\.\d$', '', accession)] = first_splits[accession]
+        for index, header in self.header_registry.items():  # type: (str, Header)
+            if len(header.accession) == 0:
+                header.find_accession()
+            try:
+                accession_header_map[header.accession].append(header)
+            except KeyError:
+                accession_header_map[header.accession] = [header]
+            except TypeError:
+                if not header.accession:
+                    logging.error("Attempting to create an accession:header dictionary but"
+                                  " accession could not be set for header '{}'.\n".format(header.original))
+                    sys.exit(17)
+                else:
+                    raise TypeError
         return accession_header_map
 
     def get_seq_names(self, name_format="original") -> list:
@@ -1073,8 +1084,10 @@ def sequence_info_groups(regex_match_groups, header_db: str, header: str, header
         logging.error("Insufficient information was loaded for header:\n" +
                       header + "\n" + "regex_match: " + header_db + '\n')
         sys.exit(13)
-    if not accession:
-        accession = re.sub(r"^>", '', header)
+
+    if not version:
+        version = re.sub(r"^>", '', header.split()[0])
+
     seq_info = seq_info(accession, version, header, locus, organism, lineage, taxid)
 
     return seq_info

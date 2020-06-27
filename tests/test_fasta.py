@@ -42,12 +42,14 @@ class MyTestCase(unittest.TestCase):
     def test_sequence_info_groups_assigned(self):
         from fasta import load_fasta_header_regexes, get_header_format, sequence_info_groups
         header_regexes = load_fasta_header_regexes("PuhA")
-        seq_name = 'sp|P06008|RCEH_BLAVI Reaction center protein H chain OS=Blastochloris viridis GN=puhA|PuhA|1_258'
+        seq_name = 'sp|P06008|RCEH_BLAVI Reaction center protein H chain OS=Blastochloris viridis|PuhA|1_258'
         header_format_re, header_db, header_molecule = get_header_format(seq_name, header_regexes)
         self.assertEqual("ts_assign", header_db)
         seq_info_tuple = sequence_info_groups(header_format_re.match(seq_name), header_db, seq_name, header_regexes)
         self.assertEqual("P06008", seq_info_tuple.accession)
-        # self.assertEqual("sp|P06008|RCEH_BLAVI", seq_info_tuple.version)
+        self.assertEqual("sp|P06008|RCEH_BLAVI", seq_info_tuple.version)
+        self.assertEqual("sp|P06008|RCEH_BLAVI Reaction center protein H chain OS=Blastochloris viridis|PuhA|1_258",
+                         seq_info_tuple.description)
         return
 
 

@@ -136,29 +136,47 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(len(pre_lines), len(post_lines))
         return
 
-    def test_update(self):
+    def test_update_resolve(self):
         from commands import update
         from refpkg import ReferencePackage
         from .testing_utils import get_test_data
         update_command_list = ["--fastx_input", get_test_data("Photosynthesis/PuhA/ENOG4111FIN_PF03967_seed.faa"),
                                "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
-                               "--treesapp_output", get_test_data("assign_PF03967_seed/"),
-                               # "--similarity", str(0.97),
+                               "--treesapp_output", get_test_data("assign_SwissProt_PuhA/"),
                                "--output", "./TreeSAPP_update",
-                               "--num_proc", str(2),
+                               "--num_proc", str(4),
                                "--molecule", "prot",
                                "-b", str(0),
                                "--trim_align", "--cluster", "--fast", "--headless",
                                "--overwrite", "--delete", "--skip_assign", "--resolve"]
         update(update_command_list)
-        # Test 2 with a seq2lineage table
-        update_command_list += ["--seqs2lineage", get_test_data("PF03967_seed_seqs2lineage.txt")]
+        test_refpkg = ReferencePackage()
+        test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
+        test_refpkg.slurp()
+        test_refpkg.validate()
+        self.assertEqual(49, test_refpkg.num_seqs)
+        return
+
+    def test_update_seqs2lineage(self):
+        from commands import update
+        from refpkg import ReferencePackage
+        from .testing_utils import get_test_data
+        update_command_list = ["--fastx_input", get_test_data("Photosynthesis/PuhA/ENOG4111FIN_PF03967_seed.faa"),
+                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
+                               "--treesapp_output", get_test_data("assign_SwissProt_PuhA/"),
+                               "--seqs2lineage", get_test_data("SwissProt_PuhA_seqs2lineage.txt"),
+                               "--output", "./TreeSAPP_update",
+                               "--num_proc", str(2),
+                               "--molecule", "prot",
+                               "-b", str(0),
+                               "--trim_align", "--cluster", "--fast", "--headless",
+                               "--overwrite", "--delete", "--skip_assign"]
         update(update_command_list)
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(48, test_refpkg.num_seqs)
+        self.assertEqual(49, test_refpkg.num_seqs)
         return
 
     def test_train(self):

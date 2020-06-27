@@ -777,8 +777,14 @@ def update(sys_args):
                 refs_resolved.append(ref_seq)
             else:
                 pass
-        ref_fasta.keep_only(still_repping, True)  # This removes the original reference sequences to be replaced
-        classified_fasta.keep_only(still_repping, True)  # This removes the original reference sequences to be replaced
+
+        try:
+            classified_fasta.keep_only(still_repping, superset=True)
+        except AssertionError:
+            logging.warning("No assigned sequences were retained for updating the reference package. Stopping now.\n")
+            return
+
+        ref_fasta.keep_only(still_repping, superset=True)
         combined_fasta.change_dict_keys("original")
         combined_fasta.keep_only(still_repping)
 
@@ -789,10 +795,7 @@ def update(sys_args):
                                                     for ref_seq in refs_resolved])))
 
     if classified_fasta.n_seqs() > 0:
-        logging.info("{} assigned sequences will be used in the update.\n".format(classified_fasta.n_seqs()))
-    else:
-        logging.warning("No assigned sequences were retained for updating the reference package. Stopping now.\n")
-        return
+        logging.info("{} assigned sequence(s) will be used in the update.\n".format(classified_fasta.n_seqs()))
 
     # Write only the sequences that have been properly classified
     combined_fasta.change_dict_keys("original")

@@ -60,7 +60,7 @@ def map_classified_seqs(ref_pkg_name: str, assignments: dict, unmapped_seqs: lis
 
 def validate_mixed_lineages(mixed_seq_lineage_map: dict) -> None:
     """
-    Function to ensure all lineages begin at the same rank, typically either 'Root' or 'cellular organisms' if appropriate
+    Function to ensure all lineages begin at the same rank, typically either 'Root' or 'cellular organisms'
 
     :param mixed_seq_lineage_map: A dictionary mapping sequence names (keys) to taxonomic lineages (values)
     :return: None
@@ -158,12 +158,12 @@ def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict
     :return: A dictionary of EntrezRecord instances indexed by their respective TreeSAPP numerical IDs
     """
     entrez_records = dict()
-    header_map = fasta_records.unversion_first_split_header_map()
-    for seq_name in sorted(seq_lineage_map):
-        er = EntrezRecord(seq_name, "")
-        er.lineage = seq_lineage_map[seq_name]
+    header_map = fasta_records.get_accession_header_map()
+    for seq_accession in sorted(seq_lineage_map):
+        er = EntrezRecord(seq_accession, "")
+        er.lineage = seq_lineage_map[seq_accession]
         er.organism = er.lineage.split("; ")[-1]
-        for header in header_map[seq_name]:
+        for header in header_map[seq_accession]:
             er.description = " ".join(header.original.split(" ")[1:])
             er.versioned = header.original.split(" ")[0]
             er.sequence = fasta_records.fasta_dict[str(header.treesapp_num_id)]

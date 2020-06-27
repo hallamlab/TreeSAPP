@@ -533,11 +533,11 @@ def entrez_records_to_accession_set(entrez_records_list: list, bitflag_filter=7)
     for record in entrez_records_list:  # type: EntrezRecord
         if record.bitflag > bitflag_filter:
             continue
-        # Uses the versioned accession ID if available, regular accession otherwise
-        if record.versioned:
-            query_dict[record.versioned] = record
-        elif record.accession:
+        # Uses the accession ID if available, versioned accession otherwise
+        if record.accession:
             query_dict[record.accession] = record
+        elif record.versioned:
+            query_dict[record.versioned] = record
         else:
             continue
     return query_dict
