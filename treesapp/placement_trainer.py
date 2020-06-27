@@ -122,7 +122,12 @@ def read_placement_summary(placement_summary_file: str) -> dict:
                     rank = line.split(' ')[1]
                 elif line[0] == '[':
                     dist_strings = re.sub(r'[\[\]]', '', line).split(", ")
-                    dists = [float(dist) for dist in dist_strings]
+                    try:
+                        dists = [float(dist) for dist in dist_strings]
+                    except ValueError:
+                        logging.error("Looks like treesapp train did not complete successfully.\n"
+                                      "Please re-run with the flag '--overwrite'.\n")
+                        sys.exit(5)
                     if len(dists) > 1:
                         taxonomic_placement_distances[rank] = dists
             line = place_summary.readline()
@@ -194,7 +199,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     lin_sep = t_hierarchy.lin_sep
 
     rank_training_seqs = dict()
-    optimal_assignment_missing = list()
+    optimal_assignment_missing = set()
     too_short = list()
     taxon_training_queries = list()
     unrelated_queries = list()
@@ -244,10 +249,10 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
             unrelated_refs = [lin_sep.join(tl.split(lin_sep)[:-1]) for tl in trimmed_ref_lineages if tl != taxonomy]
             # Ensure a representative of the optimal taxonomic assignment is present in the truncated refpkg
             if optimal_lca_taxonomy not in unrelated_refs:
-                optimal_assignment_missing.append(optimal_lca_taxonomy)
+                optimal_assignment_missing.add(optimal_lca_taxonomy)
             # Ensure there are a sufficient number of reference sequences in the truncated refpkg
             elif len(unrelated_refs) < max([min_refpkg_size, min_refpkg_proportion]):
-                too_short.append(optimal_lca_taxonomy)
+                too_short.append(taxonomy)
             else:
                 for seq_name in sorted(accession_lineage_map, key=lambda x: accession_lineage_map[x]):
                     # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
@@ -301,8 +306,8 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
 
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
         for taxonomy in unique_taxonomic_lineages:
-            taxon = lin_sep.join(taxonomy.split(lin_sep)[:-1])
-            if taxon not in optimal_assignment_missing and taxon not in too_short:
+            optimal_assignment = lin_sep.join(taxonomy.split(lin_sep)[:-1])
+            if optimal_assignment not in optimal_assignment_missing and taxonomy not in too_short:
                 for seq_name in sorted(accession_lineage_map):
                     # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
                     if re.search(taxonomy, accession_lineage_map[seq_name]) and seq_name in test_seqs.fasta_dict:
