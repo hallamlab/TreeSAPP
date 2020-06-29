@@ -6,6 +6,8 @@ import os
 import shutil
 from random import randint
 
+from joblib import dump as jdump
+from joblib import load as jload
 from collections import namedtuple
 from samsum.commands import ref_sequence_abundances
 
@@ -165,6 +167,16 @@ def train(sys_args):
 
     train_seqs = fasta.FASTA(ts_trainer.input_sequences)
 
+    # Load saved pquery instances from a previous run
+    if os.path.isfile(ts_trainer.clade_ex_pquery_pkl):
+        clade_ex_pqueries = jload(filename=ts_trainer.clade_ex_pquery_pkl)
+    else:
+        clade_ex_pqueries = dict()
+    if os.path.isfile(ts_trainer.plain_pquery_pkl):
+        plain_pqueries = jload(filename=ts_trainer.plain_pquery_pkl)
+    else:
+        plain_pqueries = dict()
+
     if ts_trainer.stage_status("search"):
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
         train_seqs.fasta_dict = fasta.format_read_fasta(ts_trainer.input_sequences, ts_trainer.molecule_type)
@@ -203,24 +215,23 @@ def train(sys_args):
         for rank_key in estimated_ranks.difference(set(ts_trainer.training_ranks.keys())):
             taxa_evo_dists.pop(rank_key)
 
-    pqueries = dict()
-    if len(set(ts_trainer.training_ranks.keys()).difference(set(taxa_evo_dists.keys()))) > 0:
-        pfit_array, taxa_evo_dists, pqueries = placement_trainer.regress_rank_distance(ts_trainer.hmm_purified_seqs,
-                                                                                       ts_trainer.executables,
-                                                                                       ts_trainer.ref_pkg,
-                                                                                       ts_trainer.seq_lineage_map,
-                                                                                       ts_trainer.var_output_dir,
-                                                                                       ts_trainer.training_ranks,
-                                                                                       args.num_threads)
-        # Write the tab-delimited file with metadata included for each placement
-        placement_trainer.write_placement_table(pqueries, ts_trainer.placement_table, ts_trainer.ref_pkg.prefix)
+    if len(set(ts_trainer.training_ranks).difference(set(taxa_evo_dists))) > 0 or len(clade_ex_pqueries) == 0:
+        clade_ex_pqueries = placement_trainer.gen_cladex_data(ts_trainer.hmm_purified_seqs, ts_trainer.executables,
+                                                              ts_trainer.ref_pkg, ts_trainer.seq_lineage_map,
+                                                              ts_trainer.var_output_dir, args.num_threads)
+        jdump(value=clade_ex_pqueries, filename=os.path.join(ts_trainer.clade_ex_pquery_pkl))
+
+    taxa_evo_dists = placement_trainer.evo_dists_from_pqueries(clade_ex_pqueries, ts_trainer.training_ranks)
+
+    # Write the tab-delimited file with metadata included for each placement
+    placement_trainer.write_placement_table(clade_ex_pqueries, ts_trainer.placement_table, ts_trainer.ref_pkg.prefix)
+
+    # Finish up
+    pfit_array = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
+    if pfit_array:
+        logging.info("Placement distance model complete.\n")
     else:
-        # TODO: Regenerate pqueries from ts_trainer.placement_table
-        pfit_array = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
-        if pfit_array:
-            logging.info("Placement distance model complete.\n")
-        else:
-            logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
+        logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
     logging.info("Generating placement data without clade exclusion for OC-SVM... ")
     # TODO: Pause logging just to console and continue writing to log file
@@ -239,20 +250,25 @@ def train(sys_args):
                      "--delete"]
     if args.trim_align:
         assign_params.append("--trim_align")
-    assign(assign_params)
+
+    if len(plain_pqueries) == 0:
+        assign(assign_params)
+        plain_pqueries.update(assignments_to_treesaps(
+            file_parsers.read_classification_table(
+                os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")),
+            {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+        )
+        jdump(value=plain_pqueries, filename=os.path.join(ts_trainer.plain_pquery_pkl))
 
     # Re-enable logging at the previous level
     cl_log.disabled = False
-
     logging.info("done.\n")
 
-    pqueries.update(assignments_to_treesaps(
-        file_parsers.read_classification_table(os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")),
-        {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
-    )
+    ts_trainer.pqueries.update(clade_ex_pqueries)
+    ts_trainer.pqueries.update(plain_pqueries)
 
     # Reformat the pqueries dictionary for classifier training and testing
-    refpkg_pqueries = placement_trainer.flatten_pquery_dict(pqueries, ts_trainer.ref_pkg.prefix)
+    refpkg_pqueries = placement_trainer.flatten_pquery_dict(ts_trainer.pqueries, ts_trainer.ref_pkg.prefix)
     tp_names = {ts_trainer.ref_pkg.prefix:
                 [pquery.contig_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
 
@@ -879,31 +895,30 @@ def layer(sys_args):
     master_dat, field_order = annotate_extra.parse_marker_classification_table(ts_layer.final_output_dir +
                                                                                "marker_contig_map.tsv")
     refpkg_dict = file_parsers.gather_ref_packages(ts_layer.refpkg_dir)
-    tree_numbers_translation = read_refpkg_tax_ids(refpkg_dict)
 
     # structure of master dat:
     # {"Sequence_1": {"Field1": x, "Field2": y, "Extra": n},
     #  "Sequence_2": {"Field1": i, "Field2": j, "Extra": n}}
     for annot_f in ts_layer.annot_files:
         # Determine the marker being annotated
-        data_type, refpkg = "", ""
-        for refpkg_name in refpkg_dict:
+        data_type, refpkg_prefix = "", ""
+        for refpkg_name in refpkg_dict:  # type: str
             annot_marker_re = re.compile(r"^{0}_(\w+).txt$".format(refpkg_name))
             if annot_marker_re.match(os.path.basename(annot_f)):
                 data_type = annot_marker_re.match(os.path.basename(annot_f)).group(1)
-                refpkg = refpkg_name
+                refpkg_prefix = refpkg_name
                 break
             else:
-                data_type, refpkg = "", ""
-        if refpkg not in master_dat.keys():
+                data_type, refpkg_prefix = "", ""
+        if refpkg_prefix not in master_dat.keys():
             continue
-        if refpkg and data_type:
-            unique_markers_annotated.add(refpkg)
+        if refpkg_prefix and data_type:
+            unique_markers_annotated.add(refpkg_prefix)
             if data_type not in marker_subgroups:
                 marker_subgroups[data_type] = dict()
                 internal_nodes[data_type] = dict()
-            marker_subgroups[data_type][refpkg], internal_nodes[data_type][refpkg] = file_parsers.read_colours_file(annot_f,
-                                                                                                                    refpkg)
+            marker_subgroups[data_type][refpkg_prefix], internal_nodes[data_type][refpkg_prefix] = file_parsers.read_colours_file(annot_f,
+                                                                                                                    refpkg_prefix)
         else:
             logging.warning("Unable to parse the reference package name and/or annotation type from {}.\n"
                             "Is it possible this reference package is not in {}?".format(annot_f, ts_layer.refpkg_dir))
@@ -923,16 +938,17 @@ def layer(sys_args):
         logging.info("Annotating '%s' classifications for the following reference package(s):\n" % data_type)
         if data_type not in marker_tree_info:
             marker_tree_info[data_type] = dict()
-        for refpkg_name in unique_markers_annotated:
+        for refpkg_name in unique_markers_annotated:  # type: str
             jplace = os.path.join(ts_layer.treesapp_output, "iTOL_output", refpkg_name,
                                   refpkg_name + "_complete_profile.jplace")
 
             if refpkg_name in marker_subgroups[data_type]:
+                refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
                 logging.info("\t" + refpkg_name + "\n")
                 # Create the dictionary mapping an internal node to all leaves
                 internal_node_map = entish.map_internal_nodes_leaves(jplace_parser(jplace).tree)
                 # Routine for exchanging any organism designations for their respective node number
-                taxa_map = tree_numbers_translation[refpkg_name]
+                taxa_map = refpkg.generate_tree_leaf_references_from_refpkg()
 
                 if internal_nodes[data_type][refpkg_name]:
                     clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][refpkg_name],

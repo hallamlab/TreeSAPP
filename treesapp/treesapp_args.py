@@ -530,6 +530,8 @@ def check_trainer_arguments(phy_trainer: PhyTrainer, args):
     phy_trainer.placement_table = phy_trainer.final_output_dir + "placement_info.tsv"
     phy_trainer.placement_summary = phy_trainer.final_output_dir + "placement_trainer_results.txt"
     phy_trainer.hmm_purified_seqs = phy_trainer.output_dir + phy_trainer.ref_pkg.prefix + "_hmm_purified.fasta"
+    phy_trainer.clade_ex_pquery_pkl = os.path.join(phy_trainer.final_output_dir, "clade_exclusion_pqueries.pkl")
+    phy_trainer.plain_pquery_pkl = os.path.join(phy_trainer.final_output_dir, "raw_refpkg_pqueries.pkl")
 
     # Make the directory for storing intermediate outputs
     if not os.path.isdir(phy_trainer.var_output_dir):

@@ -1449,8 +1449,11 @@ class PhyTrainer(TreeSAPP):
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
         self.placement_table = ""
         self.placement_summary = ""
+        self.clade_ex_pquery_pkl = ""
+        self.plain_pquery_pkl = ""
         self.target_refpkgs = list()
         self.training_ranks = {}
+        self.pqueries = {}
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("search", 0),

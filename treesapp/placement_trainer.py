@@ -339,7 +339,7 @@ def clade_exclusion_phylo_placement(rank_training_seqs: dict,
     :param output_dir: Path to directory where all intermediate files should be written
     :param raxml_threads: Number of threads to be used by RAxML for parallel computation
 
-    :return: tuple(Dictionary of ranks indexing placement distances, list of PQuery instances)
+    :return: Dictionary of ranks indexing a dictionary of taxa of that rank indexing a list of PQuery instances
     """
     leaf_trimmed_taxa_map = dict()
     pqueries = dict()
@@ -391,43 +391,21 @@ def clade_exclusion_phylo_placement(rank_training_seqs: dict,
     return pqueries
 
 
-def regress_rank_distance(fasta_input: str, executables: dict, ref_pkg: ReferencePackage,
-                          accession_lineage_map: dict, output_dir: str,
-                          training_ranks=None, num_threads=2) -> (tuple, dict, list):
+def evo_dists_from_pqueries(pqueries: dict, training_ranks=None) -> dict:
     """
+    Pull the evolutionary distance values from each PQuery instance for each rank.
 
-    :param fasta_input: Path to a FASTA file containing query sequences to be used during training
-    :param executables: A dictionary containing executable names mapped to absolute paths of the executables
-    :param ref_pkg: A ReferencePackage instance
-    :param accession_lineage_map: Path to a file mapping query sequence accessions to their taxonomic lineage
-    :param output_dir: Path the a directory to write the temporary files
-    :param num_threads: The number of threads to be used by the various dependencies during phylogenetic placement
+    :param pqueries: A dictionary containing PQuery instances, indexed by both the rank their lineage was excluded
+    from the reference package and their taxonomy. Example:
+    {"class": {"Methanosarcinales": [PQuery.inst, PQuery.inst]}}
     :param training_ranks: A dictionary mapping the name of a taxonomic rank to its depth in the hierarchy
-    :return:
+    :return: A dictionary of taxonomic ranks as keys and a list of evolutionary distances for each PQuery as values
     """
+    taxonomic_placement_distances = {}
     if not training_ranks:
         training_ranks = {"class": 3, "species": 7}
-    # Read the taxonomic map; the final sequences used to build the tree are inferred from this
-    leaf_taxa_map = {}
-    taxonomic_placement_distances = {}
-    ref_pkg.load_taxonomic_hierarchy()
-    for ref_seq in ref_pkg.generate_tree_leaf_references_from_refpkg():
-        leaf_taxa_map[ref_seq.number] = ref_seq.lineage
-    # Load the query FASTA and
-    test_seqs = fasta.FASTA(fasta_input)
-    test_seqs.load_fasta()
-    test_seqs.add_accession_to_headers(ref_pkg.prefix)
-    # Find non-redundant set of diverse sequences to train for all taxonomic ranks
-    rank_training_seqs = prepare_training_data(test_seqs, output_dir, executables, leaf_taxa_map,
-                                               ref_pkg.taxa_trie, accession_lineage_map)
-    if len(rank_training_seqs) == 0:
-        return (0.0, 7.0), {}, []
 
-    # Perform the rank-wise clade exclusion analysis for estimating placement distances
-    pqueries = clade_exclusion_phylo_placement(rank_training_seqs, test_seqs, ref_pkg, leaf_taxa_map,
-                                               executables, output_dir, num_threads)
-
-    # Create the dictionary of evolutionary distances indexed by rank and taxon
+    # Populate dictionary of evolutionary distances indexed by rank and taxon
     for rank in training_ranks:
         taxonomic_placement_distances[rank] = []
         if rank in pqueries and len(pqueries[rank]) > 0:
@@ -444,12 +422,42 @@ def regress_rank_distance(fasta_input: str, executables: dict, ref_pkg: Referenc
         stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
                                                 len(taxonomic_placement_distances[rank]), 4)) + "\n"
         logging.debug(stats_string)
+    return taxonomic_placement_distances
 
-    # Finish up
-    pfit_array = complete_regression(taxonomic_placement_distances, training_ranks)
-    if pfit_array:
-        logging.info("Placement distance regression model complete.\n")
-    else:
-        logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
-    return pfit_array, taxonomic_placement_distances, pqueries
+def gen_cladex_data(fasta_input: str, executables: dict, ref_pkg: ReferencePackage,
+                    accession_lineage_map: dict, output_dir: str,
+                    num_threads=2) -> dict:
+    """
+    Generate pquery instances resulting from phylogenetic placement using clade-excluded reference packages.
+    These instances represent phylogenetic placements onto phylogenies lacking close relatives,
+    as would be expected when classifying sequences from an environmental metagenome.
+
+    :param fasta_input: Path to a FASTA file containing query sequences to be used during training
+    :param executables: A dictionary containing executable names mapped to absolute paths of the executables
+    :param ref_pkg: A ReferencePackage instance
+    :param accession_lineage_map: Path to a file mapping query sequence accessions to their taxonomic lineage
+    :param output_dir: Path the a directory to write the temporary files
+    :param num_threads: The number of threads to be used by the various dependencies during phylogenetic placement
+    :return:
+    """
+    # Read the taxonomic map; the final sequences used to build the tree are inferred from this
+    leaf_taxa_map = {}
+    ref_pkg.load_taxonomic_hierarchy()
+    for ref_seq in ref_pkg.generate_tree_leaf_references_from_refpkg():
+        leaf_taxa_map[ref_seq.number] = ref_seq.lineage
+    # Load the query FASTA and
+    test_seqs = fasta.FASTA(fasta_input)
+    test_seqs.load_fasta()
+    test_seqs.add_accession_to_headers(ref_pkg.prefix)
+    # Find non-redundant set of diverse sequences to train for all taxonomic ranks
+    rank_training_seqs = prepare_training_data(test_seqs, output_dir, executables, leaf_taxa_map,
+                                               ref_pkg.taxa_trie, accession_lineage_map)
+    if len(rank_training_seqs) == 0:
+        return {}
+
+    # Perform the rank-wise clade exclusion analysis for estimating placement distances
+    pqueries = clade_exclusion_phylo_placement(rank_training_seqs, test_seqs, ref_pkg, leaf_taxa_map,
+                                               executables, output_dir, num_threads)
+
+    return pqueries
