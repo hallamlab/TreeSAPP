@@ -58,7 +58,6 @@ def info(sys_args):
     import seaborn
     import samsum
     import pyfastx
-    import pygtrie
     logging.info("TreeSAPP version " + treesapp.__version__ + ".\n")
 
     # Write the version of all python deps
@@ -70,8 +69,7 @@ def info(sys_args):
                "scikit-learn": sklearn.__version__,
                "seaborn": seaborn.__version__,
                "samsum": samsum.__version__,
-               "pyfastx": pyfastx.version(),
-               "pygtrie": pygtrie.__version__}
+               "pyfastx": pyfastx.version()}
 
     logging.info("Python package dependency versions:\n\t" +
                  "\n\t".join([k + ": " + v for k, v in py_deps.items()]) + "\n")
