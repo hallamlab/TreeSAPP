@@ -409,7 +409,6 @@ class ReferencePackage:
     def hmm_length(self) -> None:
         self.profile_length = get_hmm_length(self.f__profile)
 
-
     def alignment_dims(self):
         return multiple_alignment_dimensions(self.f__msa)
 
@@ -427,49 +426,82 @@ class ReferencePackage:
                 children.append(leaf_node)
         return children
 
-    def remove_taxon_from_lineage_ids(self, target_lineage) -> None:
+    @staticmethod
+    def get_unrelated_taxa(ref_leaf_nodes: dict, target_lineage: str, lin_sep="; ") -> set:
         """
-        Removes all sequences/leaves from the reference package that match the target taxon. Leaves with that have a
-        taxonomic resolution lower than the target are also removed as their taxonomic provenance is uncertain.
+        Returns a set of all ref_leaf_nodes keys whose corresponding lineages (value) are unrelated to target_lineage
+        If a lineage (value) is truncated and is related to the target_lineage up until its last rank it is not
+        included in the returned set (off_target_ref_leaves).
+        This is because the resolution is too poor to know whether the ref_leaf is related to the target_lineage or not.
 
-        :param target_lineage: A '; '-separated taxonomic lineage for which all matches and descendents are removed
-        :return: Nothing
+        :param ref_leaf_nodes: A dictionary of str keys mapped to taxonomic lineages
+        :param target_lineage: A taxonomic lineage whose relatives are meant to be excluded
+        :param lin_sep: An optional string that is used to separate the taxonomic ranks in the lineage
+        :return: A set of all key names whose corresponding values are unrelated to the target_lineage
         """
-        off_target_ref_leaves = dict()
-        s_target = target_lineage.split(self.taxa_trie.lin_sep)
         n_match = 0
         n_shallow = 0
         n_unclassified = 0
+        off_target_ref_leaves = set()
 
-        # Find the reference leaf node that need to be removed
-        for ref_leaf in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
+        s_target = target_lineage.split(lin_sep)
+
+        for ref_leaf_num, lineage in ref_leaf_nodes.items():  # type: (str, str)
+            s_query = lineage.split(lin_sep)
             x = 0
-            s_query = ref_leaf.lineage.split(self.taxa_trie.lin_sep)
             while x < min([len(s_query), len(s_target)]):
                 if re.search("unclassified|environmental sample|root", s_query[x], re.IGNORECASE):
                     n_unclassified += 1
                     break
                 if s_query[x] != s_target[x]:
-                    off_target_ref_leaves[ref_leaf.number] = "{0} | {1}\t{2}".format(ref_leaf.description,
-                                                                                     ref_leaf.accession,
-                                                                                     ref_leaf.lineage)
+                    off_target_ref_leaves.add(ref_leaf_num)
                     break
                 x += 1
-            if ref_leaf.number not in off_target_ref_leaves:
+            if ref_leaf_num not in off_target_ref_leaves:
                 if len(s_query) < len(s_target):
                     n_shallow += 1
                 else:
                     n_match += 1
 
-        # Update self.lineage_ids with the remaining reference leaf nodes
-        self.lineage_ids = off_target_ref_leaves
-        self.num_seqs = len(self.lineage_ids)
-
-        logging.debug("Reference sequence filtering stats for " + s_target[-1] + "\n" +
+        logging.debug("Reference sequence filtering stats for taxon '{}'\n".format(s_target[-1]) +
                       "\n".join(["Match taxon\t" + str(n_match),
                                  "Unclassified\t" + str(n_unclassified),
                                  "Too shallow\t" + str(n_shallow),
                                  "Remaining\t" + str(len(off_target_ref_leaves))]) + "\n")
+        return off_target_ref_leaves
+
+    def remove_taxon_from_lineage_ids(self, taxon) -> None:
+        """
+        Removes all sequences/leaves from the reference package that match the target taxon. Leaves with that have a
+        taxonomic resolution lower than the target are also removed as their taxonomic provenance is uncertain.
+
+        :param taxon: A '; '-separated taxonomic lineage for which all matches and descendents are removed
+        :return: Nothing
+        """
+        leaf_lineage_map = {}
+        off_target_lineage_ids = {}
+
+        # Make the leaf name: lineage map for get_unrelated_taxa
+        ref_leaf_nodes = self.generate_tree_leaf_references_from_refpkg()
+        for ref_leaf in ref_leaf_nodes:  # type: TreeLeafReference
+            leaf_lineage_map[ref_leaf.number] = ref_leaf.lineage
+
+        # Get the ref_leaf.number for all TreeLeafReference instances that are unrelated to taxon
+        off_target_ref_leaves = self.get_unrelated_taxa(ref_leaf_nodes=leaf_lineage_map,
+                                                        target_lineage=taxon,
+                                                        lin_sep=self.taxa_trie.lin_sep)
+
+        # Format the lineage_ids strings
+        for ref_leaf in ref_leaf_nodes:  # type: TreeLeafReference
+            if ref_leaf.number in off_target_ref_leaves:
+                off_target_lineage_ids[ref_leaf.number] = "{0} | {1}\t{2}".format(ref_leaf.description,
+                                                                                  ref_leaf.accession,
+                                                                                  ref_leaf.lineage)
+
+        # Update self.lineage_ids with the remaining reference leaf nodes
+        self.lineage_ids = off_target_lineage_ids
+        self.num_seqs = len(self.lineage_ids)
+
         return
 
     def infer_phylogeny(self, input_msa: str, executables: dict, phylogeny_dir: str, bootstraps,

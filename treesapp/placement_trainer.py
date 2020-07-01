@@ -240,18 +240,20 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     test_taxa_summary = []
     for rank in taxonomic_ranks:
         test_taxa_summary.append("Sequences available for training %s-level placement distances:" % rank)
-        trimmed_ref_lineages = t_hierarchy.trim_lineages_to_rank(leaf_taxa_map, rank).values()
-        unique_ref_lineages = sorted(set(trimmed_ref_lineages))
+        trimmed_ref_lineages = t_hierarchy.trim_lineages_to_rank(leaf_taxa_map, rank)
+        unique_ref_lineages = sorted(set(trimmed_ref_lineages.values()))
 
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
         for taxonomy in unique_ref_lineages:
+            unrelated_ref_names = ReferencePackage.get_unrelated_taxa(leaf_taxa_map, taxonomy)
             optimal_lca_taxonomy = lin_sep.join(taxonomy.split(lin_sep)[:-1])
-            unrelated_refs = [lin_sep.join(tl.split(lin_sep)[:-1]) for tl in trimmed_ref_lineages if tl != taxonomy]
+            unrelated_refs = set([lin_sep.join(trimmed_ref_lineages[ref_name].split(lin_sep)[:-1])
+                                  for ref_name in unrelated_ref_names.intersection(set(trimmed_ref_lineages))])
             # Ensure a representative of the optimal taxonomic assignment is present in the truncated refpkg
             if optimal_lca_taxonomy not in unrelated_refs:
                 optimal_assignment_missing.add(optimal_lca_taxonomy)
             # Ensure there are a sufficient number of reference sequences in the truncated refpkg
-            elif len(unrelated_refs) < max([min_refpkg_size, min_refpkg_proportion]):
+            elif len(unrelated_ref_names) < max([min_refpkg_size, min_refpkg_proportion]):
                 too_short.append(taxonomy)
             else:
                 for seq_name in sorted(accession_lineage_map, key=lambda x: accession_lineage_map[x]):
