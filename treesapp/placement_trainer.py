@@ -202,6 +202,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     optimal_assignment_missing = set()
     too_short = list()
     taxon_training_queries = list()
+    taxon_contributions = dict()
     unrelated_queries = list()
     related_queries = list()
     optimal_lineages_present = 0
@@ -312,13 +313,22 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
             if optimal_assignment not in optimal_assignment_missing and taxonomy not in too_short:
                 for seq_name in sorted(accession_lineage_map):
                     # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
-                    if re.search(taxonomy, accession_lineage_map[seq_name]) and seq_name in test_seqs.fasta_dict:
-                        taxon_training_queries.append(seq_name)
+                    seq_lineage = accession_lineage_map[seq_name]
+                    if re.search(taxonomy, seq_lineage) and seq_name in test_seqs.fasta_dict:
+                        try:
+                            contrib = taxon_contributions[seq_lineage]
+                        except KeyError:
+                            contrib = 0
+                            taxon_contributions[seq_lineage] = contrib
+                        if contrib < int(0.3*max_reps):
+                            taxon_training_queries.append(seq_name)
+                            taxon_contributions[seq_lineage] += 1
                     if len(taxon_training_queries) == max_reps:
                         break
                 if len(taxon_training_queries) > 0:
                     rank_training_seqs[rank][taxonomy] = list(taxon_training_queries)
                     taxon_training_queries.clear()
+        taxon_contributions.clear()
     logging.info("done.\n")
 
     return rank_training_seqs

@@ -593,11 +593,11 @@ def read_uc(uc_file):
 def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, queries_mapped=False, min_seq_length=30):
     """
     Parse a list of multiple sequence alignment (MSA) files and determine whether the multiple alignment:
-        1. is shorter then the min_seq_length (30 by default)
+        1. is shorter than the min_seq_length (30 by default)
         2. is missing any reference sequences
     The number of query sequences discarded - these may have been added by hmmalign or PaPaRa - is returned via a string
 
-    NOTE: Initially designed for sequence records with numeric names (e.g. >4889) but accomodates other TreeSAPP formats
+    NOTE: Initially designed for sequence records with numeric names (e.g. >488) but accommodates other TreeSAPP formats
 
     :param msa_files: A list of either Phylip or FASTA formatted MSA files
     :param unique_ref_headers: A set of all headers that were in the untrimmed MSA
@@ -646,8 +646,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
                 elif re.match(r"^\d+_\w{2,10}$", seq_name):
                     leaf_num = seq_name.split('_')[0]
                 else:
-                    logging.error("Unexpected sequence name '" + seq_name +
-                                  "' detected in " + multi_align_file + ".\n")
+                    logging.error("Unexpected sequence name '{}' detected in {}.\n".format(seq_name, multi_align_file))
                     sys.exit(13)
                 if int(leaf_num) > 0:
                     n_msa_refs += 1
@@ -672,9 +671,8 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
         discarded_seqs_string += "\n\t\t" + multi_align_file + " = " + str(len(discarded_seqs))
         if len(discarded_seqs) == len(multi_align.keys()):
             # Throw an error if the final trimmed alignment is shorter than min_seq_length, and therefore empty
-            logging.warning("Multiple sequence alignment in " + multi_align_file +
-                            " is shorter than minimum sequence length threshold (" + str(min_seq_length) +
-                            ").\nThe untrimmed alignment will be used instead.\n")
+            logging.warning("Multiple sequence alignment in {} is shorter than minimum sequence length threshold ({})."
+                            "\nThe untrimmed MSA will be used instead.\n".format(multi_align_file, min_seq_length))
             failed_multiple_alignments.append(multi_align_file)
         elif n_refs > n_msa_refs:
             # Testing whether there were more sequences in the untrimmed alignment than the trimmed one
