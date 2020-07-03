@@ -204,16 +204,29 @@ class TreesappTester(unittest.TestCase):
                         "--molecule", "prot",
                         "--trim_align", "--delete", "--overwrite"]
         ct_main(command_list)
+        return
 
     def test_package(self):
         from commands import package
         from .testing_utils import get_test_data
         command_list = ["view",
-                        "prefix",
+                        "lineage_ids",
                         "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
                         "--output", "./TreeSAPP_package"]
         package(command_list)
         return
+
+    def test_mcc_calculator(self):
+        from treesapp import MCC_calculator
+        from .testing_utils import get_test_data
+        cmd = ["--fastx_input", get_test_data("EggNOG_McrA.faa"),
+               "--annot_map", get_test_data("EggNOG_McrA_annot_map.tsv"),
+               "--output", "./test_MCC",
+               "--molecule", "prot",
+               "--tool", "treesapp",
+               "--num_procs", str(4),
+               "--delete", "--svm"]
+        MCC_calculator.mcc_calculator(cmd)
 
 
 if __name__ == '__main__':
