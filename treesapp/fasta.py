@@ -256,7 +256,15 @@ class Header:
         self.accession = sequence_info_groups(sequence_info, header_db, self.original, header_regexes).accession
 
 
-def register_headers(header_list: list, drop=True):
+def register_headers(header_list: list, drop=True) -> dict:
+    """
+    Instantiates a Header instance for each sequence name (i.e. header) in header_list.
+    The attributes 'formatted', 'first_split', 'original' and 'treesapp_num_id' are populated
+
+    :param header_list: A list of headers to parse
+    :param drop: A flag indicating whether the '>' character should be dropped from the sequence names
+    :return: A dictionary of Header instances indexed by a numerical identifier
+    """
     acc = 1
     header_registry = dict()
     dup_checker = set()

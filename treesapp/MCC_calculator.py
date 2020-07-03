@@ -2,33 +2,33 @@
 
 __author__ = 'Connor Morgan-Lang'
 
-import argparse
 import os
 import shutil
 import sys
 import logging
-import re
+from time import sleep
 from glob import glob
 from numpy import sqrt
 
 from ete3 import Tree
 
 from treesapp import file_parsers
-from treesapp.phylo_seq import JPlace
+from treesapp.phylo_seq import JPlace, assignments_to_treesaps
 from treesapp.refpkg import ReferencePackage
 from treesapp.commands import assign
-from treesapp.fasta import get_headers
+from treesapp.fasta import get_headers, register_headers
 from treesapp.external_command_interface import launch_write_command
-from treesapp.classy import prep_logging
-from treesapp.entrez_utils import EntrezRecord
+from treesapp.classy import prep_logging, get_header_info
+from treesapp.entrez_utils import EntrezRecord, get_multiple_lineages
 from treesapp.lca_calculations import compute_taxonomic_distance, optimal_taxonomic_assignment, grab_graftm_taxa
-from treesapp.utilities import get_hmm_length
+from treesapp.treesapp_args import TreeSAPPArgumentParser
+from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 
 
-class ClassifiedSequence:
+class QuerySequence:
     def __init__(self, header: str) -> None:
         """
-        Initialization function for ClassifiedSequence objects. Sets self.name attribute to header if provided
+        Initialization function for QuerySequence objects. Sets self.name attribute to header if provided
 
         :param header: Name of the classified sequence, used to set self.name
         """
@@ -36,7 +36,6 @@ class ClassifiedSequence:
         self.ref = ""
         self.ncbi_tax = ""
         self.assigned_lineage = ""
-        self.optimal_lineage = ""
         self.true_lineage = ""
         self.optimal_lineage = ""
         self.tax_dist = 0
@@ -46,14 +45,15 @@ class ClassifiedSequence:
 class ConfusionTest:
     def __init__(self, gene_list):
         self._MAX_TAX_DIST = -1
-        self.header_regex = re.compile(r"^>?(COG[A-Z0-9]+|ENOG[A-Z0-9]+)_(\d+)\..*")
         self.ref_packages = {key: ReferencePackage() for key in gene_list}
         self.fn = {key: [] for key in gene_list}
         self.fp = {key: set() for key in gene_list}
-        self.tp = {key: [] for key in gene_list}  # This will be a list of ClassifiedSequence instances
+        self.tp = {key: [] for key in gene_list}  # This will be a list of QuerySequence instances
         self.tax_lineage_map = {}
         self.tp_lineage_map = {}
         self.dist_wise_tp = {}
+        self.header_registry = {}
+        self.entrez_query_dict = {}
         self.num_total_queries = 0
         self.rank_depth_map = {"Domain": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
         self.classification_table = ""
@@ -70,15 +70,6 @@ class ConfusionTest:
 
         if self.num_total_queries > 0:
             info_string += str(self.num_total_queries) + " query sequences being used for testing.\n"
-
-        fp_ogs = set()
-        for marker in self.fp:
-            if len(self.fp[marker]) > 0:
-                info_string += "False positive OGs classified as " + marker + ":\n"
-                for query_name in self.fp[marker]:
-                    fp_ogs.add(self.header_regex.match(query_name).group(1))
-                info_string += "\t" + ', '.join(fp_ogs) + "\n"
-            fp_ogs.clear()
 
         if verbose:
             for refpkg in sorted(self.ref_packages):
@@ -151,33 +142,61 @@ class ConfusionTest:
 
         return
 
-    def populate_true_positive_lineage_map(self):
+    def populate_true_positive_lineage_map(self) -> None:
         for refpkg_code in self.ref_packages:
             self.tp_lineage_map[refpkg_code] = {tp_inst.name: tp_inst.true_lineage
                                                 for tp_inst in self.tp[refpkg_code]}
         return
 
-    def map_lineages(self):
-        for marker in self.tp:
-            for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
-                try:
-                    tp_inst.true_lineage = self.tax_lineage_map[tp_inst.name]
-                except KeyError:
-                    continue
+    def generate_entrez_queries(self) -> None:
+        entrez_record_dict = get_header_info(self.header_registry)
+        for index, e_record in entrez_record_dict.items():  # type: EntrezRecord
+            self.entrez_query_dict[e_record.description] = e_record
+        return
+
+    def retrieve_lineages(self) -> None:
+        """
+        Determines the format of the query sequence header to extract the accession and/or NCBI taxid then
+        queries the Entrez database using these information to collect the taxonomic lineage for each unique NCBI taxid
+        NCBI taxid and lineage information are stored in self.tax_lineage_map
+
+        :return: None
+        """
+        # Gather the unique taxonomy IDs and store in EntrezRecord instances
+        t_hierarchy = TaxonomicHierarchy()
+        entrez_records = [self.entrez_query_dict[index] for index in self.entrez_query_dict]
+        # Query the Entrez database for these unique taxonomy IDs
+        get_multiple_lineages(entrez_records, t_hierarchy, "prot")
+
+        for e_record in entrez_records:  # type: EntrezRecord
+            if not e_record.lineage:
+                logging.warning("Lineage information unavailable for taxonomy ID '" + e_record.ncbi_tax + "'\n")
+                self.tax_lineage_map[e_record.ncbi_tax] = ''
+            else:
+                self.tax_lineage_map[e_record.ncbi_tax] = e_record.lineage
+        return
+
+    def map_true_lineages(self) -> None:
+        for refpkg_name in self.ref_packages:
+            if refpkg_name in self.tp:
+                map_lineages(self.tp[refpkg_name], self.tax_lineage_map)
+            if refpkg_name in self.fn:
+                map_lineages(self.fn[refpkg_name], self.tax_lineage_map)
         return
 
     def summarise_reference_taxa(self, taxa_file, classification_file, rank="Phylum"):
         lineage_list = []
         info_string = "RefPkg\tName\tTaxDist\tClassified\tTrueLineage\tAssignedLineage\tOptimalLineage\n"
         for marker in self.tp:
-            for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
+            for tp_inst in self.tp[marker]:  # type: QuerySequence
                 lineage_list.append(tp_inst.true_lineage)
                 info_string += "\t".join([marker, tp_inst.name, str(tp_inst.tax_dist), "True",
                                           tp_inst.true_lineage, tp_inst.assigned_lineage,
                                           tp_inst.optimal_lineage]) + "\n"
         for marker in self.fn:
             for seq_name in self.fn[marker]:
-                ref_g, tax_id = self.header_regex.match(seq_name).groups()
+                # TODO: Support headers from databases other than EggNOG
+                tax_id = seq_name.split('.')[0]
                 try:
                     true_lineage = self.tax_lineage_map[tax_id]
                 except KeyError:
@@ -208,21 +227,26 @@ class ConfusionTest:
         :return: None
         """
         for marker in self.tp:
+            refpkg = self.ref_packages[marker]  # type: ReferencePackage
+            refpkg.taxa_trie.trie_check()
+            lin_sep = refpkg.taxa_trie.lin_sep
             self.dist_wise_tp[marker] = dict()
-            for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
+            for tp_inst in self.tp[marker]:  # type: QuerySequence
                 # Find the optimal taxonomic assignment
-                optimal_taxon = optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie,
-                                                             self.tax_lineage_map[tp_inst.ncbi_tax])
+                tp_inst.true_lineage = refpkg.taxa_trie.clean_lineage_string(tp_inst.true_lineage)
+                if tp_inst.assigned_lineage.split(lin_sep)[0] == "r__Root":
+                    tp_inst.assigned_lineage = lin_sep.join(tp_inst.assigned_lineage.split(lin_sep)[1:])
+                optimal_taxon = optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
                 if not optimal_taxon:
-                    logging.debug("Optimal taxonomic assignment '" + tp_inst.true_lineage + "' for " +
-                                  tp_inst.name + " not found in reference hierarchy.\n")
+                    logging.debug("Optimal taxonomic assignment '{}' for {}"
+                                  " not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.name))
                     continue
                 tp_inst.optimal_lineage = optimal_taxon
                 tp_inst.tax_dist, status = compute_taxonomic_distance(tp_inst.assigned_lineage, optimal_taxon)
                 if status > 0:
-                    logging.debug("Lineages didn't converge between:\n'" +
-                                  tp_inst.assigned_lineage + "' and '" + optimal_taxon +
-                                  "' (taxid: " + tp_inst.ncbi_tax + ")\n")
+                    logging.debug("Lineages didn't converge between:\n"
+                                  "'{}' and '{}' (taxid: {})\n".format(tp_inst.assigned_lineage,
+                                                                       optimal_taxon, tp_inst.ncbi_tax))
                 try:
                     self.dist_wise_tp[marker][tp_inst.tax_dist].append(tp_inst.name)
                 except KeyError:
@@ -244,10 +268,9 @@ class ConfusionTest:
         rank_representation = dict()
         for marker in self.tp:
             refpkg = self.ref_packages[marker]  # type: ReferencePackage
-            if refpkg.taxa_trie.lineages_fed != refpkg.taxa_trie.lineages_into_trie:
-                refpkg.taxa_trie.build_multifurcating_trie()
+            refpkg.taxa_trie.trie_check()
 
-            for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
+            for tp_inst in self.tp[marker]:  # type: QuerySequence
                 # Find the optimal taxonomic assignment
                 optimal_taxon = optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
                 if not optimal_taxon:
@@ -328,12 +351,11 @@ class ConfusionTest:
                 unique_fn.update(self.fn[marker])
             return unique_fn
 
-    def bin_headers(self, test_seq_names: list, assignments: dict, annot_map: dict) -> None:
+    def bin_headers(self, assignments: dict, annot_map: dict) -> None:
         """
         Function for sorting/binning the classified sequences at T/F positives/negatives based on the annot_map file
         that specifies which queries belong to which orthologous group/protein family and reference package.
 
-        :param test_seq_names: List of all headers in the input FASTA file
         :param assignments: Dictionary mapping the ReferencePackage.prefix to TreeProtein instances
         :param annot_map: Dictionary mapping reference package (gene) name keys to database names values
         :return: None
@@ -342,50 +364,50 @@ class ConfusionTest:
         # False negatives: those whose annotations match a reference package name and were not classified
         # True positives: those with a matching annotation and reference package name and were classified
         # True negatives: those that were not classified and should not have been
-        if annot_map:
-            mapping_dict = expand_annotation_map(annot_map)
-            og_names_mapped = list(mapping_dict.keys())
-            positive_queries = label_positive_classifications(test_seq_names, mapping_dict,
-                                                              og_names_mapped, self.header_regex)
-            # Ensure all reference genes in mapping_dict have been used
-            if len(og_names_mapped) > 0:
-                logging.warning(
-                    "Some orthologous groups in the annotation mapping file were not found in the FASTA file." +
-                    " Perhaps a mistake was made when making this file? The following OGs will be skipped:\n" +
-                    '\n'.join([str(og) + ": " + str(mapping_dict[og]) for og in og_names_mapped]) + "\n")
-        else:
-            mapping_dict = {}
-            positive_queries = {}
-            for refpkg_name, pqueries in assignments.items():
-                positive_queries[refpkg_name] = [pquery.contig_name for pquery in pqueries]
-
+        positive_queries = {}
         logging.info("Assigning test sequences to the four class conditions... ")
-        for marker in assignments:
+        # Create a dictionary for rapid look-ups of queries that are homologs of sequences in the refpkg
+        for qname in annot_map:
+            for rname in annot_map[qname]:
+                try:
+                    positive_queries[rname].add(qname)
+                except KeyError:
+                    positive_queries[rname] = {qname}
+
+        for refpkg_name in assignments:
             try:
-                positives = set(positive_queries[marker])
+                positives = positive_queries[refpkg_name]
             except KeyError:
-                logging.error("Unable to find '" + marker + "' in the set of positive queries:\n" +
+                logging.error("Unable to find '{}' in the set of positive queries:\n".format(refpkg_name) +
                               ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
                 sys.exit(5)
             true_positives = set()
-            for pquery in assignments[marker]:  # type: JPlace
+            for pquery in assignments[refpkg_name]:  # type: JPlace
                 # Populate the relevant information for the classified sequence
-                tp_inst = ClassifiedSequence(pquery.contig_name)
-                tp_inst.ref = marker
+                tp_inst = QuerySequence(pquery.contig_name)
+                tp_inst.ref = refpkg_name
                 tp_inst.assigned_lineage = pquery.recommended_lineage
-                # Bin it if the mapping_dict is present, otherwise classify it as a TP
-                if len(mapping_dict) > 0:
-                    if marker in mapping_dict and tp_inst.name in mapping_dict[marker]:
-                        # Add the True Positive to the relevant collections
-                        self.tp[marker].append(tp_inst)
-                        true_positives.add(tp_inst.name)
-                    else:
-                        self.fp[marker].add(tp_inst.name)
-                else:
-                    self.tp[marker].append(tp_inst)
+                e_record = self.entrez_query_dict[pquery.contig_name]
+                if not e_record.lineage:
                     true_positives.add(tp_inst.name)
+                    continue
+                tp_inst.ncbi_tax = e_record.ncbi_tax
+                # Bin it if the mapping_dict is present, otherwise classify it as a TP
+                if tp_inst.name in positives:
+                    # Add the True Positive to the relevant collections
+                    self.tp[refpkg_name].append(tp_inst)
+                    true_positives.add(tp_inst.name)
+                else:
+                    self.fp[refpkg_name].add(tp_inst)
+
             # Identify the False Negatives using set difference - those that were not classified but should have been
-            self.fn[marker] = list(positives.difference(true_positives))
+            for seq_name in list(positives.difference(true_positives)):
+                qseq = QuerySequence(seq_name)
+                e_record = self.entrez_query_dict[seq_name]
+                if not e_record.lineage:
+                    continue
+                qseq.ncbi_tax = e_record.ncbi_tax
+                self.fn[refpkg_name].add(qseq)
         logging.info("done.\n")
         return
 
@@ -398,13 +420,12 @@ class ConfusionTest:
 
         for marker in self.fp:
             validated_fp = set()
-            for seq_name in self.fp[marker]:
-                og_name = self.header_regex.match(seq_name).group(1)
-                original_name = re.sub(og_name + '_', '', seq_name)
-                if original_name[0] == '>':
-                    original_name = original_name[1:]
-                if original_name not in tp_names:
-                    validated_fp.add(seq_name)
+            for qseq in self.fp[marker]:  # type: QuerySequence
+                seq_name = qseq.name
+                if seq_name[0] == '>':
+                    seq_name = seq_name[1:]
+                if seq_name not in tp_names:
+                    validated_fp.add(qseq)
             self.fp[marker] = validated_fp
         return
 
@@ -420,13 +441,14 @@ class ConfusionTest:
                     refpkg_og_map[og] = [refpkg_name]
 
         for marker in self.fn:
-            homologous_tps = set()
-            for og in refpkg_dbname_dict[marker]:
-                for homolgous_marker in refpkg_og_map[og]:
-                    if homolgous_marker != marker:
-                        homologous_tps.update(set(cs.name for cs in self.tp[homolgous_marker]))
-            # Remove all sequences from this marker's false negatives that are found in a homologous TP set
-            self.fn[marker] = set(self.fn[marker]).difference(homologous_tps)
+            if marker in refpkg_dbname_dict:
+                homologous_tps = set()
+                for og in refpkg_dbname_dict[marker]:
+                    for homolgous_marker in refpkg_og_map[og]:
+                        if homolgous_marker != marker:
+                            homologous_tps.update(set(cs.name for cs in self.tp[homolgous_marker]))
+                # Remove all sequences from this marker's false negatives that are found in a homologous TP set
+                self.fn[marker] = set(self.fn[marker]).difference(homologous_tps)
         return
 
     def summarise_type_one_placements(self, classification_lines) -> str:
@@ -445,20 +467,19 @@ class ConfusionTest:
         for name in self.ref_packages:
             refpkg = self.ref_packages[name]  # type: ReferencePackage
             refpkg_map[refpkg.prefix] = name
-            refpkg.gather_package_files(pkg_path=self.refpkg_dir)
             try:
-                internal_nodes_dict[refpkg.prefix] = internal_node_leaf_map(refpkg.tree)
+                internal_nodes_dict[refpkg.prefix] = refpkg.get_internal_node_leaf_map()
             except IndexError:
                 logging.error("Unable to read tree for reference package %s from '%s'.\n" % (name, refpkg.tree))
                 sys.exit(3)
-            hmm_lengths[refpkg.prefix] = get_hmm_length(refpkg.profile)
+            hmm_lengths[refpkg.prefix] = refpkg.profile_length
         #
         for fields in classification_lines:
-            _, header, refpkg, length, _, _, _, i_node, lwr, evo_dist, dists = fields
-            if header in self.fp[refpkg_map[refpkg]]:
+            _, header, refpkg_name, length, _, _, _, i_node, lwr, evo_dist, dists = fields
+            if header in self.fp[refpkg_map[refpkg_name]]:
                 distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
                 # hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 0)
-                descendents = len(internal_nodes_dict[refpkg][i_node])
+                descendents = len(internal_nodes_dict[refpkg_name][i_node])
                 if descendents not in summary_dict["leaves"]:
                     summary_dict["leaves"][descendents] = 0
                 summary_dict["leaves"][descendents] += 1
@@ -488,10 +509,9 @@ class ConfusionTest:
             if len(self.fn[marker]) == 0:
                 continue
             summary_string += "Number of false negatives for '" + marker + "':\n"
-            for seq_name in self.fn[marker]:
-                ref_g, tax_id = self.header_regex.match(seq_name).groups()
+            for qseq in self.fn[marker]:  # type: QuerySequence
                 try:
-                    lineage_list.append(self.tax_lineage_map[tax_id])
+                    lineage_list.append(qseq.true_lineage)
                 except KeyError:
                     continue
             lineage_count_dict = summarize_taxonomy(lineage_list, rank, self.rank_depth_map)
@@ -527,60 +547,50 @@ class ConfusionTest:
         return summary_string
 
 
-def expand_annotation_map(annot_map):
-    mapping_dict = {}
-    for refpkg_name in annot_map:
-        orthos = annot_map[refpkg_name]  # List of all orthologous genes corresponding to a reference package
-        for gene in orthos:
-            if gene not in mapping_dict:
-                mapping_dict[gene] = []
-            mapping_dict[gene].append(refpkg_name)
-    return mapping_dict
-
-
-def label_positive_classifications(test_seq_names: list, annot_map: dict, og_names_mapped: list, header_regex) -> dict:
-    """
-    Collects the headers that are meant to be classified (i.e. could be either true positives or false negatives)
-    for each reference package. A dictionary is returned where the ReferencePackage.prefix (or what the query was
-    classified as) are keys and a list of all query sequence names (headers) are the values.
-
-    :param test_seq_names:
-    :param annot_map:
-    :param og_names_mapped:
-    :param header_regex: A regular expression matching annotated EggNOG headers
-    :return: A dictionary mapping refpkg names to a list of corresponding query sequences
-    """
-    # TODO: Fix to make compatible with the new verison of the annot_map file
-    positive_queries = dict()
-    logging.info("Labelling true test sequences... ")
-    for header in test_seq_names:
+def map_lineages(qseq_collection: set, tax_lineage_map: dict) -> None:
+    for qseq in qseq_collection:  # type: QuerySequence
         try:
-            ref_g, tax_id = header_regex.match(header).groups()
-        except (TypeError, KeyError):
-            logging.error("Header '{}' in test FASTA file does not match the supported format.\n".format(header))
-            sys.exit(5)
-        if ref_g in annot_map:
-            markers = annot_map[ref_g]
-            ##
-            # This leads to double-counting and is therefore deduplicated later
-            ##
-            for marker in markers:
-                if not marker:
-                    logging.error("Bad marker name in annotation map:\n'{}'\n".format(', '.join(annot_map.keys())))
-                    sys.exit(5)
-                try:
-                    positive_queries[marker].append(header)
-                except KeyError:
-                    positive_queries[marker] = [header]
-                if ref_g in og_names_mapped:
-                    i = 0
-                    while i < len(og_names_mapped):
-                        if og_names_mapped[i] == ref_g:
-                            og_names_mapped.pop(i)
-                            i = len(og_names_mapped)
-                        i += 1
-    logging.info("done.\n")
-    return positive_queries
+            qseq.true_lineage = tax_lineage_map[qseq.ncbi_tax]
+        except KeyError:
+            continue
+    return
+
+# def label_positive_classifications(test_seq_names: list, annot_map: dict, og_names_mapped: list) -> dict:
+#     """
+#     Collects the headers that are meant to be classified (i.e. could be either true positives or false negatives)
+#     for each reference package. A dictionary is returned where the ReferencePackage.prefix (or what the query was
+#     classified as) are keys and a list of all query sequence names (headers) are the values.
+#
+#     :param test_seq_names:
+#     :param annot_map:
+#     :param og_names_mapped:
+#     :return: A dictionary mapping refpkg names to a list of corresponding query sequences
+#     """
+#     positive_queries = dict()
+#     logging.info("Labelling true test sequences... ")
+#     for header in test_seq_names:
+#         if header in annot_map:
+#             markers = annot_map[header]
+#             ##
+#             # This leads to double-counting and is therefore deduplicated later
+#             ##
+#             for marker in markers:
+#                 if not marker:
+#                     logging.error("Bad marker name in annotation map:\n'{}'\n".format(', '.join(annot_map.keys())))
+#                     sys.exit(5)
+#                 try:
+#                     positive_queries[marker].append(header)
+#                 except KeyError:
+#                     positive_queries[marker] = [header]
+#                 if header in og_names_mapped:
+#                     i = 0
+#                     while i < len(og_names_mapped):
+#                         if og_names_mapped[i] == header:
+#                             og_names_mapped.pop(i)
+#                             i = len(og_names_mapped)
+#                         i += 1
+#     logging.info("done.\n")
+#     return positive_queries
 
 
 def summarize_taxonomy(taxa_list, rank, rank_depth_map=None):
@@ -597,7 +607,8 @@ def summarize_taxonomy(taxa_list, rank, rank_depth_map=None):
     try:
         depth = rank_depth_map[rank] + 1
     except KeyError:
-        logging.error("Rank '" + rank + "' not present in rank-depth map:\n" + str(rank_depth_map) + "\n")
+        logging.error("Rank '{}' not present in rank-depth map:\n"
+                      "{}\n".format(rank, rank_depth_map))
         sys.exit(3)
 
     taxa_census = dict()
@@ -640,52 +651,31 @@ def write_dict_to_table(data_dict, file_name, sep="\t"):
     return
 
 
-def get_arguments():
-    parser = argparse.ArgumentParser(add_help=False,
-                                     description="A wrapper script for calculating Matthews correlation coefficient for"
-                                                 "TreeSAPP or GraftM. Currently only supports testing proteins.")
-    required_args = parser.add_argument_group("Required arguments")
-    required_args.add_argument("--fasta_input", required=True, dest="input",
-                               help="FASTA-formatted file used for testing the classifiers")
-    required_args.add_argument("--annot_map", required=True,
-                               help="Path to a tabular file mapping markers being tested to their database annotations."
-                                    " First column is the ")
-
-    optopt = parser.add_argument_group("Optional options")
+def get_arguments(sys_args):
+    parser = TreeSAPPArgumentParser(description="Calculate Matthews' correlation coefficient from classifications")
     ts = parser.add_argument_group("TreeSAPP options")
-    gm = parser.add_argument_group("GraftM options")
-    optopt.add_argument("--tool", default="treesapp", required=False,
-                        choices=["treesapp", "graftm", "diamond"],
-                        help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
-    optopt.add_argument("--output", required=False, default="./MCC_output/",
-                        help="Path to a directory for writing output files")
 
-    ts.add_argument("--no_svm", default=False, required=False, action="store_true",
-                    help="Disables the support vector machine (SVM) classifier. "
+    parser.add_io()
+    parser.add_refpkg_opt()
+    parser.add_refpkg_targets()
+    parser.add_seq_params()
+    parser.add_compute_miscellany()
+
+    parser.reqs.add_argument("--annot_map", required=True,
+                             help="Path to a tabular file mapping markers being tested to their database annotations."
+                                  " First column is the ")
+
+    parser.optopt.add_argument("--tool", default="treesapp", required=False,
+                               choices=["treesapp", "graftm", "diamond"],
+                               help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
+
+    ts.add_argument("--svm", default=False, required=False, action="store_true",
+                    help="Uses the support vector machine (SVM) classification filter. "
                          "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
     ts.add_argument("-s", "--stringency", choices=["relaxed", "strict"], default="relaxed", required=False,
                     help="HMM-threshold mode affects the number of query sequences that advance [DEFAULT = relaxed]")
-    ts.add_argument("-p", "--pkg_path", required=False, default=None,
-                    help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = TreeSAPP/data/ ].")
-    ts.add_argument("--trim_align", default=False, action="store_true",
-                    help="Flag to turn on position masking of the multiple sequence alignment [DEFAULT = False]")
 
-    gm.add_argument("--gpkg_dir", required=False, default=None,
-                    help="Path to a directory containing all GraftM reference packages to test."
-                         " Files must follow 'name.gpkg' scheme and 'name' is in the first column of --annot_map")
-
-    miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
-    miscellaneous_opts.add_argument("-n", "--num_threads", default=4, required=False,
-                                    help="The number of threads to use when running either TreeSAPP or GraftM")
-    miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
-                                    help='overwrites previously processed output folders')
-    miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
-                                    help='Prints a more verbose runtime log')
-    miscellaneous_opts.add_argument("-h", "--help",
-                                    action="help",
-                                    help="Show this help message and exit")
-
-    args = parser.parse_args()
+    args = parser.parse_args(sys_args)
 
     if args.output[-1] != os.sep:
         args.output += os.sep
@@ -714,39 +704,38 @@ def validate_command(args, sys_args):
     logging.debug("Command used:\n" + ' '.join(sys_args) + "\n")
 
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-    if args.tool == "treesapp" and not args.pkg_path:
-        args.pkg_path = args.treesapp + "data" + os.sep
+    if args.tool == "treesapp" and not args.refpkg_dir:
+        args.refpkg_dir = args.treesapp + "data" + os.sep
 
     if sys.version_info < (2, 9):
         logging.error("Python version '" + str(sys.version_info) + "' not supported.\n")
         sys.exit(3)
 
-    if args.gpkg_dir and args.gpkg_dir[-1] != os.sep:
-        args.gpkg_dir += os.sep
+    if args.refpkg_dir and args.refpkg_dir[-1] != os.sep:
+        args.refpkg_dir += os.sep
     if args.tool in ["diamond", "graftm"]:
-        if not args.gpkg_dir:
+        if not args.refpkg_dir:
             logging.error(args.tool + " specified but a GraftM reference package directory was not provided.\n")
             sys.exit(17)
-        elif not os.path.isdir(args.gpkg_dir):
-            logging.error(args.gpkg_dir + " GraftM reference package directory does not exist!\n")
+        elif not os.path.isdir(args.refpkg_dir):
+            logging.error(args.refpkg_dir + " GraftM reference package directory does not exist!\n")
             sys.exit(17)
-        elif len(glob(args.gpkg_dir + "*gpkg")) == 0:
-            logging.error("Not GraftM reference packages found in " + args.gpkg_dir + ".\n")
+        elif len(glob(args.refpkg_dir + "*gpkg")) == 0:
+            logging.error("No GraftM reference packages found in " + args.refpkg_dir + ".\n")
             sys.exit(17)
-    elif args.tool == "treesapp" and args.gpkg_dir:
-        logging.warning("--gpkg specified but tool selected is 'treesapp'... it will be ignored.\n")
 
     return
 
 
-def read_annotation_mapping_file(annot_map_file: str):
+def read_annotation_mapping_file(annot_map_file: str) -> dict:
     """
-    Used for reading a file mapping the reference package name in the first column and the name of a
-    corresponding true positive in the second column.
-    There can be multiple true names of orthologs in the second column separated by commas.
+    Used for reading a file mapping the reference package name to all true positive orthologs in the query input
+    The first column is the ReferencePackage.prefix.
+    The second column is the ortholog name used by the database.
+    The third column is the name of a true positive.
 
     :param annot_map_file: Path to a tab-delimited file
-    :return: A dictionary containing reference package names mapped to a list of matching database names
+    :return: A dictionary containing database sequence names mapped to their respective reference package names
     """
     annot_map = dict()
     try:
@@ -764,14 +753,16 @@ def read_annotation_mapping_file(annot_map_file: str):
         elif not line:
             continue
         else:
-            fields = line.split("\t")
             try:
-                annot_map[fields[0]] = fields[1].split(',')
-            except KeyError:
-                logging.error("Insufficient number of fields on line " + str(n) + " in " + annot_map_file + "!\n" +
+                refpkg_name, og, query_name = line.strip().split("\t")
+            except ValueError:
+                logging.error("Unexpected number of fields on line {} in {}!\n".format(n, annot_map_file) +
                               "File must have the reference package name and the database name in"
                               " the first two columns, respectively. Any number of columns can follow.\n")
                 sys.exit(9)
+            if query_name not in annot_map:
+                annot_map[query_name] = set()
+            annot_map[query_name].add(refpkg_name)
 
     annot_map_handler.close()
     return annot_map
@@ -786,10 +777,25 @@ def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: in
         return round(numerator/sqrt(denominator), 3)
 
 
-def mcc_calculator():
-    args = get_arguments()
+def check_previous_output(output_dir, overwrite=False) -> None:
+    if not os.path.isdir(output_dir):
+        os.mkdir(output_dir)
+    elif overwrite:
+        if os.path.isdir(output_dir):
+            logging.warning("Overwriting directory '{}' in 5 seconds. Press Ctrl-C to cancel.")
+            sleep(5)
+            shutil.rmtree(output_dir)
+        os.mkdir(output_dir)
+    return
+
+
+def mcc_calculator(sys_args):
+    args = get_arguments(sys_args)
+
+    check_previous_output(args.output, args.overwrite)
+
     summary_rank = "Phylum"
-    output_prefix = args.output + '.'.join(os.path.basename(args.input).split('.')[:-1])
+    output_prefix = args.output + os.path.splitext(os.path.basename(args.input))[0]
     log_name = output_prefix + "_MCC_log.txt"
     mcc_file = output_prefix + "_MCC_table.tsv"
     taxa_dist_output = output_prefix + '_' + summary_rank + "_dist.tsv"
@@ -801,9 +807,9 @@ def mcc_calculator():
     ##
     # Read the file mapping reference package name to the database annotations
     ##
-    pkg_name_dict = read_annotation_mapping_file(args.annot_map)
-    marker_build_dict = file_parsers.parse_ref_build_params(args.treesapp, [])
-    test_obj = ConfusionTest(pkg_name_dict.keys())
+    query_name_dict = read_annotation_mapping_file(args.annot_map)
+    refpkg_dict = file_parsers.gather_ref_packages(args.refpkg_dir, args.targets)
+    test_obj = ConfusionTest(refpkg_dict.keys())
     test_obj.map_data(output_dir=args.output, tool=args.tool)
     if args.overwrite and os.path.exists(test_obj.data_dir):
         shutil.rmtree(test_obj.data_dir)
@@ -811,26 +817,30 @@ def mcc_calculator():
             if os.path.isfile(f):
                 os.remove(f)
 
+    # Creates the dictionary of Header instances
+    test_obj.header_registry = register_headers(list(query_name_dict.keys()))
+    test_obj.generate_entrez_queries()
+    # Downloads lineage information for the header instances
+    test_obj.retrieve_lineages()
+
     ##
     # Load the taxonomic trie for each reference package
     ##
     if args.tool == "treesapp":
-        for pkg_name in test_obj.ref_packages:
-            refpkg = test_obj.ref_packages[pkg_name]
-            marker = marker_build_dict[pkg_name].cog
-            refpkg.prefix = marker
-            refpkg.gather_package_files(args.pkg_path)
-            test_obj.ref_packages[pkg_name].taxa_trie = all_possible_assignments(test_obj.ref_packages[pkg_name].lineage_ids)
-    else:
-        for gpkg in glob(args.gpkg_dir + "*gpkg"):
-            marker = str(os.path.basename(gpkg).split('.')[0])
-            pkg_name = fish_refpkg_from_build_params(marker, marker_build_dict).denominator
-            if pkg_name in pkg_name_dict:
+        test_obj.ref_packages = refpkg_dict
+    elif args.tool in ["graftm", "diamond"]:
+        for gpkg in glob(args.refpkg_dir + "*gpkg"):
+            gpkg_name = str(os.path.basename(gpkg).split('.')[0])
+            if gpkg_name in test_obj.ref_packages:
                 try:
-                    tax_ids_file = glob(os.sep.join([gpkg, marker + ".gpkg.refpkg", marker + "*_taxonomy.csv"])).pop()
-                    test_obj.ref_packages[pkg_name].taxa_trie = grab_graftm_taxa(tax_ids_file)
+                    tax_ids_file = glob(os.path.join(gpkg, gpkg_name + ".gpkg.refpkg",
+                                                     gpkg_name + "*taxonomy.csv")).pop()
+                    test_obj.ref_packages[gpkg_name].taxa_trie = grab_graftm_taxa(tax_ids_file)
                 except IndexError:
-                    logging.warning("No GraftM taxonomy file found for " + marker + ". Is this refpkg incomplete?\n")
+                    logging.warning("No GraftM taxonomy file found for {}. Is this gpkg complete?\n".format(gpkg_name))
+    else:
+        logging.error("Unrecognized tool name '{}'\n".format(args.tool))
+        sys.exit(3)
 
     ##
     # Run the specified taxonomic analysis tool and collect the classifications
@@ -839,32 +849,32 @@ def mcc_calculator():
     test_fa_prefix = '.'.join(os.path.basename(args.input).split('.')[:-1])
     classification_lines = []
     if args.tool == "treesapp":
-        ref_pkgs = ','.join(pkg_name_dict.keys())
-        classification_table = os.sep.join([args.output, "TreeSAPP_output", "final_outputs", "marker_contig_map.tsv"])
+        ref_pkgs = ','.join(test_obj.ref_packages.keys())
+        classification_table = os.path.join(args.output, "TreeSAPP_output", "final_outputs", "marker_contig_map.tsv")
         if not os.path.isfile(classification_table):
             classify_args = ["-i", args.input,
-                             "-t", ref_pkgs, "-n", str(args.num_threads),
+                             "-t", ref_pkgs,
+                             "-n", str(args.num_threads),
                              "-m", "prot",
                              "--output", test_obj.data_dir,
-                             "--overwrite",
-                             "--stringency", args.stringency]
+                             "--stringency", args.stringency,
+                             "--overwrite", "--delete"]
             if args.trim_align:
                 classify_args.append("--trim_align")
-            if args.no_svm:
-                classify_args.append("--no_svm")
+            if args.svm:
+                classify_args.append("--svm")
             assign(classify_args)
         classification_lines = file_parsers.read_classification_table(classification_table)
-        assignments = file_parsers.parse_assignments(classification_lines)
+        assignments = assignments_to_treesaps(classification_lines, test_obj.ref_packages)
     else:
         # Since you are only able to analyze a single reference package at a time with GraftM, this is ran iteratively
-        for gpkg in glob(args.gpkg_dir + "*gpkg"):
-            marker = str(os.path.basename(gpkg).split('.')[0])
-            if not marker:
-                logging.error("Unable to parse marker name from gpkg '" + gpkg + "'\n")
+        for gpkg in glob(args.refpkg_dir + "*gpkg"):
+            pkg_name = str(os.path.basename(gpkg).split('.')[0])
+            if not pkg_name:
+                logging.error("Unable to parse marker name from gpkg '{}'\n".format(gpkg))
                 sys.exit(5)
-            pkg_name = fish_refpkg_from_build_params(marker, marker_build_dict).denominator
-            if pkg_name not in pkg_name_dict:
-                logging.warning("'" + pkg_name + "' not in " + args.annot_map + " and will be skipped...\n")
+            if pkg_name not in test_obj.ref_packages:
+                logging.warning("'{}' not in {} and will be skipped...\n".format(pkg_name, args.annot_map))
                 continue
             output_dir = test_obj.data_dir + pkg_name + os.sep
             if not os.path.isdir(output_dir):
@@ -883,7 +893,8 @@ def mcc_calculator():
                     classify_call += ["--search_method", "diamond"]
                 launch_write_command(classify_call, False)
 
-            assignments[marker] = file_parsers.read_graftm_classifications(classification_table)
+            # TODO: Figure out how to convert GraftM classifications into JPlace objects
+            assignments[pkg_name] = file_parsers.read_graftm_classifications(classification_table)
 
     if len(assignments) == 0:
         logging.error("No sequences were classified by " + args.tool + ".\n")
@@ -893,25 +904,17 @@ def mcc_calculator():
     test_seq_names = [seq_name[1:] if seq_name[0] == '>' else seq_name for seq_name in get_headers(args.input)]
     logging.info("done.\n")
     test_obj.num_total_queries = len(test_seq_names)
-    eggnog_re = re.compile(r"^>?(COG[A-Z0-9]+|ENOG[A-Z0-9]+)_(\d+)\..*")
-    test_obj.header_regex = eggnog_re
 
     ##
     # Bin the test sequence names into their respective confusion categories (TP, TN, FP, FN)
     ##
-    test_obj.bin_headers(test_seq_names, assignments, pkg_name_dict, marker_build_dict)
+    test_obj.bin_headers(assignments, query_name_dict)
     test_seq_names.clear()
-
-    ##
-    # Parse the taxonomic IDs from EggNOG headers and map taxonomic lineage information to classified sequences
-    ##
-    _TAXID_GROUP = 2
-    test_obj.retrieve_lineages(_TAXID_GROUP)
-    test_obj.map_lineages()
+    test_obj.map_true_lineages()
 
     test_obj.bin_true_positives_by_taxdist()
     test_obj.validate_false_positives()
-    test_obj.validate_false_negatives(pkg_name_dict)
+    test_obj.validate_false_negatives(query_name_dict)
 
     test_obj.summarise_reference_taxa(taxa_dist_output, classification_info_output, summary_rank)
     if args.tool == "treesapp" and classification_lines:
@@ -943,4 +946,4 @@ def mcc_calculator():
 
 
 if __name__ == '__main__':
-    mcc_calculator()
+    mcc_calculator(sys.argv)

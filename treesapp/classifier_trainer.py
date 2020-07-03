@@ -221,25 +221,25 @@ def classifier_trainer(sys_args):
 
     test_seq_names = [seq_name[1:] if seq_name[0] == '>' else seq_name for seq_name in test_fasta.get_seq_names()]
     test_obj.num_total_queries = len(test_seq_names)
-    test_obj.bin_headers(test_seq_names, assignments, pkg_dbname_dict)
+    test_obj.bin_headers(assignments, pkg_dbname_dict)
     test_seq_names.clear()
 
     ##
     # Bin the test sequence names into their respective confusion categories (TP, TN, FP, FN)
     ##
     test_obj.populate_tax_lineage_map(entrez_record_dict)
-    test_obj.map_lineages()
+    test_obj.map_true_lineages()
     test_obj.validate_false_positives()
     if args.annot_map:
         test_obj.validate_false_negatives(args.annot_map)
 
     summarize_training_rank_coverage(test_obj)
 
-    # Convert the true positive dictionary to the same format, flattening the ClassifiedSequence instances
+    # Convert the true positive dictionary to the same format, flattening the QuerySequence instances
     flattened_tp = dict()
     for refpkg in test_obj.tp:
         flattened_tp[refpkg] = set()
-        for classified_seq in test_obj.tp[refpkg]:  # type: ts_MCC.ClassifiedSequence
+        for classified_seq in test_obj.tp[refpkg]:  # type: ts_MCC.QuerySequence
             flattened_tp[refpkg].add(classified_seq.name)
 
     classifiers = train_classification_filter(assignments, flattened_tp, test_obj.ref_packages,
