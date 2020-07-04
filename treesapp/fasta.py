@@ -14,37 +14,6 @@ from collections import namedtuple
 from treesapp.utilities import median, reformat_string, rekey_dict
 
 
-# No bioinformatic software would be complete without a contribution from Heng Li.
-# Adapted from his readfq generator
-def generate_fasta(fasta_handler):  # this is a generator function
-    last = None  # this is a buffer keeping the last unprocessed line
-    while True:  # mimic closure; is it a bad idea?
-        if not last:
-            for line in fasta_handler:  # search for the start of the next record
-                if line[0] == '>':  # fasta header line
-                    last = line[:-1]  # save this line
-                    break
-        if not last:
-            break
-        name, seqs, last = last[1:], [], None
-        for line in fasta_handler:  # read the sequence
-            if line[0] == '>':
-                last = line[:-1]
-                break
-            seqs.append(line[:-1])
-        if not last or last[0] != '+':  # this is a fasta record
-            yield name, ''.join(seqs)  # yield a fasta record
-            if not last:
-                break
-        else:
-            seq, seqs = ''.join(seqs), []
-            for line in fasta_handler:  # read the quality
-                seqs.append(line[:-1])
-            if last:  # reach EOF before reading enough quality
-                yield name, seq  # yield a fasta record instead
-                break
-
-
 def fastx_split(fastx: str, outdir: str, file_num=1) -> list:
     fastx_type = fastx_format_check(fastx)
 
@@ -70,15 +39,26 @@ def split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num):
     return fasta_string, seq_write
 
 
-def spawn_new_fasta(file_num, outdir, file_name, digit):
+def spawn_new_file(file_num, outdir, file_name, digit, ext="fasta"):
+    """
+    Creates a new file name based on the file_num and prefix.
+
+    :param file_num: Previous file number component of the file name in the series. Will be incremented.
+    :param outdir: Path to the directory to write files to
+    :param file_name: Prefix name of the new file
+    :param digit:
+    :param ext: File extension to use for the new file
+    :return: tuple(file_handler, name of the new file, number of file in the series)
+    """
     file_num += 1
 
-    subfile = "{}.{}.{}".format(file_name, str(file_num).zfill(digit), "fasta")
+    subfile = "{}.{}.{}".format(file_name, str(file_num).zfill(digit), ext)
     if outdir is not None:
         subfile = os.path.join(outdir, subfile)
 
     fh = open(subfile, 'w')
-    logging.debug("Writing split FASTA to file '{}'.\n".format(subfile))
+    logging.debug("Writing split {} to file '{}'.\n".format(ext, subfile))
+
     return fh, subfile, file_num
 
 
@@ -130,7 +110,7 @@ def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
 
     for name, seq in fa:
         if seq_write == 0:
-            fh, subfile, file_num = spawn_new_fasta(file_num, outdir, file_name, digit)
+            fh, subfile, file_num = spawn_new_file(file_num, outdir, file_name, digit)
             outputs.append(subfile)
 
         fasta_string += ">%s\n%s\n" % (name, seq)
@@ -196,7 +176,7 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
 
     for read_name, seq, _ in fq:
         if seq_write == 0:
-            fh, subfile, file_num = spawn_new_fasta(file_num, outdir, name, digit)
+            fh, subfile, file_num = spawn_new_file(file_num, outdir, name, digit)
             outputs.append(subfile)
 
         fasta_string += ">%s\n%s\n" % (read_name, seq)
@@ -214,22 +194,20 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
     return outputs
 
 
-def read_fasta_to_dict(fasta_file):
+def read_fasta_to_dict(fasta_file: str) -> dict:
     """
-    Reads any fasta file using a generator function (generate_fasta) into a dictionary collection
+    Reads any fasta file using the pyfastx library
 
     :param fasta_file: Path to a FASTA file to be read into a dict
     :return: Dict where headers/record names are keys and sequences are the values
     """
     fasta_dict = dict()
-    try:
-        fasta_handler = open(fasta_file, 'r')
-    except IOError:
-        logging.error("Unable to open " + fasta_file + " for reading!\n")
-        sys.exit(5)
-    for record in generate_fasta(fasta_handler):
-        name, sequence = record
-        fasta_dict[name] = sequence.upper()
+
+    if not os.path.exists(fasta_file):
+        logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
+
+    for name, seq in pyfastx.Fasta(fasta_file, build_index=False):  # type: (str, str)
+        fasta_dict[name] = seq.upper()
     return fasta_dict
 
 
@@ -858,23 +836,19 @@ def get_headers(fasta_file: str) -> list:
     :return:
     """
     original_headers = list()
-    try:
-        fasta = open(fasta_file, 'r')
-    except IOError:
-        logging.error("Unable to open the FASTA file '" + fasta_file + "' for reading!\n")
-        sys.exit(5)
+    if not os.path.exists(fasta_file):
+        logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
 
     n_headers = 0
-    for name, _ in generate_fasta(fasta):
+    for name, seq in pyfastx.Fasta(fasta_file, build_index=False):  # type: (str, str)
         n_headers += 1
         original_headers.append('>' + str(name))
 
-    fasta.close()
     if len(original_headers) == 0:
         # Not a good idea to exit right from here, handle it case-by-case
-        logging.warning("No sequence headers read from FASTA file " + fasta_file + "\n")
+        logging.warning("No sequence headers read from FASTA file '{}'\n".format(fasta_file))
     else:
-        logging.debug("Read " + str(n_headers) + " headers from " + fasta_file + ".\n")
+        logging.debug("Read {} headers from FASTA file '{}'.\n".format(n_headers, fasta_file))
 
     return original_headers
 

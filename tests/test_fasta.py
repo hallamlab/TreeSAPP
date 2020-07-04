@@ -52,6 +52,12 @@ class MyTestCase(unittest.TestCase):
                          seq_info_tuple.description)
         return
 
+    def test_read_fasta_to_dict(self):
+        from fasta import read_fasta_to_dict
+        from .testing_utils import get_test_data
+        fa_dict = read_fasta_to_dict(get_test_data("McrA_eval.faa"))
+        self.assertEqual(236, len(fa_dict))
+
 
 if __name__ == '__main__':
     unittest.main()
