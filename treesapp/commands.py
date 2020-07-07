@@ -31,7 +31,8 @@ from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_pac
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs, select_query_placements,\
-    summarize_placements_rpkm, write_classification_table, produce_itol_inputs, replace_contig_names, read_refpkg_tax_ids
+    summarize_placements_rpkm, write_classification_table, produce_itol_inputs, replace_contig_names,\
+    read_refpkg_tax_ids, load_homologs, load_pqueries
 from treesapp.jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from treesapp.clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
@@ -268,7 +269,7 @@ def train(sys_args):
     # Reformat the pqueries dictionary for classifier training and testing
     refpkg_pqueries = placement_trainer.flatten_pquery_dict(ts_trainer.pqueries, ts_trainer.ref_pkg.prefix)
     tp_names = {ts_trainer.ref_pkg.prefix:
-                [pquery.contig_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
+                [pquery.place_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
 
     for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]:
         if not pquery.rank:
@@ -1012,19 +1013,14 @@ def assign(sys_args):
     query_seqs = fasta.FASTA(ts_assign.query_sequences)
     # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
     if ts_assign.stage_status("clean"):
-        logging.info("Reading and formatting " + ts_assign.query_sequences + "... ")
-        query_seqs.fasta_dict = fasta.format_read_fasta(ts_assign.query_sequences, "prot")
-        query_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_assign.query_sequences), True)
-        query_seqs.change_dict_keys("num")
-        logging.info("done.\n")
-        logging.info("Writing formatted FASTA file to " + ts_assign.formatted_input + "... ")
-        fasta.write_new_fasta(query_seqs.fasta_dict, ts_assign.formatted_input)
+        logging.info("Reading and formatting {}... ".format(ts_assign.query_sequences))
+        query_seqs.header_registry = fasta.format_fasta(fasta_input=ts_assign.query_sequences, molecule="prot",
+                                                        output_fasta=ts_assign.formatted_input)
         logging.info("done.\n")
     else:
         ts_assign.formatted_input = ts_assign.query_sequences
         query_seqs.load_fasta()
-        query_seqs.change_dict_keys("num")  # Swap the formatted headers for the numerical IDs for quick look-ups
-    logging.info("\tTreeSAPP will analyze the " + str(len(query_seqs.fasta_dict)) + " sequences found in input.\n")
+    logging.info("\tTreeSAPP will analyze the " + str(len(query_seqs.header_registry)) + " sequences found in input.\n")
 
     ##
     # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
@@ -1034,6 +1030,9 @@ def assign(sys_args):
                                                   refpkg_dict, ts_assign.formatted_input,
                                                   ts_assign.var_output_dir, args.num_threads, args.max_e)
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
+        load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
+        pqueries = load_pqueries(hmm_matches, query_seqs)
+        query_seqs.change_dict_keys("num")
         extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
         numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)
         homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
@@ -1089,14 +1088,14 @@ def assign(sys_args):
         sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, refpkg_dict)
 
     if ts_assign.stage_status("classify"):
-        tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, refpkg_dict)
+        tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, refpkg_dict, pqueries)
         select_query_placements(tree_saps)
         filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_likelihood)
         fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         for refpkg_code in tree_saps:
             for placed_seq in tree_saps[refpkg_code]:  # type: PQuery
-                abundance_dict[placed_seq.contig_name] = 1.0
+                abundance_dict[placed_seq.place_name] = 1.0
         if args.molecule == "dna":
             if os.path.isfile(ts_assign.nuc_orfs_file):
                 nuc_orfs = fasta.FASTA(ts_assign.nuc_orfs_file)

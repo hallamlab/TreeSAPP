@@ -138,7 +138,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     for pquery in jplace_data.placements:
         top_lwr = 0.1
         top_placement = PQuery(taxon, rank)
-        top_placement.name = ref_pkg.prefix
+        top_placement.ref_name = ref_pkg.prefix
         for name, info in pquery.items():
             if name == 'p':
                 for placement in info:
@@ -158,7 +158,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
                             tip_distances = parent_to_tip_distances(parent, leaf_children)
                             top_placement.mean_tip = round(float(sum(tip_distances) / len(tip_distances)), 6)
             elif name == 'n':
-                top_placement.contig_name = query_seq_name_map[int(info.pop())]
+                top_placement.place_name = query_seq_name_map[int(info.pop())]
             else:
                 logging.error("Unexpected variable in pquery keys: '" + name + "'\n")
                 sys.exit(33)
@@ -223,10 +223,10 @@ a numpy array from each query's data:
 
         for pquery in pqueries:  # type: PQuery
             if annot_map:
-                ref_name = annot_map[pquery.name]
+                ref_name = annot_map[pquery.ref_name]
             else:
-                ref_name = pquery.name
-            if pquery.contig_name in condition_names[ref_name]:
+                ref_name = pquery.ref_name
+            if pquery.place_name in condition_names[ref_name]:
                 # Calculate the features
                 try:
                     distal, pendant, avg = pquery.distal, pquery.pendant, pquery.mean_tip
@@ -241,7 +241,7 @@ a numpy array from each query's data:
                 except KeyError:
                     logging.error("Unable to find internal node '%d' in the %s node-leaf map indicating a discrepancy "
                                   "between reference package versions used by treesapp assign and those used here.\n"
-                                  "Was the correct output directory provided?".format(pquery.inode, pquery.name))
+                                  "Was the correct output directory provided?".format(pquery.inode, pquery.ref_name))
                     sys.exit(5)
 
                 raw_array = np.array([leaf_children, lwr_bin, distal, pendant, avg])

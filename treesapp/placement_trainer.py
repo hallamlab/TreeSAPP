@@ -67,7 +67,7 @@ def write_placement_table(pqueries: dict, placement_table_file, marker):
             for pquery in taxa[taxon]:
                 if pquery:
                     placement_info_strs.append("\t".join(
-                        [marker, str(pquery.rank), str(pquery.lineage), str(pquery.name), str(pquery.inode),
+                        [marker, str(pquery.rank), str(pquery.lineage), str(pquery.ref_name), str(pquery.inode),
                          str(pquery.lwr), str(pquery.likelihood),
                          str(pquery.distal), str(pquery.pendant), str(pquery.mean_tip), str(pquery.total_distance())])
                     )

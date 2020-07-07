@@ -866,15 +866,15 @@ class Purity(TreeSAPP):
         for leaf in tree_leaves:
             leaf_map[leaf.number + "_" + self.ref_pkg.prefix] = leaf.description
         for p_query in p_queries:  # type: PQuery
-            p_query.name = self.ref_pkg.prefix
-            if type(p_query.contig_name) is list and len(p_query.contig_name):
-                p_query.contig_name = p_query.contig_name[0]
-            seq_info = re.match(r"(.*)\|" + re.escape(p_query.name) + r"\|(\\d+)_(\\d+)$", p_query.contig_name)
+            p_query.ref_name = self.ref_pkg.prefix
+            if type(p_query.place_name) is list and len(p_query.place_name):
+                p_query.place_name = p_query.place_name[0]
+            seq_info = re.match(r"(.*)\|" + re.escape(p_query.ref_name) + r"\|(\\d+)_(\\d+)$", p_query.place_name)
             if seq_info:
-                p_query.contig_name = seq_info.group(1)
+                p_query.place_name = seq_info.group(1)
             p_query.inode = int(p_query.get_jplace_element("edge_num"))
             leaves = internal_node_map[p_query.inode]
-            ortholog_name = p_query.contig_name.split('_')[0]
+            ortholog_name = p_query.place_name.split('_')[0]
             if ortholog_name not in ortholog_map:
                 ortholog_map[ortholog_name] = []
             for descendent in leaves:

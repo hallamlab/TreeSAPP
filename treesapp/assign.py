@@ -16,12 +16,14 @@ try:
     import traceback
     import subprocess
     import logging
-    from ete3 import Tree
-    from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
     from os import path
     from os import listdir
     from os.path import isfile, join
     from time import gmtime, strftime
+
+    import pyfastx
+    from ete3 import Tree
+    from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
     from numpy import array as np_array
     from sklearn import preprocessing
 
@@ -30,7 +32,7 @@ try:
     from treesapp.refpkg import ReferencePackage
     from treesapp.treesapp_args import TreeSAPPArgumentParser
     from treesapp.fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA,\
-        multiple_alignment_dimensions
+        multiple_alignment_dimensions, Header
     from treesapp.entish import deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, index_tree_edges, map_internal_nodes_leaves
     from treesapp.external_command_interface import launch_write_command
@@ -40,6 +42,7 @@ try:
     from treesapp import phylo_dist
     from treesapp import utilities
     from treesapp import wrapper
+    from treesapp.HMMER_domainTblParser import HmmMatch
 
     import _tree_parser
     import _fasta_reader
@@ -81,6 +84,57 @@ def replace_contig_names(numeric_contig_index: dict, fasta: FASTA):
     return numeric_contig_index
 
 
+def load_pqueries(hmm_matches: dict, query_seq_fasta: FASTA) -> list:
+    logging.debug("Instantiating the PQuery instances... ")
+
+    pqueries = []
+    query_seq_fasta.change_dict_keys("num")
+    for refpkg_name, refpkg_matches in hmm_matches.items():  # type: (str, list)
+        for hmm_match in refpkg_matches:  # type: HmmMatch
+            if hmm_match.desc != '-':
+                seq_name = hmm_match.orf + ' ' + hmm_match.desc
+            else:
+                seq_name = hmm_match.orf
+            # Load the homology search data
+            qseq = PQuery()
+            qseq.ref_name = refpkg_name
+            qseq.evalue, qseq.start, qseq.end = hmm_match.eval, hmm_match.start, hmm_match.end
+            pqueries.append(qseq)
+            # Load the query's sequence
+            qseq.seq = query_seq_fasta.fasta_dict[seq_name]
+            header = query_seq_fasta.header_registry[seq_name]  # type: Header
+            qseq.seq_name = header.original
+            qseq.place_name = "{}|{}|{}_{}".format(qseq.seq_name, qseq.ref_name, qseq.start, qseq.end)
+
+    logging.debug("done.\n")
+
+    return pqueries
+
+
+def load_homologs(hmm_matches: dict, hmmsearch_query_fasta: str, query_seq_fasta: FASTA) -> None:
+    logging.info("Loading sequences for the homologs identified by hmmsearch... ")
+    # Create a set of sequence names that matched a profile HMM
+    matched_query_names = set()
+    for refpkg_name, refpkg_matches in hmm_matches.items():  # type: (str, list)
+        for hmm_match in refpkg_matches:  # type: HmmMatch
+            if hmm_match.desc != '-':
+                seq_name = hmm_match.orf + ' ' + hmm_match.desc
+            else:
+                seq_name = hmm_match.orf
+            matched_query_names.add(seq_name)
+
+    # Load just homologous sequences into the FASTA.fasta_dict
+    for name, seq in pyfastx.Fasta(hmmsearch_query_fasta, build_index=False):  # type: (str, str)
+        if name in matched_query_names:
+            query_seq_fasta.fasta_dict[name] = seq
+
+    # Keep only the homologous sequences in FASTA.header_registry
+    query_seq_fasta.synchronize_seqs_n_headers()
+
+    logging.info("done.\n")
+    return
+
+
 def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
     """
     Used for extracting query sequences that mapped to reference package HMM profiles. These are binned into groups
@@ -115,7 +169,7 @@ def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
         # 2. For HmmMatch in sorted matches, determine overlap between HmmMatch and each bin's representative HmmMatch
         # 3. If overlap exceeds 80% of representative's aligned length add it to the bin, else continue
         # 4. When bins are exhausted create new bin with HmmMatch
-        for hmm_match in sorted(hmm_matches[marker], key=lambda x: x.end - x.start):
+        for hmm_match in sorted(hmm_matches[marker], key=lambda x: x.end - x.start):  # type: HmmMatch
             if hmm_match.desc != '-':
                 contig_name = hmm_match.orf + ' ' + hmm_match.desc
             else:
@@ -1318,7 +1372,7 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, refpkg_dict
         for placed_sequence in tree_saps[denominator]:  # type JPlace
             if not placed_sequence.classified:
                 continue
-            seq_name = re.sub(r"\|{0}\|\d+_\d+$".format(placed_sequence.name), '', placed_sequence.contig_name)
+            seq_name = re.sub(r"\|{0}\|\d+_\d+$".format(placed_sequence.ref_name), '', placed_sequence.place_name)
             try:
                 placed_sequence.abundance = abundance_dict.pop(seq_name)
                 orf_rpkms[seq_name] = placed_sequence.abundance
@@ -1397,7 +1451,7 @@ def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
             if not placed_seq.abundance:
                 # Filter out RPKMs for contigs not associated with the target marker
                 try:
-                    placed_seq.abundance = abundance_dict[placed_seq.contig_name]
+                    placed_seq.abundance = abundance_dict[placed_seq.place_name]
                     abundance_mapped_acc += 1
                 except KeyError:
                     placed_seq.abundance = 0.0
@@ -1421,8 +1475,8 @@ def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
     """
     leaf_rpkm_sums = dict()
 
-    for tree_sap in tree_protein_list:
-        if tree_sap.name == target_marker and tree_sap.classified:
+    for tree_sap in tree_protein_list:  # type: PQuery
+        if tree_sap.ref_name == target_marker and tree_sap.classified:
             leaf_rpkm_sums = tree_sap.sum_rpkms_per_node(leaf_rpkm_sums)
 
     # Only make the file if there is something to write
@@ -1493,7 +1547,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
                 unclassified_seqs[refpkg.prefix]["low_lwr"].append(tree_sap)
                 continue
             if not tree_sap.placements:
-                unclassified_seqs[tree_sap.name]["np"].append(tree_sap)
+                unclassified_seqs[tree_sap.ref_name]["np"].append(tree_sap)
                 continue
             elif len(tree_sap.placements) > 1:
                 logging.warning("More than one placement for a single contig:\n" +
@@ -1539,7 +1593,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
                                                                                 avg_tip_dist]).reshape(1, -1)))
                 # Discard this placement as a false positive classifier calls this a 0
                 if call == 0:
-                    unclassified_seqs[tree_sap.name]["svm"].append(tree_sap)
+                    unclassified_seqs[tree_sap.ref_name]["svm"].append(tree_sap)
                     tree_sap.classified = False
 
         if svc_attempt:
@@ -1576,21 +1630,10 @@ def select_query_placements(tree_saps: dict):
 
     for refpkg_code in tree_saps:
         for pquery in tree_saps[refpkg_code]:  # type: PQuery
-            seq_info = re.match(r"(.*)\|" + re.escape(pquery.name) + r"\|(\d+)_(\d+)$", pquery.contig_name)
-            if seq_info:
-                # pquery.contig_name = seq_info.group(1)  # Messes up key mapping downstream
-                start, end = seq_info.groups()[1:]
-                pquery.seq_len = int(end) - int(start)
-            else:
-                logging.error("Bad regular expression pattern, unable to calculate sequence length for '%s'\n"
-                              % pquery.contig_name)
-                sys.exit(3)
-
             pquery.filter_max_weight_placement()
             if pquery.classified and len(pquery.placements) != 1:
-                logging.error("Number of JPlace pqueries is " + str(len(pquery.placements)) +
-                              " when only 1 is expected at this point.\n" +
-                              pquery.summarize())
+                logging.error("Number of JPlace pqueries is {} when only 1 is expected at this point.\n"
+                              "".format(str(len(pquery.placements))) + pquery.summarize())
                 sys.exit(3)
             pquery.inode = str(pquery.get_jplace_element("edge_num"))
             pquery.lwr = float(pquery.get_jplace_element("like_weight_ratio"))
@@ -1613,7 +1656,7 @@ def select_query_placements(tree_saps: dict):
     return tree_saps
 
 
-def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict):
+def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
     """
     For every JPlace file found in the directory **epa_output_dir**, all placed query sequences in the JPlace
     are demultiplexed, each becoming a PQuery instance.
@@ -1622,6 +1665,7 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict):
 
     :param epa_output_dir: Directory where EPA wrote the JPlace files
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
+    :param pqueries: A list of instantiated PQuery instances
     :return:
         1. Dictionary of PQuery instances indexed by denominator (refpkg code e.g. M0701)
         2. Dictionary of an JPlace instance (values) mapped to marker name
@@ -1632,9 +1676,14 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict):
     function_start_time = time.time()
 
     jplace_files = glob.glob(epa_output_dir + '*.jplace')
-    itol_data = dict()  # contains all pqueries, indexed by marker name (e.g. McrA, nosZ, 16srRNA)
+    itol_data = dict()  # contains all pqueries, indexed by marker ref_name (e.g. McrA, nosZ, 16srRNA)
     tree_saps = dict()  # contains individual pquery information for each mapped protein (N==1), indexed by denominator
     # Use the jplace files to guide which markers iTOL outputs should be created for
+    if pqueries:
+        pquery_map = {pq.place_name: pq for pq in pqueries}
+    else:
+        pquery_map = None
+
     for refpkg_name, jplace_list in jplace_utils.organize_jplace_files(jplace_files).items():
         refpkg = refpkg_dict[refpkg_name]
         if refpkg.prefix not in tree_saps:
@@ -1645,16 +1694,20 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict):
             edge_dist_index = index_tree_edges(jplace_data.tree)
             internal_node_leaf_map = map_internal_nodes_leaves(jplace_data.tree)
             # Demultiplex all pqueries in jplace_data into individual PQuery objects
-            for pquery in jplace_utils.demultiplex_pqueries(jplace_data):  # type: PQuery
+            for pquery in jplace_utils.demultiplex_pqueries(jplace_data, pquery_map):  # type: PQuery
                 # Flesh out the internal-leaf node map
-                pquery.name = refpkg.prefix
+                pquery.ref_name = refpkg.prefix
+                if not pquery.seq_name:
+                    seq_info = re.match(r"(.*)\|" + re.escape(pquery.ref_name) + r"\|(\d+)_(\d+)$", pquery.place_name)
+                    pquery.seq_name, pquery.start, pquery.end = seq_info.groups()
+                pquery.seq_len = int(pquery.end) - int(pquery.start)
                 pquery.node_map = internal_node_leaf_map
                 pquery.check_jplace(edge_dist_index)
                 tree_saps[refpkg.prefix].append(pquery)
 
             if refpkg.prefix not in itol_data:
                 itol_data[refpkg.prefix] = jplace_data
-                itol_data[refpkg.prefix].name = refpkg.prefix
+                itol_data[refpkg.prefix].ref_name = refpkg.prefix
             else:
                 # If a JPlace file for that tree has already been parsed, just append the placements
                 itol_data[refpkg.prefix].placements = itol_data[refpkg.prefix].placements + jplace_data.placements
@@ -1706,7 +1759,7 @@ def determine_confident_lineage(tree_saps, tree_numbers_translation, refpkg_dict
 
             if len(tree_sap.lineage_list) == 0:
                 logging.error("Unable to find lineage information for marker " +
-                              refpkg_name + ", contig " + tree_sap.contig_name + "!\n")
+                              refpkg_name + ", contig " + tree_sap.place_name + "!\n")
                 sys.exit(3)
             elif len(tree_sap.lineage_list) == 1:
                 tree_sap.lct = tree_sap.lineage_list[0]
@@ -1748,8 +1801,8 @@ def write_classification_table(tree_saps, sample_name, output_file):
                 continue
 
             tab_out_string += '\t'.join([sample_name,
-                                         re.sub(r"\|{0}\|\d+_\d+$".format(tree_sap.name), '', tree_sap.contig_name),
-                                         tree_sap.name,
+                                         re.sub(r"\|{0}\|\d+_\d+$".format(tree_sap.ref_name), '', tree_sap.place_name),
+                                         tree_sap.ref_name,
                                          str(tree_sap.seq_len),
                                          tree_sap.lct,
                                          tree_sap.recommended_lineage,

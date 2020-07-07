@@ -12,8 +12,8 @@ class JPlace:
     fields = list()
 
     def __init__(self):
-        self.contig_name = ""  # Sequence name (from FASTA header)
-        self.name = ""  # Code name of the tree it mapped to (e.g. mcrA)
+        self.place_name = ""  # A unique name for the query sequence placed (in case multiple subsequences are placed)
+        self.ref_name = ""  # Code name of the tree it mapped to (e.g. mcrA)
         self.abundance = None  # Either the number of occurences, or the FPKM of that sequence
         self.node_map = dict()  # A dictionary mapping internal nodes (Jplace) to all leaf nodes
         self.seq_len = 0
@@ -47,8 +47,8 @@ class JPlace:
         :return:
         """
         summary_string = ""
-        summary_string += "\nInformation for query sequence '" + str(self.contig_name) + "'\n"
-        summary_string += str(len(self.placements)) + " sequence(s) grafted onto the " + self.name + " tree.\n"
+        summary_string += "\nInformation for query sequence '" + str(self.place_name) + "'\n"
+        summary_string += str(len(self.placements)) + " sequence(s) grafted onto the " + self.ref_name + " tree.\n"
         # summary_string += "Reference tree:\n")
         # summary_string += self.tree + "\n")
         summary_string += "JPlace fields:\n\t" + str(self.fields) + "\n"
@@ -136,7 +136,7 @@ class JPlace:
         for d_place in self.placements:
             for key, value in d_place.items():
                 if key == 'n':
-                    self.contig_name = value[0]
+                    self.place_name = value[0]
         return
 
     def get_field_position_from_jplace_fields(self, field_name) -> int:
@@ -213,7 +213,7 @@ class JPlace:
                         try:
                             normalized_abundance = float(self.abundance/len(tree_leaves))
                         except TypeError:
-                            logging.warning("Unable to find abundance for " + self.contig_name + "... setting to 0.\n")
+                            logging.warning("Unable to find abundance for " + self.place_name + "... setting to 0.\n")
                             normalized_abundance = 0.0
                         for tree_leaf in tree_leaves:
                             if tree_leaf not in leaf_rpkm_sums.keys():
@@ -283,7 +283,7 @@ class JPlace:
                                 tree_len = tree_index[str(edge)]
                                 if place_len > tree_len:
                                     logging.debug("Distal length adjusted to fit JPlace " +
-                                                  self.name + " tree for " + self.contig_name + ".\n")
+                                                  self.ref_name + " tree for " + self.place_name + ".\n")
                                     edge_placement[distal_pos] = tree_len
                 else:
                     pass
@@ -294,8 +294,8 @@ class JPlace:
         self.placements.clear()
         self.fields.clear()
         self.node_map.clear()
-        self.contig_name = ""
-        self.name = ""
+        self.place_name = ""
+        self.ref_name = ""
         self.tree = ""
         self.metadata = ""
         self.version = ""
@@ -328,7 +328,8 @@ class PQuery(JPlace):
     """
     def __init__(self, lineage_str="", rank_str=""):
         super(PQuery, self).__init__()
-        # Inferred from JPlace file
+        self.seq_name = ""  # Full sequence name (from FASTA header)
+        # Sourced from phylogenetic placement (JPlace file)
         self.pendant = 0.0
         self.mean_tip = 0.0
         self.distal = 0.0
@@ -339,11 +340,17 @@ class PQuery(JPlace):
         self.rank = rank_str
         self.feature_vec = None
 
+        # Features from homology search
+        self.seq = ""
+        self.evalue = 0.0
+        self.start = 0
+        self.end = 0
+
     def total_distance(self):
         return round(sum([self.pendant, self.mean_tip, self.distal]), 5)
 
     def summarize_placement(self):
-        summary_string = "Placement of " + self.name + " at rank " + self.rank + \
+        summary_string = "Placement of " + self.ref_name + " at rank " + self.rank + \
                          ":\nLineage = " + self.lineage + \
                          "\nInternal node = " + str(self.inode) + \
                          "\nDistances:" + \
@@ -355,8 +362,7 @@ class PQuery(JPlace):
                          "\n"
         return summary_string
 
-    def transfer(self, itol_jplace_object):
-        self.placements = itol_jplace_object.placements
+    def transfer_metadata(self, itol_jplace_object):
         self.tree = itol_jplace_object.tree
         self.fields = itol_jplace_object.fields
         self.version = itol_jplace_object.version
@@ -442,13 +448,13 @@ def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
     for fields in classified_lines:
         pquery = PQuery()
         try:
-            _, pquery.contig_name, pquery.name, pquery.seq_len, pquery.lct, pquery.recommended_lineage,\
+            _, pquery.place_name, pquery.ref_name, pquery.seq_len, pquery.lct, pquery.recommended_lineage, \
             _, pquery.inode, pquery.lwr, pquery.avg_evo_dist, pquery.distances = fields
         except ValueError:
             logging.error("Bad line in classification table:\n" +
                           '\t'.join(fields) + "\n")
             sys.exit(21)
-        refpkg = refpkg_dict[pquery.name]  # type: refpkg.ReferencePackage
+        refpkg = refpkg_dict[pquery.ref_name]  # type: refpkg.ReferencePackage
         try:
             pqueries[refpkg.prefix].append(pquery)
         except KeyError:

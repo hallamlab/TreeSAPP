@@ -7,7 +7,7 @@ import logging
 from time import sleep, time
 from math import ceil
 
-import pyfastx
+from pyfastx import Fasta, Fastq, Sequence
 from pyfastxcli import fastx_format_check
 from collections import namedtuple
 
@@ -81,7 +81,7 @@ def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
     fastx = os.path.expanduser(fastx)
     outdir = os.path.expanduser(outdir)
     outputs = []
-    fa = pyfastx.Fasta(file_name=fastx, build_index=False)
+    fa = Fasta(file_name=fastx, build_index=False)
 
     # Determine the number of reads in the FASTQ file - faster than building an index
     count = 0
@@ -147,7 +147,7 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
     fastx = os.path.expanduser(fastx)
     outdir = os.path.expanduser(outdir)
     outputs = []
-    fq = pyfastx.Fastq(file_name=fastx, build_index=False)
+    fq = Fastq(file_name=fastx, build_index=False)
 
     # Determine the number of reads in the FASTQ file - faster than building an index
     read_count = 0
@@ -206,7 +206,7 @@ def read_fasta_to_dict(fasta_file: str) -> dict:
     if not os.path.exists(fasta_file):
         logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
 
-    for name, seq in pyfastx.Fasta(fasta_file, build_index=False):  # type: (str, str)
+    for name, seq in Fasta(fasta_file, build_index=False):  # type: (str, str)
         fasta_dict[name] = seq.upper()
     return fasta_dict
 
@@ -750,22 +750,22 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
     for denominator in tree_saps:
         for placed_sequence in tree_saps[denominator]:  # type JPlace
             if placed_sequence.classified:
-                output_fasta_dict[placed_sequence.contig_name] = ""
+                output_fasta_dict[placed_sequence.place_name] = ""
                 try:
-                    output_fasta_dict[placed_sequence.contig_name] = formatted_fasta_dict[prefix +
-                                                                                          placed_sequence.contig_name]
+                    output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix +
+                                                                                         placed_sequence.place_name]
                 except KeyError:
-                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.name), '', placed_sequence.contig_name)
+                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.name), '', placed_sequence.place_name)
                     try:
-                        output_fasta_dict[placed_sequence.contig_name] = formatted_fasta_dict[prefix + seq_name]
+                        output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix + seq_name]
                     except KeyError:
-                        logging.error("Unable to find '" + prefix + placed_sequence.contig_name +
+                        logging.error("Unable to find '" + prefix + placed_sequence.place_name +
                                       "' in predicted ORFs file!\nExample headers in the predicted ORFs file:\n\t" +
                                       '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
                         sys.exit(3)
 
                 if not placed_sequence.seq_len:
-                    placed_sequence.seq_len = len(output_fasta_dict[placed_sequence.contig_name])
+                    placed_sequence.seq_len = len(output_fasta_dict[placed_sequence.place_name])
                     len_parsing_problem = True
 
     if output_fasta_dict:
@@ -775,6 +775,85 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
         logging.warning("Problem parsing homologous subsequence lengths from headers of classified sequences.\n")
 
     return
+
+
+def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_length=10) -> dict:
+    """
+    Reads a FASTA file, ensuring each sequence and sequence name is valid.
+
+    :param fasta_input: Absolute path of the FASTA file to be read
+    :param molecule: Molecule type of the sequences ['prot', 'dna', 'rrna']
+    :param output_fasta: Path to the formatted FASTA file to write
+    :param min_seq_length: All sequences shorter than this will not be included in the returned list.
+    :return: A dictionary
+    """
+    start = time()
+
+    # Select the alphabet to use when determining whether there are any bad characters
+    if molecule == "prot":
+        bad_chars = re.compile(r"[OU]")
+    else:
+        bad_chars = re.compile(r"[EFIJLOPQZ]")
+    bad_seqs = set()
+
+    # Open the output FASTA for writing
+    try:
+        fa_out_handle = open(output_fasta, 'w')
+    except IOError:
+        logging.error("Unable to open '{}' for writing.\n")
+        sys.exit(15)
+
+    headers = []
+    max_buffer_size = 1E4
+    seq_acc = 0
+    fasta_string = ""
+    # TODO: change back to build_index=False
+    # for name, seq in pyfastx.Fasta(fasta_input, build_index=False):  # type: (str, str)
+    fai = Fasta(fasta_input, build_index=True)
+    fai_file = fasta_input + ".fxi"
+    if not os.path.isfile(fai_file):
+        logging.error("FASTA index file '{}' doesn't exist".format(fai_file))
+        sys.exit(3)
+
+    for seq in fai:  # type: Sequence
+        if len(seq.seq) < min_seq_length:
+            continue
+        if bad_chars.search(seq.seq):
+            bad_seqs.add(seq.description)
+            continue
+
+        seq_acc += 1
+        headers.append(seq.description)
+        fasta_string += ">{}\n{}\n".format(seq_acc, seq.seq)
+
+        # Write the fasta_string to the output fasta if the size exceeds the max_buffer_size
+        if len(fasta_string) > max_buffer_size:
+            fa_out_handle.write(fasta_string)
+            fasta_string = ""
+
+    # Write the final chunk in the FASTA file
+    fa_out_handle.write(fasta_string)
+
+    end = time()
+    logging.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, end-start))
+
+    if len(headers) == 0:
+        logging.error("No sequences in FASTA {0} were saved.\n"
+                      "Either the molecule type specified ({1}) or minimum sequence length ({2}) may be unsuitable.\n"
+                      "Consider changing these before rerunning.\n".format(fasta_input, molecule, min_seq_length))
+        sys.exit(13)
+
+    if len(bad_seqs) > 0:
+        logging.debug("The following sequences were removed due to bad characters:\n" +
+                      "\n".join(bad_seqs) + "\n")
+
+    header_registry = register_headers(headers, True)
+    # if len(header_registry) != seq_acc:
+    #     logging.error("The number of sequences read ({}) does not equal"
+    #                   " the number of sequence names registered ({}).\n".format(seq_acc, len(header_registry)))
+    #     sys.exit(13)
+
+    return header_registry
 
 
 def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_length=10):
@@ -801,7 +880,7 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
         sys.exit(13)
 
     formatted_fasta_dict = {}
-    for name, seq in pyfastx.Fasta(fasta_input, build_index=False):  # type: (str, str)
+    for name, seq in Fasta(fasta_input, build_index=False):  # type: (str, str)
         if len(seq) < min_seq_length:
             continue
         if subset:
@@ -840,7 +919,7 @@ def get_headers(fasta_file: str) -> list:
         logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
 
     n_headers = 0
-    for name, seq in pyfastx.Fasta(fasta_file, build_index=False):  # type: (str, str)
+    for name, seq in Fasta(fasta_file, build_index=False):  # type: (str, str)
         n_headers += 1
         original_headers.append('>' + str(name))
 

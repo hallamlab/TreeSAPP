@@ -28,9 +28,9 @@ from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 class QuerySequence:
     def __init__(self, header: str) -> None:
         """
-        Initialization function for QuerySequence objects. Sets self.name attribute to header if provided
+        Initialization function for QuerySequence objects. Sets self.ref_name attribute to header if provided
 
-        :param header: Name of the classified sequence, used to set self.name
+        :param header: Name of the classified sequence, used to set self.ref_name
         """
         self.name = header
         self.ref = ""
@@ -144,7 +144,7 @@ class ConfusionTest:
 
     def populate_true_positive_lineage_map(self) -> None:
         for refpkg_code in self.ref_packages:
-            self.tp_lineage_map[refpkg_code] = {tp_inst.name: tp_inst.true_lineage
+            self.tp_lineage_map[refpkg_code] = {tp_inst.ref_name: tp_inst.true_lineage
                                                 for tp_inst in self.tp[refpkg_code]}
         return
 
@@ -384,10 +384,10 @@ class ConfusionTest:
             true_positives = set()
             for pquery in assignments[refpkg_name]:  # type: JPlace
                 # Populate the relevant information for the classified sequence
-                tp_inst = QuerySequence(pquery.contig_name)
+                tp_inst = QuerySequence(pquery.place_name)
                 tp_inst.ref = refpkg_name
                 tp_inst.assigned_lineage = pquery.recommended_lineage
-                e_record = self.entrez_query_dict[pquery.contig_name]
+                e_record = self.entrez_query_dict[pquery.place_name]
                 if not e_record.lineage:
                     true_positives.add(tp_inst.name)
                     continue
@@ -415,8 +415,8 @@ class ConfusionTest:
         # Get all the original Orthologous Group (OG) headers for sequences classified as TP or FN
         tp_names = []
         for marker in list(self.ref_packages.keys()):
-            tp_names += [pquery.name for pquery in self.tp[marker]]
-            tp_names += [pquery.name for pquery in self.fn[marker]]
+            tp_names += [pquery.ref_name for pquery in self.tp[marker]]
+            tp_names += [pquery.ref_name for pquery in self.fn[marker]]
 
         for marker in self.fp:
             validated_fp = set()
@@ -446,7 +446,7 @@ class ConfusionTest:
                 for og in refpkg_dbname_dict[marker]:
                     for homolgous_marker in refpkg_og_map[og]:
                         if homolgous_marker != marker:
-                            homologous_tps.update(set(cs.name for cs in self.tp[homolgous_marker]))
+                            homologous_tps.update(set(cs.ref_name for cs in self.tp[homolgous_marker]))
                 # Remove all sequences from this marker's false negatives that are found in a homologous TP set
                 self.fn[marker] = set(self.fn[marker]).difference(homologous_tps)
         return
@@ -576,7 +576,7 @@ def map_lineages(qseq_collection: set, tax_lineage_map: dict) -> None:
 #             ##
 #             for marker in markers:
 #                 if not marker:
-#                     logging.error("Bad marker name in annotation map:\n'{}'\n".format(', '.join(annot_map.keys())))
+#                     logging.error("Bad marker ref_name in annotation map:\n'{}'\n".format(', '.join(annot_map.keys())))
 #                     sys.exit(5)
 #                 try:
 #                     positive_queries[marker].append(header)
