@@ -1014,7 +1014,7 @@ def load_fasta_header_regexes(code_name="") -> dict:
     # Protein databases:
     gi_re = re.compile(r">?gi\|(\d+)\|[a-z]+\|[_A-Z0-9.]+\|.* RecName: Full=([A-Za-z1-9 _\-]+);?.*$")  # a
     gi_prepend_proper_re = re.compile(r">?gi\|\d+\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)\]$")  # a, d, o
-    gi_prepend_mess_re = re.compile(r">?gi\|(\d+)\|[a-z]{2,4}\|.*\|([\w\s.,\-()]+)$")  # a
+    gi_prepend_mess_re = re.compile(r">?gi\|(\d+)[|/]?.*$")  # a
     dbj_re = re.compile(r">?dbj\|(.*)\|.*\[(.*)\]")  # a, o
     emb_re = re.compile(r">?emb\|(.*)\|.*\[(.*)\]")
     gb_re = re.compile(r">?gb\|(.*)\|.*\[(.*)\]")
