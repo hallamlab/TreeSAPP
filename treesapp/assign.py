@@ -31,7 +31,7 @@ try:
     from treesapp.phylo_seq import JPlace, PQuery, TreeLeafReference
     from treesapp.refpkg import ReferencePackage
     from treesapp.treesapp_args import TreeSAPPArgumentParser
-    from treesapp.fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA,\
+    from treesapp.fasta import get_headers, write_new_fasta, read_fasta_to_dict, FASTA,\
         multiple_alignment_dimensions, Header
     from treesapp.entish import deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, index_tree_edges, map_internal_nodes_leaves
@@ -436,24 +436,19 @@ def get_alignment_dims(refpkg_dict: dict):
     return alignment_dimensions_dict
 
 
-def multiple_alignments(executables: dict, treesapp_data_dir: str, output_dir: str, single_query_sequence_files: list,
+def multiple_alignments(executables: dict, single_query_sequence_files: list,
                         refpkg_dict: dict, tool="hmmalign", num_proc=4) -> dict:
     """
     Wrapper function for the multiple alignment functions - only purpose is to make an easy decision at this point...
 
     :param executables: Dictionary mapping software names to their executables
-    :param treesapp_data_dir: Path to the TreeSAPP data directory, the direct parent of reference package directories
-    :param output_dir:
     :param single_query_sequence_files: List of unaligned query sequences in FASTA format
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their respective prefix
     :param tool: Tool to use for aligning query sequences to a reference multiple alignment [hmmalign|papara]
     :param num_proc: The number of alignment jobs to run in parallel
     :return: Dictionary of multiple sequence alignment (FASTA) files indexed by denominator
     """
-    if tool == "papara":
-        concatenated_msa_files = prepare_and_run_papara(executables, treesapp_data_dir, single_query_sequence_files,
-                                                        refpkg_dict, output_dir)
-    elif tool == "hmmalign":
+    if tool == "hmmalign":
         concatenated_msa_files = prepare_and_run_hmmalign(executables, single_query_sequence_files, refpkg_dict,
                                                           num_proc)
     else:
@@ -488,59 +483,6 @@ def create_ref_phy_files(refpkg_dict, output_dir, single_query_fasta_files, ref_
 
         utilities.write_phy_file(ref_alignment_phy, phy_dict, (num_ref_seqs, ref_align_len))
     return
-
-
-def prepare_and_run_papara(executables, treesapp_resources, single_query_fasta_files, marker_build_dict, output_dir):
-    """
-    Uses the Parsimony-based Phylogeny-aware short Read Alignment (PaPaRa) tool
-
-    :param executables:
-    :param treesapp_resources:
-    :param single_query_fasta_files:
-    :param marker_build_dict:
-    :param output_dir:
-    :return:
-    """
-    query_alignment_files = dict()
-    logging.info("Running PaPaRa... ")
-    # TODO: Parallelize; PaPaRa's posix threading is not guaranteed with binary
-    start_time = time.time()
-
-    # Convert the reference sequence alignments to .phy files for every marker identified
-    for query_fasta in sorted(single_query_fasta_files):
-        file_name_info = re.match(r"(.*)_hmm_purified.*\.(f.*)$", os.path.basename(query_fasta))
-        if file_name_info:
-            marker, extension = file_name_info.groups()
-        else:
-            logging.error("Unable to parse information from file name:" + "\n" + str(query_fasta) + "\n")
-            sys.exit(3)
-
-        ref_marker = utilities.fish_refpkg_from_build_params(marker, marker_build_dict)
-        query_multiple_alignment = re.sub('.' + re.escape(extension) + r"$", ".phy", query_fasta)
-        tree_file = treesapp_resources + "tree_data" + os.sep + marker + "_tree.txt"
-        ref_alignment_phy = output_dir + marker + ".phy"
-        if not os.path.isfile(ref_alignment_phy):
-            logging.error("Phylip file '" + ref_alignment_phy + "' not found.\n")
-            sys.exit(3)
-
-        wrapper.run_papara(executables["papara"], tree_file, ref_alignment_phy, query_fasta, ref_marker.molecule)
-        shutil.copy("papara_alignment.default", query_multiple_alignment)
-        os.remove("papara_alignment.default")
-        if ref_marker.denominator not in query_alignment_files:
-            query_alignment_files[ref_marker.denominator] = []
-        query_alignment_files[ref_marker.denominator].append(query_multiple_alignment)
-
-    logging.info("done.\n")
-    os.remove("papara_log.default")
-    os.remove("papara_quality.default")
-
-    end_time = time.time()
-    hours, remainder = divmod(end_time - start_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    logging.debug("\tPaPaRa time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-
-    return query_alignment_files
 
 
 def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg_dict: dict, n_proc=2) -> dict:

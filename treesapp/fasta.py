@@ -7,7 +7,7 @@ import logging
 from time import sleep, time
 from math import ceil
 
-from pyfastx import Fasta, Fastq, Sequence
+from pyfastx import Fasta, Fastq
 from pyfastxcli import fastx_format_check
 from collections import namedtuple
 
@@ -81,7 +81,7 @@ def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
     fastx = os.path.expanduser(fastx)
     outdir = os.path.expanduser(outdir)
     outputs = []
-    fa = Fasta(file_name=fastx, build_index=False)
+    fa = Fasta(file_name=fastx, build_index=False, full_name=True)
 
     # Determine the number of reads in the FASTQ file - faster than building an index
     count = 0
@@ -108,7 +108,7 @@ def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
     fh = None
     file_num = 0
 
-    for name, seq in fa:
+    for name, seq in fa:  # type: (str, str)
         if seq_write == 0:
             fh, subfile, file_num = spawn_new_file(file_num, outdir, file_name, digit)
             outputs.append(subfile)
@@ -174,7 +174,7 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
     fh = None
     file_num = 0
 
-    for read_name, seq, _ in fq:
+    for read_name, seq, _ in fq:  # type: (str, str)
         if seq_write == 0:
             fh, subfile, file_num = spawn_new_file(file_num, outdir, name, digit)
             outputs.append(subfile)
@@ -206,7 +206,8 @@ def read_fasta_to_dict(fasta_file: str) -> dict:
     if not os.path.exists(fasta_file):
         logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
 
-    for name, seq in Fasta(fasta_file, build_index=False):  # type: (str, str)
+    fa = Fasta(fasta_file, build_index=False, full_name=True)
+    for name, seq in fa:  # type: (str, str)
         fasta_dict[name] = seq.upper()
     return fasta_dict
 
@@ -807,24 +808,16 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_len
     max_buffer_size = 1E4
     seq_acc = 0
     fasta_string = ""
-    # TODO: change back to build_index=False
-    # for name, seq in pyfastx.Fasta(fasta_input, build_index=False):  # type: (str, str)
-    fai = Fasta(fasta_input, build_index=True)
-    fai_file = fasta_input + ".fxi"
-    if not os.path.isfile(fai_file):
-        logging.error("FASTA index file '{}' doesn't exist".format(fai_file))
-        sys.exit(3)
-
-    for seq in fai:  # type: Sequence
-        if len(seq.seq) < min_seq_length:
+    for name, seq in Fasta(fasta_input, build_index=False, full_name=True):  # type: (str, str)
+        if len(seq) < min_seq_length:
             continue
-        if bad_chars.search(seq.seq):
-            bad_seqs.add(seq.description)
+        if bad_chars.search(seq):
+            bad_seqs.add(name)
             continue
 
         seq_acc += 1
-        headers.append(seq.description)
-        fasta_string += ">{}\n{}\n".format(seq_acc, seq.seq)
+        headers.append(name)
+        fasta_string += ">{}\n{}\n".format(seq_acc, seq)
 
         # Write the fasta_string to the output fasta if the size exceeds the max_buffer_size
         if len(fasta_string) > max_buffer_size:
@@ -880,7 +873,7 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
         sys.exit(13)
 
     formatted_fasta_dict = {}
-    for name, seq in Fasta(fasta_input, build_index=False):  # type: (str, str)
+    for name, seq in Fasta(fasta_input, build_index=False, full_name=True):  # type: (str, str)
         if len(seq) < min_seq_length:
             continue
         if subset:
@@ -919,7 +912,7 @@ def get_headers(fasta_file: str) -> list:
         logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
 
     n_headers = 0
-    for name, seq in Fasta(fasta_file, build_index=False):  # type: (str, str)
+    for name, seq in Fasta(fasta_file, build_index=False, full_name=True):  # type: (str, str)
         n_headers += 1
         original_headers.append('>' + str(name))
 

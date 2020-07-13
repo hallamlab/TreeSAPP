@@ -1047,8 +1047,7 @@ def assign(sys_args):
     split_msa_files = dict()
     if ts_assign.stage_status("align"):
         create_ref_phy_files(refpkg_dict, ts_assign.var_output_dir, homolog_seq_files, ref_alignment_dimensions)
-        concatenated_msa_files = multiple_alignments(ts_assign.executables, ts_assign.refpkg_dir,
-                                                     ts_assign.var_output_dir, homolog_seq_files, refpkg_dict,
+        concatenated_msa_files = multiple_alignments(ts_assign.executables, homolog_seq_files, refpkg_dict,
                                                      "hmmalign", args.num_threads)
         file_type = utilities.find_msa_type(concatenated_msa_files)
         alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,

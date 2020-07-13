@@ -44,7 +44,9 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
         refpkg.slurp()
         if targets:  # type: list
             if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:
-                continue
+                pass
+            elif refpkg.prefix in refpkgs_found and refpkg.refpkg_code in refpkgs_found:
+                logging.warning("RefPkg for {} has already been found. Skipping {}.\n".format(refpkg.prefix, rp_file))
             else:
                 match = targets.intersection({refpkg.prefix, refpkg.refpkg_code}).pop()
                 refpkgs_found.add(match)
