@@ -1227,7 +1227,7 @@ def purity(sys_args):
         assign_args = ["-i", ts_purity.formatted_input, "-o", ts_purity.assign_dir,
                        "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
                        "-t", ts_purity.ref_pkg.prefix, "--refpkg_dir", ts_purity.refpkg_dir,
-                       "--overwrite", "--delete", "--no_svm"]
+                       "--overwrite", "--delete"]
         try:
             assign(assign_args)
         except:  # Just in case treesapp assign fails, just continue
