@@ -42,7 +42,7 @@ if (is.null(opt$input_table)){
 ##
 # Set figure names here
 ##
-img_format <- "eps"
+img_format <- "pdf"
 spec_out <- paste(paste(opt$prefix, "Classification_specificity_bars",  sep='_'),
                   img_format, sep='.')
 sens_out <- paste(paste(opt$prefix, "Classification_sensitivity", sep='_'),
@@ -82,8 +82,8 @@ taxonomic_hierarchy <- data.frame(Ranks = c("Kingdom", "Phylum", "Class", "Order
 refpkg_plt_dat <- data.frame(Cycle = c("Carbon", "Carbon", "Carbon", "Carbon",
                                        "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen",
                                        "Sulphur"),
-                             RefPkg = c("McrA", "McrB", "McrG", "p_amoA",
-                                        "napA", "NirK", "nirS", "nifD", "NorB", "NxrA", "NxrB", "nosZ",
+                             RefPkg = c("McrA", "McrB", "McrG", "P_amoA",
+                                        "NapA", "NirK", "NirS", "NifD", "NorB", "NxrA", "NxrB", "nosZ",
                                         "DsrAB"),
                              Position = as.numeric(seq(1, 13)))
 
@@ -154,7 +154,7 @@ avg_dist_plot <- harm_dist_dat %>%
         panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1))
 ggsave(plot = avg_dist_plot, filename = pdist_out,
-       width = 8, height = 5, dpi = 400, device = cairo_ps)
+       width = 8, height = 5)
 ggsave(plot = avg_dist_plot, filename = gsub(img_format, "png", pdist_out),
        width = 8, height = 5, dpi = 400)
 ## end
