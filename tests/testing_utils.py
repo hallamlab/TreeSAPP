@@ -21,7 +21,3 @@ def get_treesapp_file(filename):
 
 def get_treesapp_path():
     return resource_filename(Requirement.parse("treesapp"), "")
-
-
-def get_example_output():
-    return get_test_data("test_output_TarA/")

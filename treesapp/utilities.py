@@ -414,17 +414,21 @@ def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict):
         leaf_annotation_map[annotation] = list()
         for leaf_nodes in clusters[annotation]:
             start, end = leaf_nodes
-            # Find the minimum set that includes both start and end
-            warm_front = dict()
-            # Add all the potential internal nodes
-            for inode in internal_node_map:
-                clade = internal_node_map[inode]
-                if start in clade:
-                    warm_front[inode] = clade
-            for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
-                if end in warm_front[inode]:
-                    leaf_annotation_map[annotation].append(inode)
-                    break
+            try:
+                if int(start) == int(end) and int(start) in internal_node_map:
+                    leaf_annotation_map[annotation].append(int(start))
+            except ValueError:
+                # Find the minimum set that includes both start and end
+                warm_front = dict()
+                # Add all the potential internal nodes
+                for inode in internal_node_map:
+                    clade = internal_node_map[inode]
+                    if start in clade:
+                        warm_front[inode] = clade
+                for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
+                    if end in warm_front[inode]:
+                        leaf_annotation_map[annotation].append(inode)
+                        break
     return leaf_annotation_map
 
 

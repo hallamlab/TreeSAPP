@@ -4,16 +4,19 @@ __author__ = 'Connor Morgan-Lang'
 
 
 import sys
-import logging
 import os
 import re
-from .classy import Layerer
 import glob
+
+import logging
+
+from treesapp.classy import Layerer
 
 
 def check_arguments(layerer: Layerer, args):
     """
     Check that the required files (e.g. jplace, marker_contig_map, annotation files) exist
+
     :param layerer:
     :param args:
     :return:
@@ -32,14 +35,15 @@ def check_arguments(layerer: Layerer, args):
                 logging.error(annot_f + " does not exist!\n")
                 sys.exit(3)
             layerer.annot_files.append(annot_f)
-    # If a directory containing annotation files isn't given, set it to the default data/iTOL_data directory
-    if args.annot_dir is None:
-        args.annot_dir = layerer.itol_dir
-    annotation_files = glob.glob(args.annot_dir + '*')
-    # Add all files in the annot_dir to the colours_style list
-    for af in annotation_files:
-        if not layerer.c_strip_re.match(af) and not layerer.c_style_re.match(af):
-            layerer.annot_files.append(af)
+    else:
+        # If a directory containing annotation files isn't given, set it to the default data/iTOL_data directory
+        if args.annot_dir is None:
+            args.annot_dir = layerer.itol_dir
+        annotation_files = glob.glob(args.annot_dir + '*')
+        # Add all files in the annot_dir to the colours_style list
+        for af in annotation_files:
+            if not layerer.c_strip_re.match(af) and not layerer.c_style_re.match(af):
+                layerer.annot_files.append(af)
     return
 
 
@@ -133,20 +137,19 @@ def names_for_nodes(clusters: dict, node_map: dict, taxa_map: list) -> dict:
         for inodes in clusters[annotation]:
             node_1, node_2 = inodes
             try:
-                int(node_1)
+                int(node_1)  # This is an internal node
             except ValueError:
-                # print(node_1)
                 for leaf in taxa_map:
                     if re.sub(' ', '_', leaf.description) == node_1:
-                        leaf_node = leaf.number
                         for inode_key, clade_value in node_map.items():
-                            if clade_value[0] == leaf_node:
-                                node_1 = inode_key
-                                break
-                        break
+                            if len(clade_value) == 1:
+                                leaf_node = clade_value[0]
+                                if int(leaf_node.split('_')[0]) == int(leaf.number):
+                                    node_1, node_2 = inode_key, inode_key
+                                    break
+                        continue
                     else:
                         pass
-                # print(node_1)
             node_only_clusters[annotation].append((node_1, node_2))
     return node_only_clusters
 
@@ -207,16 +210,16 @@ def annotate_internal_nodes(internal_node_map: dict, clusters: dict) -> (dict, s
                     leaves_in_clusters.add(leaf)
             except ValueError:
                 # TODO: Convert headers to internal nodes where an annotation cluster is a single leaf
-                logging.warning("Unable to assign '" + str(i_node) + "' to an internal node ID.\n")
+                logging.warning("Unable to assign '{}' to an internal node ID.\n".format(i_node))
             except KeyError:
-                logging.error("Unable to find internal node " + i_node + " in internal node map.\n")
+                logging.error("Unable to find internal node '{}' in internal node map.\n".format(i_node))
                 sys.exit(7)
         # Find the set of internal nodes that are children of this annotated clade
         for i_node in internal_node_map:
             if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):
                 annotated_clade_members[annotation].add(i_node)
 
-    logging.debug("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
+    logging.debug("\tCaptured {} nodes in clusters.\n".format(len(leaves_in_clusters)))
 
     return annotated_clade_members, leaves_in_clusters
 

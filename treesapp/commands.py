@@ -889,7 +889,6 @@ def layer(sys_args):
     marker_subgroups = dict()
     unique_markers_annotated = set()
     marker_tree_info = dict()
-    internal_nodes = dict()
     master_dat, field_order = annotate_extra.parse_marker_classification_table(ts_layer.final_output_dir +
                                                                                "marker_contig_map.tsv")
     refpkg_dict = file_parsers.gather_ref_packages(ts_layer.refpkg_dir)
@@ -914,9 +913,7 @@ def layer(sys_args):
             unique_markers_annotated.add(refpkg_prefix)
             if data_type not in marker_subgroups:
                 marker_subgroups[data_type] = dict()
-                internal_nodes[data_type] = dict()
-            marker_subgroups[data_type][refpkg_prefix], internal_nodes[data_type][refpkg_prefix] = file_parsers.read_colours_file(annot_f,
-                                                                                                                    refpkg_prefix)
+            marker_subgroups[data_type][refpkg_prefix] = file_parsers.read_colours_file(annot_f, refpkg_prefix)
         else:
             logging.warning("Unable to parse the reference package name and/or annotation type from {}.\n"
                             "Is it possible this reference package is not in {}?".format(annot_f, ts_layer.refpkg_dir))
@@ -948,14 +945,9 @@ def layer(sys_args):
                 # Routine for exchanging any organism designations for their respective node number
                 taxa_map = refpkg.generate_tree_leaf_references_from_refpkg()
 
-                if internal_nodes[data_type][refpkg_name]:
-                    clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][refpkg_name],
-                                                              internal_node_map,
-                                                              taxa_map)
-                else:
-                    # Convert the leaf node ranges to internal nodes for consistency
-                    clusters = utilities.convert_outer_to_inner_nodes(marker_subgroups[data_type][refpkg_name],
-                                                                      internal_node_map)
+                clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][refpkg_name],
+                                                          internal_node_map, taxa_map)
+                clusters = utilities.convert_outer_to_inner_nodes(clusters, internal_node_map)
 
                 marker_tree_info[data_type][refpkg_name], leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
                                                                                                                  clusters)

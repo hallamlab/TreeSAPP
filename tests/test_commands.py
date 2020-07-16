@@ -98,8 +98,9 @@ class TreesappTester(unittest.TestCase):
     def test_abundance(self):
         from commands import abundance
         from file_parsers import read_classification_table
-        from .testing_utils import get_test_data, get_example_output
-        classification_table = os.path.join(get_example_output(), "final_outputs", "marker_contig_map.tsv")
+        from .testing_utils import get_test_data
+        classification_table = os.path.join(get_test_data("test_output_TarA/"),
+                                            "final_outputs", "marker_contig_map.tsv")
         pre_lines = read_classification_table(get_test_data(classification_table))
         abundance_command_list = ["--treesapp_output", get_test_data("test_output_TarA/"),
                                   "--reads", get_test_data("test_TarA.1.fq"),
@@ -125,12 +126,29 @@ class TreesappTester(unittest.TestCase):
 
     def test_layer(self):
         from commands import layer
-        from .testing_utils import get_test_data, get_example_output
+        from .testing_utils import get_test_data
         from file_parsers import read_classification_table
-        classification_table = os.path.join(get_example_output(), "final_outputs", "marker_contig_map.tsv")
-        pre_lines = read_classification_table(get_test_data(classification_table))
+        original_table = os.path.join(get_test_data("test_output_TarA/"), "final_outputs", "marker_contig_map.tsv")
+        layered_table = os.path.join(get_test_data("test_output_TarA/"), "final_outputs",
+                                     "extra_annotated_marker_contig_map.tsv")
+        pre_lines = read_classification_table(get_test_data(original_table))
         layer_command_list = ["--treesapp_output", get_test_data("test_output_TarA/")]
         layer_command_list += ["--refpkg_dir", get_test_data("refpkgs/")]
+        layer(layer_command_list)
+        post_lines = read_classification_table(get_test_data(layered_table))
+        self.assertEqual(len(pre_lines), len(post_lines))
+        return
+
+    def test_xmoa_layer(self):
+        from commands import layer
+        from .testing_utils import get_test_data
+        from file_parsers import read_classification_table
+        classification_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
+                                            "final_outputs", "marker_contig_map.tsv")
+        pre_lines = read_classification_table(get_test_data(classification_table))
+        layer_command_list = ["--colours_style", get_test_data("XmoA_Function.txt"),
+                              "--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
+                              "--refpkg_dir", get_test_data("refpkgs/")]
         layer(layer_command_list)
         post_lines = read_classification_table(get_test_data(classification_table))
         self.assertEqual(len(pre_lines), len(post_lines))

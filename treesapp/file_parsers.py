@@ -212,7 +212,7 @@ def best_discrete_matches(matches: list) -> list:
             b_match = len_sorted_matches[j]  # type HmmMatch
             if a_match.target_hmm != b_match.target_hmm:
                 if HMMER_domainTblParser.detect_orientation(a_match.start, a_match.end,
-                                                                     b_match.start, b_match.end) != "satellite":
+                                                            b_match.start, b_match.end) != "satellite":
                     if a_match.full_score > b_match.full_score:
                         dropped_annotations.append(len_sorted_matches.pop(j))
                         j -= 1
@@ -320,7 +320,7 @@ def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
     return hmm_matches
 
 
-def read_colours_file(annotation_file: str, refpkg_name: str) -> (dict, bool):
+def read_colours_file(annotation_file: str, refpkg_name: str) -> dict:
     """
     Read annotation data from 'annotation_file' and store it in marker_subgroups under the appropriate
     marker and data_type.
@@ -337,7 +337,6 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> (dict, bool):
 
     clusters = dict()
     field_sep = ''
-    internal_nodes = False
 
     line = style_handler.readline()
     # Skip the header
@@ -352,10 +351,10 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> (dict, bool):
                 logging.error("Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
                 sys.exit(5)
         line = style_handler.readline()
+
     # For RGB
-    range_line_rgb = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + r"\|(\d+)_" + re.escape(refpkg_name) + re.escape(field_sep) +
-                                "range" + re.escape(field_sep) +
-                                r".*\)" + re.escape(field_sep) +
+    range_line_rgb = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + r"\|(\d+)_" + re.escape(refpkg_name) +
+                                re.escape(field_sep) + "range" + re.escape(field_sep) + r".*\)" + re.escape(field_sep) +
                                 "(.*)$")
     single_node_rgb = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + re.escape(field_sep) +
                                  "range" + re.escape(field_sep) +
@@ -367,7 +366,8 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> (dict, bool):
                                    "(.*)$")
 
     # For hexadecimal
-    range_line = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + r"\|(\d+)_" + re.escape(refpkg_name) + re.escape(field_sep) +
+    range_line = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + r"\|(\d+)_" +
+                            re.escape(refpkg_name) + re.escape(field_sep) +
                             "range" + re.escape(field_sep) +
                             "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
                             "(.*)$")
@@ -380,46 +380,61 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> (dict, bool):
                                "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
                                "(.*)$")
 
+    single_name = re.compile(r"^([\w\d|.]+)" + re.escape(field_sep) +
+                             "range" + re.escape(field_sep) + r"[#(), \w]+" +
+                             re.escape(field_sep) + "(.*)$")
+
     # Begin parsing the data from 4 columns
     line = style_handler.readline().strip()
     while line:
         if range_line.match(line):
             style_data = range_line.match(line)
             start, end, description = style_data.groups()
+            label_node = True
         elif range_line_rgb.match(line):
             style_data = range_line_rgb.match(line)
             start, end, description = style_data.groups()
+            label_node = True
         elif single_node.match(line):
             style_data = single_node.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+            label_node = True
         elif single_node_rgb.match(line):
             style_data = single_node_rgb.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+            label_node = True
         elif internal_node.match(line):
             style_data = internal_node.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-            internal_nodes = True
+            label_node = False
         elif internal_node_rgb.match(line):
             style_data = internal_node_rgb.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-            internal_nodes = True
+            label_node = False
+        elif single_name.match(line):
+            style_data = single_name.match(line)
+            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+            label_node = False
         else:
-            logging.error("Unrecognized line formatting in " + annotation_file + ":\n" + line + "\n")
+            logging.error("Unrecognized line formatting in '{}':\n{}\n".format(annotation_file, line))
             sys.exit(5)
 
         description = style_data.groups()[-1]
         if description not in clusters.keys():
             clusters[description] = list()
-        clusters[description].append((start + "_" + refpkg_name,
-                                      end + "_" + refpkg_name))
+
+        if label_node:
+            clusters[description].append((start + "_" + refpkg_name, end + "_" + refpkg_name))
+        else:
+            clusters[description].append((start, end))
 
         line = style_handler.readline().strip()
 
     style_handler.close()
 
-    logging.debug("\tParsed " + str(len(clusters)) + " clades from " + annotation_file + "\n")
+    logging.debug("\tParsed {} clades from '{}'\n".format(len(clusters), annotation_file))
 
-    return clusters, internal_nodes
+    return clusters
 
 
 def xml_parser(xml_record, term):

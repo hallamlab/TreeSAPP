@@ -1,0 +1,17 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+69	range	rgb(246, 232, 195)	EmoA
+57	range	rgb(223, 194, 125)	PxmA
+9	range	rgb(84, 48, 5)	AmoA_AOA
+Thaumarchaeota_|_AHZ90671	range	rgb(84, 48, 5)	AmoA_AOA
+Candidatus_Nitrosocosmicus_franklandus_|_AMH87091	range	rgb(84, 48, 5)	AmoA_AOA
+13	range	rgb(84, 48, 5)	AmoA_AOA
+Candidatus_Nitrosocaldus_yellowstonensis_|_ABY83788	range	rgb(84, 48, 5)	AmoA_AOA
+44	range	rgb(140, 81, 10)	AmoA_AOB
+108	range	rgb(140, 81, 10)	AmoA_AOB
+175	range	rgb(1, 102, 94)	PmoA
+103	range	rgb(1, 102, 94)	PmoA
+83	range	rgb(1, 102, 94)	PmoA
+Candidatus_Methylomirabilis_oxyfera_|_671143.DAMO_2450	range	rgb(1, 102, 94)	PmoA
+21	range	rgb(199, 234, 229)	BmoA
