@@ -57,12 +57,12 @@ class MyTestCase(unittest.TestCase):
     @pytest.mark.usefixtures("xmoa_refpkg_class")
     def test_convert_outer_to_inner_nodes(self):
         from utilities import convert_outer_to_inner_nodes
-        group_dict = {'EmoA': [('69_XmoA', '69_XmoA')],
-                      'PxmA': [('57_XmoA', '57_XmoA')],
-                      'AmoA_AOA': [('9_XmoA', '9_XmoA'), (0, 0), (10, 10), ('13_XmoA', '13_XmoA'), (14, 14)],
-                      'AmoA_AOB': [('44_XmoA', '44_XmoA'), ('108_XmoA', '108_XmoA')],
-                      'PmoA': [('175_XmoA', '175_XmoA'), ('103_XmoA', '103_XmoA'), ('83_XmoA', '83_XmoA'), (84, 84)],
-                      'BmoA': [('21_XmoA', '21_XmoA')]}
+        group_dict = {'EmoA': [('69', '69')],
+                      'PxmA': [('57', '57')],
+                      'AmoA_AOA': [('9', '9'), (0, 0), (10, 10), ('13', '13'), (14, 14)],
+                      'AmoA_AOB': [('44', '44'), ('108', '108')],
+                      'PmoA': [('175', '175'), ('103', '103'), ('83', '83'), (84, 84)],
+                      'BmoA': [('21', '21')]}
         clusters = convert_outer_to_inner_nodes(internal_node_map=self.db.get_internal_node_leaf_map(),
                                                 clusters=group_dict)
         annot_i_nodes = []
