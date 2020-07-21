@@ -198,10 +198,12 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_train(self):
+        import csv
         from commands import train
         from .testing_utils import get_test_data
+        output_dir = "./TreeSAPP_train"
         train_command_list = ["--fastx_input",  get_test_data("ENOG4111FIN.txt"),
-                              "--output", "./TreeSAPP_train",
+                              "--output", output_dir,
                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
                               "--num_proc", str(4),
@@ -209,19 +211,15 @@ class TreesappTester(unittest.TestCase):
                               "--svm_kernel", "rbf",
                               "--trim_align", "--delete", "--overwrite"]
         train(train_command_list)
-        return
+        rank_list = []
+        with open(os.path.join(output_dir, "final_outputs", "placement_info.tsv")) as placement_tbl:
+            csv_handler = csv.reader(placement_tbl, delimiter="\t")
+            header = next(csv_handler)
+            for fields in csv_handler:
+                rank_list.append(fields[1])
 
-    def test_classifier_trainer(self):
-        from classifier_trainer import classifier_trainer as ct_main
-        from .testing_utils import get_test_data
-        command_list = ["--fastx_input", get_test_data("McrA_eval.faa"),
-                        "--output", "./TreeSAPP_svc_train",
-                        "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
-                        "--accession2lin", get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
-                        "--num_proc", str(2),
-                        "--molecule", "prot",
-                        "--trim_align", "--delete", "--overwrite"]
-        ct_main(command_list)
+        self.assertEqual(0, len({"class", "order", "family", "genus", "species"}.difference(set(rank_list))))
+        self.assertEqual(120, len(rank_list))
         return
 
     def test_package(self):

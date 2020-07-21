@@ -295,19 +295,20 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     return
 
 
-def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, complete=True) -> None:
+def fill_ref_seq_lineages(entrez_record_map: dict, accession_lineages: dict, complete=True) -> None:
     """
-    Adds lineage information from accession_lineages to fasta_record_objects
+    Adds lineage information from a dictionary (accession_lineages) to all of the EntrezRecord values in a dictionary
+    indexed by their respective numerical TreeSAPP identifiers (entrez_record_map).
 
-    :param fasta_record_objects: A dictionary indexed by TreeSAPP numeric identifiers mapped to EntrezRecord instances
+    :param entrez_record_map: A dictionary indexed by TreeSAPP numeric identifiers mapped to EntrezRecord instances
     :param accession_lineages: A dictionary mapping {accession: lineage}. acc.version format also accepted
     :param complete: Boolean indicating whether the accession_lineage contains lineages for all records or not.
     If True, iteration will continue when accession_lineages is missing an accession.
     :return: None
     """
     lineage_added = 0
-    for treesapp_id in fasta_record_objects:
-        ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
+    for treesapp_id in entrez_record_map:
+        ref_seq = entrez_record_map[treesapp_id]  # type: EntrezRecord
         if not ref_seq.lineage:
             try:
                 lineage = accession_lineages[ref_seq.accession]
@@ -752,30 +753,30 @@ def get_multiple_lineages(entrez_query_list: list, t_hierarchy: TaxonomicHierarc
     return
 
 
-def verify_lineage_information(accession_lineage_map: dict, fasta_record_objects: dict,
+def verify_lineage_information(accession_lineage_map: dict, entrez_record_map: dict,
                                t_hierarchy: TaxonomicHierarchy, taxa_searched: int) -> None:
     """
     Function used for parsing records returned by Bio.Entrez.efetch queries and identifying inconsistencies
     between the search terms and the results
 
     :param accession_lineage_map: A dictionary mapping accession.versionID tuples to taxonomic lineages
-    :param fasta_record_objects: A dictionary of EntrezRecord instances indexed by their unique TreeSAPP numerical IDs
+    :param entrez_record_map: A dictionary of EntrezRecord instances indexed by their unique TreeSAPP numerical IDs
     :param t_hierarchy: A TaxonomicHierarchy instance, that by this point should be fully populated
     :param taxa_searched: An integer for tracking number of accessions queried (currently number of lineages provided)
     :return: None
     """
-    if (len(accession_lineage_map.keys()) + taxa_searched) != len(fasta_record_objects):
+    if (len(accession_lineage_map.keys()) + taxa_searched) != len(entrez_record_map):
         # Records were not returned for all sequences. Time to figure out which ones!
         logging.warning("Entrez did not return a record for every accession queried.\n"
                         "Don't worry, though. We'll figure out which ones are missing.\n")
     logging.debug("Entrez.efetch query stats:\n"
                   "\tDownloaded\t" + str(len(accession_lineage_map.keys())) + "\n" +
                   "\tProvided\t" + str(taxa_searched) + "\n" +
-                  "\tTotal\t\t" + str(len(fasta_record_objects)) + "\n\n")
+                  "\tTotal\t\t" + str(len(entrez_record_map)) + "\n\n")
 
     # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identified
-    for treesapp_id in sorted(fasta_record_objects.keys()):
-        ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
+    for treesapp_id in sorted(entrez_record_map.keys()):
+        ref_seq = entrez_record_map[treesapp_id]  # type: EntrezRecord
         ref_seq.tracking_stamp()
         # Could have been set previously, in custom header format for example
         if not ref_seq.lineage:
@@ -806,9 +807,9 @@ def verify_lineage_information(accession_lineage_map: dict, fasta_record_objects
         if ref_seq.bitflag >= 1:
             taxa_searched += 1
 
-    if taxa_searched < len(fasta_record_objects.keys()):
-        logging.error("Not all sequences (" + str(taxa_searched) + '/'
-                      + str(len(fasta_record_objects)) + ") were queried against the NCBI taxonomy database!\n")
+    if taxa_searched < len(entrez_record_map.keys()):
+        logging.error("Some sequences ({}/{}) were not used to query Entrez's taxonomy database!\n"
+                      "".format(len(entrez_record_map)-taxa_searched, len(entrez_record_map)))
         sys.exit(9)
 
     return
@@ -1112,7 +1113,7 @@ def main():
     get_multiple_lineages(list(er_dict.values()), th, "prot")
     alm = entrez_records_to_accession_lineage_map(list(er_dict.values()))
     repair_lineages(er_dict, th)
-    verify_lineage_information(accession_lineage_map=alm, fasta_record_objects=er_dict, t_hierarchy=th, taxa_searched=2)
+    verify_lineage_information(accession_lineage_map=alm, entrez_record_map=er_dict, t_hierarchy=th, taxa_searched=2)
     print(er_vparadoxus.get_info(),
           er_pmarinus.get_info())
     return

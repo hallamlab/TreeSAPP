@@ -641,13 +641,8 @@ class TreeSAPP:
                     self.seq_lineage_map[accession[1:]] = self.seq_lineage_map.pop(accession)
             write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
         else:
-            logging.info("Reading cached lineages in '" + self.acc_to_lin + "'... ")
+            logging.info("Reading cached lineages in '{}'... ".format(self.acc_to_lin))
             self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
-            entrez_utils.fill_ref_seq_lineages(entrez_record_dict, self.seq_lineage_map)
-            ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
-            self.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
-            self.ref_pkg.taxa_trie.validate_rank_prefixes()
-            self.ref_pkg.taxa_trie.build_multifurcating_trie()
             logging.info("done.\n")
 
         ref_seqs.change_dict_keys()

@@ -9,7 +9,6 @@ import time
 import joblib
 from glob import glob
 from csv import Sniffer
-from collections import namedtuple
 from shutil import rmtree
 
 from pygtrie import StringTrie
@@ -175,6 +174,12 @@ def available_cpu_count():
     except IOError:
         pass
 
+    try:
+        import os
+        return os.cpu_count()
+    except (ImportError, NotImplementedError):
+        pass
+
     # Python 2.6+
     try:
         import multiprocessing
@@ -191,6 +196,7 @@ def available_cpu_count():
 
     # POSIX
     try:
+        import os
         res = int(os.sysconf('SC_NPROCESSORS_ONLN'))
 
         if res > 0:

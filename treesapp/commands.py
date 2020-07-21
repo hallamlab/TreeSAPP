@@ -24,7 +24,7 @@ from treesapp import update_refpkg
 from treesapp import annotate_extra
 from treesapp import treesapp_args
 from treesapp import classy
-from treesapp.phylo_seq import assignments_to_treesaps, PQuery
+from treesapp.phylo_seq import assignments_to_treesaps, PQuery, convert_entrez_to_tree_leaf_references
 from treesapp.refpkg import ReferencePackage, view, edit
 from treesapp.training_utils import train_classification_filter
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
@@ -200,7 +200,13 @@ def train(sys_args):
         train_seqs.change_dict_keys("formatted")
         ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
-    ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule, args.acc_to_taxid)
+    entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule, args.acc_to_taxid)
+
+    entrez_utils.fill_ref_seq_lineages(entrez_record_dict, ts_trainer.seq_lineage_map, complete=True)
+    ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
+    ts_trainer.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+    ts_trainer.ref_pkg.taxa_trie.validate_rank_prefixes()
+    ts_trainer.ref_pkg.taxa_trie.build_multifurcating_trie()
     rank_depth_map = ts_trainer.ref_pkg.taxa_trie.accepted_ranks_depths
     taxa_evo_dists = dict()
 
@@ -377,12 +383,16 @@ def create(sys_args):
 
     ##
     # Save all sequence names in the header registry as EntrezRecord instances
-    # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
+    # Using the accession-lineage map (if available), map the sequence names to their respective lineages
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
     fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, ts_create.ref_pkg.molecule,
                                                     args.acc_to_taxid, args.seq_names_to_taxa)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
+    ref_leaf_nodes = convert_entrez_to_tree_leaf_references(fasta_records)
+    ts_create.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+    ts_create.ref_pkg.taxa_trie.validate_rank_prefixes()
+    ts_create.ref_pkg.taxa_trie.build_multifurcating_trie()
     create_refpkg.strip_rank_prefix_from_organisms(fasta_records, ts_create.ref_pkg.taxa_trie)
     prefilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
 
@@ -677,6 +687,11 @@ def update(sys_args):
         fasta_records = ts_updater.fetch_entrez_lineages(ref_seqs=querying_classified_fasta, molecule=args.molecule,
                                                          seqs_to_lineage=ts_updater.seq_names_to_taxa)
         entrez_utils.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
+        ref_leaf_nodes = convert_entrez_to_tree_leaf_references(fasta_records)
+        ts_updater.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+        ts_updater.ref_pkg.taxa_trie.validate_rank_prefixes()
+        ts_updater.ref_pkg.taxa_trie.build_multifurcating_trie()
+
         deduped = []
         for treesapp_id in sorted(querying_classified_fasta.header_registry.keys(), key=int):
             try:
@@ -1305,6 +1320,10 @@ def evaluate(sys_args):
 
     fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
+    ref_leaf_nodes = convert_entrez_to_tree_leaf_references(fasta_records)
+    ts_evaluate.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+    ts_evaluate.ref_pkg.taxa_trie.validate_rank_prefixes()
+    ts_evaluate.ref_pkg.taxa_trie.build_multifurcating_trie()
 
     logging.info("Selecting representative sequences for each taxon.\n")
 
@@ -1412,7 +1431,7 @@ def evaluate(sys_args):
                                        "--refpkg_dir", os.path.dirname(ce_refpkg.f__json),
                                        "-m", ts_evaluate.molecule_type, "-n", str(args.num_threads),
                                        "--min_seq_length", str(min_seq_length),
-                                       "--overwrite", "--delete", "--no_svm"]
+                                       "--overwrite", "--delete"]
                         if args.trim_align:
                             assign_args.append("--trim_align")
                         try:
