@@ -609,7 +609,14 @@ class TreeSAPP:
         entrez_record_dict = dedup_records(ref_seqs, entrez_record_dict)
         ref_seqs.change_dict_keys("formatted")
         entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, entrez_record_dict)
-        logging.debug("\tNumber of input sequences =\t" + str(len(entrez_record_dict)) + "\n")
+        logging.debug("\tNumber of input sequences = {}\n".format(len(entrez_record_dict)))
+
+        # Seed the seq_lineage_map with any lineages that were parsed from the FASTA file
+        for ts_id in entrez_record_dict:
+            e_record = entrez_record_dict[ts_id]  # type: entrez_utils.EntrezRecord
+            if e_record.lineage:
+                self.seq_lineage_map[e_record.accession] = e_record.lineage
+                e_record.lineage = ""
 
         if seqs_to_lineage:
             lineage_map, refs_mapped = entrez_utils.map_orf_lineages(seqs_to_lineage, ref_seqs.header_registry)

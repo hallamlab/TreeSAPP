@@ -243,12 +243,12 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     tmp_lineages = set()
 
     # Search for any taxon that doesn't have a rank prefix in all the reference sequence lineages
-    t_hierarchy.clean_trie = False
+    t_hierarchy.clean_trie = True
     t_hierarchy.build_multifurcating_trie(key_prefix=True)
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         ref_seq = ref_seq_dict[treesapp_id]  # type: EntrezRecord
         if ref_seq.lineage:
-            if ref_seq.lineage not in t_hierarchy.trie:
+            if t_hierarchy.clean_lineage_string(ref_seq.lineage) not in t_hierarchy.trie:
                 to_repair.add(treesapp_id)
                 unprefixed_lineages.add(ref_seq.lineage)  # It only takes one rank without a prefix to add it
         else:
@@ -277,7 +277,6 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
                                                                   t_hierarchy.get_taxon_names())
 
     # Add rank prefixes to the broken lineages
-    # t_hierarchy.bad_taxa.append("cellular organisms")
     while to_repair:
         ref_seq = ref_seq_dict[to_repair.pop()]  # type: EntrezRecord
         ref_lineage = t_hierarchy.get_prefixed_lineage_from_bare(ref_seq.lineage)
@@ -287,11 +286,22 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
                                                             "Consider providing these data in a table or"
                                                             " removing this sequence from your analysis.\n")
         ref_seq.lineage = ref_lineage
-        ref_seq.taxon_rank = t_hierarchy.resolved_to(ref_seq.lineage)
 
         if len(to_repair) == 0:
             logging.info("done.\n")
 
+    for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
+        e_record = ref_seq_dict[treesapp_id]  # type: EntrezRecord
+        e_record.lineage = t_hierarchy.check_lineage(e_record.lineage, e_record.organism)
+
+    return
+
+
+def fill_entrez_record_taxon_rank(entrez_record_map: dict, t_hierarchy: TaxonomicHierarchy) -> None:
+    for treesapp_id in entrez_record_map:
+        ref_seq = entrez_record_map[treesapp_id]  # type: EntrezRecord
+        if not ref_seq.taxon_rank:
+            ref_seq.taxon_rank = t_hierarchy.resolved_to(ref_seq.lineage)
     return
 
 
@@ -848,7 +858,7 @@ def read_accession_taxa_map(mapping_file):
         if accession not in accession_lineage_map:
             accession_lineage_map[accession] = str(lineage)
         else:
-            logging.error(accession + " present in " + mapping_file + " multiple times!")
+            logging.error("Accession '{}' present in {} multiple times!\n".format(accession, mapping_file))
             sys.exit(9)
 
     map_file_handler.close()

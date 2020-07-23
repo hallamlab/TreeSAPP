@@ -81,6 +81,29 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(44, test_refpkg.num_seqs)
         return
 
+    def test_create_accession2lin(self):
+        from treesapp.commands import create
+        from refpkg import ReferencePackage
+        from .testing_utils import get_test_data
+        cmd_list = ["--fastx_input", get_test_data("PF01280_test.fasta"),
+                    "--accession2lin", get_test_data("PF01280_test.tsv"),
+                    "--output", "./TreeSAPP_create_PF01280",
+                    "--refpkg_name", "PF01280",
+                    "--similarity", "0.95",
+                    "--bootstraps", str(0),
+                    "--molecule", "prot",
+                    "--screen", "Archaea", "--filter", "Bacteria,Eukaryota",
+                    "--min_taxonomic_rank", 'g',
+                    "--num_proc", str(2),
+                    "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
+        create(cmd_list)
+        test_refpkg = ReferencePackage()
+        test_refpkg.f__json = "./TreeSAPP_create_PF01280/final_outputs/PF01280_build.pkl"
+        test_refpkg.slurp()
+        test_refpkg.validate()
+        self.assertEqual(52, test_refpkg.num_seqs)
+        return
+
     def test_evaluate(self):
         from commands import evaluate
         from .testing_utils import get_test_data

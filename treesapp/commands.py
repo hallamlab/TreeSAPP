@@ -391,9 +391,12 @@ def create(sys_args):
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
     ref_leaf_nodes = convert_entrez_to_tree_leaf_references(fasta_records)
     ts_create.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+    entrez_utils.repair_lineages(fasta_records, ts_create.ref_pkg.taxa_trie)
+    entrez_utils.fill_entrez_record_taxon_rank(fasta_records, ts_create.ref_pkg.taxa_trie)
     ts_create.ref_pkg.taxa_trie.validate_rank_prefixes()
     ts_create.ref_pkg.taxa_trie.build_multifurcating_trie()
     create_refpkg.strip_rank_prefix_from_organisms(fasta_records, ts_create.ref_pkg.taxa_trie)
+
     prefilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
 
     if ts_create.stage_status("clean"):
@@ -407,7 +410,7 @@ def create(sys_args):
         fasta_records = classy.dedup_records(ref_seqs, fasta_records)
 
         if len(fasta_records.keys()) < 2:
-            logging.error(str(len(fasta_records)) + " sequences post-homology + taxonomy filtering\n")
+            logging.error("{} sequences post-homology + taxonomy filtering\n".format(len(fasta_records)))
             sys.exit(11)
         # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
 
