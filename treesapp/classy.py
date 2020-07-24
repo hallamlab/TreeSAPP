@@ -16,7 +16,7 @@ from numpy import var
 from treesapp.phylo_seq import convert_entrez_to_tree_leaf_references, PQuery
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes, sequence_info_groups
-from treesapp.utilities import median, which, is_exe, write_dict_to_table
+from treesapp.utilities import median, which, is_exe, write_dict_to_table, validate_new_dir
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
@@ -273,9 +273,6 @@ class TreeSAPP:
         # self.refpkg_code_re = re.compile(r'[A-Z][0-9]{4,5}')
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
         self.refpkg_dir = self.treesapp_dir + 'data' + os.sep
-        self.tree_dir = self.treesapp_dir + 'data' + os.sep + "tree_data" + os.sep
-        self.hmm_dir = self.treesapp_dir + 'data' + os.sep + "hmm_data" + os.sep
-        self.aln_dir = self.treesapp_dir + 'data' + os.sep + "alignment_data" + os.sep
         self.itol_dir = self.treesapp_dir + 'data' + os.sep + "iTOL_data" + os.sep
         # Necessary for Evaluator, Creator and PhyTrainer:
         self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
@@ -313,20 +310,11 @@ class TreeSAPP:
         Carries over the basic TreeSAPP arguments to the respective TreeSAPP-subclass.
         All auxiliary arguments are pushed to the TreeSAPP classes in check_module_arguments
 
-        :param args: arguments from argarse.ParseArgs() with output, input and molecule attributes
+        :param args: arguments from argparse.ParseArgs() with output, input and molecule attributes
         :return: None
         """
         if self.command != "info":
-            self.output_dir = args.output
-            self.output_dir = os.path.abspath(self.output_dir)
-            if self.output_dir[-1] != os.sep:
-                self.output_dir += os.sep
-            # Check whether the output path exists
-            up, down = os.path.split(self.output_dir[:-1])
-            if not os.path.isdir(up):
-                logging.error("The directory above output ({}) does not exist.\n"
-                              "Please make these as TreeSAPP only creates a single new directory.".format(up))
-                sys.exit(3)
+            self.output_dir = validate_new_dir(args.output)
             self.final_output_dir = self.output_dir + "final_outputs" + os.sep
             self.var_output_dir = self.output_dir + "intermediates" + os.sep
             if set(vars(args)).issuperset({"molecule", "input"}):

@@ -559,7 +559,7 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
     return hmmalign_singlehit_files
 
 
-def check_for_removed_sequences(aln_dir, trimmed_msa_files: dict, msa_files: dict, refpkg_dict: dict, min_len=10):
+def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg_dict: dict, min_len=10):
     """
     Reads the multiple alignment files (either Phylip or FASTA formatted) and looks for both reference and query
     sequences that have been removed. Multiple alignment files are removed from `mfa_files` if:
@@ -567,7 +567,6 @@ def check_for_removed_sequences(aln_dir, trimmed_msa_files: dict, msa_files: dic
         2. at least one reference sequence was removed
     This quality-control function is necessary for placing short query sequences onto reference trees.
 
-    :param aln_dir: Path to the directory containing TreeSAPP reference package multiple sequence alignments
     :param trimmed_msa_files:
     :param msa_files: A dictionary containing the untrimmed MSA files indexed by reference package code (denominator)
     :param refpkg_dict: A dictionary of ReferencePackage objects indexed by their refpkg names

@@ -1069,8 +1069,8 @@ def assign(sys_args):
             tool = "BMGE"
             trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
                                                                    refpkg_dict, args.num_threads, tool)
-            qc_ma_dict = check_for_removed_sequences(ts_assign.aln_dir, trimmed_mfa_files, concatenated_msa_files,
-                                                     refpkg_dict, args.min_seq_length)
+            qc_ma_dict = check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files, refpkg_dict,
+                                                     args.min_seq_length)
             evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
             combined_msa_files.update(qc_ma_dict)
         else:
