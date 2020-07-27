@@ -225,7 +225,7 @@ class TreesappTester(unittest.TestCase):
         from commands import train
         from .testing_utils import get_test_data
         output_dir = "./TreeSAPP_train"
-        train_command_list = ["--fastx_input",  get_test_data("ENOG4111FIN.txt"),
+        train_command_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
                               "--output", output_dir,
                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),

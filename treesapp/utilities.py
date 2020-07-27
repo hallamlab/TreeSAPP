@@ -824,3 +824,13 @@ def validate_new_dir(output_dir: str) -> str:
                       "Please make these as TreeSAPP only creates a single new directory.".format(up))
         sys.exit(3)
     return output_dir
+
+
+def fetch_executable_path(exe_name, treesapp_dir):
+    if is_exe(os.path.join(treesapp_dir, "sub_binaries", exe_name)):
+        return str(os.path.join(treesapp_dir, "sub_binaries", exe_name))
+    elif which(exe_name):
+        return which(exe_name)
+    else:
+        logging.error("Could not find a valid executable for '{}'.\n".format(exe_name))
+        sys.exit(13)

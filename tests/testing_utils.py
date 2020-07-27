@@ -4,6 +4,10 @@ import os
 from pkg_resources import Requirement, resource_filename, ResolutionError
 
 
+def get_treesapp_root():
+    return resource_filename(Requirement.parse("treesapp"), 'treesapp')
+
+
 def get_test_data(filename):
     filepath = None
     try:

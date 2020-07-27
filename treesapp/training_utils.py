@@ -55,11 +55,28 @@ def rarefy_rank_distances(rank_distances: dict) -> dict:
 def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
                                      test_fasta: fasta.FASTA, training_seqs: list, rank: str,
                                      executables: dict, output_dir: str, pbar: tqdm, num_threads=2) -> list:
+    """
+    An all-in-one function for performing phylogenetic placement using query sequences from an excluded clade.
+    The original ReferencePackage instance is cloned (so it is not modified) and query sequences belonging to taxon
+    are removed from it.
+
+    :param ref_pkg: A ReferencePackage instance that has not been modified
+    :param taxon: A taxonomic lineage of the query sequences that will be removed and placed
+    :param test_fasta: A FASTA instance containing the query sequences to be placed
+    :param training_seqs:  A list of the query sequence names in test_fasta to be placed.
+    :param rank: The taxonomic rank the taxon represents
+    :param executables: A dictionary of executable names mapped to their respective absolute paths
+    :param output_dir: Path to a directory to write the output files
+    :param pbar: A tqdm.tqdm progress bar instance
+    :param num_threads: The number of threads to use during phylogenetic placement
+    :return: A list of PQuery instances representing the best phylogenetic placement for each query sequence
+    """
     intermediate_files = list()
     pqueries = list()
     taxonomy_filtered_query_seqs = dict()
     query_seq_name_map = dict()
-    query_name = re.sub(r"([ /])", '_', taxon.split("; ")[-1])
+    # Clean up the query taxon's name
+    query_name = re.sub(r"([ /])", '_', re.sub("'", '', taxon.split("; ")[-1]))
     taxon_test_dir = output_dir + query_name + os.sep
     os.mkdir(taxon_test_dir)
 

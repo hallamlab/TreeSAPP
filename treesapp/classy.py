@@ -16,7 +16,7 @@ from numpy import var
 from treesapp.phylo_seq import convert_entrez_to_tree_leaf_references, PQuery
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes, sequence_info_groups
-from treesapp.utilities import median, which, is_exe, write_dict_to_table, validate_new_dir
+from treesapp.utilities import median, which, is_exe, write_dict_to_table, validate_new_dir, fetch_executable_path
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
@@ -567,14 +567,7 @@ class TreeSAPP:
             dependencies += ["cmalign", "cmsearch", "cmbuild"]
 
         for dep in dependencies:
-            # For rpkm and potentially other executables that are compiled ad hoc
-            if is_exe(self.treesapp_dir + "sub_binaries" + os.sep + dep):
-                exec_paths[dep] = str(self.treesapp_dir + "sub_binaries" + os.sep + dep)
-            elif which(dep):
-                exec_paths[dep] = which(dep)
-            else:
-                logging.error("Could not find a valid executable for '{}'.\n".format(dep))
-                sys.exit(13)
+            exec_paths[dep] = fetch_executable_path(dep, self.treesapp_dir)
 
         return exec_paths
 
