@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from .testing_utils import get_test_data, get_treesapp_root
 
+
 @pytest.fixture(scope="class")
 def refpkg(request):
     from treesapp import refpkg
@@ -29,7 +30,7 @@ class ClassifierTester(unittest.TestCase):
     def test_generate_pquery_data_for_trainer(self):
         from treesapp.training_utils import generate_pquery_data_for_trainer
         from treesapp.fasta import FASTA
-        from treesapp.utilities import fetch_executable_path, validate_new_dir
+        from treesapp.utilities import fetch_executable_path
 
         treesapp_dir = get_treesapp_root()
         executables = {}

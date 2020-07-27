@@ -1,6 +1,7 @@
 __author__ = 'Connor Morgan-Lang'
 
 import os
+import re
 import sys
 import logging
 import subprocess
@@ -103,3 +104,19 @@ class CommandLineFarmer:
                 i -= 1
 
         return
+
+
+def create_dir_from_taxon_name(taxon_lineage: str, output_dir: str):
+    """
+    This function is to ensure that the taxon name being used to create a new directory doesn't contain any special
+    characters that may mess up external dependencies (e.g. hmmbuild, EPA-NG).
+
+    :param taxon_lineage: Name of a taxon
+    :param output_dir: Path to a directory to create the new directory (based on taxon) under
+    :return: Full path to the new directory
+    """
+    taxon = taxon_lineage.split("; ")[-1]
+    query_name = re.sub(r"([ /])", '_', re.sub("'", '', taxon))
+    dir_path = output_dir + query_name + os.sep
+    os.mkdir(dir_path)
+    return dir_path

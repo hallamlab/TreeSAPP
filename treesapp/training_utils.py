@@ -1,6 +1,5 @@
 
 import os
-import re
 import logging
 import sys
 import time
@@ -20,7 +19,7 @@ from treesapp import file_parsers
 from treesapp import wrapper
 from treesapp import fasta
 from treesapp.phylo_seq import PQuery
-from treesapp.external_command_interface import launch_write_command
+from treesapp.external_command_interface import launch_write_command, create_dir_from_taxon_name
 from treesapp.jplace_utils import jplace_parser
 from treesapp.entish import map_internal_nodes_leaves
 from treesapp.phylo_dist import parent_to_tip_distances
@@ -76,9 +75,8 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     taxonomy_filtered_query_seqs = dict()
     query_seq_name_map = dict()
     # Clean up the query taxon's name
-    query_name = re.sub(r"([ /])", '_', re.sub("'", '', taxon.split("; ")[-1]))
-    taxon_test_dir = output_dir + query_name + os.sep
-    os.mkdir(taxon_test_dir)
+    taxon_test_dir = create_dir_from_taxon_name(taxon, output_dir)
+    query_name = os.path.split(taxon_test_dir[:-1])[1]
 
     # Create the cloned ReferencePackage to be used for this taxon's trials
     clade_exclusion_json = taxon_test_dir + ref_pkg.prefix + ref_pkg.refpkg_suffix
