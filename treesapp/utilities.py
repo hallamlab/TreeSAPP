@@ -815,10 +815,10 @@ def get_field_delimiter(file_path: str, sniff_size=50) -> str:
 
 def validate_new_dir(output_dir: str) -> str:
     output_dir = os.path.abspath(output_dir)
+    # Check whether the output path exists
+    up, down = os.path.split(output_dir.rstrip(os.sep))
     if output_dir[-1] != os.sep:
         output_dir += os.sep
-    # Check whether the output path exists
-    up, down = os.path.split(output_dir[:-1])
     if not os.path.isdir(up):
         logging.error("The directory above output ({}) does not exist.\n"
                       "Please make these as TreeSAPP only creates a single new directory.".format(up))

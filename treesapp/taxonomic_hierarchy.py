@@ -532,7 +532,12 @@ class TaxonomicHierarchy:
             try:
                 _, _ = rank.split(self.taxon_sep)
             except ValueError:
-                self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for clean_lineage_string().\n")
+                rank = re.sub(r'(?<!^[a-z])' + re.escape(self.taxon_sep), '_', rank)
+                try:
+                    _, _ = rank.split(self.taxon_sep)
+                except ValueError:
+                    self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for clean_lineage_string().\n"
+                                                             "None was provided for lineage '{}'\n".format(lineage))
 
             if not self.no_rank.match(rank):
                 if with_prefix is False:
