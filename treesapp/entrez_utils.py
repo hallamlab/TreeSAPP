@@ -54,6 +54,9 @@ class EntrezRecord:
             self.bitflag += 4
         return
 
+    def rebuild_header(self):
+        return ' '.join([self.versioned, self.description]).rstrip()
+
 
 def validate_target_db(db_type: str):
     """
@@ -225,7 +228,7 @@ def prep_for_entrez_query() -> None:
     try:
         Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
     except error.URLError:
-        logging.error("Unable to serve Entrez query. Are you connected to the internet?")
+        logging.warning("Unable to serve Entrez query. Are you connected to the internet?\n")
     logging.info("done.\n")
     return
 

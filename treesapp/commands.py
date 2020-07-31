@@ -802,10 +802,9 @@ def update(sys_args):
         still_repping = []
         refs_resolved = []
         for num_id, ref_seq in entrez_records.items():  # type: (str, entrez_utils.EntrezRecord)
-            seq_name = ref_seq.versioned + ' ' + ref_seq.description
             if ref_seq.cluster_rep:
-                still_repping.append(seq_name)
-            elif seq_name in set(ref_fasta.fasta_dict.keys()):
+                still_repping.append(ref_seq.rebuild_header())
+            elif ref_seq.rebuild_header() in set(ref_fasta.fasta_dict.keys()):
                 refs_resolved.append(ref_seq)
             else:
                 pass
