@@ -9,7 +9,6 @@ import time
 import joblib
 from glob import glob
 from csv import Sniffer
-from collections import namedtuple
 from shutil import rmtree
 
 from pygtrie import StringTrie
@@ -175,6 +174,12 @@ def available_cpu_count():
     except IOError:
         pass
 
+    try:
+        import os
+        return os.cpu_count()
+    except (ImportError, NotImplementedError):
+        pass
+
     # Python 2.6+
     try:
         import multiprocessing
@@ -191,6 +196,7 @@ def available_cpu_count():
 
     # POSIX
     try:
+        import os
         res = int(os.sysconf('SC_NPROCESSORS_ONLN'))
 
         if res > 0:
@@ -414,17 +420,21 @@ def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict):
         leaf_annotation_map[annotation] = list()
         for leaf_nodes in clusters[annotation]:
             start, end = leaf_nodes
-            # Find the minimum set that includes both start and end
-            warm_front = dict()
-            # Add all the potential internal nodes
-            for inode in internal_node_map:
-                clade = internal_node_map[inode]
-                if start in clade:
-                    warm_front[inode] = clade
-            for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
-                if end in warm_front[inode]:
-                    leaf_annotation_map[annotation].append(inode)
-                    break
+            try:
+                if int(start) == int(end) and int(start) in internal_node_map:
+                    leaf_annotation_map[annotation].append(int(start))
+            except ValueError:
+                # Find the minimum set that includes both start and end
+                warm_front = dict()
+                # Add all the potential internal nodes
+                for inode in internal_node_map:
+                    clade = internal_node_map[inode]
+                    if start in clade:
+                        warm_front[inode] = clade
+                for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
+                    if end in warm_front[inode]:
+                        leaf_annotation_map[annotation].append(inode)
+                        break
     return leaf_annotation_map
 
 
@@ -801,3 +811,26 @@ def get_field_delimiter(file_path: str, sniff_size=50) -> str:
         # Read the file to determine its delimiter
         dialect = sniffer.sniff(sample, delimiters=',;\t')
     return str(dialect.delimiter)
+
+
+def validate_new_dir(output_dir: str) -> str:
+    output_dir = os.path.abspath(output_dir)
+    # Check whether the output path exists
+    up, down = os.path.split(output_dir.rstrip(os.sep))
+    if output_dir[-1] != os.sep:
+        output_dir += os.sep
+    if not os.path.isdir(up):
+        logging.error("The directory above output ({}) does not exist.\n"
+                      "Please make these as TreeSAPP only creates a single new directory.".format(up))
+        sys.exit(3)
+    return output_dir
+
+
+def fetch_executable_path(exe_name, treesapp_dir):
+    if is_exe(os.path.join(treesapp_dir, "sub_binaries", exe_name)):
+        return str(os.path.join(treesapp_dir, "sub_binaries", exe_name))
+    elif which(exe_name):
+        return which(exe_name)
+    else:
+        logging.error("Could not find a valid executable for '{}'.\n".format(exe_name))
+        sys.exit(13)

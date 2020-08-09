@@ -527,7 +527,9 @@ class ReferencePackage:
 
         if self.tree_tool == "FastTree":
             etree = Tree(best_tree)
-            etree.resolve_polytomy(recursive=True)
+            farthest_node, farthest_dist = etree.get_farthest_node()
+            etree.set_outgroup(farthest_node)
+            etree.resolve_polytomy(recursive=True)  # Remove any polytomies (where a node divides into >two edges)
             etree.write(outfile=best_tree, format=5)
             if int(bootstraps) != 0:
                 wrapper.support_tree_raxml(raxml_exe=executables["raxml-ng"], ref_tree=best_tree, ref_msa=input_msa,

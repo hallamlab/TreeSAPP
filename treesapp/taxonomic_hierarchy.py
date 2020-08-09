@@ -44,17 +44,17 @@ class TaxonomicHierarchy:
         self.taxon_sep = "__"  # Separator between the rank prefix and the taxon name
         self.bad_taxa = ["cellular organisms"]  # Optional list that can be used to ensure some taxa are removed
         self.canonical_prefix = re.compile(r"^[nrdpcofgs]" + re.escape(self.taxon_sep))
-        self.proper_species_re = re.compile("^s__[A-Z][a-z]+ [a-z]+$")
+        self.proper_species_re = re.compile("^(s__)?[A-Z][a-z]+ [a-z]+$")
         self.no_rank = re.compile(r"^" + re.escape(self.no_rank_name[0] + self.taxon_sep) + r".*")
         # Main data structures
         self.trie = StringTrie(separator=sep)  # Trie used for more efficient searches of taxa and whole lineages
-        self.hierarchy = dict()  # Dict of prefix_taxon (e.g. p_Proteobacteria) name to Taxon instances
+        self.hierarchy = dict()  # Dict of prefix_taxon (e.g. p__Proteobacteria) name to Taxon instances
         self.rank_prefix_map = {self.no_rank_name[0]: {self.no_rank_name},  # Tracks prefixes representing ranks
                                 'r': {"root"}}
         # The following are used for tracking the state of the instance's data structures
         self.trie_key_prefix = True  # Keeps track of the trie's prefix for automated updates
         self.trie_value_prefix = False  # Keeps track of the trie's prefix for automated updates
-        self.clean_trie = False  # To track whether taxa of "no rank" are included in the trie
+        self.clean_trie = True  # To track whether taxa of "no rank" are included in the trie
         self.rank_prefix_map_values = set
         self.lineages_fed = 0
         self.lineages_into_trie = 0
@@ -257,6 +257,33 @@ class TaxonomicHierarchy:
 
         return previous
 
+    def append_to_hierarchy_dict(self, child: str, parent: str, rank: str, rank_prefix: str) -> None:
+        """
+        This can be used for including a new taxon in self.hierarchy, connecting it to a pre-existing lineage.
+        The child must be more-resolved (i.e. a species name) than the parent (i.e. a genus name).
+        The taxonomic hierarchy rank of child must be the subsequent rank following that of parent.
+        Skipping ranks (e.g. parent is Class and child is Species) is forbidden.
+
+        :param child: Unlabelled taxon that is a more-resolved label than parent.
+        :param parent: A labelled taxon that is a less-resolved label (is deeper in the taxonomic hierarchy) than child.
+        :param rank: The taxonomic rank name that the child represents.
+        :param rank_prefix:  The prefix of the rank. Typically this is the first character (lowercase) of rank.
+        :return: None
+        """
+        try:
+            parent_taxon = self.hierarchy[parent]
+        except KeyError:
+            if not self.canonical_prefix.search(parent):
+                self.so_long_and_thanks_for_all_the_fish("Rank prefix expected on parent taxon '{}'\n".format(parent))
+            else:
+                self.so_long_and_thanks_for_all_the_fish("Parent taxon '{}' not in hierarchy.\n".format(parent))
+            sys.exit()
+
+        self.whet()
+        self.validate_rank_prefixes()
+        self.digest_taxon(taxon=child, previous=parent_taxon, rank=rank, rank_prefix=rank_prefix)
+        return
+
     def feed_leaf_nodes(self, ref_leaves: list, rank_prefix_name_map=None) -> None:
         """
         Loads TreeLeafReference instances (objects with 'lineage', 'accession' and 'number' variables among others) into
@@ -289,8 +316,9 @@ class TaxonomicHierarchy:
                 try:
                     rank = self.rank_prefix_map[rank_prefix]
                 except KeyError:
-                    logging.debug("Unexpected format of taxon '{}' in lineage {} -"
-                                 " no rank prefix separated by '{}'?\n".format(taxon, ref_leaf.lineage, self.taxon_sep))
+                    logging.debug("Unexpected format of taxon '{}' in lineage {} - no rank prefix separated by '{}'?\n"
+                                  "".format(taxon, ref_leaf.lineage, self.taxon_sep))
+                    taxa.clear()
                     continue
                 previous = self.digest_taxon(taxon, rank, rank_prefix, previous)
 
@@ -352,6 +380,7 @@ class TaxonomicHierarchy:
         for taxon_name in self.hierarchy:  # type: str
             lineages.add(self.emit(taxon_name, True))
 
+        self.trie.clear()
         # Populate the trie using lineages, with rank-prefixes where desired (keys/values)
         for lin in sorted(lineages):
             taxon = self.clean_lineage_string(lin, with_prefix=value_prefix).split("; ")[-1]
@@ -398,6 +427,7 @@ class TaxonomicHierarchy:
         lineage_split = bare_lineage.split(self.lin_sep)
         if self.clean_trie:
             lineage_split = self.rm_bad_taxa(lineage_split)  # Not guided by rank prefix
+            lineage_split = self.rm_absent_taxa_from_lineage(lineage_split)  # Not guided by rank prefix
 
         ref_lineage = ""
         # Iteratively climb the taxonomic lineage until a hit is found or there are no further ranks
@@ -461,6 +491,23 @@ class TaxonomicHierarchy:
             cleaned_lineage = split_lineage
         return cleaned_lineage
 
+    def rm_absent_taxa_from_lineage(self, lineage_list: list) -> list:
+        """
+        Removes all taxa from the taxonomic lineage that are not present in self.hierarchy.
+        This is meant to remove potentially non-canonical ranks from the unprefixed taxonomic lineage.
+
+        :param lineage_list: A list representation of the split taxonomic lineage
+        :return: A list of the taxonomic lineage with the taxa that are not present in self.hierarchy removed
+        """
+        _taxa = self.get_taxon_names()
+        i = 0
+        while i < len(lineage_list):
+            if lineage_list[i] not in _taxa:
+                lineage_list.pop(i)
+            else:
+                i += 1
+        return lineage_list
+
     def strip_rank_prefix(self, lineage: str) -> str:
         stripped_lineage = []
         for rank in lineage.split(self.lin_sep):
@@ -485,7 +532,12 @@ class TaxonomicHierarchy:
             try:
                 _, _ = rank.split(self.taxon_sep)
             except ValueError:
-                self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for clean_lineage_string().\n")
+                rank = re.sub(r'(?<!^[a-z])' + re.escape(self.taxon_sep), '_', rank)
+                try:
+                    _, _ = rank.split(self.taxon_sep)
+                except ValueError:
+                    self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for clean_lineage_string().\n"
+                                                             "None was provided for lineage '{}'\n".format(lineage))
 
             if not self.no_rank.match(rank):
                 if with_prefix is False:
@@ -493,15 +545,15 @@ class TaxonomicHierarchy:
                 reconstructed_lineage.append(str(rank))
         return self.lin_sep.join(reconstructed_lineage)
 
-    def check_lineage(self, lineage: str, organism_name: str, verbosity=0) -> str:
+    def check_lineage(self, lineage: str, organism: str, verbosity=0) -> str:
         """
         Sometimes the NCBI lineage is incomplete or the rank prefixes are out of order.
         This function checks (and fixes) the following things:
-        1. Uses organism_name to add Species to the lineage if it is missing
+        1. Uses organism to add Species to the lineage if it is missing
         2. Ensure the progression of rank (i.e. from domain to species) is ordered properly
 
         :param lineage: A taxonomic lineage *with prefixed ranks* separated by self.lin_sep
-        :param organism_name: Name of the organism. Parsed from the sequence header (usually at the end in square brackets)
+        :param organism: Name of the organism. Parsed from the sequence header (usually at the end in square brackets)
         :param verbosity: 1 prints debugging messages
         :return: A list of elements for each taxonomic rank representing the taxonomic lineage
         """
@@ -515,7 +567,7 @@ class TaxonomicHierarchy:
                           "lineage = '{0}'\n\t"
                           "organism = '{1}'\n\t"
                           "trie_key_prefix = {2}\n\t"
-                          "clean_trie = {3}\n".format(lineage, organism_name, self.trie_key_prefix, self.clean_trie))
+                          "clean_trie = {3}\n".format(lineage, organism, self.trie_key_prefix, self.clean_trie))
 
         lineage = self.clean_lineage_string(lineage, with_prefix=True)
 
@@ -525,20 +577,27 @@ class TaxonomicHierarchy:
         if not self.project_lineage(lineage):
             self.so_long_and_thanks_for_all_the_fish("Lineage '{0}' not in taxonomic hierarchy.\n".format(lineage))
 
-        # Handle prefix discrepancy between lineage and organism_name if organism_name doesn't have rank prefix
-        if not self.canonical_prefix.search(organism_name):
+        # Handle prefix discrepancy between lineage and organism if organism doesn't have rank prefix
+        if not self.canonical_prefix.search(organism):
             for child_lineage, taxon in self.trie.items(prefix=lineage):  # type: (str, str)
-                if taxon == organism_name:
-                    organism_name = child_lineage.split(self.lin_sep)[-1]
+                if taxon == organism:
+                    organism = child_lineage.split(self.lin_sep)[-1]
 
         lineage_list = lineage.split(self.lin_sep)
         if self.proper_species_re.match(lineage_list[-1]):
             if verbosity:
                 logging.debug("check_lineage(): Perfect lineage.\n")
-        elif 6 <= len(lineage_list) < 7 and self.proper_species_re.match(organism_name):
+        elif len(lineage_list) == 6 and self.accepted_ranks_depths[self.resolved_to(lineage)] == 6 and self.proper_species_re.match(organism):
+            if not self.canonical_prefix.search(organism):
+                if self.rank_prefix_map['s'] == "species":
+                    organism = "s" + self.taxon_sep + organism
+                else:
+                    self.so_long_and_thanks_for_all_the_fish("Unexpected rank prefix for species"
+                                                             " in TaxonomicHierarchy.rank_prefix_map\n")
+            self.append_to_hierarchy_dict(organism, lineage_list[-1], rank="species", rank_prefix='s')
+            lineage_list.append(organism)
             if verbosity:
                 logging.debug("check_lineage(): Organism name added to complete the lineage.\n")
-            lineage_list.append(organism_name)
         else:
             if verbosity:
                 logging.debug("check_lineage(): Truncated lineage.\n")
@@ -587,10 +646,11 @@ class TaxonomicHierarchy:
                     # Remove a Taxon from self.hierarchy dictionary if its coverage equals zero
                     if taxon.coverage == 0:
                         self.hierarchy.pop(taxon.prefix_taxon())
-                        # Update self.lin_fed
+
+                # Update self.lin_fed
                 self.lineages_fed -= 1
 
-        # Update self.trie is the number of lineages fed is not equal to number of lineages in the trie
+        # Update self.trie if the number of lineages fed is not equal to number of lineages in the trie
         self.trie_check()
         return
 
@@ -605,11 +665,16 @@ class TaxonomicHierarchy:
         for e_record in entrez_records:  # type: entrez_utils.EntrezRecord
             if e_record.organism and not self.canonical_prefix.search(e_record.organism):
                 try:
-                    taxa.append(e_record.taxon_rank[0] + self.taxon_sep + e_record.organism)
+                    taxon = e_record.taxon_rank[0] + self.taxon_sep + e_record.organism
                 except IndexError:
-                    taxa.append(e_record.lineage.split(self.lin_sep)[-1])
-        logging.debug("Removing {0} taxa ({1} unique) from taxonomic hierarchy.\n".format(len(taxa),
-                                                                                          len(set(taxa))))
+                    taxon = e_record.lineage.split(self.lin_sep)[-1]
+            elif e_record.organism and self.canonical_prefix.search(e_record.organism):
+                taxon = e_record.organism
+            else:
+                continue
+            taxa.append(taxon)
+
+        logging.debug("Removing {} taxa ({} unique) from taxonomic hierarchy.\n".format(len(taxa), len(set(taxa))))
         self.remove_leaf_nodes(taxa)
         return
 

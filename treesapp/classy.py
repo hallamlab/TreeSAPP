@@ -16,7 +16,7 @@ from numpy import var
 from treesapp.phylo_seq import convert_entrez_to_tree_leaf_references, PQuery
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes, sequence_info_groups
-from treesapp.utilities import median, which, is_exe, write_dict_to_table
+from treesapp.utilities import median, which, is_exe, write_dict_to_table, validate_new_dir, fetch_executable_path
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
@@ -273,9 +273,6 @@ class TreeSAPP:
         # self.refpkg_code_re = re.compile(r'[A-Z][0-9]{4,5}')
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
         self.refpkg_dir = self.treesapp_dir + 'data' + os.sep
-        self.tree_dir = self.treesapp_dir + 'data' + os.sep + "tree_data" + os.sep
-        self.hmm_dir = self.treesapp_dir + 'data' + os.sep + "hmm_data" + os.sep
-        self.aln_dir = self.treesapp_dir + 'data' + os.sep + "alignment_data" + os.sep
         self.itol_dir = self.treesapp_dir + 'data' + os.sep + "iTOL_data" + os.sep
         # Necessary for Evaluator, Creator and PhyTrainer:
         self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
@@ -313,20 +310,11 @@ class TreeSAPP:
         Carries over the basic TreeSAPP arguments to the respective TreeSAPP-subclass.
         All auxiliary arguments are pushed to the TreeSAPP classes in check_module_arguments
 
-        :param args: arguments from argarse.ParseArgs() with output, input and molecule attributes
+        :param args: arguments from argparse.ParseArgs() with output, input and molecule attributes
         :return: None
         """
         if self.command != "info":
-            self.output_dir = args.output
-            self.output_dir = os.path.abspath(self.output_dir)
-            if self.output_dir[-1] != os.sep:
-                self.output_dir += os.sep
-            # Check whether the output path exists
-            up, down = os.path.split(self.output_dir[:-1])
-            if not os.path.isdir(up):
-                logging.error("The directory above output ({}) does not exist.\n"
-                              "Please make these as TreeSAPP only creates a single new directory.".format(up))
-                sys.exit(3)
+            self.output_dir = validate_new_dir(args.output)
             self.final_output_dir = self.output_dir + "final_outputs" + os.sep
             self.var_output_dir = self.output_dir + "intermediates" + os.sep
             if set(vars(args)).issuperset({"molecule", "input"}):
@@ -579,14 +567,7 @@ class TreeSAPP:
             dependencies += ["cmalign", "cmsearch", "cmbuild"]
 
         for dep in dependencies:
-            # For rpkm and potentially other executables that are compiled ad hoc
-            if is_exe(self.treesapp_dir + "sub_binaries" + os.sep + dep):
-                exec_paths[dep] = str(self.treesapp_dir + "sub_binaries" + os.sep + dep)
-            elif which(dep):
-                exec_paths[dep] = which(dep)
-            else:
-                logging.error("Could not find a valid executable for '{}'.\n".format(dep))
-                sys.exit(13)
+            exec_paths[dep] = fetch_executable_path(dep, self.treesapp_dir)
 
         return exec_paths
 
@@ -609,7 +590,14 @@ class TreeSAPP:
         entrez_record_dict = dedup_records(ref_seqs, entrez_record_dict)
         ref_seqs.change_dict_keys("formatted")
         entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, entrez_record_dict)
-        logging.debug("\tNumber of input sequences =\t" + str(len(entrez_record_dict)) + "\n")
+        logging.debug("\tNumber of input sequences = {}\n".format(len(entrez_record_dict)))
+
+        # Seed the seq_lineage_map with any lineages that were parsed from the FASTA file
+        for ts_id in entrez_record_dict:
+            e_record = entrez_record_dict[ts_id]  # type: entrez_utils.EntrezRecord
+            if e_record.lineage:
+                self.seq_lineage_map[e_record.accession] = e_record.lineage
+                e_record.lineage = ""
 
         if seqs_to_lineage:
             lineage_map, refs_mapped = entrez_utils.map_orf_lineages(seqs_to_lineage, ref_seqs.header_registry)
@@ -641,13 +629,8 @@ class TreeSAPP:
                     self.seq_lineage_map[accession[1:]] = self.seq_lineage_map.pop(accession)
             write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
         else:
-            logging.info("Reading cached lineages in '" + self.acc_to_lin + "'... ")
+            logging.info("Reading cached lineages in '{}'... ".format(self.acc_to_lin))
             self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
-            entrez_utils.fill_ref_seq_lineages(entrez_record_dict, self.seq_lineage_map)
-            ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
-            self.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
-            self.ref_pkg.taxa_trie.validate_rank_prefixes()
-            self.ref_pkg.taxa_trie.build_multifurcating_trie()
             logging.info("done.\n")
 
         ref_seqs.change_dict_keys()

@@ -461,6 +461,7 @@ def gen_cladex_data(fasta_input: str, executables: dict, ref_pkg: ReferencePacka
     # Load the query FASTA and
     test_seqs = fasta.FASTA(fasta_input)
     test_seqs.load_fasta()
+    test_seqs.unalign()
     test_seqs.add_accession_to_headers(ref_pkg.prefix)
     # Find non-redundant set of diverse sequences to train for all taxonomic ranks
     rank_training_seqs = prepare_training_data(test_seqs, output_dir, executables, leaf_taxa_map,

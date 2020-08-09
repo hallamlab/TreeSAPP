@@ -76,15 +76,15 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         t2_organism = "s__Actinomyces nasicola"
         self.assertEqual(3,
                          len(self.db.check_lineage(lineage=t1_lineage,
-                                                   organism_name=t1_organism).split(self.db.lin_sep)))
+                                                   organism=t1_organism).split(self.db.lin_sep)))
         self.assertEqual(7,
                          len(self.db.check_lineage(lineage=t2_lineage,
-                                                   organism_name=t2_organism).split(self.db.lin_sep)))
+                                                   organism=t2_organism).split(self.db.lin_sep)))
         return
 
     def test_check_lineage_nonexistant(self):
         with pytest.raises(SystemExit):
-            self.db.check_lineage(lineage="d__Archaea", organism_name="Archaea")
+            self.db.check_lineage(lineage="d__Archaea", organism="Archaea")
         return
 
     def test_check_lineage_rankless(self):
@@ -96,15 +96,18 @@ class TaxonomicHierarchyTester(unittest.TestCase):
                       {'ScientificName': 'Synechococcales', 'Rank': 'order'},
                       {'ScientificName': 'Prochloraceae', 'Rank': 'family'},
                       {'ScientificName': 'Prochlorococcus', 'Rank': 'genus'}])
-        self.assertEqual("d__Bacteria; p__Cyanobacteria", self.db.check_lineage(lineage=lin, organism_name=org))
+        self.assertEqual("d__Bacteria; p__Cyanobacteria", self.db.check_lineage(lineage=lin, organism=org))
         return
 
     def test_clean_lineage_string(self):
         l1 = "n__cellular organisms; d__Bacteria; n__Terrabacteria group"
         l2 = "d__Bacteria"
+        l3 = "d__Bacteria; p__Candidatus Omnitrophica; s__Candidatus Omnitrophica bacterium CG02__42_8"
         self.assertEqual(self.db.clean_lineage_string(l1, with_prefix=True),
                          self.db.clean_lineage_string(l2, with_prefix=True))
         self.assertEqual("Bacteria", self.db.clean_lineage_string(l1, with_prefix=False))
+        self.assertEqual("d__Bacteria; p__Candidatus Omnitrophica; s__Candidatus Omnitrophica bacterium CG02_42_8",
+                         self.db.clean_lineage_string(l3, with_prefix=True))
         return
 
     def test_remove_leaf_nodes(self):

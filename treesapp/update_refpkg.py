@@ -183,7 +183,7 @@ def resolve_cluster_lineages(cluster_dict: dict, entrez_records: dict, taxa_trie
     :return: None
     """
     # A temporary dictionary for rapid mapping of sequence names to lineages
-    er_lookup = {er.versioned + ' ' + er.description: er for (num_id, er) in entrez_records.items()}
+    er_lookup = {er.rebuild_header(): er for (num_id, er) in entrez_records.items()}
 
     for cluster_id in cluster_dict:
         cluster = cluster_dict[cluster_id]  # type: Cluster
@@ -223,7 +223,7 @@ def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list,
     These can be used to identify which clusters should be broken such that all 'priority' sequences will be centroids
     """
     # A temporary dictionary for rapid mapping of sequence names to lineages
-    lineage_lookup = {er.versioned + ' ' + er.description: er.lineage for (num_id, er) in entrez_records.items()}
+    lineage_lookup = {er.rebuild_header(): er.lineage for (num_id, er) in entrez_records.items()}
     # cluster_ids list is used for iterating through dictionary keys and allowing dict to change size with 'pop's
     cluster_ids = list(cluster_dict.keys())
     # Track the number of priority sequences that remained members of clusters

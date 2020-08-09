@@ -81,6 +81,29 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(44, test_refpkg.num_seqs)
         return
 
+    def test_create_accession2lin(self):
+        from treesapp.commands import create
+        from refpkg import ReferencePackage
+        from .testing_utils import get_test_data
+        cmd_list = ["--fastx_input", get_test_data("PF01280_test.fasta"),
+                    "--accession2lin", get_test_data("PF01280_test.tsv"),
+                    "--output", "./TreeSAPP_create_PF01280",
+                    "--refpkg_name", "PF01280",
+                    "--similarity", "0.95",
+                    "--bootstraps", str(0),
+                    "--molecule", "prot",
+                    "--screen", "Archaea", "--filter", "Bacteria,Eukaryota",
+                    "--min_taxonomic_rank", 'g',
+                    "--num_proc", str(2),
+                    "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
+        create(cmd_list)
+        test_refpkg = ReferencePackage()
+        test_refpkg.f__json = "./TreeSAPP_create_PF01280/final_outputs/PF01280_build.pkl"
+        test_refpkg.slurp()
+        test_refpkg.validate()
+        self.assertEqual(52, test_refpkg.num_seqs)
+        return
+
     def test_evaluate(self):
         from commands import evaluate
         from .testing_utils import get_test_data
@@ -98,8 +121,9 @@ class TreesappTester(unittest.TestCase):
     def test_abundance(self):
         from commands import abundance
         from file_parsers import read_classification_table
-        from .testing_utils import get_test_data, get_example_output
-        classification_table = os.path.join(get_example_output(), "final_outputs", "marker_contig_map.tsv")
+        from .testing_utils import get_test_data
+        classification_table = os.path.join(get_test_data("test_output_TarA/"),
+                                            "final_outputs", "marker_contig_map.tsv")
         pre_lines = read_classification_table(get_test_data(classification_table))
         abundance_command_list = ["--treesapp_output", get_test_data("test_output_TarA/"),
                                   "--reads", get_test_data("test_TarA.1.fq"),
@@ -125,12 +149,29 @@ class TreesappTester(unittest.TestCase):
 
     def test_layer(self):
         from commands import layer
-        from .testing_utils import get_test_data, get_example_output
+        from .testing_utils import get_test_data
         from file_parsers import read_classification_table
-        classification_table = os.path.join(get_example_output(), "final_outputs", "marker_contig_map.tsv")
-        pre_lines = read_classification_table(get_test_data(classification_table))
+        original_table = os.path.join(get_test_data("test_output_TarA/"), "final_outputs", "marker_contig_map.tsv")
+        layered_table = os.path.join(get_test_data("test_output_TarA/"), "final_outputs",
+                                     "extra_annotated_marker_contig_map.tsv")
+        pre_lines = read_classification_table(get_test_data(original_table))
         layer_command_list = ["--treesapp_output", get_test_data("test_output_TarA/")]
         layer_command_list += ["--refpkg_dir", get_test_data("refpkgs/")]
+        layer(layer_command_list)
+        post_lines = read_classification_table(get_test_data(layered_table))
+        self.assertEqual(len(pre_lines), len(post_lines))
+        return
+
+    def test_xmoa_layer(self):
+        from commands import layer
+        from .testing_utils import get_test_data
+        from file_parsers import read_classification_table
+        classification_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
+                                            "final_outputs", "marker_contig_map.tsv")
+        pre_lines = read_classification_table(get_test_data(classification_table))
+        layer_command_list = ["--colours_style", get_test_data("XmoA_Function.txt"),
+                              "--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
+                              "--refpkg_dir", get_test_data("refpkgs/")]
         layer(layer_command_list)
         post_lines = read_classification_table(get_test_data(classification_table))
         self.assertEqual(len(pre_lines), len(post_lines))
@@ -180,10 +221,12 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_train(self):
+        import csv
         from commands import train
         from .testing_utils import get_test_data
-        train_command_list = ["--fastx_input",  get_test_data("ENOG4111FIN.txt"),
-                              "--output", "./TreeSAPP_train",
+        output_dir = "./TreeSAPP_train"
+        train_command_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
+                              "--output", output_dir,
                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
                               "--num_proc", str(4),
@@ -191,19 +234,15 @@ class TreesappTester(unittest.TestCase):
                               "--svm_kernel", "rbf",
                               "--trim_align", "--delete", "--overwrite"]
         train(train_command_list)
-        return
+        rank_list = []
+        with open(os.path.join(output_dir, "final_outputs", "placement_info.tsv")) as placement_tbl:
+            csv_handler = csv.reader(placement_tbl, delimiter="\t")
+            header = next(csv_handler)
+            for fields in csv_handler:
+                rank_list.append(fields[1])
 
-    def test_classifier_trainer(self):
-        from classifier_trainer import classifier_trainer as ct_main
-        from .testing_utils import get_test_data
-        command_list = ["--fastx_input", get_test_data("McrA_eval.faa"),
-                        "--output", "./TreeSAPP_svc_train",
-                        "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
-                        "--accession2lin", get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
-                        "--num_proc", str(2),
-                        "--molecule", "prot",
-                        "--trim_align", "--delete", "--overwrite"]
-        ct_main(command_list)
+        self.assertEqual(0, len({"class", "order", "family", "genus", "species"}.difference(set(rank_list))))
+        self.assertEqual(120, len(rank_list))
         return
 
     def test_package(self):

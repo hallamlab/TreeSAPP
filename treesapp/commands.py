@@ -24,7 +24,7 @@ from treesapp import update_refpkg
 from treesapp import annotate_extra
 from treesapp import treesapp_args
 from treesapp import classy
-from treesapp.phylo_seq import assignments_to_treesaps, PQuery
+from treesapp.phylo_seq import assignments_to_treesaps, PQuery, convert_entrez_to_tree_leaf_references
 from treesapp.refpkg import ReferencePackage, view, edit
 from treesapp.training_utils import train_classification_filter
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
@@ -201,7 +201,13 @@ def train(sys_args):
         train_seqs.change_dict_keys("formatted")
         ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
-    ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule, args.acc_to_taxid)
+    entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule, args.acc_to_taxid)
+
+    entrez_utils.fill_ref_seq_lineages(entrez_record_dict, ts_trainer.seq_lineage_map, complete=True)
+    ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
+    ts_trainer.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+    ts_trainer.ref_pkg.taxa_trie.validate_rank_prefixes()
+    ts_trainer.ref_pkg.taxa_trie.build_multifurcating_trie()
     rank_depth_map = ts_trainer.ref_pkg.taxa_trie.accepted_ranks_depths
     taxa_evo_dists = dict()
 
@@ -378,13 +384,20 @@ def create(sys_args):
 
     ##
     # Save all sequence names in the header registry as EntrezRecord instances
-    # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
+    # Using the accession-lineage map (if available), map the sequence names to their respective lineages
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
     fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, ts_create.ref_pkg.molecule,
                                                     args.acc_to_taxid, args.seq_names_to_taxa)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
+    ref_leaf_nodes = convert_entrez_to_tree_leaf_references(fasta_records)
+    ts_create.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+    entrez_utils.repair_lineages(fasta_records, ts_create.ref_pkg.taxa_trie)
+    entrez_utils.fill_entrez_record_taxon_rank(fasta_records, ts_create.ref_pkg.taxa_trie)
+    ts_create.ref_pkg.taxa_trie.validate_rank_prefixes()
+    ts_create.ref_pkg.taxa_trie.build_multifurcating_trie()
     create_refpkg.strip_rank_prefix_from_organisms(fasta_records, ts_create.ref_pkg.taxa_trie)
+
     prefilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
 
     if ts_create.stage_status("clean"):
@@ -398,7 +411,7 @@ def create(sys_args):
         fasta_records = classy.dedup_records(ref_seqs, fasta_records)
 
         if len(fasta_records.keys()) < 2:
-            logging.error(str(len(fasta_records)) + " sequences post-homology + taxonomy filtering\n")
+            logging.error("{} sequences post-homology + taxonomy filtering\n".format(len(fasta_records)))
             sys.exit(11)
         # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
 
@@ -678,6 +691,11 @@ def update(sys_args):
         fasta_records = ts_updater.fetch_entrez_lineages(ref_seqs=querying_classified_fasta, molecule=args.molecule,
                                                          seqs_to_lineage=ts_updater.seq_names_to_taxa)
         entrez_utils.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
+        ref_leaf_nodes = convert_entrez_to_tree_leaf_references(fasta_records)
+        ts_updater.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+        ts_updater.ref_pkg.taxa_trie.validate_rank_prefixes()
+        ts_updater.ref_pkg.taxa_trie.build_multifurcating_trie()
+
         deduped = []
         for treesapp_id in sorted(querying_classified_fasta.header_registry.keys(), key=int):
             try:
@@ -785,10 +803,9 @@ def update(sys_args):
         still_repping = []
         refs_resolved = []
         for num_id, ref_seq in entrez_records.items():  # type: (str, entrez_utils.EntrezRecord)
-            seq_name = ref_seq.versioned + ' ' + ref_seq.description
             if ref_seq.cluster_rep:
-                still_repping.append(seq_name)
-            elif seq_name in set(ref_fasta.fasta_dict.keys()):
+                still_repping.append(ref_seq.rebuild_header())
+            elif ref_seq.rebuild_header() in set(ref_fasta.fasta_dict.keys()):
                 refs_resolved.append(ref_seq)
             else:
                 pass
@@ -890,7 +907,6 @@ def layer(sys_args):
     marker_subgroups = dict()
     unique_markers_annotated = set()
     marker_tree_info = dict()
-    internal_nodes = dict()
     master_dat, field_order = annotate_extra.parse_marker_classification_table(ts_layer.final_output_dir +
                                                                                "marker_contig_map.tsv")
     refpkg_dict = file_parsers.gather_ref_packages(ts_layer.refpkg_dir)
@@ -915,9 +931,7 @@ def layer(sys_args):
             unique_markers_annotated.add(refpkg_prefix)
             if data_type not in marker_subgroups:
                 marker_subgroups[data_type] = dict()
-                internal_nodes[data_type] = dict()
-            marker_subgroups[data_type][refpkg_prefix], internal_nodes[data_type][refpkg_prefix] = file_parsers.read_colours_file(annot_f,
-                                                                                                                    refpkg_prefix)
+            marker_subgroups[data_type][refpkg_prefix] = file_parsers.read_colours_file(annot_f, refpkg_prefix)
         else:
             logging.warning("Unable to parse the reference package name and/or annotation type from {}.\n"
                             "Is it possible this reference package is not in {}?".format(annot_f, ts_layer.refpkg_dir))
@@ -949,14 +963,9 @@ def layer(sys_args):
                 # Routine for exchanging any organism designations for their respective node number
                 taxa_map = refpkg.generate_tree_leaf_references_from_refpkg()
 
-                if internal_nodes[data_type][refpkg_name]:
-                    clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][refpkg_name],
-                                                              internal_node_map,
-                                                              taxa_map)
-                else:
-                    # Convert the leaf node ranges to internal nodes for consistency
-                    clusters = utilities.convert_outer_to_inner_nodes(marker_subgroups[data_type][refpkg_name],
-                                                                      internal_node_map)
+                clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][refpkg_name],
+                                                          internal_node_map, taxa_map)
+                clusters = utilities.convert_outer_to_inner_nodes(clusters, internal_node_map)
 
                 marker_tree_info[data_type][refpkg_name], leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
                                                                                                                  clusters)
@@ -1057,8 +1066,8 @@ def assign(sys_args):
             tool = "BMGE"
             trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
                                                                    refpkg_dict, args.num_threads, tool)
-            qc_ma_dict = check_for_removed_sequences(ts_assign.aln_dir, trimmed_mfa_files, concatenated_msa_files,
-                                                     refpkg_dict, args.min_seq_length)
+            qc_ma_dict = check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files, refpkg_dict,
+                                                     args.min_seq_length)
             evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
             combined_msa_files.update(qc_ma_dict)
         else:
@@ -1311,6 +1320,10 @@ def evaluate(sys_args):
 
     fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
+    ref_leaf_nodes = convert_entrez_to_tree_leaf_references(fasta_records)
+    ts_evaluate.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+    ts_evaluate.ref_pkg.taxa_trie.validate_rank_prefixes()
+    ts_evaluate.ref_pkg.taxa_trie.build_multifurcating_trie()
 
     logging.info("Selecting representative sequences for each taxon.\n")
 
@@ -1418,7 +1431,7 @@ def evaluate(sys_args):
                                        "--refpkg_dir", os.path.dirname(ce_refpkg.f__json),
                                        "-m", ts_evaluate.molecule_type, "-n", str(args.num_threads),
                                        "--min_seq_length", str(min_seq_length),
-                                       "--overwrite", "--delete", "--no_svm"]
+                                       "--overwrite", "--delete"]
                         if args.trim_align:
                             assign_args.append("--trim_align")
                         try:

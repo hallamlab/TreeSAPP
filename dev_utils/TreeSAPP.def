@@ -6,7 +6,7 @@ Stage: build
     /usr/local/bin/usearch
 
 %post
-    export TS_VERSION="0.8.4"
+    export TS_VERSION="0.8.7"
 
 	##
     # Install the linux package dependencies, this is currently including Python 3.6.5
@@ -24,6 +24,7 @@ Stage: build
     ##
     git clone https://github.com/hallamlab/TreeSAPP.git
     cd TreeSAPP; git checkout ng-update; git pull
+    pip install -r requirements.txt
 
 	##
     # Install TreeSAPP dependencies
@@ -68,8 +69,8 @@ Stage: build
     rm raxml-ng.zip
 
     # EPA-NG
-    curl -LJ0 --output epa-ng.tar.gz https://github.com/Pbdas/epa-ng/archive/v0.3.6.tar.gz
-    tar -xzf epa-ng.tar.gz; cd epa-ng-0.3.6/
+    curl -LJ0 --output epa-ng.tar.gz https://github.com/Pbdas/epa-ng/archive/v0.3.7.tar.gz
+    tar -xzf epa-ng.tar.gz; cd epa-ng-0.3.7/
     make; cp bin/epa-ng /usr/bin/; cd -
     rm epa-ng.tar.gz
 
@@ -82,7 +83,7 @@ Stage: build
 
 %labels
     Author Connor Morgan-Lang
-    Version v0.8.0
+    Version v0.8.7
 
 %help
     This container installs the latest TreeSAPP release from PyPI at https://pypi.org/project/treesapp/

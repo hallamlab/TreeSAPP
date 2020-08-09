@@ -1,0 +1,30 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+2_McrA	range	#d9f0d3	CH3-dependent hydrogenotrophic
+8_McrA	range	#d9f0d3	CH3-dependent hydrogenotrophic
+148_McrA|149_McrA	range	#d9f0d3	CH3-dependent hydrogenotrophic
+181_McrA|147_McrA	range	#762a83	Short-chain alkane oxidation
+145_McrA|164_McrA	range	#9970ab	Methanotrophic
+174_McrA|206_McrA	range	#9970ab	Methanotrophic
+5_McrA|117_McrA	range	#9970ab	Methanotrophic
+73_McrA|79_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+153_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+172_McrA|184_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+55_McrA|49_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+173_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+65_McrA|67_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+40_McrA|31_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+33_McrA|42_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+27_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+69_McrA|34_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+225_McrA|150_McrA	range	#5aae61	CO2-dependent hydrogenotrophic
+62_McrA|64_McrA	range	#d9f0d3	CH3-dependent hydrogenotrophic
+151_McrA|182_McrA	range	#d9f0d3	CH3-dependent hydrogenotrophic
+23_McrA|20_McrA	range	#d9f0d3	CH3-dependent hydrogenotrophic
+158_McrA|14_McrA	range	#d9f0d3	CH3-dependent hydrogenotrophic
+155_McrA|9_McrA	range	#d9f0d3	CH3-dependent hydrogenotrophic
+121_McrA|220_McrA	range	#1b7837	Aceticlastic
+141_McrA|134_McrA	range	#1b7837	Aceticlastic
+162_McrA	range	#e7d4e8	Methylotrophic
+131_McrA|129_McrA	range	#e7d4e8	Methylotrophic
