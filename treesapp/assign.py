@@ -1574,7 +1574,7 @@ def select_query_placements(tree_saps: dict):
             pquery.filter_max_weight_placement()
             if pquery.classified and len(pquery.placements) != 1:
                 logging.error("Number of JPlace pqueries is {} when only 1 is expected at this point.\n"
-                              "".format(str(len(pquery.placements))) + pquery.summarize())
+                              "".format(len(pquery.placements)) + pquery.summarize())
                 sys.exit(3)
             pquery.inode = str(pquery.get_jplace_element("edge_num"))
             pquery.lwr = float(pquery.get_jplace_element("like_weight_ratio"))

@@ -16,7 +16,7 @@ from numpy import var
 from treesapp.phylo_seq import convert_entrez_to_tree_leaf_references, PQuery
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes, sequence_info_groups
-from treesapp.utilities import median, which, is_exe, write_dict_to_table, validate_new_dir, fetch_executable_path
+from treesapp.utilities import median, write_dict_to_table, validate_new_dir, fetch_executable_path
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
