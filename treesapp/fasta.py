@@ -755,7 +755,9 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
                     output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix +
                                                                                          placed_sequence.place_name]
                 except KeyError:
-                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.name), '', placed_sequence.place_name)
+                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.ref_name),
+                                      '',
+                                      placed_sequence.place_name)
                     try:
                         output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix + seq_name]
                     except KeyError:
