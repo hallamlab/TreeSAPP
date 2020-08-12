@@ -1,0 +1,98 @@
+LABELS
+SEPARATOR COMMA
+DATA
+#NODE_ID,LABEL
+1_XmoA,Thaumarchaeota | AHZ90671
+2_XmoA,Thaumarchaeota | AJM93357
+3_XmoA,Thaumarchaeota | AJZ76360
+4_XmoA,Thaumarchaeota | ALK01329
+5_XmoA,Thaumarchaeota | CDI06186
+6_XmoA,Thaumarchaeota | EPA04544
+7_XmoA,Candidatus Nitrosocaldus yellowstonensis | ABY83788
+8_XmoA,Candidatus Nitrosocosmicus franklandus | AMH87091
+9_XmoA,Candidatus Nitrososphaera gargensis | ABY77592
+10_XmoA,Nitrososphaera sp. JG1 | AET10423
+11_XmoA,Bacteria | CAL47025
+12_XmoA,Mycolicibacterium rhodesiae NBB3 | 710685.MycrhN_3041
+13_XmoA,Smaragdicoccus niigatensis DSM 44881 = NBRC 103563 | 1123258.AQXZ01000019_gene3229
+14_XmoA,Nocardioidaceae bacterium Broad-1 | 408672.NBCG_02541
+15_XmoA,Nocardioides sp. CF8 | 110319.CF8_4154
+16_XmoA,Alphaproteobacteria | AAQ10308
+17_XmoA,Methylocapsa acidiphila B2 | 395964.KE386496_gene3294
+18_XmoA,Methylocapsa aurea | 663610.JQKO01000020_gene3229
+19_XmoA,Methylocystis parvus OBBP | 1134912.AJTV01000045_gene3451
+20_XmoA,Methylocystis parvus OBBP | 1134912.AJTV01000081_gene3
+21_XmoA,Methylocystis sp. JTC3 | AHI95955
+22_XmoA,Methylocystis sp. SB2 | 743836.AYNA01000128_gene1400
+23_XmoA,Methylocystis sp. SC2 | 187303.BN69_0203
+24_XmoA,Methylocystis sp. SC2 | 187303.BN69_2827
+25_XmoA,Methylosinus sp. LW3 | 107635.AZUO01000001_gene2173
+26_XmoA,Methylosinus sp. LW4 | 136993.KB900626_gene2276
+27_XmoA,Methylosinus trichosporium OB3b | 595536.ADVE02000001_gene2663
+28_XmoA,Nitrosomonas cryotolerans ATCC 49181 | 12620331
+29_XmoA,Nitrosomonas europaea ATCC 19718 | 228410.NE0944
+30_XmoA,Nitrosomonas sp. AL212 | 153948.NAL212_0798
+31_XmoA,Nitrosomonas sp. Is79A3 | 261292.Nit79A3_0472
+32_XmoA,Nitrosomonas sp. JL21 | AAL86638
+33_XmoA,Nitrosospira briensis C-128 | 1266925.JHVX01000027_gene1546
+34_XmoA,Nitrosospira lacus | 1288494.EBAPG3_23790
+35_XmoA,Nitrosospira multiformis ATCC 25196 | 323848.Nmul_A0799
+36_XmoA,Nitrosospira sp. En13 | ABM54173
+37_XmoA,Nitrosospira sp. NIJS16 | ABB69922
+38_XmoA,Nitrosospira sp. Wyke8 | ABM54175
+39_XmoA,Nitrosovibrio sp. FJI82 | ABB69924
+40_XmoA,Gammaproteobacteria | AAD02578
+41_XmoA,Haliea sp. ETY-M | BAM38053
+42_XmoA,Haliea sp. ETY-NAG | BAM38059
+43_XmoA,Nitrosococcus halophilus Nc 4 | 472759.Nhal_0676
+44_XmoA,Nitrosococcus oceani ATCC 19707 | 323261.Noc_2502
+45_XmoA,Nitrosococcus watsonii C-113 | 105559.Nwat_0632
+46_XmoA,Methylococcaceae | AAG16907
+47_XmoA,Methylococcaceae | AEF15857
+48_XmoA,Methylococcaceae | BAB56133
+49_XmoA,Methylococcaceae | BAH22830
+50_XmoA,Methylococcaceae | BAH22833
+51_XmoA,Methylococcaceae | BAH22836
+52_XmoA,Methylococcaceae | BAH22839
+53_XmoA,Methylococcaceae | BAH22845
+54_XmoA,Methylobacter sp. BB5.1 | AAB70518
+55_XmoA,Methylobacter sp. CMS7 | AGU99225
+56_XmoA,Methylobacter sp. LW12 | AAG13080
+57_XmoA,Methylobacter tundripaludum SV96 | 697282.Mettu_1055
+58_XmoA,Methylobacter tundripaludum SV96 | 697282.Mettu_2427
+59_XmoA,Methylocaldum marinum | BAO51827
+60_XmoA,Methylocaldum sp. ML184 | AAM44822
+61_XmoA,Methylocaldum szegediense | AAC04381
+62_XmoA,Methylococcus capsulatus str. Bath | 243233.MCA1797
+63_XmoA,Methylococcus capsulatus | AAQ10311
+64_XmoA,Methyloglobulus morosus KoM1 | 1116472.MGMO_123c00040
+65_XmoA,Methyloglobulus morosus KoM1 | 1116472.MGMO_167c00070
+66_XmoA,Methyloglobulus morosus KoM1 | 1116472.MGMO_77c00390
+67_XmoA,Methylomagnum ishizawai | BAK78887
+68_XmoA,Methylomarinum vadi | BAH22842
+69_XmoA,Methylomicrobium album BG8 | 686340.Metal_1434
+70_XmoA,Methylomicrobium album BG8 | 686340.Metal_3592
+71_XmoA,Methylomicrobium japanense | BAE86885
+72_XmoA,Methylomicrobium pelagicum | AAC61804
+73_XmoA,Methylomonas methanica MC09 | 857087.Metme_0304
+74_XmoA,Methylomonas methanica | ACE95893
+75_XmoA,Methylomonas paludis | CCH22593
+76_XmoA,Methylomonas sp. B2Z | BAM37124
+77_XmoA,Methylomonas sp. LW13 | ACE95890
+78_XmoA,Methylomonas sp. M5 | AEF15856
+79_XmoA,Methylomonas sp. ML04 | AAM44820
+80_XmoA,Methylomonas sp. R-49799 | CDM21890
+81_XmoA,Methyloparacoccus murrellii | BAL04120
+82_XmoA,Methyloprofundus sedimenti | AHA46880
+83_XmoA,Methylosoma difficile | ABD13901
+84_XmoA,Methylovulum miyakonense | BAJ17641
+85_XmoA,Methylohalobius crimeensis 10Ki | 1283300.ATXB01000001_gene2186
+86_XmoA,Methylomarinovum caldicuralii | BAF62078
+87_XmoA,Verrucomicrobia bacterium LP2A | 478741.JAFS01000001_gene2192
+88_XmoA,Methylacidiphilum fumariolicum SolV | 1156937.MFUM_480006
+89_XmoA,Methylacidiphilum fumariolicum SolV | 1156937.MFUM_790002
+90_XmoA,Methylacidiphilum fumariolicum | ABU88152
+91_XmoA,Methylacidiphilum infernorum V4 | 481448.Minf_1507
+92_XmoA,Methylacidiphilum infernorum V4 | 481448.Minf_1510
+93_XmoA,Methylacidiphilum infernorum V4 | 481448.Minf_1590
+94_XmoA,Candidatus Methylomirabilis oxyfera | 671143.DAMO_2450

@@ -1,0 +1,196 @@
+12/08 16:01:25 INFO:
+
+##				Assigning sequences with TreeSAPP				##
+
+
+12/08 16:01:25 INFO:
+Arguments used:
+-n 4 -m prot --trim_align --overwrite --refpkg_dir Nitrogen_metabolism/Nitrification/XmoA/XmoA_FunGene_update/final_outputs/ --fastx_input Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_C65S300_uclust99.faa --output Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/
+
+12/08 16:01:25 DEBUG:
+Continuing with stage 'clean'
+
+12/08 16:01:25 DEBUG:
+Gathering reference package files... 
+12/08 16:01:25 DEBUG:
+done.
+
+12/08 16:01:25 INFO:
+Reading and formatting Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_C65S300_uclust99.faa... 
+12/08 16:01:25 DEBUG:
+Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_C65S300_uclust99.faa read by pyfastx in 0.0008258819580078125 seconds.
+
+12/08 16:01:25 INFO:
+done.
+
+12/08 16:01:25 INFO:
+	TreeSAPP will analyze the 81 sequences found in input.
+
+12/08 16:01:25 INFO:
+Searching for marker proteins in ORFs using hmmsearch.
+
+12/08 16:01:25 DEBUG:
+Filtering HMM alignments using the following thresholds:
+	Maximum E-value = 0.001
+	Maximum i-Evalue = 0.1
+	Minimum acc = 0.7
+	Minimum score = 15
+	Minimum percentage of the HMM covered = 10%
+
+12/08 16:01:25 INFO:
+Parsing HMMER domain tables for high-quality matches... 
+12/08 16:01:25 INFO:
+done.
+
+12/08 16:01:25 DEBUG:
+	Initial alignments:	81
+	Alignments discarded:	0
+	Fragmented alignments:	0
+	Inversions detected:	0
+	Alignments scaffolded:	0
+	Multi-alignments:	0
+	Sequences identified:	81
+
+	Number of markers identified:
+		XmoA	81
+
+12/08 16:01:25 INFO:
+Loading sequences for the homologs identified by hmmsearch... 
+12/08 16:01:25 INFO:
+done.
+
+12/08 16:01:25 DEBUG:
+Instantiating the PQuery instances... 
+12/08 16:01:25 DEBUG:
+done.
+
+12/08 16:01:25 INFO:
+Extracting and grouping the quality-controlled sequences... 
+12/08 16:01:25 INFO:
+done.
+
+12/08 16:01:25 DEBUG:
+Number of query sequences in each marker's group:
+XmoA	0	81
+
+
+12/08 16:01:25 INFO:
+Writing the grouped sequences to FASTA files... 
+12/08 16:01:25 INFO:
+done.
+
+12/08 16:01:25 INFO:
+Running hmmalign... 
+12/08 16:01:25 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_RefPkg/XmoA_N0102_2020-07-15/XmoA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_RefPkg/XmoA_N0102_2020-07-15/XmoA.hmm /home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_hmm_purified_group0.faa > /home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_hmm_purified_group0.sto
+
+12/08 16:01:25 INFO:
+done.
+
+12/08 16:01:25 DEBUG:
+	hmmalign time required: 0.0:0.0:0.29
+
+12/08 16:01:25 INFO:
+Running BMGE... 
+12/08 16:01:25 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_hmm_purified_group0.mfa -of /home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_hmm_purified_group0-BMGE.fasta
+
+12/08 16:01:25 INFO:
+done.
+
+12/08 16:01:25 DEBUG:
+	BMGE time required: 0.0:0.0:0.26
+
+12/08 16:01:25 DEBUG:
+Validating trimmed multiple sequence alignment files... 
+12/08 16:01:25 DEBUG:
+Read 94 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_RefPkg/XmoA_N0102_2020-07-15/XmoA.fa'.
+
+12/08 16:01:25 DEBUG:
+Read 175 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_hmm_purified_group0.mfa'.
+
+12/08 16:01:25 DEBUG:
+Read 175 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_hmm_purified_group0-BMGE.fasta'.
+
+12/08 16:01:25 DEBUG:
+done.
+
+12/08 16:01:25 DEBUG:
+	Sequences removed during trimming:
+		XmoA: 0
+
+12/08 16:01:25 DEBUG:
+	Sequences <30 characters removed after trimming:
+		/home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_hmm_purified_group0-BMGE.fasta = 0 (retained)
+
+12/08 16:01:25 DEBUG:
+	Average columns removed:
+		XmoA	122.0
+
+
+12/08 16:01:25 DEBUG:
+Read 175 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/RefPkgs/Nitrogen_metabolism/Nitrification/XmoA/p_amoA_FunGene9.5_isolates_assign/intermediates/XmoA_hmm_purified_group0-BMGE.fasta'.
+
+12/08 16:01:25 INFO:
+Running EPA... 
+12/08 16:01:26 INFO:
+done.
+
+12/08 16:01:26 DEBUG:
+	EPA-ng time required: 0.0:0.0:0.25
+
+12/08 16:01:26 DEBUG:
+	EPA-ng was called 1 times.
+
+12/08 16:01:26 INFO:
+Parsing the EPA-NG outputs... 
+12/08 16:01:26 INFO:
+done.
+
+12/08 16:01:26 DEBUG:
+	JPlace parsing time required: 0.0:0.0:0.01
+
+12/08 16:01:26 DEBUG:
+	1 JPlace files.
+
+12/08 16:01:26 INFO:
+Selecting the optimal query placements... 
+12/08 16:01:26 INFO:
+done.
+
+12/08 16:01:26 DEBUG:
+	PQuery parsing time required: 0.0:0.0:0.0
+
+12/08 16:01:26 DEBUG:
+	81 sequences placed into trees by EPA-NG.
+
+12/08 16:01:26 INFO:
+Filtering low-quality placements... 
+12/08 16:01:26 INFO:
+done.
+
+12/08 16:01:26 DEBUG:
+XmoA	low_lwr	0
+XmoA	np	0
+XmoA	svm	0
+
+12/08 16:01:26 INFO:
+Generating inputs for iTOL... 
+12/08 16:01:26 INFO:
+done.
+
+12/08 16:01:26 DEBUG:
+A colours_style.txt file does not yet exist for markers:
+	XmoA
+
+12/08 16:01:26 DEBUG:
+A colours_strip.txt file does not yet exist for markers:
+	XmoA
+
+12/08 16:01:26 INFO:
+TreeSAPP has finished successfully.
+
