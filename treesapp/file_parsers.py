@@ -176,13 +176,13 @@ def read_classification_table(assignment_file) -> list:
         sys.exit(21)
 
     # This is the header line
-    if header_line != header:
+    if not header_line.startswith(header.strip()):
         logging.error("Header of assignments file is unexpected!\n")
         sys.exit(21)
 
     # First line in the table containing data
     line = assignments_handle.readline()
-    n_fields = len(header.split("\t"))
+    n_fields = len(header_line.split("\t"))
     while line:
         fields = line.strip().split('\t')
         if len(fields) == n_fields:

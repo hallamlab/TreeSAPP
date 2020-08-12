@@ -63,8 +63,8 @@ class ClassifiedSequence:
         self.query_name = ""
         self.i_node = ""
         self.assignment_fields = None
-        self.expected_header = ['Sample', 'Query', 'Marker', 'Length', 'Taxonomy', 'Confident_Taxonomy',
-                                'Abundance', 'iNode', 'LWR', 'EvoDist', 'Distances']
+        self.expected_header = ['Sample', 'Query', 'Marker', 'Start_pos', 'End_pos', 'Taxonomy',
+                                'Abundance', 'iNode', 'E-value', 'LWR', 'EvoDist', 'Distances']
         self.layers = dict()
         return
 

@@ -268,7 +268,7 @@ class TreesappTester(unittest.TestCase):
                "--molecule", "prot",
                "--tool", "treesapp",
                "--num_procs", str(4),
-               "--delete", "--svm"]
+               "--delete", "--svm", "--overwrite"]
         MCC_calculator.mcc_calculator(cmd)
         self.assertEqual(True, True)
         return
