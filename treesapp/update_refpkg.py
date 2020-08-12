@@ -96,14 +96,20 @@ def strip_assigment_pattern(seq_names: list, refpkg_name: str) -> dict:
 
 
 def filter_by_lwr(classified_lines: list, min_lwr: float) -> set:
+    """
+
+    :param classified_lines:
+    :param min_lwr: A float representing the minimum acceptable Likelihood Weight Ratio as calculated by EPA-NG
+    :return: A set of sequence names with corresponding placement likelihoods greater than min_lwr
+    """
     high_lwr_placements = set()
-    num_filtered = 0
-    target_field = 8
+    num_filtered = 0  # Number of placements with LWR less than min_lwr
+    target_field = 9  # The field index (from the classification table) storing LWR
     for classification in classified_lines:
         try:
             lwr = float(classification[target_field])
         except TypeError:
-            logging.error("Unable to convert all classifications from column " + str(target_field) + " to a float.\n")
+            logging.error("Unable to convert all classifications from column {} to a float.\n".format(target_field))
             sys.exit(17)
 
         assert 0.0 < lwr <= 1.0

@@ -125,16 +125,17 @@ def parse_assignments(classified_lines: list) -> dict:
     unique_headers = dict()  # Temporary storage for classified sequences prior to filtering
     dups = set()  # For storing the names of all query sequences that were split and classified separately
     for fields in classified_lines:
-        _, header, marker, length, raw_tax, rob_class, _, _, _, _, _ = fields
-        if marker and rob_class:
+        _, header, marker, start_pos, end_pos, rec_tax, _, _, _, _, _, _ = fields
+        length = int(end_pos) - int(start_pos)
+        if marker and rec_tax:
             if marker not in assignments:
                 assignments[marker] = dict()
-            if rob_class not in assignments[marker]:
-                assignments[marker][rob_class] = list()
+            if rec_tax not in assignments[marker]:
+                assignments[marker][rec_tax] = list()
             if header not in unique_headers:
                 unique_headers[header] = None
             # If fragments from the same parent query had identical lengths these would be overwritten anyway
-            unique_headers[header] = {int(length): classified(refpkg=marker, taxon=rob_class, length=int(length))}
+            unique_headers[header] = {int(length): classified(refpkg=marker, taxon=rec_tax, length=int(length))}
         else:
             logging.error("Bad line in classification table - no robust taxonomic classification:\n" +
                           '\t'.join(fields) + "\n")
@@ -161,7 +162,7 @@ def read_classification_table(assignment_file) -> list:
     :return: A list of lines that have been split by tabs into lists themselves
     """
     classified_lines = list()
-    header = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
+    header = "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\tiNode\tE-value\tLWR\tEvoDist\tDistances\n"
 
     try:
         assignments_handle = open(assignment_file, 'r')
@@ -171,7 +172,7 @@ def read_classification_table(assignment_file) -> list:
 
     header_line = assignments_handle.readline()
     if not header_line:
-        logging.error("Classification file '" + assignment_file + "' is empty!\n")
+        logging.error("Classification file '{}' is empty!\n".format(assignment_file))
         sys.exit(21)
 
     # This is the header line

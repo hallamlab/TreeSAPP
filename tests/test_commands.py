@@ -10,6 +10,7 @@ class TreesappTester(unittest.TestCase):
         from .testing_utils import get_test_data
         assign_commands_list = ["--fastx_input", get_test_data("marker_test_suite.faa"),
                                 "--targets", ','.join(ref_pkgs),
+                                "--refpkg_dir", get_test_data(os.path.join("refpkgs")),
                                 "--num_procs", str(2),
                                 "-m", "prot",
                                 "--output", "./TreeSAPP_assign/",
@@ -116,6 +117,7 @@ class TreesappTester(unittest.TestCase):
                                  "-n", str(2),
                                  "--trim_align", "--overwrite", "--delete"]
         evaluate(evaluate_command_list)
+        self.assertEqual(True, True)
         return
 
     def test_abundance(self):
@@ -145,6 +147,7 @@ class TreesappTester(unittest.TestCase):
                                "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
                                "--trim_align", "--molecule", "prot", "-n", str(2)]
         purity(purity_command_list)
+        self.assertEqual(True, True)
         return
 
     def test_layer(self):
@@ -224,9 +227,9 @@ class TreesappTester(unittest.TestCase):
         import csv
         from commands import train
         from .testing_utils import get_test_data
-        output_dir = "./TreeSAPP_train"
+        output_dir_path = "./TreeSAPP_train"
         train_command_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
-                              "--output", output_dir,
+                              "--output", output_dir_path,
                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
                               "--num_proc", str(4),
@@ -235,9 +238,9 @@ class TreesappTester(unittest.TestCase):
                               "--trim_align", "--delete", "--overwrite"]
         train(train_command_list)
         rank_list = []
-        with open(os.path.join(output_dir, "final_outputs", "placement_info.tsv")) as placement_tbl:
+        with open(os.path.join(output_dir_path, "final_outputs", "placement_info.tsv")) as placement_tbl:
             csv_handler = csv.reader(placement_tbl, delimiter="\t")
-            header = next(csv_handler)
+            next(csv_handler)
             for fields in csv_handler:
                 rank_list.append(fields[1])
 
@@ -253,6 +256,7 @@ class TreesappTester(unittest.TestCase):
                         "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
                         "--output", "./TreeSAPP_package"]
         package(command_list)
+        self.assertEqual(True, True)
         return
 
     def test_mcc_calculator(self):
@@ -266,6 +270,8 @@ class TreesappTester(unittest.TestCase):
                "--num_procs", str(4),
                "--delete", "--svm"]
         MCC_calculator.mcc_calculator(cmd)
+        self.assertEqual(True, True)
+        return
 
 
 if __name__ == '__main__':

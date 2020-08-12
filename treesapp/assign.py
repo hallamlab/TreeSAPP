@@ -1732,9 +1732,8 @@ def write_classification_table(tree_saps, sample_name, output_file):
     :param output_file: Path to write the classification table
     :return: None
     """
-    # TODO: Add the start and stop positions of the extracted sequence to the classification table
-    tab_out_string = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\t" \
-                     "iNode\tLWR\tEvoDist\tDistances\n"
+    tab_out_string = "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\t" \
+                     "iNode\tE-value\tLWR\tEvoDist\tDistances\n"
 
     for refpkg_name in tree_saps:
         for tree_sap in tree_saps[refpkg_name]:  # type: PQuery
@@ -1744,11 +1743,12 @@ def write_classification_table(tree_saps, sample_name, output_file):
             tab_out_string += '\t'.join([sample_name,
                                          re.sub(r"\|{0}\|\d+_\d+$".format(tree_sap.ref_name), '', tree_sap.place_name),
                                          tree_sap.ref_name,
-                                         str(tree_sap.seq_len),
-                                         tree_sap.lct,
+                                         str(tree_sap.start),
+                                         str(tree_sap.end),
                                          tree_sap.recommended_lineage,
                                          str(tree_sap.abundance),
                                          str(tree_sap.inode),
+                                         str(tree_sap.evalue),
                                          str(tree_sap.lwr),
                                          str(tree_sap.avg_evo_dist),
                                          tree_sap.distances]) + "\n"

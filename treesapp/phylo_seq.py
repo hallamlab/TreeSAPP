@@ -445,15 +445,20 @@ def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
     :return: A dictionary of JPlace instances, indexed by their respective names (ReferencePackage.prefix)
     """
     pqueries = dict()
+    # "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\tiNode\tE-value\tLWR\tEvoDist\tDistances\n"
     for fields in classified_lines:
         pquery = PQuery()
         try:
-            _, pquery.place_name, pquery.ref_name, pquery.seq_len, pquery.lct, pquery.recommended_lineage, \
-            _, pquery.inode, pquery.lwr, pquery.avg_evo_dist, pquery.distances = fields
+            _, pquery.place_name, pquery.ref_name, pquery.start, pquery.end, pquery.recommended_lineage, \
+            _, pquery.inode, pquery.evalue, pquery.lwr, pquery.avg_evo_dist, pquery.distances = fields
         except ValueError:
             logging.error("Bad line in classification table:\n" +
                           '\t'.join(fields) + "\n")
             sys.exit(21)
+        pquery.end = int(pquery.end)
+        pquery.start = int(pquery.start)
+        pquery.seq_len = pquery.end - pquery.start
+        pquery.lct = pquery.recommended_lineage
         refpkg = refpkg_dict[pquery.ref_name]  # type: refpkg.ReferencePackage
         try:
             pqueries[refpkg.prefix].append(pquery)

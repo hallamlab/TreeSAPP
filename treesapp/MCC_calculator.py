@@ -415,8 +415,8 @@ class ConfusionTest:
         # Get all the original Orthologous Group (OG) headers for sequences classified as TP or FN
         tp_names = []
         for marker in list(self.ref_packages.keys()):
-            tp_names += [pquery.ref_name for pquery in self.tp[marker]]
-            tp_names += [pquery.ref_name for pquery in self.fn[marker]]
+            tp_names += [pquery.name for pquery in self.tp[marker]]
+            tp_names += [pquery.name for pquery in self.fn[marker]]
 
         for marker in self.fp:
             validated_fp = set()
@@ -475,7 +475,7 @@ class ConfusionTest:
             hmm_lengths[refpkg.prefix] = refpkg.profile_length
         #
         for fields in classification_lines:
-            _, header, refpkg_name, length, _, _, _, i_node, lwr, evo_dist, dists = fields
+            _, header, refpkg_name, start_pos, end_pos, _, _, i_node, e_val, lwr, evo_dist, dists = fields
             if header in self.fp[refpkg_map[refpkg_name]]:
                 distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
                 # hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 0)
