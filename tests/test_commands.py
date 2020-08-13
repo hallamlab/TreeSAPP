@@ -264,7 +264,7 @@ class TreesappTester(unittest.TestCase):
         from .testing_utils import get_test_data
         cmd = ["--fastx_input", get_test_data("EggNOG_McrA.faa"),
                "--annot_map", get_test_data("EggNOG_McrA_annot_map.tsv"),
-               "--output", "./test_MCC",
+               "--output", "./TreeSAPP_MCC",
                "--molecule", "prot",
                "--tool", "treesapp",
                "--num_procs", str(4),
@@ -272,6 +272,13 @@ class TreesappTester(unittest.TestCase):
         MCC_calculator.mcc_calculator(cmd)
         self.assertEqual(True, True)
         return
+    #
+    # def test_tmp(self):
+    #     from treesapp.commands import assign
+    #     base_dir = ""
+    #     cmd = "".format(base_dir)
+    #     assign(cmd.split())
+    #     return
 
 
 if __name__ == '__main__':
@@ -279,7 +286,7 @@ if __name__ == '__main__':
 
     # Clean up output directories
     output_prefix = "TreeSAPP_"
-    for test_name in ["assign", "train", "update", "evaluate", "create"]:
+    for test_name in ["assign", "train", "update", "evaluate", "create", "MCC"]:
         output_dir = output_prefix + test_name
         if os.path.isdir(output_dir):
             os.rmdir(output_dir)

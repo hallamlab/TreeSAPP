@@ -189,6 +189,11 @@ class HmmMatch:
             i += 1
         return
 
+    def copy(self, new_match):
+        for i in self.__dict__:
+            self.__dict__[i] = new_match.__dict__[i]
+        return
+
     def drop_match_at(self, index: int) -> None:
         """
         Function for removing an element from the linked list at a position
@@ -196,14 +201,17 @@ class HmmMatch:
         :param index: The index in the linked list that is to be dropped
         :return: None
         """
-        if index <= 0 or index >= len(self.subsequent_matches()):
-            logging.error("Unable to drop HmmMatch from next_domain linked list at index %d.\n" % index)
+        if index < 0 or index >= len(self.subsequent_matches()):
+            logging.error("Unable to drop HmmMatch from next_domain linked list at index {}.\n"
+                          "HmmMatch instance status:\n{}\n".format(index, self.get_info()))
             sys.exit(9)
-
-        try:
-            self.subsequent_matches()[index-1].next_domain = self.subsequent_matches()[index+1]
-        except IndexError:
-            self.subsequent_matches()[index-1].next_domain = None
+        elif index == 0:
+            self.copy(self.next_domain)
+        else:
+            try:
+                self.subsequent_matches()[index-1].next_domain = self.subsequent_matches()[index+1]
+            except IndexError:
+                self.subsequent_matches()[index-1].next_domain = None
 
         return
 
@@ -261,7 +269,7 @@ class HmmMatch:
                 aln_overlap_proportion = p_overlap_len / min_profile_covered
             except ZeroDivisionError:
                 if self.pend - self.pstart < next_match.pend - next_match.pstart:
-                    self.drop_match_at(0)
+                    self.drop_match_at(i-1)
                 else:
                     self.drop_match_at(i)
                 continue
