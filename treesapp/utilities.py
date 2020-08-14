@@ -556,7 +556,7 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict, header_registry: di
                 logging.warning("Query '%s' being overwritten by an alternative alignment:\n%s\n" %
                                 (query_names.post_align, hmm_match.get_info()))
             try:
-                extracted_loci[query_names.post_align] = fasta_dict[query_names.first_split][hmm_match.start-1:hmm_match.end]
+                extracted_loci[query_names.post_align] = fasta_dict[query_names.original][hmm_match.start-1:hmm_match.end]
             except KeyError:
                 logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
 

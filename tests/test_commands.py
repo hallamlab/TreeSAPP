@@ -67,6 +67,7 @@ class TreesappTester(unittest.TestCase):
                                 "--output", "./TreeSAPP_create_PuhA",
                                 "--refpkg_name", "PuhA",
                                 "--similarity", "0.97",
+                                "--profile", get_test_data("PuhA_search.hmm"),
                                 "--bootstraps", str(0),
                                 "--molecule", "prot",
                                 "--screen", "Bacteria,Archaea",
@@ -79,7 +80,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_create_PuhA/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(44, test_refpkg.num_seqs)
+        self.assertEqual(43, test_refpkg.num_seqs)
         return
 
     def test_create_accession2lin(self):
@@ -274,10 +275,10 @@ class TreesappTester(unittest.TestCase):
         return
     #
     # def test_tmp(self):
-    #     from treesapp.commands import assign
-    #     base_dir = ""
+    #     from treesapp.commands import create
+    #     base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
     #     cmd = "".format(base_dir)
-    #     assign(cmd.split())
+    #     create(cmd.split())
     #     return
 
 
