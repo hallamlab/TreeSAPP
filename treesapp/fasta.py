@@ -206,8 +206,15 @@ def read_fasta_to_dict(fasta_file: str) -> dict:
     if not os.path.exists(fasta_file):
         logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
 
-    for name, seq in Fasta(fasta_file, build_index=False, full_name=True):  # type: (str, str)
+    try:
+        py_fa = Fasta(fasta_file, build_index=False, full_name=True)
+    except RuntimeError as error:
+        logging.warning(str(error))
+        return fasta_dict
+
+    for name, seq in py_fa:  # type: (str, str)
         fasta_dict[name] = seq.upper()
+
     return fasta_dict
 
 
