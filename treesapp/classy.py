@@ -26,7 +26,7 @@ import _tree_parser
 
 
 class ModuleFunction:
-    def __init__(self, name, order, func=None):
+    def __init__(self, name: str, order: int, func=None):
         self.order = order
         self.name = name
         self.function = func
@@ -288,10 +288,12 @@ class TreeSAPP:
         self.output_dir = ""
         self.final_output_dir = ""
         self.var_output_dir = ""
+        self.stage_output_dir = ""
         self.executables = dict()
         # Values that need to be entered later, in the command-specific class
         self.stages = dict()  # Used to track what progress stages need to be completed
         self.stage_file = ""  # The file to write progress updates to
+        self.current_stage = None
 
     def get_info(self):
         info_string = "Executables:\n\t" + "\n\t".join([k + ": " + v for k, v in self.executables.items()]) + "\n"
@@ -381,7 +383,7 @@ class TreeSAPP:
                 logging.warning("Reclassify impossible as " + self.output_dir + " is missing input files.\n")
         return
 
-    def stage_lookup(self, name: str, tolerant=False):
+    def stage_lookup(self, name: str, tolerant=False) -> ModuleFunction:
         """
         Used for looking up a stage in self.stages by its stage.name
 
@@ -389,16 +391,20 @@ class TreeSAPP:
         :param tolerant: Boolean controlling whether the function exits if look-up failed (defualt) or returns None
         :return: ModuleFunction instance that matches the name, or None if failed and tolerant, exit otherwise
         """
-        fingerprint = False
-        for module_step in sorted(self.stages, key=int):
+        found = False
+        stage_order = 0
+        for module_step in sorted(self.stages, key=int):  # type: int
             stage = self.stages[module_step]  # type: ModuleFunction
+            stage_order = stage.order
             if stage.name == name:
                 return stage
 
-        if not fingerprint and not tolerant:
-            logging.error("Unable to find '" + name + "' in " + self.command + " stages.\n")
+        if not found and not tolerant:
+            logging.error("Unable to find '{}' in {} stages.\n".format(name, self.command))
             sys.exit(3)
-        return
+        else:
+            logging.warning("Unable to find '{}' stage. Returning a new one instead.\n".format(name))
+            return ModuleFunction(name=name, order=stage_order+1)
 
     def first_stage(self):
         for x in sorted(self.stages, key=int):  # type: int
@@ -408,22 +414,58 @@ class TreeSAPP:
         logging.error("No stages are set to run!\n")
         sys.exit(3)
 
-    def read_progress_log(self):
-        """
-        Read the object's 'stage_file' and determine the completed stage
+    # def read_progress_log(self):
+    #     """
+    #     Read the object's 'stage_file' and determine the completed stage
+    #
+    #     :return: An integer corresponding to the last completed stage's rank in 'stage_order'
+    #     """
+    #     completed_int = self.first_stage()
+    #     try:
+    #         progress_handler = open(self.stage_file)
+    #     except IOError:
+    #         logging.debug("Unable to open stage file '" + self.stage_file +
+    #                       "' for reading. Defaulting to stage " + str(completed_int) + ".\n")
+    #         return completed_int
+    #     # TODO: Finish this to enable continuing part-way through an analysis
+    #     progress_handler.close()
+    #     return completed_int
 
-        :return: An integer corresponding to the last completed stage's rank in 'stage_order'
+    def find_stage_dirs(self) -> int:
         """
-        completed_int = self.first_stage()
-        try:
-            progress_handler = open(self.stage_file)
-        except IOError:
-            logging.debug("Unable to open stage file '" + self.stage_file +
-                          "' for reading. Defaulting to stage " + str(completed_int) + ".\n")
-            return completed_int
-        # TODO: Finish this to enable continuing part-way through an analysis
-        progress_handler.close()
-        return completed_int
+        Selects the earliest checkpoint that the workflow can be started from.
+        Stages (ModuleFunction instances) are skipped by setting their 'run' attribute to False.
+        This is the stage preceding the first stage whose directory does not exist.
+
+        :return: None
+        """
+        for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
+            if not module.run:
+                continue
+            else:
+                return module.order
+        return 0
+
+    def set_stage_dir(self) -> None:
+        self.stage_output_dir = os.path.join(self.var_output_dir, self.current_stage.name) + os.sep
+        if not os.path.isdir(self.stage_output_dir):
+            os.mkdir(self.stage_output_dir)
+        return
+
+    def increment_stage_dir(self) -> None:
+        """
+        Updates self.stage_output_dir with the directory path of the next ModuleFunction.
+
+        :return: None
+        """
+        # Find the next stage
+        self.current_stage.run = False
+        while not self.current_stage.run:
+            self.current_stage = self.stages[self.current_stage.order+1]
+
+        # Update the output directory for this stage
+        self.set_stage_dir()
+        return
 
     def stage_status(self, name):
         return self.stage_lookup(name).run
@@ -440,103 +482,53 @@ class TreeSAPP:
                 if x < start or x > end:
                     stage.run = False
             elif x < start:
-                    stage.run = False
+                stage.run = False
             else:
                 # These stages need to be ran
                 pass
 
         return
 
-    def validate_continue(self, args):
+    def validate_continue(self, args) -> None:
         """
         Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
 
         This function ensures all the required inputs are present for beginning at the desired first stage,
         otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
 
-        If a
+        If a directory exists with the name of a stage, that step is skipped.
         :return: None
         """
-        if self.command == "assign":
-            if args.rpkm:
-                if not args.reads:
-                    if args.reverse:
-                        logging.error("File containing reverse reads provided but forward mates file missing!\n")
-                        sys.exit(3)
-                    else:
-                        logging.error("At least one FASTQ file must be provided if -rpkm flag is active!\n")
-                        sys.exit(3)
-                elif args.reads and not os.path.isfile(args.reads):
-                    logging.error("Path to forward reads ('%s') doesn't exist.\n" % args.reads)
-                    sys.exit(3)
-                elif args.reverse and not os.path.isfile(args.reverse):
-                    logging.error("Path to reverse reads ('%s') doesn't exist.\n" % args.reverse)
-                    sys.exit(3)
-                else:
-                    self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
-        elif self.command == "create":
-            if not args.profile:
-                self.change_stage_status("search", False)
-            if args.pc:
-                self.edit_stages(self.stage_lookup("update").order)
-            # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
-            if args.acc_to_lin:
-                self.acc_to_lin = args.acc_to_lin
-                if os.path.isfile(self.acc_to_lin):
-                    self.change_stage_status("lineages", False)
-                else:
-                    logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
-                    sys.exit(3)
-            else:
-                self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-
-        elif self.command == "evaluate":
-            pass
-        elif self.command == "train":
-            if not args.profile:
-                self.change_stage_status("search", False)
-            # TODO: Remove duplicate code once the log-file parsing is implemented
-            if args.acc_to_lin:
-                self.acc_to_lin = args.acc_to_lin
-                if os.path.isfile(self.acc_to_lin):
-                    self.change_stage_status("lineages", False)
-                else:
-                    logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
-                    sys.exit(3)
-            else:
-                self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-        elif self.command == "update":
-            self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-        elif self.command == "purity":
-            pass
-        else:
-            logging.error("Unknown sub-command: " + str(self.command) + "\n")
-            sys.exit(3)
-
         # TODO: Summarise the steps to be taken and write to log
+        for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
+            if os.path.isdir(os.path.join(self.var_output_dir, module.name)):
+                module.run = False
+
         if args.overwrite:
             last_valid_stage = self.first_stage()
         else:
-            last_valid_stage = self.read_progress_log()
+            last_valid_stage = self.find_stage_dirs()
 
+        self.current_stage = self.stages[last_valid_stage]
+        self.set_stage_dir()
         if args.stage == "continue":
-            logging.debug("Continuing with stage '" + self.stages[last_valid_stage].name + "'\n")
+            logging.debug("Continuing with stage '{}'\n".format(self.current_stage.name))
             self.edit_stages(last_valid_stage)
             return
 
         # Update the stage status
         desired_stage = self.stage_lookup(args.stage).order
         if desired_stage > last_valid_stage:
-            logging.warning("Unable to run '" + args.stage + "' as it is ahead of the last completed stage.\n" +
-                            "Continuing with stage '" + self.stages[last_valid_stage].name + "'\n")
+            logging.warning("Unable to run '{}' as it is ahead of the last completed stage.\n"
+                            "Continuing with stage '{}'\n".format(args.stage, self.current_stage.name))
             self.edit_stages(last_valid_stage, desired_stage)
         elif desired_stage < last_valid_stage:
             logging.info("Wow - its your lucky day:\n"
-                         "All stages up to and including '" + args.stage + "' have already been completed!\n")
+                         "All stages up to and including '{}' have already been completed!\n".format(args.stage))
             self.edit_stages(desired_stage, desired_stage)
         else:
             # Proceed with running the desired stage
-            logging.debug("Proceeding with '" + args.stage + "'\n")
+            logging.debug("Proceeding with '{}'\n".format(args.stage))
             self.edit_stages(desired_stage, desired_stage)
 
         return
@@ -628,6 +620,7 @@ class TreeSAPP:
                 if accession[0] == '>':
                     self.seq_lineage_map[accession[1:]] = self.seq_lineage_map.pop(accession)
             write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
+            self.increment_stage_dir()
         else:
             logging.info("Reading cached lineages in '{}'... ".format(self.acc_to_lin))
             self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
@@ -657,6 +650,20 @@ class Updater(TreeSAPP):
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("lineages", 0),
                        1: ModuleFunction("rebuild", 1)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Updater instance summary:\n"
@@ -719,6 +726,33 @@ class Creator(TreeSAPP):
                        4: ModuleFunction("build", 4),
                        5: ModuleFunction("train", 5),
                        6: ModuleFunction("update", 6)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        if not args.profile:
+            self.change_stage_status("search", False)
+        if args.pc:
+            self.edit_stages(self.stage_lookup("update").order)
+        # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
+        if args.acc_to_lin:
+            self.acc_to_lin = args.acc_to_lin
+            if os.path.isfile(self.acc_to_lin):
+                self.change_stage_status("lineages", False)
+            else:
+                logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
+                sys.exit(3)
+        else:
+            self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Creator instance summary:\n"
@@ -792,6 +826,19 @@ class Purity(TreeSAPP):
         self.stages = {0: ModuleFunction("assign", 0),
                        1: ModuleFunction("summarize", 1)}
 
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        self.validate_continue(args)
+        return
+
     def summarize_groups_assigned(self, ortholog_map: dict, metadata=None):
         unique_orthologs = dict()
         tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
@@ -821,7 +868,7 @@ class Purity(TreeSAPP):
 
     def load_metadata(self) -> dict:
         metadat_dict = dict()
-        xtra_dat = namedtuple("xtra_dat", ["id", "ac", "de"])
+        xtra_dat = namedtuple("xtra_dat", ["db_id", "ac", "de"])
         if not os.path.isfile(self.metadata_file):
             logging.error("Extra information file '" + self.metadata_file + "' doesn't exist!\n")
             sys.exit(3)
@@ -832,13 +879,13 @@ class Purity(TreeSAPP):
             sys.exit(3)
         for line in metadata_handler:
             try:
-                id, accession, desc = line.strip().split("\t")
+                db_id, accession, desc = line.strip().split("\t")
             except ValueError:
                 logging.error("Bad format for '" + self.metadata_file + "'. Three tab-separated fields expected.\n" +
                               "Example line:\n" +
                               str(line) + "\n")
                 sys.exit(7)
-            metadat_dict[accession] = xtra_dat(id, accession, desc)
+            metadat_dict[accession] = xtra_dat(db_id, accession, desc)
         metadata_handler.close()
         return metadat_dict
 
@@ -950,6 +997,19 @@ class Evaluator(TreeSAPP):
         self.stages = {0: ModuleFunction("lineages", 0),
                        1: ModuleFunction("classify", 1),
                        2: ModuleFunction("calculate", 2)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Evaluator instance summary:\n"
@@ -1292,7 +1352,7 @@ class Abundance(TreeSAPP):
         self.target_refpkgs = list()
         self.classified_nuc_seqs = ""
         self.classifications = ""
-        self.fq_suffix_re = re.compile(r"([._-])+[pe|fq|fastq|fwd|R1]+$")
+        self.fq_suffix_re = re.compile(r"([._-])+(pe|fq|fastq|fwd|R1)$")
 
     def check_arguments(self, args):
         ##
@@ -1335,6 +1395,36 @@ class Assigner(TreeSAPP):
                        3: ModuleFunction("align", 3, self.align),
                        4: ModuleFunction("place", 4, self.place),
                        5: ModuleFunction("classify", 5, self.classify)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        if args.rpkm:
+            if not args.reads:
+                if args.reverse:
+                    logging.error("File containing reverse reads provided but forward mates file missing!\n")
+                    sys.exit(3)
+                else:
+                    logging.error("At least one FASTQ file must be provided if -rpkm flag is active!\n")
+                    sys.exit(3)
+            elif args.reads and not os.path.isfile(args.reads):
+                logging.error("Path to forward reads ('%s') doesn't exist.\n" % args.reads)
+                sys.exit(3)
+            elif args.reverse and not os.path.isfile(args.reverse):
+                logging.error("Path to reverse reads ('%s') doesn't exist.\n" % args.reverse)
+                sys.exit(3)
+            else:
+                self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
+
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Assigner instance summary:\n"
@@ -1442,8 +1532,28 @@ class PhyTrainer(TreeSAPP):
         self.stages = {0: ModuleFunction("search", 0),
                        1: ModuleFunction("lineages", 1),
                        2: ModuleFunction("place", 2),
-                       3: ModuleFunction("regress", 3),
+                       3: ModuleFunction("train", 3),
                        4: ModuleFunction("update", 4)}
+
+    def decide_stage(self, args):
+        if not args.profile:
+            self.change_stage_status("search", False)
+
+        if args.acc_to_lin:
+            self.acc_to_lin = args.acc_to_lin
+            if os.path.isfile(self.acc_to_lin):
+                self.change_stage_status("lineages", False)
+            else:
+                logging.error("Unable to find accession-lineage mapping file '{}'\n".format(self.acc_to_lin))
+                sys.exit(3)
+        else:
+            self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+
+        if os.path.isfile(self.clade_ex_pquery_pkl) and os.path.isfile(self.plain_pquery_pkl):
+            self.change_stage_status("place", False)
+
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "PhyTrainer instance summary:\n"

@@ -458,7 +458,7 @@ def gen_cladex_data(fasta_input: str, executables: dict, ref_pkg: ReferencePacka
     ref_pkg.load_taxonomic_hierarchy()
     for ref_seq in ref_pkg.generate_tree_leaf_references_from_refpkg():
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
-    # Load the query FASTA and
+    # Load the query FASTA and unalign the sequences, in case the fasta is a MSA
     test_seqs = fasta.FASTA(fasta_input)
     test_seqs.load_fasta()
     test_seqs.unalign()

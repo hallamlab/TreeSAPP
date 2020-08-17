@@ -6,9 +6,15 @@ from collections import namedtuple
 
 @pytest.fixture(scope="class")
 def treesapp_instance(request):
-    from treesapp.classy import TreeSAPP
+    from treesapp.classy import TreeSAPP, ModuleFunction
     request.cls.db = TreeSAPP("")
     request.cls.db.output_dir = "./temp_tmp"
+    request.cls.db.stages = {0: ModuleFunction("orf-call", 0),
+                             1: ModuleFunction("clean", 1),
+                             2: ModuleFunction("search", 2),
+                             3: ModuleFunction("align", 3),
+                             4: ModuleFunction("place", 4),
+                             5: ModuleFunction("classify", 5)}
     return
 
 
@@ -46,6 +52,14 @@ class TreeSAPPClassTester(unittest.TestCase):
         with pytest.raises(SystemExit):
             validate_new_dir(os.path.join(ts_inst.output_dir, "nope", "nope"))
         return
+
+    def test_find_stage_dirs(self):
+        from treesapp.classy import TreeSAPP
+        ts_inst = self.db  # type: TreeSAPP
+        self.assertEqual(0, ts_inst.find_stage_dirs())
+        ts_inst.change_stage_status("orf-call", False)
+        ts_inst.change_stage_status("clean", False)
+        self.assertEqual(2, ts_inst.find_stage_dirs())
 
 
 if __name__ == '__main__':
