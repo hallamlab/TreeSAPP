@@ -112,6 +112,17 @@ def load_pqueries(hmm_matches: dict, query_seq_fasta: FASTA) -> list:
 
 
 def load_homologs(hmm_matches: dict, hmmsearch_query_fasta: str, query_seq_fasta: FASTA) -> None:
+    """
+    Loads the fasta_dict attribute in query_seq_fasta guided by the homologous sequences.
+    This reduces the RAM usage when the query FASTA contains many non-homologous sequences, which would not be loaded.
+    Homologous sequences are the names of sequences in HmmMatch instances stored by the dictionary hmm_matches.
+
+    :param hmm_matches: A dictionary of lists of HmmMatch instances, indexed by reference package names
+    :param hmmsearch_query_fasta: Path to a FASTA file that was used as a query against the profile HMM(s),
+    reflecting those alignments stored in hmm_matches.
+    :param query_seq_fasta: A FASTA instance, typically with an empty fasta_dict attribute
+    :return: None
+    """
     logging.info("Loading sequences for the homologs identified by hmmsearch... ")
     # Create a set of sequence names that matched a profile HMM
     matched_query_names = set()

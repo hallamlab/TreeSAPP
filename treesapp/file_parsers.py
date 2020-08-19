@@ -716,3 +716,44 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
             discarded_seqs_string += " (removed)"
 
     return successful_multiple_alignments, failed_multiple_alignments, discarded_seqs_string
+
+
+def read_annotation_mapping_file(annot_map_file: str) -> dict:
+    """
+    Used for reading a file mapping the reference package name to all true positive orthologs in the query input
+    The first column is the ReferencePackage.prefix.
+    The second column is the ortholog name used by the database.
+    The third column is the name of a true positive.
+
+    :param annot_map_file: Path to a tab-delimited file
+    :return: A dictionary containing database sequence names mapped to their respective reference package names
+    """
+    annot_map = dict()
+    try:
+        annot_map_handler = open(annot_map_file)
+    except IOError:
+        logging.error("Unable to open annotation file '{}' for reading!\n".format(annot_map_file))
+        sys.exit(3)
+
+    # Assuming the first column is the reference package name and the second is the database annotation name
+    n = 0
+    for line in annot_map_handler:
+        n += 1
+        if line[0] == '#':
+            continue
+        elif not line:
+            continue
+        else:
+            try:
+                refpkg_name, og, query_name = line.strip().split("\t")
+            except ValueError:
+                logging.error("Unexpected number of fields on line {} in {}!\n".format(n, annot_map_file) +
+                              "File must have the reference package name and the database name in"
+                              " the first two columns, respectively. Any number of columns can follow.\n")
+                sys.exit(9)
+            if query_name not in annot_map:
+                annot_map[query_name] = set()
+            annot_map[query_name].add(refpkg_name)
+
+    annot_map_handler.close()
+    return annot_map

@@ -460,7 +460,7 @@ class TreeSAPP:
         """
         # Find the next stage
         self.current_stage.run = False
-        while not self.current_stage.run:
+        while not self.current_stage.run and self.current_stage.order < max(self.stages.keys()):
             self.current_stage = self.stages[self.current_stage.order+1]
 
         # Update the output directory for this stage
@@ -1529,11 +1529,12 @@ class PhyTrainer(TreeSAPP):
         self.pqueries = {}
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("search", 0),
-                       1: ModuleFunction("lineages", 1),
-                       2: ModuleFunction("place", 2),
-                       3: ModuleFunction("train", 3),
-                       4: ModuleFunction("update", 4)}
+        self.stages = {0: ModuleFunction("clean", 0),
+                       1: ModuleFunction("search", 1),
+                       2: ModuleFunction("lineages", 2),
+                       3: ModuleFunction("place", 3),
+                       4: ModuleFunction("train", 4),
+                       5: ModuleFunction("update", 5)}
 
     def decide_stage(self, args):
         if not args.profile:
@@ -1546,13 +1547,26 @@ class PhyTrainer(TreeSAPP):
             else:
                 logging.error("Unable to find accession-lineage mapping file '{}'\n".format(self.acc_to_lin))
                 sys.exit(3)
-        else:
-            self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
 
         if os.path.isfile(self.clade_ex_pquery_pkl) and os.path.isfile(self.plain_pquery_pkl):
             self.change_stage_status("place", False)
 
         self.validate_continue(args)
+        return
+    
+    def set_file_paths(self) -> None:
+        """
+        Define the file path locations of treesapp train outputs
+
+        :return: None
+        """
+        self.placement_table = os.path.join(self.final_output_dir, "placement_info.tsv")
+        self.placement_summary = os.path.join(self.final_output_dir, "placement_trainer_results.txt")
+        self.clade_ex_pquery_pkl = os.path.join(self.final_output_dir, "clade_exclusion_pqueries.pkl")
+        self.plain_pquery_pkl = os.path.join(self.final_output_dir, "raw_refpkg_pqueries.pkl")
+        self.formatted_input = os.path.join(self.var_output_dir, "clean", self.ref_pkg.prefix + "_formatted.fa")
+        self.hmm_purified_seqs = os.path.join(self.var_output_dir, "search", self.ref_pkg.prefix + "_hmm_purified.fa")
+        self.acc_to_lin = os.path.join(self.var_output_dir, "lineages", "accession_id_lineage_map.tsv")
         return
 
     def get_info(self):

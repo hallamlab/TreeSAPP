@@ -269,7 +269,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
             test_taxa_summary.append("\t{}\t{}".format(len(taxon_training_queries), taxonomy))
             taxon_training_queries.clear()
 
-        taxonomic_coverage = float(represented_taxa*100/len(unique_ref_lineages))
+        taxonomic_coverage = round(float(represented_taxa*100/len(unique_ref_lineages)), 2)
 
         if taxonomic_coverage < warning_threshold:
             logging.warning("Only {0}% of unique {1}-level taxa can be used represent"

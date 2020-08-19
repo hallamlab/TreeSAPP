@@ -18,12 +18,118 @@ from sklearn import model_selection, svm, metrics, preprocessing, manifold
 from treesapp import file_parsers
 from treesapp import wrapper
 from treesapp import fasta
-from treesapp.phylo_seq import PQuery
+from treesapp.phylo_seq import PQuery, JPlace
 from treesapp.external_command_interface import launch_write_command, create_dir_from_taxon_name
 from treesapp.jplace_utils import jplace_parser
 from treesapp.entish import map_internal_nodes_leaves
 from treesapp.phylo_dist import parent_to_tip_distances
 from treesapp.refpkg import ReferencePackage
+
+
+class QuerySequence(PQuery):
+    def __init__(self, header: str, lineage_str="", rank_str=""):
+        """
+        Initialization function for QuerySequence objects. Sets self.ref_name attribute to header if provided
+
+        :param header: Name of the classified sequence, used to set self.ref_name
+        """
+        super(QuerySequence, self).__init__(lineage_str, rank_str)
+        self.place_name = header
+        self.ncbi_tax = ""
+        self.assigned_lineage = ""
+        self.true_lineage = ""
+        self.optimal_lineage = ""
+        self.tax_dist = 0
+        return
+
+
+def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict) -> (dict, dict, dict):
+    """
+    Function for sorting/binning the classified sequences at T/F positives/negatives based on the annot_map file
+    that specifies which queries belong to which orthologous group/protein family and reference package.
+
+    :param assignments: Dictionary mapping the ReferencePackage.prefix to TreeProtein instances
+    :param annot_map: Dictionary mapping reference package (gene) name keys to database names values
+    :param entrez_query_dict: Dictionary mapping sequence names to their respective EntrezRecord instances
+    :return: None
+    """
+    # False positives: those that do not belong to the annotation matching a reference package name
+    # False negatives: those whose annotations match a reference package name and were not classified
+    # True positives: those with a matching annotation and reference package name and were classified
+    # True negatives: those that were not classified and should not have been
+    positive_queries = {}
+    tp = {}
+    fp = {}
+    fn = {}
+    logging.info("Assigning test sequences to the four class conditions... ")
+    missing = set()
+    # Create a dictionary for rapid look-ups of queries that are homologs of sequences in the refpkg
+    for qname in annot_map:
+        for rname in annot_map[qname]:
+            try:
+                positive_queries[rname].add(qname)
+            except KeyError:
+                positive_queries[rname] = {qname}
+
+    for refpkg_name, pqueries in assignments.items():  # type: (str, list)
+        try:
+            positives = positive_queries[refpkg_name]
+        except KeyError:
+            logging.error("Unable to find '{}' in the set of positive queries:\n".format(refpkg_name) +
+                          ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
+            sys.exit(5)
+        true_positives = set()
+        for pquery in sorted(pqueries, key=lambda x: x.place_name):  # type: JPlace
+            # Populate the relevant information for the classified sequence
+            tp_inst = QuerySequence(pquery.place_name)
+            tp_inst.ref = refpkg_name
+            tp_inst.assigned_lineage = pquery.recommended_lineage
+            try:
+                e_record = entrez_query_dict[pquery.place_name]
+            except KeyError:
+                missing.add(pquery.place_name)
+                continue
+            if not e_record.lineage:
+                true_positives.add(tp_inst.place_name)
+                continue
+            tp_inst.ncbi_tax = e_record.ncbi_tax
+            # Bin it if the mapping_dict is present, otherwise classify it as a TP
+            if tp_inst.place_name in positives:
+                # Add the True Positive to the relevant collections
+                try:
+                    tp[refpkg_name].append(tp_inst)
+                except KeyError:
+                    tp[refpkg_name] = [tp_inst]
+                true_positives.add(tp_inst.place_name)
+            else:
+                try:
+                    fp[refpkg_name].add(tp_inst)
+                except KeyError:
+                    fp[refpkg_name] = {tp_inst}
+
+        # Identify the False Negatives using set difference - those that were not classified but should have been
+        for seq_name in list(positives.difference(true_positives)):
+            qseq = QuerySequence(seq_name)
+            try:
+                e_record = entrez_query_dict[seq_name]
+            except KeyError:
+                missing.add(seq_name)
+                continue
+            if not e_record.lineage:
+                continue
+            qseq.ncbi_tax = e_record.ncbi_tax
+            try:
+                fn[refpkg_name].add(qseq)
+            except KeyError:
+                fn[refpkg_name] = {qseq}
+    logging.info("done.\n")
+
+    logging.warning("Unable to find {}/{} sequence accessions in the Entrez records.\n".format(len(missing),
+                                                                                               len(entrez_query_dict)))
+    logging.debug("Unable to find the following sequence accessions in the Entrez records:\n"
+                  "{}\n".format(', '.join(missing)))
+
+    return tp, fp, fn
 
 
 def rarefy_rank_distances(rank_distances: dict) -> dict:
@@ -259,7 +365,7 @@ a numpy array from each query's data:
                                   "Was the correct output directory provided?".format(pquery.inode, pquery.ref_name))
                     sys.exit(5)
 
-                raw_array = np.array([leaf_children, lwr_bin, distal, pendant, avg])
+                raw_array = np.array([leaf_children, pquery.evalue, lwr_bin, distal, pendant, avg])
                 try:
                     rank_feature_vectors[pquery.rank].append(raw_array)
                 except KeyError:
@@ -499,14 +605,13 @@ def generate_train_test_data(true_ps: np.array, true_pqueries: list, test_pr=0.4
     Conditions [0|1] are set for the dataset based on whether they are false positives (0) or true positives (1).
     If no false positives are present, a numpy.array of length true_ps is used.
 
-
     :param true_ps:
     :param true_pqueries:
     :param test_pr:
     :param false_ps:
     :return:
     """
-    if false_ps:
+    if false_ps is not None and false_ps.any():
         classified_data = np.append(false_ps, true_ps, axis=0)
         conditions = np.append(np.array([0] * len(false_ps)),
                                np.array([1] * len(true_ps)))
@@ -596,7 +701,7 @@ def train_classification_filter(assignments: dict, true_pos: dict, refpkg_map: d
                 evaluate_grid_scores(k, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, jobs=num_procs)
             return
 
-        clf = train_binary_classifier(tp, fp, kernel)
+        clf = train_binary_classifier(x_train, y_train, kernel)
 
         for refpkg_prefix in refpkg_map:  # type: str
             if refpkg_prefix in true_pos:

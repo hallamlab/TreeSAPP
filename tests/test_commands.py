@@ -230,12 +230,14 @@ class TreesappTester(unittest.TestCase):
         from .testing_utils import get_test_data
         output_dir_path = "./TreeSAPP_train"
         train_command_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
+                              "--annot_map", get_test_data("ENOG4111FIN_annot_map.tsv"),
                               "--output", output_dir_path,
                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
                               "--num_proc", str(4),
                               "--molecule", "prot",
                               "--svm_kernel", "rbf",
+                              "--classifier", "bin",
                               "--trim_align", "--delete", "--overwrite"]
         train(train_command_list)
         rank_list = []
@@ -266,6 +268,7 @@ class TreesappTester(unittest.TestCase):
         cmd = ["--fastx_input", get_test_data("EggNOG_McrA.faa"),
                "--annot_map", get_test_data("EggNOG_McrA_annot_map.tsv"),
                "--output", "./TreeSAPP_MCC",
+               "--targets", "McrA",
                "--molecule", "prot",
                "--tool", "treesapp",
                "--num_procs", str(4),

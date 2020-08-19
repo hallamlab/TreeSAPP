@@ -83,10 +83,12 @@ def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
     outputs = []
     fa = Fasta(file_name=fastx, build_index=False, full_name=True)
 
-    # Determine the number of reads in the FASTQ file - faster than building an index
+    # Determine the number of reads in the FASTA file instead of building an index
+    logging.debug("Finding the number of sequences in {}... ".format(fastx))
     count = 0
     for _ in fa:
         count += 1
+    logging.debug("done.\n")
 
     if file_num > 1:
         seqs_num = ceil(count / file_num)
@@ -788,13 +790,14 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
 
 def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_length=10) -> dict:
     """
-    Reads a FASTA file, ensuring each sequence and sequence name is valid.
+    Reads a FASTA file, ensuring each sequence and sequence name is valid, and writes the valid sequence to a new FASTA.
+    Only headers are read into memory and the formatted FASTA is saved to a buffer before written to a file and cleared.
 
     :param fasta_input: Absolute path of the FASTA file to be read
     :param molecule: Molecule type of the sequences ['prot', 'dna', 'rrna']
     :param output_fasta: Path to the formatted FASTA file to write
     :param min_seq_length: All sequences shorter than this will not be included in the returned list.
-    :return: A dictionary
+    :return: A dictionary of Header instances indexed by a numerical identifier
     """
     start = time()
 

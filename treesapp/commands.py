@@ -26,7 +26,7 @@ from treesapp import treesapp_args
 from treesapp import classy
 from treesapp.phylo_seq import assignments_to_treesaps, PQuery, convert_entrez_to_tree_leaf_references
 from treesapp.refpkg import ReferencePackage, view, edit
-from treesapp.training_utils import train_classification_filter
+from treesapp.training_utils import train_classification_filter, bin_headers
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
@@ -161,37 +161,56 @@ def train(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_trainer_arguments(ts_trainer, args)
+    ts_trainer.set_file_paths()
     ts_trainer.decide_stage(args)
     ts_trainer.ref_pkg.disband(os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_RefPkg"))
 
     train_seqs = fasta.FASTA(ts_trainer.input_sequences)
+    ##
+    # STAGE 1: Optionally validate and reformat the input FASTA
+    ##
+    if ts_trainer.stage_status("clean"):
+        logging.info("Reading and formatting {}... ".format(ts_trainer.input_sequences))
+        train_seqs.header_registry = fasta.format_fasta(fasta_input=ts_trainer.input_sequences, molecule="prot",
+                                                        output_fasta=ts_trainer.formatted_input)
+        logging.info("done.\n")
+        ts_trainer.increment_stage_dir()
+    else:
+        if not os.path.isfile(ts_trainer.formatted_input):
+            ts_trainer.formatted_input = ts_trainer.input_sequences
+    train_seqs.file = ts_trainer.formatted_input
 
+    ##
+    # STAGE 2: Run hmmsearch on the query sequences to search for reference package homologs
+    ##
     if ts_trainer.stage_status("search"):
-        # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        train_seqs.fasta_dict = fasta.format_read_fasta(ts_trainer.input_sequences, ts_trainer.molecule_type)
-        train_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_trainer.input_sequences))
-
         logging.info("Searching for domain sequences... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"],
                                                  ts_trainer.ref_pkg.f__search_profile,
-                                                 ts_trainer.input_sequences,
+                                                 ts_trainer.formatted_input,
                                                  ts_trainer.stage_output_dir)
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
-        marker_gene_dict = dict()
-        hmm_extract_seqs = utilities.extract_hmm_matches(hmm_matches, train_seqs.fasta_dict, train_seqs.header_registry)
-        for k, v in hmm_extract_seqs.items():
-            marker_gene_dict.update(v)
+        load_homologs(hmm_matches, ts_trainer.formatted_input, train_seqs)
+
         logging.info(train_seqs.summarize_fasta_sequences())
-        fasta.write_new_fasta(marker_gene_dict, ts_trainer.hmm_purified_seqs)
-        marker_gene_dict.clear()
+        fasta.write_new_fasta(train_seqs.fasta_dict, ts_trainer.hmm_purified_seqs)
         utilities.hmm_pile(hmm_matches)
         ts_trainer.increment_stage_dir()
     else:
-        train_seqs.load_fasta()
+        if not os.path.isfile(ts_trainer.hmm_purified_seqs):
+            ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
+            train_seqs.file = ts_trainer.hmm_purified_seqs
+            train_seqs.fasta_dict = fasta.read_fasta_to_dict(train_seqs.file)
+        else:
+            train_seqs.file = ts_trainer.hmm_purified_seqs
+            train_seqs.load_fasta()
+        logging.info("Profile HMM homology search skipped. Using all sequences in {}.\n".format(train_seqs.file))
         train_seqs.change_dict_keys("formatted")
-        ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
+    ##
+    # STAGE 3: Download the taxonomic lineages for each query sequence
+    ##
     entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule, args.acc_to_taxid)
 
     entrez_utils.fill_ref_seq_lineages(entrez_record_dict, ts_trainer.seq_lineage_map, complete=True)
@@ -214,7 +233,7 @@ def train(sys_args):
                 taxa_evo_dists.pop(rank_key)
 
         if len(set(ts_trainer.training_ranks).difference(set(taxa_evo_dists))) > 0 or len(clade_ex_pqueries) == 0:
-            clade_ex_pqueries = placement_trainer.gen_cladex_data(ts_trainer.hmm_purified_seqs, ts_trainer.executables,
+            clade_ex_pqueries = placement_trainer.gen_cladex_data(train_seqs.file, ts_trainer.executables,
                                                                   ts_trainer.ref_pkg, ts_trainer.seq_lineage_map,
                                                                   ts_trainer.stage_output_dir, args.num_threads)
             jdump(value=clade_ex_pqueries, filename=os.path.join(ts_trainer.clade_ex_pquery_pkl))
@@ -225,7 +244,7 @@ def train(sys_args):
         placement_trainer.write_placement_table(clade_ex_pqueries,
                                                 ts_trainer.placement_table, ts_trainer.ref_pkg.prefix)
 
-        logging.info("Generating placement data without clade exclusion for OC-SVM... ")
+        logging.info("Generating placement data without clade exclusion for SVM... ")
         # TODO: Pause logging just to console and continue writing to log file
         # Option 1. No logging to console or file
         cl_log = logging.getLogger()
@@ -233,7 +252,7 @@ def train(sys_args):
         # Option 2... ?
 
         assign_prefix = os.path.join(ts_trainer.stage_output_dir, ts_trainer.ref_pkg.prefix + "_assign")
-        assign_params = ["-i", ts_trainer.hmm_purified_seqs,
+        assign_params = ["-i", train_seqs.file,
                          "-o", assign_prefix,
                          "--num_procs", str(args.num_threads),
                          "--refpkg_dir", os.path.dirname(ts_trainer.ref_pkg.f__json),
@@ -252,15 +271,23 @@ def train(sys_args):
         # Re-enable logging at the previous level
         cl_log.disabled = False
         logging.info("done.\n")
+        ts_trainer.increment_stage_dir()
     else:
+        logging.info("Phylogenetic placement stage is being skipped. Reading saved pickles... ")
         # Load saved pquery instances from a previous run
         clade_ex_pqueries = jload(filename=ts_trainer.clade_ex_pquery_pkl)
         plain_pqueries = jload(filename=ts_trainer.plain_pquery_pkl)
+        logging.info("done.\n")
 
     ts_trainer.pqueries.update(clade_ex_pqueries)
     ts_trainer.pqueries.update(plain_pqueries)
 
+    query_seq_records = {}
+    for index, e_record in entrez_record_dict.items():  # type: entrez_utils.EntrezRecord
+        query_seq_records[e_record.description] = e_record
+
     if ts_trainer.stage_status("train"):
+        logging.info("Training and testing classification models... ")
         # Finish up the linear regression model
         ts_trainer.ref_pkg.pfit = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
         if ts_trainer.ref_pkg.pfit:
@@ -268,20 +295,35 @@ def train(sys_args):
         else:
             logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
-        # Reformat the pqueries dictionary for classifier training and testing
+        # Reformat the dictionary containing PQuery instances for classifier training and testing
         refpkg_pqueries = placement_trainer.flatten_pquery_dict(ts_trainer.pqueries, ts_trainer.ref_pkg.prefix)
-        tp_names = {ts_trainer.ref_pkg.prefix:
-                    [pquery.place_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
+        if args.classifier == "occ":
+            fp_names = None
+            # The individual instances are of PQuery type
+            tp_names = {ts_trainer.ref_pkg.prefix:
+                        [pquery.place_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
 
-        for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]:
-            if not pquery.rank:
-                pquery.rank = "species"
-
-        # Train the one-class SVM model
+            for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]:
+                if not pquery.rank:
+                    pquery.rank = "species"
+        else:
+            pkg_dbname_dict = file_parsers.read_annotation_mapping_file(args.annot_map)
+            tp, fp, fn = bin_headers(refpkg_pqueries, pkg_dbname_dict, query_seq_records)
+            tp_names = {}
+            fp_names = {}
+            # The individual instances are of QuerySequence type
+            for refpkg_name, tp_query_seqs in tp.items():
+                tp_names[refpkg_name] = [qseq.place_name for qseq in tp_query_seqs]
+            for refpkg_name, fp_query_seqs in fp.items():
+                fp_names[refpkg_name] = [qseq.place_name for qseq in fp_query_seqs]
+        # Train the classifier
         refpkg_classifiers = train_classification_filter(refpkg_pqueries, tp_names,
+                                                         false_pos=fp_names,
                                                          refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg},
                                                          kernel=args.kernel, tsne=args.tsne,
                                                          grid_search=args.grid_search, num_procs=args.num_threads)
+        ts_trainer.increment_stage_dir()
+        logging.info("done.\n")
     else:
         refpkg_classifiers = {}
 
