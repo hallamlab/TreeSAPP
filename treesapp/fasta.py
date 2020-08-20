@@ -27,16 +27,15 @@ def fastx_split(fastx: str, outdir: str, file_num=1) -> list:
     return split_files
 
 
-def split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num):
+def split_seq_writer_helper(fasta_string: str, fh, max_file_size: int):
     fh.write(fasta_string)
-    fasta_string = ""
 
     # Reduce the number of checks
-    if seq_write > seqs_num:
-        fh.write(fasta_string)
+    fh.seek(0, 2)
+    if fh.tell() > max_file_size:
         fh.close()
-        seq_write = 0
-    return fasta_string, seq_write
+        fh = None
+    return fh
 
 
 def spawn_new_file(file_num, outdir, file_name, digit, ext="fasta"):
@@ -83,43 +82,41 @@ def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
     outputs = []
     fa = Fasta(file_name=fastx, build_index=False, full_name=True)
 
-    # Determine the number of reads in the FASTA file instead of building an index
-    logging.debug("Finding the number of sequences in {}... ".format(fastx))
-    count = 0
-    for _ in fa:
-        count += 1
-    logging.debug("done.\n")
+    # Determine the size of the FASTA file instead of building an index
+    f_size = os.path.getsize(fastx)
 
     if file_num > 1:
-        seqs_num = ceil(count / file_num)
+        max_file_size = ceil(f_size / file_num)
         parts_num = file_num
+    elif seq_count > 1:
+        max_file_size = None
+        parts_num = None
+        # logging.error("Splitting by number of sequences is not supported.\n")
+        # sys.exit(3)
     else:
-        seqs_num = seq_count
-        parts_num = ceil(count / seqs_num)
+        logging.error("Unable to split FASTA into {} files and {} sequences.\n".format(file_num, seq_count))
+        sys.exit(3)
 
     file_name, suffix1 = os.path.splitext(os.path.basename(fastx))
-
     if fa.is_gzip:
         file_name, suffix2 = os.path.splitext(file_name)
 
     digit = len(str(parts_num))
 
-    seq_write = 0
     max_buffer_size = 1E4
     fasta_string = ""
     fh = None
     file_num = 0
 
     for name, seq in fa:  # type: (str, str)
-        if seq_write == 0:
-            fh, subfile, file_num = spawn_new_file(file_num, outdir, file_name, digit)
-            outputs.append(subfile)
-
         fasta_string += ">%s\n%s\n" % (name, seq)
-        seq_write += 1
         # Batch write
-        if seq_write % max_buffer_size == 0:
-            fasta_string, seq_write = split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num)
+        if len(fasta_string) > max_buffer_size:
+            if not fh:
+                fh, subfile, file_num = spawn_new_file(file_num, outdir, file_name, digit)
+                outputs.append(subfile)
+            fh = split_seq_writer_helper(fasta_string, fh, max_file_size)
+            fasta_string = ""
 
     fh.write(fasta_string)
     fh.close()
@@ -152,9 +149,7 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
     fq = Fastq(file_name=fastx, build_index=False)
 
     # Determine the number of reads in the FASTQ file - faster than building an index
-    read_count = 0
-    for _ in fq:
-        read_count += 1
+    read_count = raw_char_counter(fastx)/4
 
     if file_num > 1:
         seqs_num = ceil(read_count / file_num)
