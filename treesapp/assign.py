@@ -123,9 +123,10 @@ def load_homologs(hmm_matches: dict, hmmsearch_query_fasta: str, query_seq_fasta
     :param query_seq_fasta: A FASTA instance, typically with an empty fasta_dict attribute
     :return: None
     """
-    logging.info("Loading sequences for the homologs identified by hmmsearch... ")
+    logging.info("Loading homologous sequences identified... ")
     # Create a set of sequence names that matched a profile HMM
     matched_query_names = set()
+    query_seq_fasta.fasta_dict.clear()
     for refpkg_name, refpkg_matches in hmm_matches.items():  # type: (str, list)
         for hmm_match in refpkg_matches:  # type: HmmMatch
             if hmm_match.desc != '-':

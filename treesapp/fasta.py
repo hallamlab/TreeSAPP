@@ -641,7 +641,7 @@ class FASTA:
         logging.debug("done.\n")
 
         if duplicates:
-            logging.debug("Removed " + str(len(duplicates)) + " sequences with duplicate sequences.\n")
+            logging.debug("Removed {} sequences with duplicate sequences.\n".format(len(duplicates)))
         self.synchronize_seqs_n_headers()
 
         return

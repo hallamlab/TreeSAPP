@@ -1524,6 +1524,10 @@ class PhyTrainer(TreeSAPP):
         self.placement_summary = ""
         self.clade_ex_pquery_pkl = ""
         self.plain_pquery_pkl = ""
+        self.feature_vector_file = ""
+        self.conditions_file = ""
+        self.tsne_plot = ""
+        self.pkg_dbname_dict = ""
         self.target_refpkgs = list()
         self.training_ranks = {}
         self.pqueries = {}
@@ -1567,6 +1571,8 @@ class PhyTrainer(TreeSAPP):
         self.formatted_input = os.path.join(self.var_output_dir, "clean", self.ref_pkg.prefix + "_formatted.fa")
         self.hmm_purified_seqs = os.path.join(self.var_output_dir, "search", self.ref_pkg.prefix + "_hmm_purified.fa")
         self.acc_to_lin = os.path.join(self.var_output_dir, "lineages", "accession_id_lineage_map.tsv")
+        self.conditions_file = os.path.join(self.var_output_dir, "train", "conditions.npy")
+        self.feature_vector_file = os.path.join(self.var_output_dir, "train", "examples.npy")
         return
 
     def get_info(self):

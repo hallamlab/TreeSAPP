@@ -26,7 +26,8 @@ from treesapp import treesapp_args
 from treesapp import classy
 from treesapp.phylo_seq import assignments_to_treesaps, PQuery, convert_entrez_to_tree_leaf_references
 from treesapp.refpkg import ReferencePackage, view, edit
-from treesapp.training_utils import train_classification_filter, bin_headers
+from treesapp.training_utils import train_classification_filter, vectorize_placement_data, generate_train_test_data,\
+    bin_headers, save_np_array, summarize_query_classes
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
@@ -165,6 +166,9 @@ def train(sys_args):
     ts_trainer.decide_stage(args)
     ts_trainer.ref_pkg.disband(os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_RefPkg"))
 
+    if args.annot_map and args.classifier == "bin":
+        ts_trainer.pkg_dbname_dict = file_parsers.read_annotation_mapping_file(args.annot_map)
+
     train_seqs = fasta.FASTA(ts_trainer.input_sequences)
     ##
     # STAGE 1: Optionally validate and reformat the input FASTA
@@ -184,7 +188,7 @@ def train(sys_args):
     # STAGE 2: Run hmmsearch on the query sequences to search for reference package homologs
     ##
     if ts_trainer.stage_status("search"):
-        logging.info("Searching for domain sequences... ")
+        logging.info("Searching for homologous sequences with hmmsearch... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"],
                                                  ts_trainer.ref_pkg.f__search_profile,
                                                  ts_trainer.formatted_input,
@@ -195,6 +199,7 @@ def train(sys_args):
 
         logging.info(train_seqs.summarize_fasta_sequences())
         fasta.write_new_fasta(train_seqs.fasta_dict, ts_trainer.hmm_purified_seqs)
+        train_seqs.file = ts_trainer.hmm_purified_seqs
         utilities.hmm_pile(hmm_matches)
         ts_trainer.increment_stage_dir()
     else:
@@ -208,6 +213,8 @@ def train(sys_args):
         logging.info("Profile HMM homology search skipped. Using all sequences in {}.\n".format(train_seqs.file))
         train_seqs.change_dict_keys("formatted")
 
+    summarize_query_classes(set(ts_trainer.pkg_dbname_dict.keys()), set(train_seqs.fasta_dict.keys()))
+
     ##
     # STAGE 3: Download the taxonomic lineages for each query sequence
     ##
@@ -220,6 +227,10 @@ def train(sys_args):
     ts_trainer.ref_pkg.taxa_trie.build_multifurcating_trie()
     rank_depth_map = ts_trainer.ref_pkg.taxa_trie.accepted_ranks_depths
     taxa_evo_dists = dict()
+
+    query_seq_records = {}
+    for index, e_record in entrez_record_dict.items():  # type: entrez_utils.EntrezRecord
+        query_seq_records[e_record.description] = e_record
 
     # Goal is to use the distances already calculated but re-print
     if ts_trainer.stage_status("place"):
@@ -237,8 +248,6 @@ def train(sys_args):
                                                                   ts_trainer.ref_pkg, ts_trainer.seq_lineage_map,
                                                                   ts_trainer.stage_output_dir, args.num_threads)
             jdump(value=clade_ex_pqueries, filename=os.path.join(ts_trainer.clade_ex_pquery_pkl))
-
-        taxa_evo_dists = placement_trainer.evo_dists_from_pqueries(clade_ex_pqueries, ts_trainer.training_ranks)
 
         # Write the tab-delimited file with metadata included for each placement
         placement_trainer.write_placement_table(clade_ex_pqueries,
@@ -279,15 +288,11 @@ def train(sys_args):
         plain_pqueries = jload(filename=ts_trainer.plain_pquery_pkl)
         logging.info("done.\n")
 
+    taxa_evo_dists = placement_trainer.evo_dists_from_pqueries(clade_ex_pqueries, ts_trainer.training_ranks)
     ts_trainer.pqueries.update(clade_ex_pqueries)
     ts_trainer.pqueries.update(plain_pqueries)
 
-    query_seq_records = {}
-    for index, e_record in entrez_record_dict.items():  # type: entrez_utils.EntrezRecord
-        query_seq_records[e_record.description] = e_record
-
     if ts_trainer.stage_status("train"):
-        logging.info("Training and testing classification models... ")
         # Finish up the linear regression model
         ts_trainer.ref_pkg.pfit = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
         if ts_trainer.ref_pkg.pfit:
@@ -297,33 +302,42 @@ def train(sys_args):
 
         # Reformat the dictionary containing PQuery instances for classifier training and testing
         refpkg_pqueries = placement_trainer.flatten_pquery_dict(ts_trainer.pqueries, ts_trainer.ref_pkg.prefix)
+        tp_names = {}
+        fp_names = {}
         if args.classifier == "occ":
-            fp_names = None
             # The individual instances are of PQuery type
-            tp_names = {ts_trainer.ref_pkg.prefix:
-                        [pquery.place_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
+            tp_names.update({ts_trainer.ref_pkg.prefix:
+                             [pquery.place_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]})
 
             for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]:
                 if not pquery.rank:
                     pquery.rank = "species"
         else:
-            pkg_dbname_dict = file_parsers.read_annotation_mapping_file(args.annot_map)
-            tp, fp, fn = bin_headers(refpkg_pqueries, pkg_dbname_dict, query_seq_records)
-            tp_names = {}
-            fp_names = {}
+            tp, fp, fn = bin_headers(refpkg_pqueries, ts_trainer.pkg_dbname_dict, query_seq_records)
             # The individual instances are of QuerySequence type
             for refpkg_name, tp_query_seqs in tp.items():
                 tp_names[refpkg_name] = [qseq.place_name for qseq in tp_query_seqs]
             for refpkg_name, fp_query_seqs in fp.items():
                 fp_names[refpkg_name] = [qseq.place_name for qseq in fp_query_seqs]
+
+        logging.info("Extracting features from TreeSAPP classifications... ")
+        tp, t_pqs = vectorize_placement_data(condition_names=tp_names, classifieds=refpkg_pqueries,
+                                             refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+        fp, f_pqs = vectorize_placement_data(condition_names=fp_names, classifieds=refpkg_pqueries,
+                                             refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+        logging.info("done.\n")
+
+        # Split the training and testing data from the classifications
+        classified_data, conditions, x_train, x_test, y_train, y_test = generate_train_test_data(tp, fp)
+        # Save the feature vectors and condition vectors
+        save_np_array(classified_data, ts_trainer.feature_vector_file)
+        save_np_array(conditions, ts_trainer.conditions_file)
         # Train the classifier
-        refpkg_classifiers = train_classification_filter(refpkg_pqueries, tp_names,
-                                                         false_pos=fp_names,
-                                                         refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg},
-                                                         kernel=args.kernel, tsne=args.tsne,
+        refpkg_classifiers = train_classification_filter(tp_names, t_pqs, classified_data, conditions,
+                                                         x_train, x_test, y_train, y_test,
+                                                         kernel=args.kernel, tsne=ts_trainer.tsne_plot,
                                                          grid_search=args.grid_search, num_procs=args.num_threads)
         ts_trainer.increment_stage_dir()
-        logging.info("done.\n")
     else:
         refpkg_classifiers = {}
 

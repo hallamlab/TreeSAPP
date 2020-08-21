@@ -388,11 +388,11 @@ def clade_exclusion_phylo_placement(rank_training_seqs: dict,
         for leaf_node, lineage in ref_pkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, rank).items():
             leaf_trimmed_taxa_map[leaf_node + "_" + ref_pkg.prefix] = lineage
 
-        for taxon in sorted(rank_training_seqs[rank]):
-            logging.debug("Testing placements for {}:\n".format(taxon))
-            pqueries[rank][taxon] = generate_pquery_data_for_trainer(ref_pkg, taxon,
-                                                                     test_fasta, rank_training_seqs[rank][taxon], rank,
-                                                                     executables, output_dir, pbar, raxml_threads)
+        for taxonomy in sorted(rank_training_seqs[rank]):
+            logging.debug("Testing placements for {}:\n".format(taxonomy))
+            pqueries[rank][taxonomy] = generate_pquery_data_for_trainer(ref_pkg, taxonomy, test_fasta,
+                                                                        rank_training_seqs[rank][taxonomy], rank,
+                                                                        executables, output_dir, pbar, raxml_threads)
 
         if len(pqueries[rank]) == 0:
             logging.debug("No samples available for " + rank + ".\n")

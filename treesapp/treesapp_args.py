@@ -545,8 +545,13 @@ def check_trainer_arguments(phy_trainer: PhyTrainer, args):
         if not args.annot_map:
             logging.error("An annotation mapping file is required when building a binary classifier.\n")
             sys.exit(3)
+        else:
+            phy_trainer.annot_map = args.annot_map
     elif args.classifier == "occ" and args.annot_map:
         logging.warning("Annotation mapping file is ignored when building a One-Class Classifier (OCC).\n")
+
+    if args.tsne:
+        phy_trainer.tsne_plot = os.path.join(phy_trainer.var_output_dir, "train", "tSNE.png")
 
     return
 

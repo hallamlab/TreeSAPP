@@ -459,6 +459,7 @@ def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
         pquery.start = int(pquery.start)
         pquery.seq_len = pquery.end - pquery.start
         pquery.lct = pquery.recommended_lineage
+        pquery.distal, pquery.pendant, pquery.mean_tip = [float(d) for d in pquery.distances.split(',')]
         refpkg = refpkg_dict[pquery.ref_name]  # type: refpkg.ReferencePackage
         try:
             pqueries[refpkg.prefix].append(pquery)
