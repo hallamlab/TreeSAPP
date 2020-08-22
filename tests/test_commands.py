@@ -18,7 +18,7 @@ class TreesappTester(unittest.TestCase):
                                 "--trim_align", "--overwrite", "--delete"]
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
-        self.assertEqual(15, len(lines))
+        self.assertEqual(16, len(lines))
 
     def test_assign_dna(self):
         ref_pkgs = ["M0701", "M0702"]

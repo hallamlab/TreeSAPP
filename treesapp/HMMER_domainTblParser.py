@@ -750,7 +750,7 @@ def remove_redundant_alignments(match: HmmMatch, index=0) -> HmmMatch:
     """
     if not match.next_domain:
         return match
-    remove_redundant_alignments(match.next_domain, index+1)
+    match.next_domain = remove_redundant_alignments(match.next_domain, index+1)  # Patched in 0.8.9
     query_orientation = detect_orientation(match.start, match.end,
                                            match.next_domain.start, match.next_domain.end)
     profile_orientation = detect_orientation(match.pstart, match.pend,

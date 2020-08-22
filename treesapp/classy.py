@@ -1527,7 +1527,7 @@ class PhyTrainer(TreeSAPP):
         self.feature_vector_file = ""
         self.conditions_file = ""
         self.tsne_plot = ""
-        self.pkg_dbname_dict = ""
+        self.pkg_dbname_dict = dict()
         self.target_refpkgs = list()
         self.training_ranks = {}
         self.pqueries = {}
