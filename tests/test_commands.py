@@ -1,8 +1,18 @@
 import unittest
 import os
+from shutil import rmtree
 
 
 class TreesappTester(unittest.TestCase):
+    def tearDown(self) -> None:
+        # Clean up output directories
+        output_prefix = os.path.join(os.path.abspath("./"), "TreeSAPP_")
+        for test_name in ["assign", "train", "update", "evaluate", "create", "package", "purity", "MCC"]:
+            output_dir = output_prefix + test_name
+            if os.path.isdir(output_dir):
+                rmtree(output_dir)
+        return
+
     def test_assign_prot(self):
         ref_pkgs = ["McrA", "M0702", "S0001"]
         from treesapp.commands import assign
@@ -19,6 +29,7 @@ class TreesappTester(unittest.TestCase):
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(16, len(lines))
+        return
 
     def test_assign_dna(self):
         ref_pkgs = ["M0701", "M0702"]
@@ -287,10 +298,3 @@ class TreesappTester(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-    # Clean up output directories
-    output_prefix = "TreeSAPP_"
-    for test_name in ["assign", "train", "update", "evaluate", "create", "MCC"]:
-        output_dir = output_prefix + test_name
-        if os.path.isdir(output_dir):
-            os.rmdir(output_dir)

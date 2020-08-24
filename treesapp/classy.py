@@ -63,7 +63,7 @@ class NodeRetrieverWorker(Process):
         return
 
 
-def get_header_info(header_registry, code_name=''):
+def get_header_info(header_registry: dict, code_name=''):
     """
 
     :param header_registry: A dictionary of Header instances, indexed by numerical treesapp_id
@@ -74,7 +74,7 @@ def get_header_info(header_registry, code_name=''):
     ref_records = dict()
     header_regexes = load_fasta_header_regexes(code_name)
     # TODO: Fix parsing of combined EggNOG and custom headers such that the taxid is parsed from the "accession"
-    for treesapp_id in sorted(header_registry.keys(), key=int):
+    for treesapp_id in sorted(header_registry.keys(), key=int):  # type: str
         original_header = header_registry[treesapp_id].original
         header_format_re, header_db, header_molecule = get_header_format(original_header, header_regexes)
         sequence_info = header_format_re.match(original_header)
@@ -95,69 +95,74 @@ def get_header_info(header_registry, code_name=''):
     return ref_records
 
 
-def dedup_records(ref_seqs: FASTA, ref_seq_records: dict):
+def dedup_records(ref_seqs: FASTA, ref_seq_records: dict) -> dict:
+    """
+    Entrez records with identical versioned accessions are grouped together and those grouped sequence records
+    are compared further. The Entrez records in ref_seq_records are deduplicated based on:
+ 1. Their full-length original headers
+ 2. Their EntrezRecord.bitflag values where the records with the most information attributed to them (e.g. NCBI tax_id,
+    lineage) at this stage are retained.
+
+    :param ref_seqs: A FASTA instance with populated fasta_dict and header_registry attributes
+    :param ref_seq_records: A dictionary mapping TreeSAPP numerical identifiers to their EntrezRecord instances
+    :return: ref_seq_records dictionary with duplicate records removed
+    """
+    duplicate_treesapp_ids = set()
+    all_accessions = dict()
+
     if ref_seqs.index_form != "num":
         ref_seqs.change_dict_keys("num")
 
-    deduped_accessions = list()
-    all_accessions = dict()
-    for treesapp_id in ref_seq_records:
-        record = ref_seq_records[treesapp_id]  # type: entrez_utils.EntrezRecord
-        if record.accession not in all_accessions:
-            all_accessions[record.accession] = []
-        all_accessions[record.accession].append(treesapp_id)
+    # Create a dictionary mapping versioned accessions to EntrezRecords for identifying duplicate accessions
+    for treesapp_id, record in ref_seq_records.items():  # type: (str, entrez_utils.EntrezRecord)
+        if record.versioned not in all_accessions:
+            all_accessions[record.versioned] = []
+        all_accessions[record.versioned].append(treesapp_id)
+
+    if len(all_accessions) != ref_seqs.n_seqs():
+        logging.debug("{}/{} unique versioned accessions were loaded for deduplication.\n"
+                      "".format(len(all_accessions), ref_seqs.n_seqs()))
 
     # If the sequences are identical across the records -> take record with greater bitflag
     # If the sequences are different -> keep
-    for accession in all_accessions:
-        dup_list = all_accessions[accession]
+    for accession, dup_list in all_accessions.items():  # type: (str, list)
+        # TODO: Deduplicate based on whether sequences or headers are substrings of others, using a Trie
         if len(dup_list) > 1:
-            dup_seqs_dict = dict()
-            # Load the occurrence of each duplicate record's sequence
-            for treesapp_id in dup_list:
-                # Could just pop from dup_list if the sequence isn't in dup_seqs_dict but bitflag filter is smarter
-                record_seq = ref_seqs.fasta_dict[treesapp_id]
-                try:
-                    dup_seqs_dict[record_seq] += 1
-                except KeyError:
-                    dup_seqs_dict[record_seq] = 1
-            x = 0
-            # Remove the sequences from dup_list if their sequence was found once
-            while x < len(dup_list):
-                treesapp_id = dup_list[x]
-                record_seq = ref_seqs.fasta_dict[treesapp_id]
-                if dup_seqs_dict[record_seq] == 1:
-                    dup_list.pop(x)
-                else:
-                    x += 1
-            # Move on to the next accession if dup_list is empty (because all duplicates have unique sequences)
-            if not dup_list:
-                continue
-
+            ##
             # Remove records with redundant accessions by removing those with the lower bitflag
+            ##
             max_bitflag = max([ref_seq_records[treesapp_id].bitflag for treesapp_id in dup_list])
             x = 0
             while x < len(dup_list):
                 treesapp_id = dup_list[x]
-                ref_seq = ref_seq_records[treesapp_id]
+                ref_seq = ref_seq_records[treesapp_id]  # type: entrez_utils.EntrezRecord
                 if ref_seq.bitflag < max_bitflag:
-                    ref_seq_records.pop(treesapp_id)
+                    duplicate_treesapp_ids.add(treesapp_id)
                     dup_list.pop(x)
-                    deduped_accessions.append(ref_seqs.header_registry[treesapp_id].original)
                 else:
                     x += 1
-            x = 1
             # Check for records with identical headers, keeping only one
-            while len(dup_list) > 1:
-                treesapp_id = dup_list[x]
-                ref_seq_records.pop(treesapp_id)
-                dup_list.pop(x)  # Don't increment
-                deduped_accessions.append(ref_seqs.header_registry[treesapp_id].original)
+            og_headers = dict()
+            for ts_id in dup_list:  # type: str
+                try:
+                    og_headers[ref_seqs.header_registry[ts_id].original].append(ts_id)
+                except KeyError:
+                    og_headers[ref_seqs.header_registry[ts_id].original] = [ts_id]
+            for seq_name, ts_ids in og_headers.items():
+                if len(ts_ids) > 1:
+                    for treesapp_id in ts_ids[1:]:
+                        duplicate_treesapp_ids.add(treesapp_id)
         else:
             pass
 
-    if deduped_accessions:
-        logging.warning("The following sequences were removed during deduplication of accession IDs:\n\t" +
+    # Actually remove the duplicates from the ref_seq_records dictionary
+    if duplicate_treesapp_ids:
+        deduped_accessions = []
+        for ts_id in duplicate_treesapp_ids:
+            ref_seq_records.pop(ts_id)
+            deduped_accessions.append(ref_seqs.header_registry[ts_id].original)
+
+        logging.warning("The following sequences were removed during deduplication of Entrez records:\n\t" +
                         "\n\t".join(deduped_accessions) + "\n")
 
     return ref_seq_records

@@ -231,6 +231,7 @@ class Header:
         self.post_align = ""
         self.first_split = ""
         self.accession = ""
+        self.version = ""
 
     def get_info(self):
         info_string = "TreeSAPP ID = '%s'\tPrefix = '%s'\n" % (str(self.treesapp_num_id), self.first_split)
@@ -239,11 +240,12 @@ class Header:
             info_string += "Accession = " + self.accession + "\n"
         return info_string
 
-    def find_accession(self, refpkg_name=""):
+    def find_accession(self, refpkg_name="") -> None:
         header_regexes = load_fasta_header_regexes(refpkg_name)
         header_format_re, header_db, header_molecule = get_header_format(self.original, header_regexes)
         sequence_info = header_format_re.match(self.original)
         self.accession = sequence_info_groups(sequence_info, header_db, self.original, header_regexes).accession
+        return
 
 
 def register_headers(header_list: list, drop=True) -> dict:
@@ -667,8 +669,8 @@ class FASTA:
             rep_acc = count_dict[accession].pop()
             dedup_header_dict[rep_acc] = self.header_registry[rep_acc]
         if duplicates:
-            logging.debug("Removed " + str(len(duplicates)) + " sequences with duplicate accessions:\n\t" +
-                          "\n\t".join(duplicates) + "\n")
+            logging.debug("Removed {} sequences with duplicate accessions:\n"
+                          "\t{}\n".format(len(duplicates), "\n\t".join(duplicates)))
         self.header_registry = dedup_header_dict
         self.synchronize_seqs_n_headers()
         return

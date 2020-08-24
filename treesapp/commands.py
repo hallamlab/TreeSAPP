@@ -423,6 +423,7 @@ def create(sys_args):
                                                   min_seq_length=args.min_seq_length)
     ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ref_seqs.file))
     ref_seqs.synchronize_seqs_n_headers()
+    ref_seqs.add_accession_to_headers()
     # Get rid of ambiguity or unusual characters
     ref_seqs.replace_ambiguity_chars(ts_create.ref_pkg.molecule)
     logging.info("Sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
@@ -460,8 +461,6 @@ def create(sys_args):
         # TODO: Replace this function with one offered by TaxonomicHierarchy
         fasta_records = create_refpkg.remove_by_truncated_lineages(fasta_records,
                                                                    args.min_taxonomic_rank, ref_seqs.amendments)
-        # Ensure there are no records with redundant headers and sequences
-        fasta_records = classy.dedup_records(ref_seqs, fasta_records)
 
         if len(fasta_records.keys()) < 2:
             logging.error("{} sequences post-homology + taxonomy filtering\n".format(len(fasta_records)))
