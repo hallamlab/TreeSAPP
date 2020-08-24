@@ -45,6 +45,8 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
         if targets:  # type: list
             if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:
                 continue
+            elif refpkg.prefix in refpkgs_found and refpkg.refpkg_code in refpkgs_found:
+                logging.warning("RefPkg for {} has already been found. Skipping {}.\n".format(refpkg.prefix, rp_file))
             else:
                 match = targets.intersection({refpkg.prefix, refpkg.refpkg_code}).pop()
                 refpkgs_found.add(match)
@@ -123,16 +125,17 @@ def parse_assignments(classified_lines: list) -> dict:
     unique_headers = dict()  # Temporary storage for classified sequences prior to filtering
     dups = set()  # For storing the names of all query sequences that were split and classified separately
     for fields in classified_lines:
-        _, header, marker, length, raw_tax, rob_class, _, _, _, _, _ = fields
-        if marker and rob_class:
+        _, header, marker, start_pos, end_pos, rec_tax, _, _, _, _, _, _ = fields
+        length = int(end_pos) - int(start_pos)
+        if marker and rec_tax:
             if marker not in assignments:
                 assignments[marker] = dict()
-            if rob_class not in assignments[marker]:
-                assignments[marker][rob_class] = list()
+            if rec_tax not in assignments[marker]:
+                assignments[marker][rec_tax] = list()
             if header not in unique_headers:
                 unique_headers[header] = None
             # If fragments from the same parent query had identical lengths these would be overwritten anyway
-            unique_headers[header] = {int(length): classified(refpkg=marker, taxon=rob_class, length=int(length))}
+            unique_headers[header] = {int(length): classified(refpkg=marker, taxon=rec_tax, length=int(length))}
         else:
             logging.error("Bad line in classification table - no robust taxonomic classification:\n" +
                           '\t'.join(fields) + "\n")
@@ -159,7 +162,7 @@ def read_classification_table(assignment_file) -> list:
     :return: A list of lines that have been split by tabs into lists themselves
     """
     classified_lines = list()
-    header = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
+    header = "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\tiNode\tE-value\tLWR\tEvoDist\tDistances\n"
 
     try:
         assignments_handle = open(assignment_file, 'r')
@@ -169,17 +172,17 @@ def read_classification_table(assignment_file) -> list:
 
     header_line = assignments_handle.readline()
     if not header_line:
-        logging.error("Classification file '" + assignment_file + "' is empty!\n")
+        logging.error("Classification file '{}' is empty!\n".format(assignment_file))
         sys.exit(21)
 
     # This is the header line
-    if header_line != header:
+    if not header_line.startswith(header.strip()):
         logging.error("Header of assignments file is unexpected!\n")
         sys.exit(21)
 
     # First line in the table containing data
     line = assignments_handle.readline()
-    n_fields = len(header.split("\t"))
+    n_fields = len(header_line.split("\t"))
     while line:
         fields = line.strip().split('\t')
         if len(fields) == n_fields:
@@ -713,3 +716,44 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
             discarded_seqs_string += " (removed)"
 
     return successful_multiple_alignments, failed_multiple_alignments, discarded_seqs_string
+
+
+def read_annotation_mapping_file(annot_map_file: str) -> dict:
+    """
+    Used for reading a file mapping the reference package name to all true positive orthologs in the query input
+    The first column is the ReferencePackage.prefix.
+    The second column is the ortholog name used by the database.
+    The third column is the name of a true positive.
+
+    :param annot_map_file: Path to a tab-delimited file
+    :return: A dictionary containing database sequence names mapped to their respective reference package names
+    """
+    annot_map = dict()
+    try:
+        annot_map_handler = open(annot_map_file)
+    except IOError:
+        logging.error("Unable to open annotation file '{}' for reading!\n".format(annot_map_file))
+        sys.exit(3)
+
+    # Assuming the first column is the reference package name and the second is the database annotation name
+    n = 0
+    for line in annot_map_handler:
+        n += 1
+        if line[0] == '#':
+            continue
+        elif not line:
+            continue
+        else:
+            try:
+                refpkg_name, og, query_name = line.strip().split("\t")
+            except ValueError:
+                logging.error("Unexpected number of fields on line {} in {}!\n".format(n, annot_map_file) +
+                              "File must have the reference package name and the database name in"
+                              " the first two columns, respectively. Any number of columns can follow.\n")
+                sys.exit(9)
+            if query_name not in annot_map:
+                annot_map[query_name] = set()
+            annot_map[query_name].add(refpkg_name)
+
+    annot_map_handler.close()
+    return annot_map

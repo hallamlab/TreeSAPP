@@ -1,9 +1,0 @@
-[bwa_index] Pack FASTA... 0.00 sec
-[bwa_index] Construct BWT for the packed sequence...
-[bwa_index] 0.03 seconds elapse.
-[bwa_index] Update BWT... 0.00 sec
-[bwa_index] Pack forward-only FASTA... 0.00 sec
-[bwa_index] Construct SA from BWT and Occ... 0.05 sec
-[main] Version: 0.7.17-r1188
-[main] CMD: /usr/bin/bwa index /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/final_outputs/PitchLake_TarA_Mcr_Dsr_classified.fna
-[main] Real time: 0.107 sec; CPU: 0.086 sec

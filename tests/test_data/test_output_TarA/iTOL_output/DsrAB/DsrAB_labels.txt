@@ -2,756 +2,755 @@ LABELS
 SEPARATOR COMMA
 DATA
 #NODE_ID,LABEL
-1_DsrAB,Caldivirga maquilingensis | ABW01689
-2_DsrAB,Caldivirga maquilingensis | ABW01688
-3_DsrAB,Pyrobaculum | AET33212
-4_DsrAB,Pyrobaculum | AET33221
-5_DsrAB,Pyrobaculum | AET33220
-6_DsrAB,Pyrobaculum | AET33213
-7_DsrAB,Pyrobaculum aerophilum | AAL64288
-8_DsrAB,Pyrobaculum aerophilum | AAL64305
-9_DsrAB,Pyrobaculum aerophilum | AAL64289
-10_DsrAB,Pyrobaculum arsenaticum | ABP50489
-11_DsrAB,Pyrobaculum arsenaticum | ABP50488
-12_DsrAB,Pyrobaculum arsenaticum | ABP50781
-13_DsrAB,Pyrobaculum arsenaticum | ABP50791
-14_DsrAB,Pyrobaculum calidifontis | ABO08865
-15_DsrAB,Pyrobaculum calidifontis | ABO08877
-16_DsrAB,Pyrobaculum calidifontis | ABO08876
-17_DsrAB,Pyrobaculum calidifontis | ABO08866
-18_DsrAB,Pyrobaculum islandicum | ABL87352
-19_DsrAB,Pyrobaculum neutrophilum | ACB39294
-20_DsrAB,Pyrobaculum oguniense | AFA39054
-21_DsrAB,Pyrobaculum oguniense | AFA39042
-22_DsrAB,Thermoproteus tenax | CCC81828
-23_DsrAB,Thermoproteus tenax | CCC81094
-24_DsrAB,Thermoproteus tenax | CCC81095
-25_DsrAB,Thermoproteus tenax | CCC81827
-26_DsrAB,Thermoproteus tenax | CCC81097
-27_DsrAB,Thermoproteus tenax | CCC81096
-28_DsrAB,Vulcanisaeta distributa | ADN51468
-29_DsrAB,Vulcanisaeta distributa | ADN51467
-30_DsrAB,Vulcanisaeta moutnovskia | ADY00713
-31_DsrAB,Vulcanisaeta moutnovskia | ADY00712
-32_DsrAB,Archaeoglobus | AAQ05933
-33_DsrAB,Archaeoglobus | AEY99617
-34_DsrAB,Archaeoglobus | BAF64851
-35_DsrAB,Archaeoglobus | BAF64852
-36_DsrAB,Archaeoglobus fulgidus | AIG97242
-37_DsrAB,Archaeoglobus infectus | BAF64848
-38_DsrAB,Archaeoglobus infectus | BAF64849
-39_DsrAB,Archaeoglobus profundus | ADB57211
-40_DsrAB,Archaeoglobus profundus | ADB57212
-41_DsrAB,Archaeoglobus sulfaticallidus | AGK60920
-42_DsrAB,Archaeoglobus sulfaticallidus | AGK60921
-43_DsrAB,Methanosphaera stadtmanae | ABC57101
-44_DsrAB,Methanocaldococcus vulcanius M7 | EET29478
-45_DsrAB,Methanotorris igneus | AEF96581
-46_DsrAB,Methanococcus maripaludis | AEK18970
-47_DsrAB,Methanothermococcus okinawensis | AEH06057
-48_DsrAB,Methanocorpusculum labreanum | ABN06423
-49_DsrAB,Methanoculleus | SAI89329
-50_DsrAB,Methanoculleus | KLK89338
-51_DsrAB,Methanoculleus | KDE55834
-52_DsrAB,Methanoculleus bourgensis | CCJ35990
-53_DsrAB,Methanoculleus marisnigri | ABN56665
-54_DsrAB,Methanoculleus marisnigri | ABN58344
-55_DsrAB,Methanolacinia petrolearia | ADN37114
-56_DsrAB,Methanolacinia petrolearia | ADN35466
-57_DsrAB,Methanolinea tarda NOBI-1 | EHF09878
-58_DsrAB,Methanoregula boonei | ABS55993
-59_DsrAB,Methanoregula boonei | ABS55388
-60_DsrAB,Methanoregula formicica | AGB01747
-61_DsrAB,Methanoregula formicica | AGB01729
-62_DsrAB,Methanosphaerula palustris | ACL16482
-63_DsrAB,Methanosphaerula palustris | ACL16864
-64_DsrAB,Methanosphaerula palustris | ACL17181
-65_DsrAB,Methanosphaerula palustris | ACL15593
-66_DsrAB,Methanospirillum hungatei | ABD41683
-67_DsrAB,Methanosaeta harundinacea | AET63583
-68_DsrAB,Methanothrix soehngenii | AEB67502
-69_DsrAB,Methanococcoides burtonii | ABE53082
-70_DsrAB,Methanococcoides methylutens | AKB84730
-71_DsrAB,Methanococcoides methylutens | AKB84440
-72_DsrAB,Methanohalophilus mahii | ADE36227
-73_DsrAB,Methanohalophilus mahii | ADE36004
-74_DsrAB,Methanolobus tindarius | ETA68492
-75_DsrAB,Methanomethylovorans hollandica | AGB48608
-76_DsrAB,Methanosarcina | KKH47116
-77_DsrAB,Methanosarcina | AKB24756
-78_DsrAB,Methanosarcina | AKB21620
-79_DsrAB,Methanosarcina | AKB47369
-80_DsrAB,Methanosarcina | KKG97678
-81_DsrAB,Methanosarcina acetivorans | AAM06806
-82_DsrAB,Methanosarcina barkeri | AKB80941
-83_DsrAB,Methanosarcina barkeri | AAZ71527
-84_DsrAB,Methanosarcina barkeri | AKB82170
-85_DsrAB,Methanosarcina flavescens | KPL46923
-86_DsrAB,Methanosarcina horonobensis | AKB78511
-87_DsrAB,Methanosarcina lacustris | AKB75121
-88_DsrAB,Methanosarcina mazei | AAM32960
-89_DsrAB,Methanosarcina siciliae | AKB37040
-90_DsrAB,Candidatus Methanomassiliicoccus intestinalis | AGN26414
-91_DsrAB,Olsenella | AKT50048
-92_DsrAB,Olsenella | KUH57898
-93_DsrAB,unclassified Coriobacteriaceae | AJC12064
-94_DsrAB,unclassified Coriobacteriaceae | AJC12063
-95_DsrAB,Gordonibacter pamelaeae | CBL04171
-96_DsrAB,Chlorobaculum parvum | ACF10456
-97_DsrAB,Chlorobaculum parvum | ACF10457
-98_DsrAB,Chlorobaculum tepidum | AAM72089
-99_DsrAB,Chlorobaculum tepidum | AAM72088
-100_DsrAB,Chlorobium | KUL33298
-101_DsrAB,Chlorobium | BAJ17557
-102_DsrAB,Chlorobium | ABX82429
-103_DsrAB,Chlorobium chlorochromatii | ABB29204
-104_DsrAB,Chlorobium chlorochromatii | ABB29203
-105_DsrAB,Chlorobium limicola | ACD89778
-106_DsrAB,Chlorobium phaeobacteroides | ACE04774
-107_DsrAB,Chlorobium phaeobacteroides | ABL64199
-108_DsrAB,Chlorobium phaeobacteroides | ABL64198
-109_DsrAB,Chlorobium phaeobacteroides | ACE04773
-110_DsrAB,Chlorobium phaeovibrioides | ABP36068
-111_DsrAB,Pelodictyon luteolum | ABB22926
-112_DsrAB,Pelodictyon luteolum | ABB22927
-113_DsrAB,Pelodictyon luteolum | ABB24416
-114_DsrAB,Pelodictyon phaeoclathratiforme | ACF44516
-115_DsrAB,Pelodictyon phaeoclathratiforme | ACF44515
-116_DsrAB,Prosthecochloris | ANT63851
-117_DsrAB,Prosthecochloris | ANT63852
-118_DsrAB,Prosthecochloris | BAJ17556
-119_DsrAB,Prosthecochloris aestuarii | ACF45095
-120_DsrAB,Prosthecochloris aestuarii | ACF45096
-121_DsrAB,Fibrobacter succinogenes subsp. succinogenes | ACX73757
-122_DsrAB,Catabacter | KUJ32673
-123_DsrAB,Caloramator | KRQ86753
-124_DsrAB,Clostridium | KEZ85231
-125_DsrAB,Clostridium | AEY66142
-126_DsrAB,Clostridium | KGJ48190
-127_DsrAB,Clostridium | AKA69652
-128_DsrAB,Clostridium | CUP08281
-129_DsrAB,Clostridium | OBY12072
-130_DsrAB,Clostridium | CDM69912
-131_DsrAB,Clostridium | KOR24624
-132_DsrAB,Clostridium | AJG99946
-133_DsrAB,Clostridium | OBR96230
-134_DsrAB,Clostridium | CUX63006
-135_DsrAB,Clostridium | KYN78628
-136_DsrAB,Clostridium | AJG99840
-137_DsrAB,Clostridium | KON14587
-138_DsrAB,Clostridium | AND83853
-139_DsrAB,Clostridium | AOR94676
-140_DsrAB,Clostridium | OOM46908
-141_DsrAB,Clostridium | OBY12078
-142_DsrAB,Clostridium | KJF26197
-143_DsrAB,Clostridium | KGJ48576
-144_DsrAB,Clostridium | EXG84315
-145_DsrAB,Clostridium | OPF53187
-146_DsrAB,Clostridium | CUN64765
-147_DsrAB,Clostridium | CUN66481
-148_DsrAB,Clostridium | CUP10176
-149_DsrAB,Clostridium | CUO43315
-150_DsrAB,Clostridium | AQS14810
-151_DsrAB,Clostridium | BAK47913
-152_DsrAB,Clostridium | KOR24732
-153_DsrAB,Clostridium | BAK47484
-154_DsrAB,Clostridium | CUN82389
-155_DsrAB,Clostridium | CUO73416
-156_DsrAB,Clostridium | OSA91286
-157_DsrAB,Clostridium | CUO15817
-158_DsrAB,Clostridium | CUX73295
-159_DsrAB,Clostridium acetobutylicum | AAK79482
-160_DsrAB,Clostridium beijerinckii | ALB46277
-161_DsrAB,Clostridium botulinum | AJD25939
-162_DsrAB,Clostridium botulinum | KEI00917
-163_DsrAB,Clostridium botulinum | KEH91932
-164_DsrAB,Clostridium botulinum | OOV60619
-165_DsrAB,Clostridium botulinum E | ACD52971
-166_DsrAB,Clostridium botulinum F | ADF98782
-167_DsrAB,Clostridium butyricum | ENZ33524
-168_DsrAB,Clostridium carboxidivorans | AKN29695
-169_DsrAB,Clostridium carboxidivorans | AKN29505
-170_DsrAB,Clostridium cellulovorans | ADL50768
-171_DsrAB,Clostridium colicanis | KYH29354
-172_DsrAB,Clostridium colicanis | KYH28147
-173_DsrAB,Clostridium homopropionicum | KOA20704
-174_DsrAB,Clostridium magnum | SHJ65453
-175_DsrAB,Clostridium magnum | KZL92771
-176_DsrAB,Clostridium magnum | SHJ51021
-177_DsrAB,Clostridium novyi A | KEH85044
-178_DsrAB,Clostridium perfringens | ABG87260
-179_DsrAB,Clostridium ragsdalei | OBR94049
-180_DsrAB,Clostridium saccharobutylicum | AGX43185
-181_DsrAB,Clostridium saccharoperbutylacetonicum N1-4 | AGF58234
-182_DsrAB,Clostridium saccharoperbutylacetonicum N1-4 | AGF56773
-183_DsrAB,Clostridium tetani | AAO35782
-184_DsrAB,Clostridium tetani | CDI50690
-185_DsrAB,Thermotalea | KXG76106
-186_DsrAB,Acetobacterium | KNZ40306
-187_DsrAB,Acetobacterium | KNZ40483
-188_DsrAB,Acetobacterium | KNZ42266
-189_DsrAB,Acetobacterium woodii | AFA48345
-190_DsrAB,Acetobacterium woodii | AFA47803
-191_DsrAB,Acetobacterium woodii | AFA48546
-192_DsrAB,Eubacterium | ADO35347
-193_DsrAB,Eubacterium | EOT27157
-194_DsrAB,Eubacterium | ALU14996
-195_DsrAB,Eubacterium | CUQ79242
-196_DsrAB,Hungateiclostridium clariflavum | AEV67477
-197_DsrAB,Hungateiclostridium straminisolvens | GAE90109
-198_DsrAB,Hungateiclostridium thermocellum | CDG37016
-199_DsrAB,Pseudobacteroides cellulosolvens | KNY28044
-200_DsrAB,Ruminiclostridium cellobioparum subsp. termitidis | EMS71130
-201_DsrAB,Ruminiclostridium papyrosolvens | EPR13435
-202_DsrAB,unclassified Hungateiclostridiaceae | ANU56127
-203_DsrAB,Blautia | ASU31258
-204_DsrAB,Blautia | CUQ63234
-205_DsrAB,Blautia | CUP85296
-206_DsrAB,Blautia | ERI93159
-207_DsrAB,Blautia | CUN68774
-208_DsrAB,Blautia | CUP61806
-209_DsrAB,Blautia | ERI94488
-210_DsrAB,Blautia | CUM81054
-211_DsrAB,Blautia | CUO51740
-212_DsrAB,Blautia obeum | CBL21896
-213_DsrAB,Blautia obeum | CBL23757
-214_DsrAB,Butyrivibrio fibrisolvens | CBK74021
-215_DsrAB,Coprococcus | CUO12125
-216_DsrAB,Coprococcus catus | CBK79578
-217_DsrAB,Lachnoanaerobaculum | EJP23747
-218_DsrAB,Lachnoclostridium | CUN86651
-219_DsrAB,Lachnoclostridium phytofermentans | ABX42151
-220_DsrAB,Lachnoclostridium phytofermentans | ABX42194
-221_DsrAB,Lachnospira | CUO85212
-222_DsrAB,Roseburia | CRL34893
-223_DsrAB,Roseburia intestinalis | CBL14343
-224_DsrAB,unclassified Lachnospiraceae | EOS26354
-225_DsrAB,unclassified Lachnospiraceae | EOS47022
-226_DsrAB,unclassified Lachnospiraceae | KQC85064
-227_DsrAB,unclassified Lachnospiraceae | CUN27210
-228_DsrAB,Candidatus Desulforudis audaxviator | ACA60687
-229_DsrAB,Candidatus Desulforudis audaxviator | ACA60688
-230_DsrAB,Desulfallas | AAK83689
-231_DsrAB,Desulfallas | AAK83690
-232_DsrAB,Desulfallas geothermicus | AAK58398
-233_DsrAB,Desulfallas geothermicus | AAK58399
-234_DsrAB,Desulfotomaculum gibsoniae DSM 7213 | EHG06375
-235_DsrAB,Desulfotomaculum gibsoniae DSM 7213 | EHG06374
-236_DsrAB,Desulfotomaculum gibsoniae DSM 7213 | EHG04390
-237_DsrAB,Desulfitibacter | AAU95491
-238_DsrAB,Desulfitibacter | AAU95492
-239_DsrAB,Desulfitispora | ALC74142
-240_DsrAB,Desulfitispora | ALC74140
-241_DsrAB,Desulfitobacterium | CDX00302
-242_DsrAB,Desulfitobacterium dehalogenans | AFL98737
-243_DsrAB,Desulfitobacterium dehalogenans | AFM01768
-244_DsrAB,Desulfitobacterium dichloroeliminans | AGA67792
-245_DsrAB,Desulfitobacterium dichloroeliminans | AGA67791
-246_DsrAB,Desulfitobacterium hafniense | BAE84737
-247_DsrAB,Desulfitobacterium hafniense | ACL18321
-248_DsrAB,Desulfofarcimen acetoxidans | ACV61042
-249_DsrAB,Desulfofarcimen acetoxidans | ACV61043
-250_DsrAB,Desulfofarcimen acetoxidans | ACV62462
-251_DsrAB,Desulfofundulus | CAC36146
-252_DsrAB,Desulfofundulus | AAK83691
-253_DsrAB,Desulfofundulus | AAK83692
-254_DsrAB,Desulfofundulus australicus | SHF07759
-255_DsrAB,Desulfofundulus australicus | SHF07789
-256_DsrAB,Desulfohalotomaculum alkaliphilum | AAL57463
-257_DsrAB,Desulfosporosinus | ADL57233
-258_DsrAB,Desulfosporosinus | KLU67805
-259_DsrAB,Desulfosporosinus | ODA42821
-260_DsrAB,Desulfosporosinus | ODA41013
-261_DsrAB,Desulfosporosinus | ODA42822
-262_DsrAB,Desulfosporosinus acidiphilus | AFM41913
-263_DsrAB,Desulfosporosinus acidiphilus SJ4 | EIB96107
-264_DsrAB,Desulfosporosinus meridiei | AFQ44483
-265_DsrAB,Desulfosporosinus meridiei | AFQ44482
-266_DsrAB,Desulfosporosinus orientis | AET68802
-267_DsrAB,Desulfosporosinus orientis | AET68803
-268_DsrAB,Desulfotomaculum | AAK58406
-269_DsrAB,Desulfotomaculum | ABD46854
-270_DsrAB,Desulfotomaculum | OAT80832
-271_DsrAB,Desulfotomaculum | BAF34615
-272_DsrAB,Desulfotomaculum | OAT80833
-273_DsrAB,Desulfotomaculum | CAX46393
-274_DsrAB,Desulfotomaculum | OAT85882
-275_DsrAB,Desulfotomaculum | ABD46855
-276_DsrAB,Desulfotomaculum | AAK58407
-277_DsrAB,Desulfotomaculum hydrothermale | SHH14613
-278_DsrAB,Desulfotomaculum hydrothermale | SHH14593
-279_DsrAB,Desulfotomaculum nigrificans | AEF93885
-280_DsrAB,Desulfotomaculum nigrificans DSM 574 | EGB22297
-281_DsrAB,Desulfotomaculum nigrificans DSM 574 | EGB22296
-282_DsrAB,Desulfotomaculum nigrificans | AEF93302
-283_DsrAB,Desulfotomaculum reducens | ABO51689
-284_DsrAB,Desulfotomaculum reducens | ABO51688
-285_DsrAB,Desulfotomaculum ruminis | AAC24103
-286_DsrAB,Desulfotomaculum ruminis | AEG61924
-287_DsrAB,Desulfotomaculum ruminis | AEG58680
-288_DsrAB,Pelotomaculum | BAD05997
-289_DsrAB,Pelotomaculum | BAD05998
-290_DsrAB,Pelotomaculum thermopropionicum | BAF58423
-291_DsrAB,Syntrophobotulus glycolicus | ADY54876
-292_DsrAB,Syntrophobotulus glycolicus | ADY56813
-293_DsrAB,Thermincola | KNZ70575
-294_DsrAB,unclassified Peptococcaceae | KLU61521
-295_DsrAB,unclassified Peptococcaceae | KLU61520
-296_DsrAB,unclassified Peptococcaceae | AAU95493
-297_DsrAB,unclassified Peptococcaceae | AAU95489
-298_DsrAB,unclassified Peptococcaceae | KLU61903
-299_DsrAB,unclassified Peptococcaceae | AAU95494
-300_DsrAB,unclassified Peptococcaceae | AAU95490
-301_DsrAB,Acetoanaerobium | CBH22147
-302_DsrAB,Clostridioides | KPI56581
-303_DsrAB,Clostridioides | KPI56348
-304_DsrAB,Clostridioides | CZS08489
-305_DsrAB,Clostridioides | SJT88184
-306_DsrAB,Clostridioides difficile | EQF29347
-307_DsrAB,Clostridioides difficile | CCL96519
-308_DsrAB,Intestinibacter | CUO52445
-309_DsrAB,Intestinibacter | CUO63455
-310_DsrAB,Paeniclostridium | CEQ16953
-311_DsrAB,Paeniclostridium | CEK38944
-312_DsrAB,Paeniclostridium | CEK36644
-313_DsrAB,Paraclostridium | KKY02535
-314_DsrAB,Paraclostridium bifermentans | EQK43113
-315_DsrAB,Peptoclostridium acidaminophilum | AHM57814
-316_DsrAB,Acetivibrio | KSV58048
-317_DsrAB,Anaerotruncus | EOS57458
-318_DsrAB,Ruminococcus | CCO05508
-319_DsrAB,Ruminococcus bromii L2-63 | CBL15442
-320_DsrAB,Ruminococcus callidus | ERJ94876
-321_DsrAB,unclassified Ruminococcaceae miscellaneous | EGJ48298
-322_DsrAB,Syntrophomonas zehnderi | CFX70733
-323_DsrAB,Syntrophomonas zehnderi | CFX70780
-324_DsrAB,Intestinimonas | ALP94271
-325_DsrAB,unclassified Clostridiales miscellaneous | CVI71680
-326_DsrAB,Halobacteroides halobius | AGB41198
-327_DsrAB,Orenia | OCL26633
-328_DsrAB,Ammonifex degensii | ACX53171
-329_DsrAB,Ammonifex degensii | ACX53170
-330_DsrAB,Carboxydothermus hydrogenoformans | ABB15878
-331_DsrAB,Carboxydothermus hydrogenoformans | ABB15794
-332_DsrAB,Carboxydothermus hydrogenoformans | ABB13832
-333_DsrAB,Moorella | AKX94429
-334_DsrAB,Moorella | CEP67302
-335_DsrAB,Moorella | AKX93935
-336_DsrAB,Moorella | CEP67502
-337_DsrAB,Moorella mulderi | KYH32398
-338_DsrAB,Moorella mulderi | KYH32397
-339_DsrAB,Moorella mulderi | KYH32391
-340_DsrAB,Moorella mulderi | KYH33258
-341_DsrAB,Moorella thermoacetica | ABC19906
-342_DsrAB,Moorella thermoacetica | ABC19931
-343_DsrAB,Moorella thermoacetica | ABC19907
-344_DsrAB,Moorella thermoacetica | ABC20267
-345_DsrAB,Thermoanaerobacter | AIS51503
-346_DsrAB,Caldicellulosiruptor hydrothermalis | ADQ07261
-347_DsrAB,Caldicellulosiruptor kronotskyensis | ADQ46366
-348_DsrAB,Thermoanaerobacterium saccharolyticum | AFK85728
-349_DsrAB,Thermoanaerobacterium saccharolyticum | AFK86661
-350_DsrAB,Thermoanaerobacterium thermosaccharolyticum | ADL69103
-351_DsrAB,Thermodesulfobium narugense | AEE14984
-352_DsrAB,Thermodesulfobium narugense | AEE14983
-353_DsrAB,Candidatus Stoquefichus | KXU52284
-354_DsrAB,Erysipelatoclostridium | ASU20931
-355_DsrAB,Turicibacter | CUN97728
-356_DsrAB,unclassified Erysipelotrichaceae miscellaneous | OCN06340
-357_DsrAB,Acidaminococcus fermentans | ADB48249
-358_DsrAB,Mitsuokella | CUN70204
-359_DsrAB,Selenomonas ruminantium subsp. lactilytica | BAL84448
-360_DsrAB,Acetonema longum | EGO65655
-361_DsrAB,Acetonema longum | EGO65654
-362_DsrAB,Anaerosporomusa | KYZ76643
-363_DsrAB,Pelosinus | AIF51090
-364_DsrAB,Pelosinus fermentans | AJQ28134
-365_DsrAB,Propionispora | CUH97014
-366_DsrAB,Sporomusa | CQR74739
-367_DsrAB,Thermosinus carboxydivorans | EAX47853
-368_DsrAB,Thermosinus carboxydivorans | EAX47854
-369_DsrAB,Megasphaera | KUH56792
-370_DsrAB,Megasphaera | SHJ75502
-371_DsrAB,Megasphaera | KXA67423
-372_DsrAB,Megasphaera | KUH56779
-373_DsrAB,Anaerococcus | KWZ96174
-374_DsrAB,unclassified Firmicutes sensu stricto miscellaneous | CAM35600
-375_DsrAB,unclassified Firmicutes sensu stricto miscellaneous | ESL14089
-376_DsrAB,Fusobacterium | KXA16495
-377_DsrAB,Fusobacterium hwasookii | ALQ40219
-378_DsrAB,Fusobacterium nucleatum subsp. animalis | EEO41963
-379_DsrAB,Ilyobacter polytropus | ADO83979
-380_DsrAB,Leptotrichia | AMD95896
-381_DsrAB,Leptotrichia buccalis | ACV39032
-382_DsrAB,Sebaldella termitidis | ACZ07430
-383_DsrAB,Thermodesulfovibrio | ODA44205
-384_DsrAB,Thermodesulfovibrio | ODA44206
-385_DsrAB,Thermodesulfovibrio | GAQ94481
-386_DsrAB,Thermodesulfovibrio yellowstonii | ACI21788
-387_DsrAB,Thermodesulfovibrio yellowstonii | ACI20808
-388_DsrAB,unclassified Nitrospirae | KWT91778
-389_DsrAB,unclassified Nitrospirae | KWT91779
-390_DsrAB,Magnetococcus marinus | ABK44657
-391_DsrAB,Magnetococcus marinus | ABK44658
-392_DsrAB,Rhodomicrobium udaipurense | KAI93440
-393_DsrAB,Rhodomicrobium vannielii | ADP69878
-394_DsrAB,Ruegeria | KUJ80506
-395_DsrAB,Ruegeria | KUJ80505
-396_DsrAB,Candidatus Riegeria | AEI70743
-397_DsrAB,Candidatus Riegeria | AEI70744
-398_DsrAB,Magnetospira | CCQ74003
-399_DsrAB,Magnetospira | CCQ74002
-400_DsrAB,Magnetospirillum | OAN43750
-401_DsrAB,Magnetospirillum | CUW41304
-402_DsrAB,Magnetospirillum | CUW41303
-403_DsrAB,Magnetospirillum | OAN50578
-404_DsrAB,Magnetospirillum | EME69585
-405_DsrAB,Magnetospirillum | OAN43749
-406_DsrAB,Magnetospirillum | OAN50577
-407_DsrAB,Magnetospirillum | EME69584
-408_DsrAB,Magnetospirillum gryphiswaldense | CAM75808
-409_DsrAB,Magnetospirillum gryphiswaldense | CAM75807
-410_DsrAB,Magnetospirillum magneticum | BAE52171
-411_DsrAB,Curvibacter | KRI00107
-412_DsrAB,Curvibacter | KRI00108
-413_DsrAB,Hydrogenophaga | EWS63753
-414_DsrAB,unclassified Burkholderiales miscellaneous | BAP87436
-415_DsrAB,unclassified Burkholderiales miscellaneous | BAP87437
-416_DsrAB,Ferriphaselus | GAO32864
-417_DsrAB,Ferriphaselus | GAO32865
-418_DsrAB,Sideroxydans lithotrophicus | ADE11919
-419_DsrAB,Sideroxydans lithotrophicus | ADE11918
-420_DsrAB,Sulfuricella denitrificans | BAN36517
-421_DsrAB,Sulfuricella denitrificans | BAN36518
-422_DsrAB,Sulfuritalea hydrogenivorans | BAO29243
-423_DsrAB,Sulfuritalea hydrogenivorans | BAO29242
-424_DsrAB,Thiobacillus | ABX82443
-425_DsrAB,Thiobacillus | KVW96767
-426_DsrAB,Thiobacillus | KVW96766
-427_DsrAB,Thiobacillus denitrificans | AAZ98438
-428_DsrAB,Thiobacillus denitrificans | AAZ97322
-429_DsrAB,Thiobacillus denitrificans | AAZ97262
-430_DsrAB,Candidatus Desulfofervidus | AMM41967
-431_DsrAB,Candidatus Desulfofervidus | AMM41968
-432_DsrAB,Desulfarculus baarsii | ADK84330
-433_DsrAB,Desulfarculus baarsii | AAK83215
-434_DsrAB,Desulfarculus baarsii | ADK84329
-435_DsrAB,Desulfocarbo | KMY67317
-436_DsrAB,Desulfocarbo | KMY67318
-437_DsrAB,Dethiosulfatarculus | KIX11064
-438_DsrAB,Dethiosulfatarculus | KIX11065
-439_DsrAB,Candidatus Magnetomorum | KPA08768
-440_DsrAB,Candidatus Magnetomorum | KPA08769
-441_DsrAB,Desulfatibacillum alkenivorans | ACL05981
-442_DsrAB,Desulfatibacillum alkenivorans | ACL05980
-443_DsrAB,Desulfatiferula | CCE67081
-444_DsrAB,Desulfatiferula | ABH03459
-445_DsrAB,Desulfatiferula | ABH03460
-446_DsrAB,Desulfatiferula | CCE67080
-447_DsrAB,Desulfatiglans anilini | AAQ05939
-448_DsrAB,Desulfatiglans anilini | AAQ05940
-449_DsrAB,Desulfatitalea | BAM15279
-450_DsrAB,Desulfobacter | CAB95042
-451_DsrAB,Desulfobacter | CAB95043
-452_DsrAB,Desulfobacter | AAC24097
-453_DsrAB,Desulfobacter | AAC24098
-454_DsrAB,Desulfobacter postgatei | AAL57469
-455_DsrAB,Desulfobacter postgatei | AAL57470
-456_DsrAB,Desulfobacterium | CAA75653
-457_DsrAB,Desulfobacterium | AAL57479
-458_DsrAB,Desulfobacterium | AAL57480
-459_DsrAB,Desulfobacterium autotrophicum | ACN17296
-460_DsrAB,Desulfobacula toluolica | CCK78726
-461_DsrAB,Desulfobacula toluolica | CCK78725
-462_DsrAB,Desulfobotulus | AAC24109
-463_DsrAB,Desulfobotulus | AAC24110
-464_DsrAB,Desulfocella | AAL57473
-465_DsrAB,Desulfocella | AAL57474
-466_DsrAB,Desulfococcus | AAC24101
-467_DsrAB,Desulfococcus | AOY59589
-468_DsrAB,Desulfococcus oleovorans | ABW68472
-469_DsrAB,Desulfococcus oleovorans | ABW68473
-470_DsrAB,Desulfoconvexum | AFJ95152
-471_DsrAB,Desulfofaba | AAK83201
-472_DsrAB,Desulfofaba | AAK83202
-473_DsrAB,Desulfosalsimonas | ABD46860
-474_DsrAB,Desulfosalsimonas | ABD46861
-475_DsrAB,Desulfosarcina | ACR46723
-476_DsrAB,Desulfosarcina | BAM24704
-477_DsrAB,Desulfosarcina | AAN31398
-478_DsrAB,Desulfosarcina | ACR46724
-479_DsrAB,Desulfosarcina | AAN31399
-480_DsrAB,Desulfosarcina variabilis | AAK58134
-481_DsrAB,Desulfosarcina variabilis | CAC36298
-482_DsrAB,Desulfospira | AAQ05963
-483_DsrAB,Desulfospira | AAQ05964
-484_DsrAB,Desulfotignum phosphitoxidans | EMS79847
-485_DsrAB,Desulfotignum phosphitoxidans | EMS79848
-486_DsrAB,Desulfobulbus | CAB95039
-487_DsrAB,Desulfobulbus | CAC36142
-488_DsrAB,Desulfobulbus | CAB95038
-489_DsrAB,Desulfobulbus | AAG28585
-490_DsrAB,Desulfobulbus | AAL07560
-491_DsrAB,Desulfobulbus | AAL07561
-492_DsrAB,Desulfobulbus | AAG28586
-493_DsrAB,Desulfobulbus propionicus | ADW19073
-494_DsrAB,Desulfocapsa sulfexigens | AGF78191
-495_DsrAB,Desulfocapsa sulfexigens | AGF78192
-496_DsrAB,Desulfofustis | AAL57455
-497_DsrAB,Desulfofustis | AAL57456
-498_DsrAB,Desulfopila | CCF77358
-499_DsrAB,Desulfopila | ACU00018
-500_DsrAB,Desulfopila | ACU00019
-501_DsrAB,Desulforhopalus | AAL57465
-502_DsrAB,Desulforhopalus | AAK83203
-503_DsrAB,Desulforhopalus | AAK83204
-504_DsrAB,Desulforhopalus | AAL57466
-505_DsrAB,Desulfotalea psychrophila | CAG35527
-506_DsrAB,Desulfotalea psychrophila | CAG35526
-507_DsrAB,Desulfurivibrio alkaliphilus | ADH85008
-508_DsrAB,Desulfurivibrio alkaliphilus | ADH85007
-509_DsrAB,Desulfohalobium | ABD46858
-510_DsrAB,Desulfohalobium | ABD46859
-511_DsrAB,Desulfohalobium retbaense | ACV67547
-512_DsrAB,Desulfohalobium retbaense | ACV67546
-513_DsrAB,Desulfohalobium retbaense | AAQ05945
-514_DsrAB,Desulfohalophilus | AFJ04154
-515_DsrAB,Desulfohalophilus | AFJ04155
-516_DsrAB,Desulfonatronospira | AFI13788
-517_DsrAB,Desulfonatronospira | AFI13789
-518_DsrAB,Desulfonatronovibrio | AAL57467
-519_DsrAB,Desulfonatronovibrio | AFI13790
-520_DsrAB,Desulfonatronovibrio | AAL57468
-521_DsrAB,Desulfonatronovibrio | AFI13795
-522_DsrAB,Desulfonatronovibrio | AFI13791
-523_DsrAB,Desulfonauticus | AAO27364
-524_DsrAB,unclassified Desulfohalobiaceae | ABD46857
-525_DsrAB,Desulfomicrobium | BAB55551
-526_DsrAB,Desulfomicrobium | ABE73460
-527_DsrAB,Desulfomicrobium | ABE73459
-528_DsrAB,Desulfomicrobium | BAF95901
-529_DsrAB,Desulfomicrobium baculatum | ACU88407
-530_DsrAB,Desulfomicrobium orale | AMD92943
-531_DsrAB,Desulfomicrobium orale | AMD92944
-532_DsrAB,Desulfoplanes | GAU08054
-533_DsrAB,Desulfoplanes | GAU08053
-534_DsrAB,Desulfoplanes | BAQ59232
-535_DsrAB,Desulfonatronum | AFI13796
-536_DsrAB,Desulfonatronum | AFI13797
-537_DsrAB,Desulfonatronum lacustre | AAL57451
-538_DsrAB,Desulfonatronum lacustre | AAL57452
-539_DsrAB,Bilophila | EGW45804
-540_DsrAB,Bilophila wadsworthia | EFV44050
-541_DsrAB,Desulfobaculum | AEC45573
-542_DsrAB,Desulfovibrio | AAV35108
-543_DsrAB,Desulfovibrio | AII99384
-544_DsrAB,Desulfovibrio | AAC24105
-545_DsrAB,Desulfovibrio | BAB55567
-546_DsrAB,Desulfovibrio | AMD91199
-547_DsrAB,Desulfovibrio | CBH20085
-548_DsrAB,Desulfovibrio | AII99380
-549_DsrAB,Desulfovibrio | EPR37655
-550_DsrAB,Desulfovibrio | EPR37656
-551_DsrAB,Desulfovibrio | BAB55573
-552_DsrAB,Desulfovibrio | AAQ05951
-553_DsrAB,Desulfovibrio | EFL86824
-554_DsrAB,Desulfovibrio | CAC09931
-555_DsrAB,Desulfovibrio | ABF83984
-556_DsrAB,Desulfovibrio | CAK29507
-557_DsrAB,Desulfovibrio | AAV35109
-558_DsrAB,Desulfovibrio | BAH28878
-559_DsrAB,Desulfovibrio | AAC24106
-560_DsrAB,Desulfovibrio | BAB55574
-561_DsrAB,Desulfovibrio | AAK30046
-562_DsrAB,Desulfovibrio | CBH20086
-563_DsrAB,Desulfovibrio | BAB55568
-564_DsrAB,Desulfovibrio | BAB55572
-565_DsrAB,Desulfovibrio | AAK83200
-566_DsrAB,Desulfovibrio | AAQ05952
-567_DsrAB,Desulfovibrio | AEW87975
-568_DsrAB,Desulfovibrio | AII99381
-569_DsrAB,Desulfovibrio | AAZ04356
-570_DsrAB,Desulfovibrio | KHK02121
-571_DsrAB,Desulfovibrio | AAK71942
-572_DsrAB,Desulfovibrio | EGY25887
-573_DsrAB,Desulfovibrio | AAK71941
-574_DsrAB,Desulfovibrio | AAK83199
-575_DsrAB,Desulfovibrio africanus | EGJ49710
-576_DsrAB,Desulfovibrio africanus | EGJ49709
-577_DsrAB,Desulfovibrio alaskensis | ABB37328
-578_DsrAB,Desulfovibrio alaskensis | ABB37327
-579_DsrAB,Desulfovibrio alkalitolerans | EPR32899
-580_DsrAB,Desulfovibrio alkalitolerans | EPR32898
-581_DsrAB,Desulfovibrio desulfuricans | EGB16013
-582_DsrAB,Desulfovibrio desulfuricans | EGB16012
-583_DsrAB,Desulfovibrio fructosivorans | BAB55569
-584_DsrAB,Desulfovibrio fructosivorans | AAL57447
-585_DsrAB,Desulfovibrio fructosivorans | EFL49661
-586_DsrAB,Desulfovibrio gigas | AGW12595
-587_DsrAB,Desulfovibrio gigas | AGW12594
-588_DsrAB,Desulfovibrio hydrothermalis | CCN98400
-589_DsrAB,Desulfovibrio hydrothermalis | CCN98401
-590_DsrAB,Desulfovibrio magneticus | BAH73852
-591_DsrAB,Desulfovibrio piger | BAB55561
-592_DsrAB,Desulfovibrio piger | EEB33308
-593_DsrAB,Desulfovibrio piger | AAQ05954
-594_DsrAB,Desulfovibrio salexigens | ACS78853
-595_DsrAB,Desulfovibrio salexigens | ACS78854
-596_DsrAB,Desulfovibrio vulgaris | ABX51940
-597_DsrAB,Desulfovibrio vulgaris | ADP85535
-598_DsrAB,Desulfovibrio vulgaris | ADP85536
-599_DsrAB,Desulfovibrio vulgaris | ABX51939
-600_DsrAB,Halodesulfovibrio | OBQ52446
-601_DsrAB,Halodesulfovibrio | OBQ52447
-602_DsrAB,Pseudodesulfovibrio | AMK12841
-603_DsrAB,Pseudodesulfovibrio | AMK12842
-604_DsrAB,Pseudodesulfovibrio aespoeensis | ADU63978
-605_DsrAB,Pseudodesulfovibrio aespoeensis | ADU63979
-606_DsrAB,Pseudodesulfovibrio piezophilus | CCH49861
-607_DsrAB,Pseudodesulfovibrio piezophilus | CCH49860
-608_DsrAB,unclassified Desulfovibrionales | BAF34617
-609_DsrAB,unclassified Desulfovibrionales | BAF34618
-610_DsrAB,Desulfurella acetivorans | AHF97345
-611_DsrAB,Desulfurella acetivorans | AHF97346
-612_DsrAB,Geobacter | ACT18291
-613_DsrAB,Geobacter | ADW13690
-614_DsrAB,Geobacter | ANA40596
-615_DsrAB,Geobacter | AJE02787
-616_DsrAB,Geobacter daltonii | ACM19162
-617_DsrAB,Geobacter metallireducens | ABB31802
-618_DsrAB,Geobacter uraniireducens | ABQ28087
-619_DsrAB,unclassified Desulfuromonadales | BAF34619
-620_DsrAB,Desulfobacca acetoxidans | AEB09471
-621_DsrAB,Desulfobacca acetoxidans | AEB09472
-622_DsrAB,Desulfomonile tiedjei | AFM24266
-623_DsrAB,Desulfomonile tiedjei | AAK83205
-624_DsrAB,Desulfacinum | AAL57461
-625_DsrAB,Desulfacinum | AAL57462
-626_DsrAB,Desulfoglaeba alkanexedens | ACW65143
-627_DsrAB,Desulfoglaeba alkanexedens | ACW65144
-628_DsrAB,Desulforhabdus | AAL07558
-629_DsrAB,Desulforhabdus | AAL07559
-630_DsrAB,Desulfovirga | AAK83197
-631_DsrAB,Desulfovirga | AAK83198
-632_DsrAB,Syntrophobacter | AAL57457
-633_DsrAB,Syntrophobacter | AAL57458
-634_DsrAB,Syntrophobacter fumaroxidans | AAL57460
-635_DsrAB,Syntrophobacter fumaroxidans | ABK19708
-636_DsrAB,Thermodesulforhabdus | AAK83209
-637_DsrAB,Thermodesulforhabdus | CAC36212
-638_DsrAB,Thermodesulforhabdus | CAC36213
-639_DsrAB,Dissulfuribacter | OCC16504
-640_DsrAB,Dissulfuribacter | OCC16505
-641_DsrAB,unclassified Deltaproteobacteria miscellaneous | ADW23605
-642_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAY97991
-643_DsrAB,unclassified Deltaproteobacteria miscellaneous | AKN56973
-644_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAQ05941
-645_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAY97983
-646_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAQ05942
-647_DsrAB,unclassified Deltaproteobacteria miscellaneous | EFK09905
-648_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAY97982
-649_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAQ05960
-650_DsrAB,unclassified Deltaproteobacteria miscellaneous | ADW23606
-651_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAY97996
-652_DsrAB,unclassified Deltaproteobacteria miscellaneous | BAK52534
-653_DsrAB,unclassified Deltaproteobacteria miscellaneous | EAT04804
-654_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAK28361
-655_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAQ05959
-656_DsrAB,unclassified Deltaproteobacteria miscellaneous | AKN56974
-657_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAY97995
-658_DsrAB,unclassified Deltaproteobacteria miscellaneous | EAT01398
-659_DsrAB,unclassified Deltaproteobacteria miscellaneous | AAY97990
-660_DsrAB,Acidiferrobacter | OCX43804
-661_DsrAB,Acidiferrobacter | OCX43803
-662_DsrAB,Sulfuricaulis | BAV32578
-663_DsrAB,Sulfuricaulis | BAV33585
-664_DsrAB,Sulfuricaulis | BAV32579
-665_DsrAB,Sulfuricaulis | BAV33586
-666_DsrAB,Sulfurifustis | BAU48508
-667_DsrAB,Sulfurifustis | BAU48507
-668_DsrAB,Sulfurifustis | BAU46840
-669_DsrAB,Sulfurifustis | BAU46841
-670_DsrAB,Aeromonas | OCQ45040
-671_DsrAB,Allochromatium | ABX82422
-672_DsrAB,Halochromatium | BAJ17545
-673_DsrAB,Halochromatium | BAJ17546
-674_DsrAB,Imhoffiella | EXJ14774
-675_DsrAB,Imhoffiella | EXJ14775
-676_DsrAB,Marichromatium | KXX63489
-677_DsrAB,Marichromatium purpuratum | AHF04303
-678_DsrAB,Thiobaca | BAJ17548
-679_DsrAB,Thiocapsa | AHW46447
-680_DsrAB,Thiocapsa | CRI66520
-681_DsrAB,Thiocapsa marina | ABX82440
-682_DsrAB,Thiocapsa marina | BAJ17549
-683_DsrAB,Thiocystis | ABX82424
-684_DsrAB,Thiocystis violascens | AFL72603
-685_DsrAB,Thioflavicoccus mobilis | AGA89018
-686_DsrAB,Thioflavicoccus mobilis | AGA89019
-687_DsrAB,Thiorhodococcus drewsii | BAJ17553
-688_DsrAB,Alkalilimnicola ehrlichii | ABI56999
-689_DsrAB,Alkalilimnicola ehrlichii | ABI57000
-690_DsrAB,Halorhodospira | BAU58366
-691_DsrAB,Halorhodospira | BAU58365
-692_DsrAB,Halorhodospira halophila | ABM62716
-693_DsrAB,Halorhodospira halophila | ABM62715
-694_DsrAB,Thioalkalivibrio nitratireducens | AGA33428
-695_DsrAB,Thioalkalivibrio nitratireducens | AGA33429
-696_DsrAB,Thioalkalivibrio nitratireducens | AGA32549
-697_DsrAB,Thioalkalivibrio nitratireducens | AGA32551
-698_DsrAB,Thioalkalivibrio sulfidiphilus | ACL73265
-699_DsrAB,Thioalkalivibrio sulfidiphilus | ACL73266
-700_DsrAB,Citrobacter | ACR14866
-701_DsrAB,Escherichia | BAT42470
-702_DsrAB,Escherichia | KHI86175
-703_DsrAB,Salmonella enterica subsp. arizonae | ABX20266
-704_DsrAB,Shimwellia blattae | AFJ45881
-705_DsrAB,Edwardsiella | ATI65736
-706_DsrAB,Serratia sp. ATCC 39006 | ESN63625
-707_DsrAB,Achromatium | KOR27118
-708_DsrAB,Thioploca | BAP54909
-709_DsrAB,Thioploca | BAP54908
-710_DsrAB,Thiothrix nivea | ABX82433
-711_DsrAB,Thiothrix nivea | ABX82434
-712_DsrAB,Photobacterium | OBU32419
-713_DsrAB,Photobacterium damselae | ODA20751
-714_DsrAB,Photobacterium leiognathi | KPA54706
-715_DsrAB,Vibrio harveyi group | APP08633
-716_DsrAB,Candidatus Thiobios | ACI42954
-717_DsrAB,Candidatus Thioglobus | ALE52094
-718_DsrAB,Candidatus Thioglobus | ALE52093
-719_DsrAB,Sedimenticola | AKH21805
-720_DsrAB,Sedimenticola | AKH20698
-721_DsrAB,Sedimenticola | AKH21806
-722_DsrAB,Thiolapillus | BAO45370
-723_DsrAB,Thiolapillus | BAO45371
-724_DsrAB,Bathymodiolus azoricus thioautotrophic gill symbiont | CRN08726
-725_DsrAB,sulfur-oxidizing symbionts | ACQ45565
-726_DsrAB,Bathymodiolus septemdierum thioautotrophic gill symbiont | BAS68245
-727_DsrAB,Bathymodiolus septemdierum thioautotrophic gill symbiont | BAS68244
-728_DsrAB,Calyptogena okutanii thioautotrophic gill symbiont | BAF61901
-729_DsrAB,Calyptogena okutanii thioautotrophic gill symbiont | BAF61900
-730_DsrAB,Candidatus Ruthia magnifica | ABL02586
-731_DsrAB,endosymbiont of Riftia pachyptila | EGV52262
-732_DsrAB,endosymbiont of Riftia pachyptila | EGV52261
-733_DsrAB,unclassified Gammaproteobacteria miscellaneous | CCK33764
-734_DsrAB,unclassified Gammaproteobacteria miscellaneous | BAN69657
-735_DsrAB,unclassified Gammaproteobacteria miscellaneous | BAN69656
-736_DsrAB,Sphaerochaeta pleomorpha | AEV30986
-737_DsrAB,Treponema azotonutricium | AEF81033
-738_DsrAB,Treponema primitia | AEF86601
-739_DsrAB,Treponema primitia | AEF86380
-740_DsrAB,Cloacibacillus | ANZ44692
-741_DsrAB,Cloacibacillus evryensis | EXG78946
-742_DsrAB,Caldimicrobium | BAU22844
-743_DsrAB,Caldimicrobium | BAU22845
-744_DsrAB,Thermodesulfatator | OAG27563
-745_DsrAB,Thermodesulfatator atlanticus | CAX51965
-746_DsrAB,Thermodesulfatator indicus | AEH44286
-747_DsrAB,Thermodesulfobacterium | AAK83212
-748_DsrAB,Thermodesulfobacterium commune | AIH04279
-749_DsrAB,Thermodesulfobacterium geofontis | AEH23488
-750_DsrAB,Thermodesulfobacterium geofontis | AEH23487
-751_DsrAB,Thermosulfurimonas | OAQ20198
-752_DsrAB,Thermosulfurimonas | OAQ20199
-753_DsrAB,unclassified Autographivirinae | AIA83261
+1_DsrAB,Caldivirga maquilingensis IC-167 | ABW01689
+2_DsrAB,Caldivirga maquilingensis IC-167 | ABW01688
+3_DsrAB,Pyrobaculum aerophilum str. IM2 | AAL64288
+4_DsrAB,Pyrobaculum aerophilum str. IM2 | AAL64305
+5_DsrAB,Pyrobaculum aerophilum str. IM2 | AAL64289
+6_DsrAB,Pyrobaculum arsenaticum DSM 13514 | ABP50489
+7_DsrAB,Pyrobaculum arsenaticum DSM 13514 | ABP50488
+8_DsrAB,Pyrobaculum arsenaticum DSM 13514 | ABP50780
+9_DsrAB,Pyrobaculum calidifontis JCM 11548 | ABO08865
+10_DsrAB,Pyrobaculum calidifontis JCM 11548 | ABO08877
+11_DsrAB,Pyrobaculum calidifontis JCM 11548 | ABO08876
+12_DsrAB,Pyrobaculum calidifontis JCM 11548 | ABO08866
+13_DsrAB,Pyrobaculum ferrireducens | AET33212
+14_DsrAB,Pyrobaculum ferrireducens | AET33221
+15_DsrAB,Pyrobaculum ferrireducens | AET33220
+16_DsrAB,Pyrobaculum ferrireducens | AET33213
+17_DsrAB,Pyrobaculum islandicum DSM 4184 | ABL87352
+18_DsrAB,Pyrobaculum islandicum DSM 4184 | ABL87353
+19_DsrAB,Pyrobaculum oguniense TE7 | AFA39041
+20_DsrAB,Pyrobaculum oguniense TE7 | AFA39053
+21_DsrAB,Pyrobaculum oguniense TE7 | AFA39042
+22_DsrAB,Thermoproteus tenax Kra 1 | CCC81094
+23_DsrAB,Thermoproteus tenax Kra 1 | CCC81095
+24_DsrAB,Thermoproteus tenax Kra 1 | CCC81827
+25_DsrAB,Thermoproteus tenax Kra 1 | CCC81097
+26_DsrAB,Thermoproteus tenax Kra 1 | CCC81096
+27_DsrAB,Vulcanisaeta distributa DSM 14429 | ADN51468
+28_DsrAB,Vulcanisaeta distributa DSM 14429 | ADN51467
+29_DsrAB,Vulcanisaeta moutnovskia 768-28 | ADY00713
+30_DsrAB,Vulcanisaeta moutnovskia 768-28 | ADY00712
+31_DsrAB,Archaeoglobus fulgidus | AEY99617
+32_DsrAB,Archaeoglobus fulgidus DSM 8774 | AIG97242
+33_DsrAB,Archaeoglobus infectus DSM 18877 | BAF64848
+34_DsrAB,Archaeoglobus infectus DSM 18877 | BAF64849
+35_DsrAB,Archaeoglobus profundus DSM 5631 | ADB57211
+36_DsrAB,Archaeoglobus profundus DSM 5631 | ADB57212
+37_DsrAB,Archaeoglobus sulfaticallidus PM70-1 | AGK60920
+38_DsrAB,Archaeoglobus sulfaticallidus PM70-1 | AGK60921
+39_DsrAB,Archaeoglobus veneficus | AAQ05933
+40_DsrAB,Archaeoglobus veneficus | BAF64851
+41_DsrAB,Archaeoglobus veneficus | BAF64852
+42_DsrAB,Methanosphaera stadtmanae DSM 3091 | ABC57101
+43_DsrAB,Methanocaldococcus vulcanius M7 | EET29478
+44_DsrAB,Methanotorris igneus Kol 5 | AEF96581
+45_DsrAB,Methanococcus maripaludis X1 | AEK18970
+46_DsrAB,Methanothermococcus okinawensis IH1 | AEH06057
+47_DsrAB,Methanocorpusculum labreanum Z | ABN06423
+48_DsrAB,Methanoculleus bourgensis MS2 | CCJ35990
+49_DsrAB,Methanoculleus bourgensis MS2 | CCJ37456
+50_DsrAB,Methanoculleus marisnigri JR1 | ABN56665
+51_DsrAB,Methanoculleus marisnigri JR1 | ABN58344
+52_DsrAB,Methanoculleus sediminis | KLK89338
+53_DsrAB,Methanoculleus sp. MH98A | KDE55834
+54_DsrAB,Methanolacinia petrolearia DSM 11571 | ADN37114
+55_DsrAB,Methanolacinia petrolearia DSM 11571 | ADN35466
+56_DsrAB,Methanolinea tarda NOBI-1 | EHF09878
+57_DsrAB,Methanoregula boonei 6A8 | ABS55993
+58_DsrAB,Methanoregula boonei 6A8 | ABS55388
+59_DsrAB,Methanoregula formicica SMSP | AGB01747
+60_DsrAB,Methanoregula formicica SMSP | AGB01729
+61_DsrAB,Methanosphaerula palustris E1-9c | ACL16482
+62_DsrAB,Methanosphaerula palustris E1-9c | ACL16864
+63_DsrAB,Methanosphaerula palustris E1-9c | ACL17181
+64_DsrAB,Methanosphaerula palustris E1-9c | ACL15593
+65_DsrAB,Methanospirillum hungatei JF-1 | ABD41683
+66_DsrAB,Methanococcoides burtonii DSM 6242 | ABE53082
+67_DsrAB,Methanococcoides methylutens MM1 | AKB84730
+68_DsrAB,Methanococcoides methylutens MM1 | AKB84440
+69_DsrAB,Methanohalophilus mahii DSM 5219 | ADE36227
+70_DsrAB,Methanohalophilus mahii DSM 5219 | ADE36004
+71_DsrAB,Methanolobus tindarius DSM 2278 | ETA68492
+72_DsrAB,Methanomethylovorans hollandica DSM 15978 | AGB48608
+73_DsrAB,Methanosarcina acetivorans C2A | AAM06806
+74_DsrAB,Methanosarcina barkeri 3 | AKB80941
+75_DsrAB,Methanosarcina barkeri str. Fusaro | AAZ71527
+76_DsrAB,Methanosarcina barkeri 3 | AKB82170
+77_DsrAB,Methanosarcina horonobensis HB-1 = JCM 15518 | AKB78511
+78_DsrAB,Methanosarcina lacustris Z-7289 | AKB75121
+79_DsrAB,Methanosarcina mazei Go1 | AAM32960
+80_DsrAB,Methanosarcina mazei | KKG97678
+81_DsrAB,Methanosarcina siciliae HI350 | AKB32731
+82_DsrAB,Methanosarcina sp. 2.H.T.1A.15 | KKG27331
+83_DsrAB,Methanosarcina sp. MTP4 | AKB24756
+84_DsrAB,Methanosarcina sp. WH1 | AKB21620
+85_DsrAB,Methanosarcina thermophila CHTI-55 | AKB16794
+86_DsrAB,Methanosarcina vacuolata Z-761 | AKB43929
+87_DsrAB,Methanosaeta harundinacea 6Ac | AET63583
+88_DsrAB,Methanothrix soehngenii GP6 | AEB67502
+89_DsrAB,Candidatus Methanomassiliicoccus intestinalis Issoire-Mx1 | AGN26414
+90_DsrAB,Olsenella scatoligenes | KUH57898
+91_DsrAB,Olsenella sp. oral taxon 807 | AKT50048
+92_DsrAB,Coriobacteriaceae bacterium 68-1-3 | AJC12064
+93_DsrAB,Coriobacteriaceae bacterium 68-1-3 | AJC12063
+94_DsrAB,Gordonibacter pamelaeae 7-10-1-b | CBL04171
+95_DsrAB,Chlorobaculum parvum NCIB 8327 | ACF10456
+96_DsrAB,Chlorobaculum parvum NCIB 8327 | ACF10457
+97_DsrAB,Chlorobaculum tepidum TLS | AAM72089
+98_DsrAB,Chlorobaculum tepidum TLS | AAM72088
+99_DsrAB,Chlorobium chlorochromatii CaD3 | ABB29204
+100_DsrAB,Chlorobium chlorochromatii CaD3 | ABB29203
+101_DsrAB,Chlorobium limicola | KUL33298
+102_DsrAB,Chlorobium limicola | ABX82429
+103_DsrAB,Chlorobium limicola DSM 245 | ACD89778
+104_DsrAB,Chlorobium phaeobacteroides BS1 | ACE04774
+105_DsrAB,Chlorobium phaeobacteroides DSM 266 | ABL64199
+106_DsrAB,Chlorobium phaeobacteroides DSM 266 | ABL64198
+107_DsrAB,Chlorobium phaeobacteroides BS1 | ACE04773
+108_DsrAB,Chlorobium phaeovibrioides DSM 265 | ABP36068
+109_DsrAB,Chlorobium phaeovibrioides | BAJ17557
+110_DsrAB,Pelodictyon luteolum DSM 273 | ABB22926
+111_DsrAB,Pelodictyon luteolum DSM 273 | ABB22927
+112_DsrAB,Pelodictyon luteolum DSM 273 | ABB24416
+113_DsrAB,Pelodictyon phaeoclathratiforme BU-1 | ACF44516
+114_DsrAB,Pelodictyon phaeoclathratiforme BU-1 | ACF44515
+115_DsrAB,Prosthecochloris aestuarii DSM 271 | ACF45095
+116_DsrAB,Prosthecochloris aestuarii DSM 271 | ACF45096
+117_DsrAB,Prosthecochloris sp. CIB 2401 | ANT63851
+118_DsrAB,Prosthecochloris sp. CIB 2401 | ANT63852
+119_DsrAB,Prosthecochloris vibrioformis | BAJ17556
+120_DsrAB,Fibrobacter succinogenes subsp. succinogenes S85 | ACX73757
+121_DsrAB,low G+C Gram-positive bacterium LVS-50 | CAM35600
+122_DsrAB,Firmicutes bacterium ASF500 | ESL14089
+123_DsrAB,Intestinimonas butyriciproducens | ALP94271
+124_DsrAB,Clostridiales bacterium CHKCI001 | CVI71680
+125_DsrAB,Catabacter hongkongensis | KUJ32673
+126_DsrAB,Caloramator mitchellensis | KRQ86753
+127_DsrAB,Clostridium aceticum | KJF26197
+128_DsrAB,Clostridium acetobutylicum ATCC 824 | AAK79482
+129_DsrAB,Clostridium baratii | OPF53187
+130_DsrAB,Clostridium beijerinckii | OCA98154
+131_DsrAB,Clostridium beijerinckii NCIMB 8052 | ABR34679
+132_DsrAB,Clostridium beijerinckii | AJG99946
+133_DsrAB,Clostridium beijerinckii | AJG99840
+134_DsrAB,Clostridium beijerinckii | OOM46908
+135_DsrAB,Clostridium bornimense | CDM69912
+136_DsrAB,Clostridium botulinum B2 275 | KEI91980
+137_DsrAB,Clostridium botulinum D/C | OOV60609
+138_DsrAB,Clostridium botulinum B str. Eklund 17B (NRP) | ACD22888
+139_DsrAB,Clostridium botulinum C/D str. It1 | KEH91932
+140_DsrAB,Clostridium botulinum B2 128 | KEI75156
+141_DsrAB,Clostridium botulinum D/C | OOV60619
+142_DsrAB,Clostridium botulinum | OSA91286
+143_DsrAB,Clostridium botulinum E3 str. Alaska E43 | ACD52971
+144_DsrAB,Clostridium butyricum 60E.3 | ENZ33524
+145_DsrAB,Clostridium butyricum | AOR94676
+146_DsrAB,Clostridium carboxidivorans P7 | AKN29695
+147_DsrAB,Clostridium carboxidivorans P7 | AKN29505
+148_DsrAB,Clostridium cellulovorans 743B | ADL50768
+149_DsrAB,Clostridium colicanis DSM 13634 | KYH29354
+150_DsrAB,Clostridium colicanis DSM 13634 | KYH28147
+151_DsrAB,Clostridium disporicum | CUP08281
+152_DsrAB,Clostridium disporicum | CUP10176
+153_DsrAB,Clostridium disporicum | CUO43315
+154_DsrAB,Clostridium disporicum | CUN82389
+155_DsrAB,Clostridium disporicum | CUO73416
+156_DsrAB,Clostridium disporicum | CUO15817
+157_DsrAB,Clostridium homopropionicum DSM 5847 | KOA20704
+158_DsrAB,Clostridium ljungdahlii | OAA91400
+159_DsrAB,Clostridium ljungdahlii DSM 13528 | OAA88534
+160_DsrAB,Clostridium magnum DSM 2767 | SHJ65453
+161_DsrAB,Clostridium magnum DSM 2767 | KZL92771
+162_DsrAB,Clostridium magnum DSM 2767 | SHJ51021
+163_DsrAB,Clostridium novyi A str. NCTC 538 | KEH85044
+164_DsrAB,Clostridium paraputrificum | OBY12072
+165_DsrAB,Clostridium paraputrificum | OBY12078
+166_DsrAB,Clostridium perfringens SM101 | ABG87260
+167_DsrAB,Clostridium saccharobutylicum DSM 13864 | AGX43185
+168_DsrAB,Clostridium saccharobutylicum | AQS14810
+169_DsrAB,Clostridium saccharoperbutylacetonicum N1-4(HMT) | AGF58234
+170_DsrAB,Clostridium saccharoperbutylacetonicum N1-4(HMT) | AGF56773
+171_DsrAB,Clostridium scatologenes | AKA69652
+172_DsrAB,Clostridium sp. ASBs410 | EXG84315
+173_DsrAB,Clostridium sp. BNL1100 | AEY66142
+174_DsrAB,Clostridium sp. C105KSO15 | CUX63006
+175_DsrAB,Clostridium sp. L74 | KOR24624
+176_DsrAB,Clostridium sp. NCR | KGJ48190
+177_DsrAB,Clostridium sp. NCR | KGJ48576
+178_DsrAB,Clostridium sp. SY8519 | BAK47913
+179_DsrAB,Clostridium sp. SY8519 | BAK47484
+180_DsrAB,Clostridium sporogenes | KYN78628
+181_DsrAB,Clostridium sulfidigenes | KEZ85231
+182_DsrAB,Clostridium tetani E88 | AAO35782
+183_DsrAB,Clostridium tetani | KGI44120
+184_DsrAB,Clostridium tyrobutyricum | AND83853
+185_DsrAB,Clostridium ventriculi | CUN64765
+186_DsrAB,Clostridium ventriculi | CUN66481
+187_DsrAB,Thermotalea metallivorans | KXG76106
+188_DsrAB,Acetobacterium bakii | KNZ40306
+189_DsrAB,Acetobacterium bakii | KNZ40483
+190_DsrAB,Acetobacterium bakii | KNZ42266
+191_DsrAB,Acetobacterium woodii DSM 1030 | AFA48345
+192_DsrAB,Acetobacterium woodii DSM 1030 | AFA47803
+193_DsrAB,Acetobacterium woodii DSM 1030 | AFA48546
+194_DsrAB,Eubacterium callanderi | ADO35347
+195_DsrAB,Eubacterium limosum | ALU14996
+196_DsrAB,Eubacterium sp. 14-2 | EOT27157
+197_DsrAB,Hungateiclostridiaceae bacterium KB18 | ANU56127
+198_DsrAB,Hungateiclostridium clariflavum DSM 19732 | AEV67477
+199_DsrAB,Hungateiclostridium straminisolvens JCM 21531 | GAE90109
+200_DsrAB,Hungateiclostridium thermocellum BC1 | CDG37016
+201_DsrAB,Pseudobacteroides cellulosolvens ATCC 35603 = DSM 2933 | KNY28044
+202_DsrAB,Ruminiclostridium cellobioparum subsp. termitidis CT1112 | EMS71130
+203_DsrAB,Ruminiclostridium papyrosolvens C7 | EPR13435
+204_DsrAB,Lachnospiraceae bacterium 3-1 | EOS26354
+205_DsrAB,Lachnospiraceae bacterium A2 | EOS47022
+206_DsrAB,Lachnospiraceae bacterium TF01-11 | KQC85064
+207_DsrAB,[Eubacterium] rectale | CUN27210
+208_DsrAB,Blautia coccoides | ASU31258
+209_DsrAB,Blautia hydrogenotrophica | CUM81054
+210_DsrAB,Blautia obeum | CUO70487
+211_DsrAB,Blautia obeum A2-162 | CBL21896
+212_DsrAB,Blautia obeum | CUP65359
+213_DsrAB,Blautia obeum | CUN58712
+214_DsrAB,Blautia obeum A2-162 | CBL23757
+215_DsrAB,Blautia sp. KLE 1732 | ERI93159
+216_DsrAB,Blautia sp. KLE 1732 | ERI94488
+217_DsrAB,Blautia wexlerae | CUP61806
+218_DsrAB,Butyrivibrio fibrisolvens 16/4 | CBK74021
+219_DsrAB,Coprococcus catus GD/7 | CBK79578
+220_DsrAB,Coprococcus sp. ART55/1 | CBK83724
+221_DsrAB,Lachnoanaerobaculum sp. ICM7 | EJP23747
+222_DsrAB,Lachnoclostridium phytofermentans ISDg | ABX42151
+223_DsrAB,Lachnoclostridium phytofermentans ISDg | ABX42194
+224_DsrAB,Lachnoclostridium sp. YL32 | ANU49992
+225_DsrAB,[Clostridium] symbiosum | CUN86651
+226_DsrAB,Lachnospira eligens | CUQ79242
+227_DsrAB,Lachnospira pectinoschiza | CUO85212
+228_DsrAB,[Ruminococcus] torques | CUQ63234
+229_DsrAB,Roseburia faecis | CRL34893
+230_DsrAB,Roseburia intestinalis XB6B4 | CBL14343
+231_DsrAB,Peptococcaceae bacterium CEB3 | KLU61521
+232_DsrAB,Peptococcaceae bacterium CEB3 | KLU61520
+233_DsrAB,anaerobic bacterium sk.prop8 | AAU95493
+234_DsrAB,anaerobic bacterium EtOH8 | AAU95489
+235_DsrAB,Peptococcaceae bacterium CEB3 | KLU61903
+236_DsrAB,anaerobic bacterium sk.prop8 | AAU95494
+237_DsrAB,anaerobic bacterium EtOH8 | AAU95490
+238_DsrAB,Candidatus Desulforudis audaxviator MP104C | ACA60687
+239_DsrAB,Candidatus Desulforudis audaxviator MP104C | ACA60688
+240_DsrAB,Desulfallas geothermicus DSM 3669 | AAK58398
+241_DsrAB,Desulfallas geothermicus DSM 3669 | AAK58399
+242_DsrAB,Desulfallas gibsoniae DSM 7213 | EHG06375
+243_DsrAB,Desulfallas gibsoniae DSM 7213 | EHG06374
+244_DsrAB,Desulfallas gibsoniae DSM 7213 | EHG04390
+245_DsrAB,Desulfallas thermosapovorans | AAK83689
+246_DsrAB,Desulfallas thermosapovorans | AAK83690
+247_DsrAB,Desulfitibacter alkalitolerans | AAU95491
+248_DsrAB,Desulfitibacter alkalitolerans | AAU95492
+249_DsrAB,Desulfitispora alkaliphila | ALC74140
+250_DsrAB,Desulfitispora elongata | ALC74142
+251_DsrAB,Desulfitobacterium dehalogenans ATCC 51507 | AFM01768
+252_DsrAB,Desulfitobacterium dichloroeliminans LMG P-21439 | AGA67792
+253_DsrAB,Desulfitobacterium dichloroeliminans LMG P-21439 | AGA67791
+254_DsrAB,Desulfitobacterium hafniense Y51 | BAE84737
+255_DsrAB,Desulfitobacterium hafniense DCB-2 | ACL18321
+256_DsrAB,Desulfitobacterium hafniense | CDX00302
+257_DsrAB,Desulfitobacterium hafniense DCB-2 | ACL18320
+258_DsrAB,Desulfofarcimen acetoxidans DSM 771 | ACV61042
+259_DsrAB,Desulfofarcimen acetoxidans DSM 771 | ACV61043
+260_DsrAB,Desulfofarcimen acetoxidans DSM 771 | ACV62462
+261_DsrAB,Desulfofundulus australicus DSM 11792 | SHF07759
+262_DsrAB,Desulfofundulus kuznetsovii DSM 6115 | AEG16973
+263_DsrAB,Desulfofundulus thermoacetoxidans | AAK83691
+264_DsrAB,Desulfofundulus thermoacetoxidans | AAK83692
+265_DsrAB,Desulfofundulus thermobenzoicus | CAC36146
+266_DsrAB,Desulfohalotomaculum alkaliphilum DSM 12257 | AAL57463
+267_DsrAB,Desulfosporosinus acididurans | KLU67804
+268_DsrAB,Desulfosporosinus acidiphilus SJ4 | AFM41914
+269_DsrAB,Desulfosporosinus acidiphilus SJ4 | EIB96107
+270_DsrAB,Desulfosporosinus meridiei DSM 13257 | AFQ44483
+271_DsrAB,Desulfosporosinus meridiei DSM 13257 | AFQ44482
+272_DsrAB,Desulfosporosinus orientis DSM 765 | AET68802
+273_DsrAB,Desulfosporosinus orientis DSM 765 | AET68803
+274_DsrAB,Desulfosporosinus sp. BG | ODA42821
+275_DsrAB,Desulfosporosinus sp. BG | ODA41013
+276_DsrAB,Desulfosporosinus sp. BG | ODA42822
+277_DsrAB,Desulfosporosinus sp. DB | ADL57233
+278_DsrAB,Desulfotomaculum aeronauticum | AAK58406
+279_DsrAB,Desulfotomaculum aeronauticum | AAK58407
+280_DsrAB,Desulfotomaculum copahuensis | OAT80832
+281_DsrAB,Desulfotomaculum copahuensis | OAT80833
+282_DsrAB,Desulfotomaculum copahuensis | OAT85882
+283_DsrAB,Desulfotomaculum defluvii | CAX46393
+284_DsrAB,Desulfotomaculum hydrothermale Lam5 = DSM 18033 | SHH14613
+285_DsrAB,Desulfotomaculum hydrothermale Lam5 = DSM 18033 | SHH14593
+286_DsrAB,Desulfotomaculum nigrificans CO-1-SRB | AEF93885
+287_DsrAB,Desulfotomaculum nigrificans DSM 574 | EGB22297
+288_DsrAB,Desulfotomaculum nigrificans DSM 574 | EGB22296
+289_DsrAB,Desulfotomaculum nigrificans CO-1-SRB | AEF93302
+290_DsrAB,Desulfotomaculum reducens MI-1 | ABO51689
+291_DsrAB,Desulfotomaculum reducens MI-1 | ABO51688
+292_DsrAB,Desulfotomaculum ruminis DSM 2154 | AAC24103
+293_DsrAB,Desulfotomaculum ruminis DSM 2154 | AEG61924
+294_DsrAB,Desulfotomaculum ruminis DSM 2154 | AEG58680
+295_DsrAB,Desulfotomaculum sp. Lac2 | ABD46854
+296_DsrAB,Desulfotomaculum sp. Lac2 | ABD46855
+297_DsrAB,Desulfotomaculum sp. Srb55 | BAF34615
+298_DsrAB,Pelotomaculum propionicicum | BAD05997
+299_DsrAB,Pelotomaculum propionicicum | BAD05998
+300_DsrAB,Pelotomaculum thermopropionicum SI | BAF58423
+301_DsrAB,Syntrophobotulus glycolicus DSM 8271 | ADY54876
+302_DsrAB,Syntrophobotulus glycolicus DSM 8271 | ADY56813
+303_DsrAB,Thermincola ferriacetica | KNZ70575
+304_DsrAB,Acetoanaerobium sticklandii | CBH22147
+305_DsrAB,Clostridioides difficile | KPI56581
+306_DsrAB,Clostridioides difficile CD160 | EQF29347
+307_DsrAB,Clostridioides difficile | KPI56348
+308_DsrAB,Clostridioides difficile | KPI54091
+309_DsrAB,Clostridioides difficile CD160 | EQF24892
+310_DsrAB,Clostridioides difficile T61 | CCL96519
+311_DsrAB,Intestinibacter bartlettii | CUO52445
+312_DsrAB,Intestinibacter bartlettii | CUO63455
+313_DsrAB,Paeniclostridium sordellii | CEO29424
+314_DsrAB,Paeniclostridium sordellii | CEK38944
+315_DsrAB,Paeniclostridium sordellii | CEK36644
+316_DsrAB,Paraclostridium benzoelyticum | KKY02535
+317_DsrAB,Paraclostridium bifermentans ATCC 19299 | EQK40328
+318_DsrAB,Peptoclostridium acidaminophilum DSM 3953 | AHM57814
+319_DsrAB,Ruminococcaceae bacterium D16 | EGJ48298
+320_DsrAB,Acetivibrio ethanolgignens | KSV58048
+321_DsrAB,Anaerotruncus sp. G3(2012) | EOS57458
+322_DsrAB,Ruminococcus bicirculans | CCO05508
+323_DsrAB,Ruminococcus bromii L2-63 | CBL15442
+324_DsrAB,Ruminococcus callidus ATCC 27760 | ERJ94876
+325_DsrAB,Syntrophomonas zehnderi OL-4 | CFX70733
+326_DsrAB,Syntrophomonas zehnderi OL-4 | CFX70780
+327_DsrAB,Halobacteroides halobius DSM 5150 | AGB41198
+328_DsrAB,Orenia metallireducens | OCL26633
+329_DsrAB,Ammonifex degensii KC4 | ACX53171
+330_DsrAB,Ammonifex degensii KC4 | ACX53170
+331_DsrAB,Carboxydothermus hydrogenoformans Z-2901 | ABB15878
+332_DsrAB,Carboxydothermus hydrogenoformans Z-2901 | ABB15794
+333_DsrAB,Carboxydothermus hydrogenoformans Z-2901 | ABB13832
+334_DsrAB,Moorella glycerini | CEP67313
+335_DsrAB,Moorella glycerini | CEP67302
+336_DsrAB,Moorella glycerini | CEP67312
+337_DsrAB,Moorella glycerini | CEP67502
+338_DsrAB,Moorella mulderi DSM 14980 | KYH32391
+339_DsrAB,Moorella mulderi DSM 14980 | KYH33258
+340_DsrAB,Moorella thermoacetica ATCC 39073 | ABC19906
+341_DsrAB,Moorella thermoacetica | AKX94429
+342_DsrAB,Moorella thermoacetica ATCC 39073 | ABC19931
+343_DsrAB,Moorella thermoacetica ATCC 39073 | ABC19907
+344_DsrAB,Moorella thermoacetica | AKX93935
+345_DsrAB,Moorella thermoacetica ATCC 39073 | ABC20267
+346_DsrAB,Thermoanaerobacter kivui | AIS51503
+347_DsrAB,Caldicellulosiruptor hydrothermalis 108 | ADQ07261
+348_DsrAB,Caldicellulosiruptor saccharolyticus DSM 8903 | ABP67227
+349_DsrAB,Thermoanaerobacterium saccharolyticum JW/SL-YS485 | AFK86661
+350_DsrAB,Thermoanaerobacterium thermosaccharolyticum M0795 | AGB19204
+351_DsrAB,Thermoanaerobacterium thermosaccharolyticum M0795 | AGB17872
+352_DsrAB,Thermodesulfobium narugense DSM 14796 | AEE14984
+353_DsrAB,Thermodesulfobium narugense DSM 14796 | AEE14983
+354_DsrAB,Erysipelotrichaceae bacterium MTC7 | OCN06340
+355_DsrAB,Candidatus Stoquefichus sp. KLE1796 | KXU52284
+356_DsrAB,[Clostridium] innocuum | ASU20931
+357_DsrAB,Turicibacter sanguinis | CUN97728
+358_DsrAB,Acidaminococcus fermentans DSM 20731 | ADB48249
+359_DsrAB,Mitsuokella jalaludinii | CUN70204
+360_DsrAB,Selenomonas ruminantium subsp. lactilytica TAM6421 | BAL84448
+361_DsrAB,Acetonema longum DSM 6540 | EGO65655
+362_DsrAB,Acetonema longum DSM 6540 | EGO65654
+363_DsrAB,Anaerosporomusa subterranea | KYZ76643
+364_DsrAB,Pelosinus fermentans JBW45 | AJQ28134
+365_DsrAB,Pelosinus sp. UFO1 | AIF51090
+366_DsrAB,Propionispora sp. 2/2-37 | CUH97014
+367_DsrAB,Sporomusa sp. An4 | CQR74739
+368_DsrAB,Thermosinus carboxydivorans Nor1 | EAX47853
+369_DsrAB,Thermosinus carboxydivorans Nor1 | EAX47854
+370_DsrAB,Megasphaera elsdenii | SHJ75502
+371_DsrAB,Megasphaera sp. DJF_B143 | KUH56792
+372_DsrAB,Megasphaera sp. DJF_B143 | KUH56779
+373_DsrAB,Megasphaera sp. MJR8396C | KXA67423
+374_DsrAB,Anaerococcus hydrogenalis | KWZ96174
+375_DsrAB,Fusobacterium equinum | KXA16495
+376_DsrAB,Fusobacterium hwasookii ChDC F300 | ALQ37655
+377_DsrAB,Fusobacterium hwasookii ChDC F174 | ALQ40219
+378_DsrAB,Ilyobacter polytropus DSM 2926 | ADO83979
+379_DsrAB,Leptotrichia buccalis C-1013-b | ACV39032
+380_DsrAB,Leptotrichia sp. oral taxon 847 | AMD95896
+381_DsrAB,Sebaldella termitidis ATCC 33386 | ACZ07430
+382_DsrAB,Nitrospirae bacterium HCH-1 | KWT91778
+383_DsrAB,Nitrospirae bacterium HCH-1 | KWT91779
+384_DsrAB,Thermodesulfovibrio aggregans | GAQ94481
+385_DsrAB,Thermodesulfovibrio sp. N1 | ODA44205
+386_DsrAB,Thermodesulfovibrio sp. N1 | ODA44206
+387_DsrAB,Thermodesulfovibrio yellowstonii DSM 11347 | ACI21788
+388_DsrAB,Thermodesulfovibrio yellowstonii DSM 11347 | ACI20808
+389_DsrAB,Magnetococcus marinus MC-1 | ABK44657
+390_DsrAB,Magnetococcus marinus MC-1 | ABK44658
+391_DsrAB,Rhodomicrobium udaipurense JA643 | KAI93440
+392_DsrAB,Rhodomicrobium vannielii ATCC 17100 | ADP69878
+393_DsrAB,Ruegeria marisrubri | KUJ80506
+394_DsrAB,Ruegeria marisrubri | KUJ80505
+395_DsrAB,Candidatus Riegeria galatelae | AEI70743
+396_DsrAB,Candidatus Riegeria galatelae | AEI70744
+397_DsrAB,Magnetospira sp. QH-2 | CCQ74003
+398_DsrAB,Magnetospira sp. QH-2 | CCQ74002
+399_DsrAB,Magnetospirillum caucaseum | EME69585
+400_DsrAB,Magnetospirillum caucaseum | EME69584
+401_DsrAB,Magnetospirillum gryphiswaldense MSR-1 | CAM75808
+402_DsrAB,Magnetospirillum gryphiswaldense MSR-1 | CAM75807
+403_DsrAB,Magnetospirillum magneticum AMB-1 | BAE52171
+404_DsrAB,Magnetospirillum marisnigri | OAN50578
+405_DsrAB,Magnetospirillum marisnigri | OAN50577
+406_DsrAB,Magnetospirillum moscoviense | OAN43750
+407_DsrAB,Magnetospirillum moscoviense | OAN43749
+408_DsrAB,Magnetospirillum sp. XM-1 | CUW41304
+409_DsrAB,Magnetospirillum sp. XM-1 | CUW41303
+410_DsrAB,Burkholderiales bacterium GJ-E10 | BAP87436
+411_DsrAB,Burkholderiales bacterium GJ-E10 | BAP87437
+412_DsrAB,Curvibacter sp. PAE-UM | KRI00107
+413_DsrAB,Curvibacter sp. PAE-UM | KRI00108
+414_DsrAB,Hydrogenophaga sp. T4 | EWS63753
+415_DsrAB,Ferriphaselus amnicola | GAO32864
+416_DsrAB,Ferriphaselus amnicola | GAO32865
+417_DsrAB,Sideroxydans lithotrophicus ES-1 | ADE11919
+418_DsrAB,Sideroxydans lithotrophicus ES-1 | ADE11918
+419_DsrAB,Sulfuricella denitrificans skB26 | BAN36517
+420_DsrAB,Sulfuricella denitrificans skB26 | BAN36518
+421_DsrAB,Sulfuritalea hydrogenivorans sk43H | BAO29243
+422_DsrAB,Sulfuritalea hydrogenivorans sk43H | BAO29242
+423_DsrAB,Thiobacillus denitrificans | KVW96767
+424_DsrAB,Thiobacillus denitrificans ATCC 25259 | AAZ98438
+425_DsrAB,Thiobacillus denitrificans ATCC 25259 | AAZ97322
+426_DsrAB,Thiobacillus denitrificans ATCC 25259 | AAZ97262
+427_DsrAB,Thiobacillus denitrificans | KVW96766
+428_DsrAB,Thiobacillus thioparus | ABX82443
+429_DsrAB,Dissulfuribacter thermophilus | OCC16504
+430_DsrAB,Candidatus Desulfofervidus auxilii | AMM41967
+431_DsrAB,Candidatus Desulfofervidus auxilii | AMM41968
+432_DsrAB,delta proteobacterium ML-1 | ADW23605
+433_DsrAB,Olavius ilvae Delta 1 endosymbiont | AAY97991
+434_DsrAB,Dissulfuribacter thermophilus | OCC16505
+435_DsrAB,Olavius ilvae Delta 3 endosymbiont | AKN56973
+436_DsrAB,sulfate-reducing bacterium mXyS1 | AAQ05941
+437_DsrAB,Olavius algarvensis Delta 4 endosymbiont | AAY97983
+438_DsrAB,sulfate-reducing bacterium mXyS1 | AAQ05942
+439_DsrAB,delta proteobacterium NaphS2 | EFK09905
+440_DsrAB,Olavius algarvensis Delta 1 endosymbiont | AAY97982
+441_DsrAB,sulfate-reducing bacterium oXyS1 | AAQ05960
+442_DsrAB,delta proteobacterium ML-1 | ADW23606
+443_DsrAB,Olavius ilvae Delta 3 endosymbiont | AAY97996
+444_DsrAB,delta proteobacterium 28bB2T | BAK52534
+445_DsrAB,delta proteobacterium MLMS-1 | EAT04804
+446_DsrAB,Olavius algarvensis sulfate-reducing endosymbiont | AAK28361
+447_DsrAB,sulfate-reducing bacterium oXyS1 | AAQ05959
+448_DsrAB,Olavius ilvae Delta 3 endosymbiont | AKN56974
+449_DsrAB,Olavius ilvae Delta 3 endosymbiont | AAY97995
+450_DsrAB,delta proteobacterium MLMS-1 | EAT01398
+451_DsrAB,Olavius ilvae Delta 1 endosymbiont | AAY97992
+452_DsrAB,Desulfarculus baarsii DSM 2075 | ADK84330
+453_DsrAB,Desulfarculus baarsii DSM 2075 | AAK83215
+454_DsrAB,Desulfarculus baarsii DSM 2075 | ADK84329
+455_DsrAB,Desulfocarbo indianensis | KMY67317
+456_DsrAB,Desulfocarbo indianensis | KMY67318
+457_DsrAB,Dethiosulfatarculus sandiegensis | KIX11064
+458_DsrAB,Dethiosulfatarculus sandiegensis | KIX11065
+459_DsrAB,Candidatus Magnetomorum sp. HK-1 | KPA08768
+460_DsrAB,Candidatus Magnetomorum sp. HK-1 | KPA08769
+461_DsrAB,Desulfatibacillum aliphaticivorans | ACL05981
+462_DsrAB,Desulfatibacillum aliphaticivorans | ACL05980
+463_DsrAB,Desulfatiferula berrensis | CCE67081
+464_DsrAB,Desulfatiferula berrensis | CCE67080
+465_DsrAB,Desulfatiferula olefinivorans | ABH03459
+466_DsrAB,Desulfatiferula olefinivorans | ABH03460
+467_DsrAB,Desulfatiglans anilini DSM 4660 | AAQ05939
+468_DsrAB,Desulfatiglans anilini DSM 4660 | AAQ05940
+469_DsrAB,Desulfatitalea tepidiphila | BAM15279
+470_DsrAB,Desulfobacter latus | AAC24097
+471_DsrAB,Desulfobacter latus | AAC24098
+472_DsrAB,Desulfobacter postgatei 2ac9 | AAL57469
+473_DsrAB,Desulfobacter postgatei 2ac9 | AAL57470
+474_DsrAB,Desulfobacter vibrioformis | CAB95042
+475_DsrAB,Desulfobacter vibrioformis | CAB95043
+476_DsrAB,Desulfobacterium autotrophicum HRM2 | ACN17296
+477_DsrAB,Desulfobacterium autotrophicum | CAA75653
+478_DsrAB,Desulfobacterium vacuolatum | AAL57479
+479_DsrAB,Desulfobacterium vacuolatum | AAL57480
+480_DsrAB,Desulfobacula toluolica Tol2 | CCK78726
+481_DsrAB,Desulfobacula toluolica Tol2 | CCK78725
+482_DsrAB,Desulfobotulus sapovorans | AAC24109
+483_DsrAB,Desulfobotulus sapovorans | AAC24110
+484_DsrAB,Desulfocella halophila | AAL57473
+485_DsrAB,Desulfocella halophila | AAL57474
+486_DsrAB,Desulfococcus multivorans | AAC24101
+487_DsrAB,Desulfococcus multivorans | AOY59589
+488_DsrAB,Desulfococcus oleovorans Hxd3 | ABW68472
+489_DsrAB,Desulfococcus oleovorans Hxd3 | ABW68473
+490_DsrAB,Desulfoconvexum algidum | AFJ95152
+491_DsrAB,Desulfofaba gelida | AAK83201
+492_DsrAB,Desulfofaba gelida | AAK83202
+493_DsrAB,Desulfosalsimonas propionicica | ABD46860
+494_DsrAB,Desulfosalsimonas propionicica | ABD46861
+495_DsrAB,Desulfosarcina cetonica | AAN31398
+496_DsrAB,Desulfosarcina cetonica | AAN31399
+497_DsrAB,Desulfosarcina sp. SD1 | ACR46723
+498_DsrAB,Desulfosarcina sp. SD1 | ACR46724
+499_DsrAB,Desulfosarcina variabilis str. Montpellier | AAK58134
+500_DsrAB,Desulfosarcina variabilis str. Montpellier | CAC36298
+501_DsrAB,Desulfosarcina widdelii | BAM24704
+502_DsrAB,Desulfospira joergensenii | AAQ05963
+503_DsrAB,Desulfospira joergensenii | AAQ05964
+504_DsrAB,Desulfotignum phosphitoxidans DSM 13687 | EMS79847
+505_DsrAB,Desulfotignum phosphitoxidans DSM 13687 | EMS79848
+506_DsrAB,Desulfobulbus elongatus | CAC36142
+507_DsrAB,Desulfobulbus marinus | AAL07560
+508_DsrAB,Desulfobulbus marinus | AAL07561
+509_DsrAB,Desulfobulbus propionicus DSM 2032 | ADW19073
+510_DsrAB,Desulfobulbus propionicus DSM 2032 | ADW19074
+511_DsrAB,Desulfobulbus propionicus | AAG28585
+512_DsrAB,Desulfobulbus propionicus | AAG28586
+513_DsrAB,Desulfobulbus rhabdoformis | CAB95038
+514_DsrAB,Desulfocapsa sulfexigens DSM 10523 | AGF78191
+515_DsrAB,Desulfocapsa sulfexigens DSM 10523 | AGF78192
+516_DsrAB,Desulfofustis glycolicus | AAL57455
+517_DsrAB,Desulfofustis glycolicus | AAL57456
+518_DsrAB,Desulfopila inferna | ACU00018
+519_DsrAB,Desulfopila inferna | ACU00019
+520_DsrAB,Desulfopila sp. PR7_D06 | CCF77358
+521_DsrAB,Desulforhopalus singaporensis | AAL57465
+522_DsrAB,Desulforhopalus singaporensis | AAL57466
+523_DsrAB,Desulforhopalus vacuolatus | AAK83203
+524_DsrAB,Desulforhopalus vacuolatus | AAK83204
+525_DsrAB,Desulfotalea psychrophila LSv54 | CAG35527
+526_DsrAB,Desulfotalea psychrophila LSv54 | CAG35526
+527_DsrAB,Desulfurivibrio alkaliphilus AHT 2 | ADH85008
+528_DsrAB,Desulfurivibrio alkaliphilus AHT 2 | ADH85007
+529_DsrAB,Desulfovibrionales bacterium Spi55 | BAF34617
+530_DsrAB,Desulfovibrionales bacterium Spi55 | BAF34618
+531_DsrAB,Desulfohalobiaceae bacterium Benz | ABD46857
+532_DsrAB,Desulfohalobium retbaense DSM 5692 | ACV67547
+533_DsrAB,Desulfohalobium retbaense DSM 5692 | ACV67546
+534_DsrAB,Desulfohalobium retbaense DSM 5692 | AAQ05945
+535_DsrAB,Desulfohalobium utahense | ABD46858
+536_DsrAB,Desulfohalobium utahense | ABD46859
+537_DsrAB,Desulfohalophilus alkaliarsenatis | AFJ04154
+538_DsrAB,Desulfohalophilus alkaliarsenatis | AFJ04155
+539_DsrAB,Desulfonatronospira thiodismutans | AFI13788
+540_DsrAB,Desulfonatronospira thiodismutans | AFI13789
+541_DsrAB,Desulfonatronovibrio halophilus | AFI13790
+542_DsrAB,Desulfonatronovibrio halophilus | AFI13791
+543_DsrAB,Desulfonatronovibrio hydrogenovorans | AAL57467
+544_DsrAB,Desulfonatronovibrio hydrogenovorans | AAL57468
+545_DsrAB,Desulfonatronovibrio thiodismutans | AFI13795
+546_DsrAB,Desulfonauticus submarinus | AAO27364
+547_DsrAB,Desulfomicrobium aestuarii | CAM35457
+548_DsrAB,Desulfomicrobium baculatum DSM 4028 | ACU88407
+549_DsrAB,Desulfomicrobium orale DSM 12838 | AMD92943
+550_DsrAB,Desulfomicrobium orale DSM 12838 | AMD92944
+551_DsrAB,Desulfomicrobium salsuginis | CAM35461
+552_DsrAB,Desulfomicrobium sp. MSL98 | BAF95901
+553_DsrAB,Desulfomicrobium thermophilum | ABE73460
+554_DsrAB,Desulfomicrobium thermophilum | ABE73459
+555_DsrAB,Desulfoplanes formicivorans | GAU08054
+556_DsrAB,Desulfoplanes formicivorans | GAU08053
+557_DsrAB,Desulfoplanes formicivorans | BAQ59232
+558_DsrAB,Desulfonatronum lacustre DSM 10312 | AAL57451
+559_DsrAB,Desulfonatronum lacustre DSM 10312 | AAL57452
+560_DsrAB,Desulfonatronum thioautotrophicum | AFI13796
+561_DsrAB,Desulfonatronum thioautotrophicum | AFI13797
+562_DsrAB,Bilophila sp. 4_1_30 | EGW45804
+563_DsrAB,Bilophila wadsworthia 3_1_6 | EFV44050
+564_DsrAB,Desulfobaculum xiamenense | AEC45573
+565_DsrAB,Desulfocurvibacter africanus subsp. africanus str. Walvis Bay | EGJ49710
+566_DsrAB,Desulfocurvibacter africanus | AAG21986
+567_DsrAB,Desulfocurvibacter africanus PCS | EMG35959
+568_DsrAB,Desulfovibrio alkalitolerans DSM 16529 | EPR32899
+569_DsrAB,Desulfovibrio alkalitolerans DSM 16529 | EPR32898
+570_DsrAB,Desulfovibrio alaskensis G20 | ABB37328
+571_DsrAB,Desulfovibrio alaskensis G20 | ABB37327
+572_DsrAB,Desulfovibrio butyratiphilus | BAH28878
+573_DsrAB,Desulfovibrio carbinoliphilus | AEW87975
+574_DsrAB,Desulfovibrio cuneatus | BAB55567
+575_DsrAB,Desulfovibrio cuneatus | BAB55568
+576_DsrAB,Desulfovibrio desulfuricans ND132 | EGB16013
+577_DsrAB,Desulfovibrio desulfuricans ND132 | EGB16012
+578_DsrAB,Desulfovibrio desulfuricans ATCC 27774 | ACL50190
+579_DsrAB,Desulfovibrio desulfuricans | CAC09931
+580_DsrAB,Desulfovibrio desulfuricans | AAK30046
+581_DsrAB,Desulfovibrio desulfuricans | AAK83200
+582_DsrAB,Desulfovibrio desulfuricans | AAZ04356
+583_DsrAB,Desulfovibrio desulfuricans | AAK83199
+584_DsrAB,Desulfovibrio fairfieldensis | AMD91199
+585_DsrAB,Desulfovibrio fructosivorans JJ | BAB55569
+586_DsrAB,Desulfovibrio fructosivorans JJ | AAL57447
+587_DsrAB,Desulfovibrio fructosivorans JJ | EFL49661
+588_DsrAB,Desulfovibrio gigas DSM 1382 = ATCC 19364 | AGW12595
+589_DsrAB,Desulfovibrio gigas DSM 1382 = ATCC 19364 | AGW12594
+590_DsrAB,Desulfovibrio halophilus | AAQ05951
+591_DsrAB,Desulfovibrio halophilus | AAQ05952
+592_DsrAB,Desulfovibrio hydrothermalis | CCN98400
+593_DsrAB,Desulfovibrio hydrothermalis | CCN98401
+594_DsrAB,Desulfovibrio longus | BAB55573
+595_DsrAB,Desulfovibrio longus | BAB55574
+596_DsrAB,Desulfovibrio oxyclinae | AAV35108
+597_DsrAB,Desulfovibrio oxyclinae | AAV35109
+598_DsrAB,Desulfovibrio piger ATCC 29098 | BAB55561
+599_DsrAB,Desulfovibrio piger ATCC 29098 | EEB33308
+600_DsrAB,Desulfovibrio piger ATCC 29098 | AAQ05954
+601_DsrAB,Desulfovibrio psychrotolerans DSM 19430 | CCA89317
+602_DsrAB,Desulfovibrio salexigens DSM 2638 | ACS78853
+603_DsrAB,Desulfovibrio salexigens DSM 2638 | ACS78854
+604_DsrAB,Desulfovibrio simplex | BAB55576
+605_DsrAB,Desulfovibrio sp. 3_1_syn3 | EFL86824
+606_DsrAB,Desulfovibrio sp. A2 | EGY25888
+607_DsrAB,Desulfovibrio sp. A2 | EGY25887
+608_DsrAB,Desulfovibrio sp. C1 | AII99380
+609_DsrAB,Desulfovibrio sp. C1 | AII99381
+610_DsrAB,Desulfovibrio sp. CME3 | AAK71942
+611_DsrAB,Desulfovibrio sp. LG-2009 | CBH20085
+612_DsrAB,Desulfovibrio sp. LG-2009 | CBH20086
+613_DsrAB,Desulfovibrio sp. LVS-26 | CAK29507
+614_DsrAB,Desulfovibrio sp. PT-2 | AAC24105
+615_DsrAB,Desulfovibrio sp. PT-2 | AAC24106
+616_DsrAB,Desulfovibrio sp. TomC | KHK02120
+617_DsrAB,Desulfovibrio sp. TomC | KHK02121
+618_DsrAB,Desulfovibrio sp. X2 | EPR37655
+619_DsrAB,Desulfovibrio sp. X2 | EPR37656
+620_DsrAB,Desulfovibrio sp. sul5 | AII99384
+621_DsrAB,Desulfovibrio vulgaris RCH1 | ADP85535
+622_DsrAB,Desulfovibrio vulgaris RCH1 | ADP85536
+623_DsrAB,Desulfovibrio vulgaris str. 'Miyazaki F' | ABX51939
+624_DsrAB,Halodesulfovibrio spirochaetisodalis | OBQ52446
+625_DsrAB,Halodesulfovibrio spirochaetisodalis | OBQ52447
+626_DsrAB,Pseudodesulfovibrio aespoeensis Aspo-2 | ADU63978
+627_DsrAB,Pseudodesulfovibrio aespoeensis Aspo-2 | ADU63979
+628_DsrAB,Pseudodesulfovibrio indicus | AMK12841
+629_DsrAB,Pseudodesulfovibrio indicus | AMK12842
+630_DsrAB,Pseudodesulfovibrio piezophilus C1TLV30 | CCH49861
+631_DsrAB,Pseudodesulfovibrio piezophilus C1TLV30 | CCH49860
+632_DsrAB,Desulfurella acetivorans A63 | AHF97345
+633_DsrAB,Desulfurella acetivorans A63 | AHF97346
+634_DsrAB,Desulfuromonadales bacterium Tc37 | BAF34619
+635_DsrAB,Geobacter anodireducens | ANA40596
+636_DsrAB,Geobacter bemidjiensis Bem | ACH38991
+637_DsrAB,Geobacter daltonii FRC-32 | ACM19162
+638_DsrAB,Geobacter metallireducens GS-15 | ABB31802
+639_DsrAB,Geobacter pickeringii | AJE02787
+640_DsrAB,Geobacter sp. M18 | ADW13690
+641_DsrAB,Geobacter uraniireducens Rf4 | ABQ28087
+642_DsrAB,Desulfobacca acetoxidans DSM 11109 | AEB09471
+643_DsrAB,Desulfobacca acetoxidans DSM 11109 | AEB09472
+644_DsrAB,Desulfomonile tiedjei DSM 6799 | AFM24266
+645_DsrAB,Desulfomonile tiedjei DSM 6799 | AAK83205
+646_DsrAB,Desulfacinum infernum | AAL57461
+647_DsrAB,Desulfacinum infernum | AAL57462
+648_DsrAB,Desulfoglaeba alkanexedens ALDC | ACW65143
+649_DsrAB,Desulfoglaeba alkanexedens ALDC | ACW65144
+650_DsrAB,Desulforhabdus amnigena | AAL07558
+651_DsrAB,Desulforhabdus amnigena | AAL07559
+652_DsrAB,Desulfovirga adipica | AAK83197
+653_DsrAB,Desulfovirga adipica | AAK83198
+654_DsrAB,Syntrophobacter fumaroxidans MPOB | AAL57460
+655_DsrAB,Syntrophobacter fumaroxidans MPOB | ABK19708
+656_DsrAB,Syntrophobacter wolinii | AAL57457
+657_DsrAB,Syntrophobacter wolinii | AAL57458
+658_DsrAB,Thermodesulforhabdus norvegica | AAK83209
+659_DsrAB,Thermodesulforhabdus norvegica | CAC36212
+660_DsrAB,Thermodesulforhabdus norvegica | CAC36213
+661_DsrAB,Sedimenticola thiotaurini | AKH21805
+662_DsrAB,endosymbiont of Bathymodiolus septemdierum str. Myojin knoll | BAS68245
+663_DsrAB,gamma proteobacterium endosymbiont of Lamellibrachia anaximandri | CCK33764
+664_DsrAB,Candidatus Vesicomyosocius okutanii | BAF61901
+665_DsrAB,Sedimenticola thiotaurini | AKH20698
+666_DsrAB,endosymbiont of unidentified scaly snail isolate Monju | BAN69657
+667_DsrAB,Candidatus Vesicomyosocius okutanii | BAF61900
+668_DsrAB,Candidatus Thiobios zoothamnicoli | ACI42952
+669_DsrAB,Thiolapillus brandeum | BAO45370
+670_DsrAB,Thiolapillus brandeum | BAO45371
+671_DsrAB,Candidatus Thioglobus autotrophicus | ALE52094
+672_DsrAB,Candidatus Thioglobus autotrophicus | ALE52093
+673_DsrAB,Bathymodiolus azoricus thioautotrophic gill symbiont | CRN08726
+674_DsrAB,endosymbiont of Bathymodiolus septemdierum str. Myojin knoll | BAS68244
+675_DsrAB,endosymbiont of unidentified scaly snail isolate Monju | BAN69656
+676_DsrAB,Candidatus Ruthia magnifica str. Cm (Calyptogena magnifica) | ABL02586
+677_DsrAB,Sedimenticola thiotaurini | AKH21806
+678_DsrAB,endosymbiont of Riftia pachyptila (vent Ph05) | EGV52262
+679_DsrAB,Vesicomya sp. mt-I symbiont | ACQ45569
+680_DsrAB,endosymbiont of Riftia pachyptila (vent Ph05) | EGV52261
+681_DsrAB,Acidiferrobacter thiooxydans | OCX43804
+682_DsrAB,Acidiferrobacter thiooxydans | OCX43803
+683_DsrAB,Sulfuricaulis limicola | BAV32578
+684_DsrAB,Sulfuricaulis limicola | BAV33585
+685_DsrAB,Sulfuricaulis limicola | BAV32579
+686_DsrAB,Sulfuricaulis limicola | BAV33586
+687_DsrAB,Sulfurifustis variabilis | BAU48508
+688_DsrAB,Sulfurifustis variabilis | BAU48507
+689_DsrAB,Sulfurifustis variabilis | BAU46840
+690_DsrAB,Sulfurifustis variabilis | BAU46841
+691_DsrAB,Aeromonas veronii | KRW38554
+692_DsrAB,Allochromatium vinosum DSM 180 | ADC62191
+693_DsrAB,Allochromatium vinosum | ABX82422
+694_DsrAB,Halochromatium salexigens | BAJ17545
+695_DsrAB,Halochromatium salexigens | BAJ17546
+696_DsrAB,Imhoffiella purpurea | EXJ14774
+697_DsrAB,Marichromatium gracile | KXX63489
+698_DsrAB,Marichromatium purpuratum 984 | AHF04303
+699_DsrAB,Thiobaca trueperi | BAJ17548
+700_DsrAB,Thiocapsa marina 5811 | ABX82440
+701_DsrAB,Thiocapsa marina 5811 | BAJ17549
+702_DsrAB,Thiocapsa roseopersicina | ABX82426
+703_DsrAB,Thiocapsa sp. KS1 | CRI66520
+704_DsrAB,Thiocystis violascens DSM 198 | AFL72603
+705_DsrAB,Thioflavicoccus mobilis 8321 | AGA89018
+706_DsrAB,Thioflavicoccus mobilis 8321 | AGA89019
+707_DsrAB,Thiorhodococcus drewsii AZ1 | BAJ17553
+708_DsrAB,Alkalilimnicola ehrlichii MLHE-1 | ABI56999
+709_DsrAB,Alkalilimnicola ehrlichii MLHE-1 | ABI57000
+710_DsrAB,Halorhodospira halochloris | BAU58366
+711_DsrAB,Halorhodospira halochloris | BAU58365
+712_DsrAB,Halorhodospira halophila SL1 | ABM62716
+713_DsrAB,Halorhodospira halophila SL1 | ABM62715
+714_DsrAB,Thioalkalivibrio nitratireducens DSM 14787 | AGA33428
+715_DsrAB,Thioalkalivibrio nitratireducens DSM 14787 | AGA33429
+716_DsrAB,Thioalkalivibrio nitratireducens DSM 14787 | AGA32551
+717_DsrAB,Thioalkalivibrio paradoxus ARh 1 | AHE98851
+718_DsrAB,Thioalkalivibrio sulfidiphilus HL-EbGr7 | ACL73265
+719_DsrAB,Thioalkalivibrio sulfidiphilus HL-EbGr7 | ACL73266
+720_DsrAB,Citrobacter sp. SR3 | ACR14866
+721_DsrAB,Escherichia albertii | BAT42470
+722_DsrAB,Escherichia coli | KHI86175
+723_DsrAB,Salmonella enterica subsp. arizonae serovar 62:z4,z23:- | ABX20266
+724_DsrAB,Shimwellia blattae DSM 4481 = NBRC 105725 | AFJ45881
+725_DsrAB,Edwardsiella anguillarum ET080813 | AIJ10199
+726_DsrAB,Serratia sp. ATCC 39006 | ESN63625
+727_DsrAB,Achromatium sp. WMS2 | KOR27118
+728_DsrAB,Thioploca ingrica | BAP54909
+729_DsrAB,Thioploca ingrica | BAP54908
+730_DsrAB,Thiothrix nivea DSM 5205 | ABX82433
+731_DsrAB,Thiothrix nivea DSM 5205 | ABX82434
+732_DsrAB,Photobacterium damselae subsp. damselae | ODA20751
+733_DsrAB,Photobacterium kishitanii | OBU32419
+734_DsrAB,Photobacterium leiognathi subsp. mandapamensis | KPA54706
+735_DsrAB,Vibrio harveyi | APP08633
+736_DsrAB,Sphaerochaeta pleomorpha str. Grapes | AEV30986
+737_DsrAB,Treponema azotonutricium ZAS-9 | AEF81033
+738_DsrAB,Treponema primitia ZAS-2 | AEF86601
+739_DsrAB,Treponema primitia ZAS-2 | AEF86380
+740_DsrAB,Cloacibacillus evryensis DSM 19522 | EXG78946
+741_DsrAB,Cloacibacillus porcorum | ANZ44692
+742_DsrAB,Caldimicrobium thiodismutans | BAU22844
+743_DsrAB,Caldimicrobium thiodismutans | BAU22845
+744_DsrAB,Thermodesulfatator atlanticus DSM 21156 | CAX51965
+745_DsrAB,Thermodesulfatator autotrophicus | OAG27563
+746_DsrAB,Thermodesulfatator indicus DSM 15286 | AEH44286
+747_DsrAB,Thermodesulfobacterium commune DSM 2178 | AIH04279
+748_DsrAB,Thermodesulfobacterium commune DSM 2178 | AAK83208
+749_DsrAB,Thermodesulfobacterium geofontis OPF15 | AEH23488
+750_DsrAB,Thermodesulfobacterium geofontis OPF15 | AEH23487
+751_DsrAB,Thermosulfurimonas dismutans | OAQ20198
+752_DsrAB,Thermosulfurimonas dismutans | OAQ20199

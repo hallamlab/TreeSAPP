@@ -26,6 +26,131 @@ from treesapp.phylo_dist import parent_to_tip_distances
 from treesapp.refpkg import ReferencePackage
 
 
+class QuerySequence(PQuery):
+    def __init__(self, header: str, lineage_str="", rank_str=""):
+        """
+        Initialization function for QuerySequence objects. Sets self.ref_name attribute to header if provided
+
+        :param header: Name of the classified sequence, used to set self.ref_name
+        """
+        super(QuerySequence, self).__init__(lineage_str, rank_str)
+        self.place_name = header
+        self.ncbi_tax = ""
+        self.assigned_lineage = ""
+        self.true_lineage = ""
+        self.optimal_lineage = ""
+        self.tax_dist = 0
+        return
+
+
+def summarize_query_classes(positives: set, query_seq_names: set) -> None:
+    logging.info("Enumeration of potential query sequence classes:\n")
+    false_pos = set()
+    false_neg = set()
+    true_pos = set()
+    total = positives.union(query_seq_names)
+
+    for seq_name in positives:
+        if seq_name in query_seq_names:
+            true_pos.add(seq_name)
+        else:
+            false_neg.add(seq_name)
+    for seq_name in query_seq_names.difference(true_pos):
+        if seq_name not in false_neg:
+            false_pos.add(seq_name)
+
+    logging.info("\tTrue positives:          {:>9}\n"
+                 "\tFalse positives:         {:>9}\n"
+                 "\tFalse negatives:         {:>9}\n"
+                 "\tSequence names provided: {:>9}\n"
+                 "\n".format(len(true_pos), len(false_pos), len(false_neg), len(total)))
+    return
+
+
+def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict) -> (dict, dict, dict):
+    """
+    Function for sorting/binning the classified sequences at T/F positives/negatives based on the annot_map file
+    that specifies which queries belong to which orthologous group/protein family and reference package.
+
+    :param assignments: Dictionary mapping the ReferencePackage.prefix to TreeProtein instances
+    :param annot_map: Dictionary mapping reference package (gene) name keys to database names values
+    :param entrez_query_dict: Dictionary mapping sequence names to their respective EntrezRecord instances
+    :return: None
+    """
+    # False positives: those that do not belong to the annotation matching a reference package name
+    # False negatives: those whose annotations match a reference package name and were not classified
+    # True positives: those with a matching annotation and reference package name and were classified
+    # True negatives: those that were not classified and should not have been
+    positive_queries = {}
+    tp = {}
+    fp = {}
+    fn = {}
+    logging.info("Assigning test sequences to the four class conditions... ")
+    missing = set()
+    # Create a dictionary for rapid look-ups of queries that are homologs of sequences in the refpkg
+    for qname in annot_map:
+        for rname in annot_map[qname]:
+            try:
+                positive_queries[rname].add(qname)
+            except KeyError:
+                positive_queries[rname] = {qname}
+
+    for refpkg_name, pqueries in assignments.items():  # type: (str, list)
+        try:
+            positives = positive_queries[refpkg_name]
+        except KeyError:
+            logging.error("Unable to find '{}' in the set of positive queries:\n".format(refpkg_name) +
+                          ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
+            sys.exit(5)
+        true_positives = set()
+        tp[refpkg_name] = list()
+        fp[refpkg_name] = set()
+        fn[refpkg_name] = set()
+        for pquery in sorted(pqueries, key=lambda x: x.place_name):  # type: PQuery
+            # Populate the relevant information for the classified sequence
+            tp_inst = QuerySequence(pquery.place_name)
+            tp_inst.ref = refpkg_name
+            tp_inst.assigned_lineage = pquery.recommended_lineage
+            try:
+                e_record = entrez_query_dict[pquery.place_name]
+            except KeyError:
+                missing.add(pquery.place_name)
+                continue
+            if not e_record.lineage:
+                true_positives.add(tp_inst.place_name)
+                continue
+            tp_inst.ncbi_tax = e_record.ncbi_tax
+            tp_inst.rank = pquery.rank
+            # Bin it if the mapping_dict is present, otherwise classify it as a TP
+            if tp_inst.place_name in positives:
+                # Add the True Positive to the relevant collections
+                tp[refpkg_name].append(tp_inst)
+                true_positives.add(tp_inst.place_name)
+            else:
+                fp[refpkg_name].add(tp_inst)
+
+        # Identify the False Negatives using set difference - those that were not classified but should have been
+        for seq_name in list(positives.difference(true_positives)):
+            qseq = QuerySequence(seq_name)
+            try:
+                e_record = entrez_query_dict[seq_name]
+            except KeyError:
+                fn[refpkg_name].add(qseq)  # These are false negatives that were not aligned to by the profile HMM
+                continue
+            if not e_record.lineage:
+                continue
+            qseq.ncbi_tax = e_record.ncbi_tax
+            fn[refpkg_name].add(qseq)
+    logging.info("done.\n")
+
+    logging.warning("Unable to find {}/{} sequence accessions in the Entrez records.\n".format(len(missing),
+                                                                                               len(entrez_query_dict)))
+    logging.debug("Unable to find the following sequence accessions in the Entrez records:\n"
+                  "{}\n".format(', '.join(missing)))
+
+    return tp, fp, fn
+
+
 def rarefy_rank_distances(rank_distances: dict) -> dict:
     """
     The number of observations (phylogenetic distances) for each key (taxonomic rank) are rarefied to
@@ -153,7 +278,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     for pquery in jplace_data.placements:
         top_lwr = 0.1
         top_placement = PQuery(taxon, rank)
-        top_placement.name = ref_pkg.prefix
+        top_placement.ref_name = ref_pkg.prefix
         for name, info in pquery.items():
             if name == 'p':
                 for placement in info:
@@ -173,7 +298,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
                             tip_distances = parent_to_tip_distances(parent, leaf_children)
                             top_placement.mean_tip = round(float(sum(tip_distances) / len(tip_distances)), 6)
             elif name == 'n':
-                top_placement.contig_name = query_seq_name_map[int(info.pop())]
+                top_placement.place_name = query_seq_name_map[int(info.pop())]
             else:
                 logging.error("Unexpected variable in pquery keys: '" + name + "'\n")
                 sys.exit(33)
@@ -229,6 +354,9 @@ a numpy array from each query's data:
     feature_vectors = np.array([])
     pqueries_used = []
 
+    if len(condition_names) == 0:
+        return np.array(feature_vectors), pqueries_used
+
     # Generate feature vectors for each rank and index them in the rank_feature_vectors dictionary
     for refpkg_name, pqueries in classifieds.items():
         refpkg = refpkg_map[refpkg_name]  # type: ReferencePackage
@@ -238,10 +366,10 @@ a numpy array from each query's data:
 
         for pquery in pqueries:  # type: PQuery
             if annot_map:
-                ref_name = annot_map[pquery.name]
+                ref_name = annot_map[pquery.ref_name]
             else:
-                ref_name = pquery.name
-            if pquery.contig_name in condition_names[ref_name]:
+                ref_name = pquery.ref_name
+            if pquery.place_name in condition_names[ref_name]:
                 # Calculate the features
                 try:
                     distal, pendant, avg = pquery.distal, pquery.pendant, pquery.mean_tip
@@ -256,10 +384,10 @@ a numpy array from each query's data:
                 except KeyError:
                     logging.error("Unable to find internal node '%d' in the %s node-leaf map indicating a discrepancy "
                                   "between reference package versions used by treesapp assign and those used here.\n"
-                                  "Was the correct output directory provided?".format(pquery.inode, pquery.name))
+                                  "Was the correct output directory provided?".format(pquery.inode, pquery.ref_name))
                     sys.exit(5)
 
-                raw_array = np.array([leaf_children, lwr_bin, distal, pendant, avg])
+                raw_array = np.array([leaf_children, pquery.evalue, lwr_bin, distal, pendant, avg])
                 try:
                     rank_feature_vectors[pquery.rank].append(raw_array)
                 except KeyError:
@@ -272,7 +400,7 @@ a numpy array from each query's data:
     else:
         for rank in rank_feature_vectors:
             if len(rank_feature_vectors[rank]) > 0:
-                rank_feature_vectors[rank] = preprocessing.normalize(rank_feature_vectors[rank], norm='l1')
+                # rank_feature_vectors[rank] = preprocessing.normalize(rank_feature_vectors[rank], norm='l1')
                 i = 0
                 end = len(rank_feature_vectors[rank])
                 while i < end:
@@ -292,7 +420,7 @@ a numpy array from each query's data:
         try:
             feature_vectors = np.append(feature_vectors, rank_feature_vectors[rank], axis=0)
         except ValueError:
-            feature_vectors = rank_feature_vectors[rank]
+            feature_vectors = np.array(rank_feature_vectors[rank])
 
     return feature_vectors, pqueries_used
 
@@ -307,7 +435,7 @@ def generate_tsne(x, y, tsne_file):
     time_start = time.time()
     tsne = manifold.TSNE(n_components=2, verbose=1, perplexity=30, n_iter=300)
     tsne_results = tsne.fit_transform(df)
-    print('t-SNE done! Time elapsed: {} seconds'.format(time.time() - time_start))
+    logging.debug('t-SNE done! Time elapsed: {} seconds\n'.format(time.time() - time_start))
 
     df['tsne-2d-one'] = tsne_results[:, 0]
     df['tsne-2d-two'] = tsne_results[:, 1]
@@ -321,6 +449,8 @@ def generate_tsne(x, y, tsne_file):
         alpha=0.3
     )
     plt.savefig(tsne_file, format="png")
+    logging.info("tSNE plot '{}' created.\n".format(tsne_file))
+    return
 
 
 def evaluate_grid_scores(kernel, x_train, x_test, y_train, y_test, score="f1", jobs=4):
@@ -402,7 +532,7 @@ def instantiate_classifier(kernel_name, occ=False):
         # poly_clf = svm.SVC(kernel="poly", tol=1E-3, max_iter=1E6, degree=6, gamma="auto")
         sys.exit(3)
 
-    logging.info("Using a '{}' kernel for the SVM classifier\n".format(k_name))
+    logging.debug("Using a '{}' kernel for the SVM classifier\n".format(k_name))
 
     return clf
 
@@ -420,12 +550,12 @@ def evaluate_classifier(clf, x_test: np.array, y_test: np.array,
     :param conditions: A Numpy array containing the class condition of each feature vector in classified_data
     :return: None
     """
-    logging.info("Classifying test data... ")
+    logging.info("Evaluating model predictions with test data... ")
     # Predict the response for test dataset
     y_pred = clf.predict(x_test)
+    scores = model_selection.cross_val_score(clf, classified_data, conditions, cv=10, scoring='f1')
     logging.info("done.\n")
 
-    scores = model_selection.cross_val_score(clf, classified_data, conditions, cv=10, scoring='f1')
     logging.info("F1-score\t%0.2f (+/- %0.2f)\n" % (scores.mean(), scores.std() * 2))
     # Model Accuracy: how often is the classifier correct?
     logging.info("Accuracy\t" + str(round(metrics.accuracy_score(y_test, y_pred), 2)) + "\n")
@@ -475,7 +605,7 @@ def map_test_indices_to_pqueries(feature_vectors, pqueries) -> dict:
     """
 
     :param feature_vectors:
-    :param pqueries:
+    :param pqueries: A list of PQuery instances
     :return:
     """
     index_pquery_map = {}
@@ -490,7 +620,12 @@ def map_test_indices_to_pqueries(feature_vectors, pqueries) -> dict:
     return index_pquery_map
 
 
-def generate_train_test_data(true_ps: np.array, true_pqueries: list, test_pr=0.4, false_ps=None):
+def save_np_array(a: np.array, file_name: str):
+    np.save(file_name, a)
+    return
+
+
+def generate_train_test_data(true_ps: np.array, false_ps: np.array, test_pr=0.4):
     """
     Used for splitting the total dataset into training ana testing arrays and mapping indices
     in the positive test fraction to PQueries. This map is to be later used for characterizing predictions by
@@ -499,14 +634,12 @@ def generate_train_test_data(true_ps: np.array, true_pqueries: list, test_pr=0.4
     Conditions [0|1] are set for the dataset based on whether they are false positives (0) or true positives (1).
     If no false positives are present, a numpy.array of length true_ps is used.
 
-
     :param true_ps:
-    :param true_pqueries:
     :param test_pr:
     :param false_ps:
     :return:
     """
-    if false_ps:
+    if len(false_ps) > 0:
         classified_data = np.append(false_ps, true_ps, axis=0)
         conditions = np.append(np.array([0] * len(false_ps)),
                                np.array([1] * len(true_ps)))
@@ -523,16 +656,16 @@ def generate_train_test_data(true_ps: np.array, true_pqueries: list, test_pr=0.4
     x_train, x_test, y_train, y_test = model_selection.train_test_split(classified_data, conditions,
                                                                         test_size=test_pr, random_state=12345)
 
-    index_pquery_map = map_test_indices_to_pqueries(x_test, true_pqueries)
-
-    return classified_data, conditions, x_train, x_test, y_train, y_test, index_pquery_map
+    return classified_data.astype(np.float64), conditions.astype(np.float64),\
+           x_train.astype(np.float64), x_test.astype(np.float64), y_train.astype(np.float64), y_test.astype(np.float64)
 
 
 def train_binary_classifier(x_train: np.array, y_train: np.array, kernel: str):
     # Create a SVM Classifier
     clf = instantiate_classifier(kernel)  # type: svm.SVC
 
-    logging.info("Training the classifier... ")
+    # logging.info("Using a '{}' kernel for the SVM classifier\n".format(k_name))
+    logging.info("Training the '{}' classifier... ".format(kernel))
     # Train the model using the training sets
     clf.fit(x_train, y_train)
     logging.info("done.\n")
@@ -543,15 +676,16 @@ def train_binary_classifier(x_train: np.array, y_train: np.array, kernel: str):
 def train_oc_classifier(x_train: np.array, kernel: str):
     clf = instantiate_classifier(kernel, occ=True)  # type: svm.OneClassSVM
 
-    logging.info("Training the classifier... ")
+    logging.info("Training the '{}' classifier... ".format(kernel))
     clf.fit(x_train)
     logging.info("done.\n")
 
     return clf
 
 
-def train_classification_filter(assignments: dict, true_pos: dict, refpkg_map: dict, kernel: str,
-                                tsne="", grid_search=False, false_pos=None, num_procs=2) -> (dict, dict):
+def train_classification_filter(true_pos: dict, true_pqueries: list, classified_data, conditions,
+                                x_train: np.array, x_test: np.array, y_train: np.array, y_test: np.array, kernel: str,
+                                tsne="", grid_search=False, num_procs=2) -> (dict, dict):
     """
     Trains a sklearn classifier (e.g. Support Vector Machine) using the TreeSAPP assignments and writes
     the trained model to a pickle file.
@@ -560,32 +694,26 @@ def train_classification_filter(assignments: dict, true_pos: dict, refpkg_map: d
     Optionally, a grid search can be performed that will automatically test multiple different classifiers and kernels,
     not just the one specified, and return (classifier isn't written).
 
-    :param assignments: A dictionary of JPlace instances, indexed by their respective RefPkg codes (denominators)
     :param true_pos: A dictionary of true positive query names indexed by refpkg names
-    :param false_pos: A dictionary of false positive query names indexed by refpkg names
-    :param refpkg_map: A dictionary of ReferencePackage instances indexed by their respective prefix values
+    :param classified_data: A numpy array of feature vectors for the true positive examples
+    :param conditions:
+    :param x_train:
+    :param x_test:
+    :param y_train:
+    :param y_test:
+    :param true_pqueries: A list of PQuery instances for the true positive examples
     :param kernel: Specifies the kernel type to be used in the SVM algorithm. Choices are 'lin' 'poly' or 'rbf'.
     [ DEFAULT = lin ]
-    :param tsne: Path to a file for writing the TSNE plot. Also used to decide whether to create the TSNE plot
+    :param tsne: Path to a file for writing the tSNE plot. Also used to decide whether to create the tSNE plot
     :param grid_search: Flag indicating whether to perform a grid search across available classifier kernels
     :param num_procs: The number of threads to run the grid search
     :return: None
     """
     classifiers = dict()
-
-    logging.info("Extracting features from TreeSAPP classifications... ")
-    tp, t_pqs = vectorize_placement_data(condition_names=true_pos, classifieds=assignments, refpkg_map=refpkg_map)
-    if false_pos:
-        fp, f_pqs = vectorize_placement_data(condition_names=false_pos, classifieds=assignments, refpkg_map=refpkg_map)
-    else:
-        fp, f_pqs = np.array([]), []
-    logging.info("done.\n")
-
-    if len(tp) == 0:
-        logging.error("No true positives are available for training.\n")
+    if len(x_train) == 0:
+        logging.error("No positive examples are available for training.\n")
         sys.exit(17)
-    elif len(fp) > 0:
-        classified_data, conditions, x_train, x_test, y_train, y_test, pquery_test_map = generate_train_test_data(tp, t_pqs, false_ps=fp)
+    elif 0 in y_train:  # See if there are any negative examples for binary classification
         if tsne:
             generate_tsne(classified_data, conditions, tsne)
 
@@ -596,19 +724,21 @@ def train_classification_filter(assignments: dict, true_pos: dict, refpkg_map: d
                 evaluate_grid_scores(k, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, jobs=num_procs)
             return
 
-        clf = train_binary_classifier(tp, fp, kernel)
+        # pquery_test_map = map_test_indices_to_pqueries(x_test, true_pqueries)
+        clf = train_binary_classifier(x_train, y_train, kernel)
 
-        for refpkg_prefix in refpkg_map:  # type: str
-            if refpkg_prefix in true_pos:
-                classifiers[refpkg_prefix] = clf
-                preds = evaluate_classifier(clf, x_test, y_test, classified_data, conditions)
-                characterize_predictions(preds, pquery_test_map)
-    else:
         for refpkg_prefix in true_pos:
-            classified_data, conditions, x_train, x_test, y_train, y_test, pquery_test_map = generate_train_test_data(tp, t_pqs)
-            clf = train_oc_classifier(x_train, kernel)
             classifiers[refpkg_prefix] = clf
             preds = evaluate_classifier(clf, x_test, y_test, classified_data, conditions)
-            characterize_predictions(preds, pquery_test_map)
+            # characterize_predictions(preds, pquery_test_map)
+    else:
+        for refpkg_prefix in true_pos:
+            # pquery_test_map = map_test_indices_to_pqueries(x_test, true_pqueries)
+
+            clf = train_oc_classifier(x_train, kernel)
+
+            classifiers[refpkg_prefix] = clf
+            preds = evaluate_classifier(clf, x_test, y_test, classified_data, conditions)
+            # characterize_predictions(preds, pquery_test_map)
 
     return classifiers

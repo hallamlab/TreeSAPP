@@ -67,7 +67,7 @@ def write_placement_table(pqueries: dict, placement_table_file, marker):
             for pquery in taxa[taxon]:
                 if pquery:
                     placement_info_strs.append("\t".join(
-                        [marker, str(pquery.rank), str(pquery.lineage), str(pquery.name), str(pquery.inode),
+                        [marker, str(pquery.rank), str(pquery.lineage), str(pquery.ref_name), str(pquery.inode),
                          str(pquery.lwr), str(pquery.likelihood),
                          str(pquery.distal), str(pquery.pendant), str(pquery.mean_tip), str(pquery.total_distance())])
                     )
@@ -269,7 +269,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
             test_taxa_summary.append("\t{}\t{}".format(len(taxon_training_queries), taxonomy))
             taxon_training_queries.clear()
 
-        taxonomic_coverage = float(represented_taxa*100/len(unique_ref_lineages))
+        taxonomic_coverage = round(float(represented_taxa*100/len(unique_ref_lineages)), 2)
 
         if taxonomic_coverage < warning_threshold:
             logging.warning("Only {0}% of unique {1}-level taxa can be used represent"
@@ -388,11 +388,11 @@ def clade_exclusion_phylo_placement(rank_training_seqs: dict,
         for leaf_node, lineage in ref_pkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, rank).items():
             leaf_trimmed_taxa_map[leaf_node + "_" + ref_pkg.prefix] = lineage
 
-        for taxon in sorted(rank_training_seqs[rank]):
-            logging.debug("Testing placements for {}:\n".format(taxon))
-            pqueries[rank][taxon] = generate_pquery_data_for_trainer(ref_pkg, taxon,
-                                                                     test_fasta, rank_training_seqs[rank][taxon], rank,
-                                                                     executables, output_dir, pbar, raxml_threads)
+        for taxonomy in sorted(rank_training_seqs[rank]):
+            logging.debug("Testing placements for {}:\n".format(taxonomy))
+            pqueries[rank][taxonomy] = generate_pquery_data_for_trainer(ref_pkg, taxonomy, test_fasta,
+                                                                        rank_training_seqs[rank][taxonomy], rank,
+                                                                        executables, output_dir, pbar, raxml_threads)
 
         if len(pqueries[rank]) == 0:
             logging.debug("No samples available for " + rank + ".\n")
@@ -458,9 +458,10 @@ def gen_cladex_data(fasta_input: str, executables: dict, ref_pkg: ReferencePacka
     ref_pkg.load_taxonomic_hierarchy()
     for ref_seq in ref_pkg.generate_tree_leaf_references_from_refpkg():
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
-    # Load the query FASTA and
+    # Load the query FASTA and unalign the sequences, in case the fasta is a MSA
     test_seqs = fasta.FASTA(fasta_input)
     test_seqs.load_fasta()
+    test_seqs.unalign()
     test_seqs.add_accession_to_headers(ref_pkg.prefix)
     # Find non-redundant set of diverse sequences to train for all taxonomic ranks
     rank_training_seqs = prepare_training_data(test_seqs, output_dir, executables, leaf_taxa_map,

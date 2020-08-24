@@ -26,12 +26,14 @@ from treesapp import treesapp_args
 from treesapp import classy
 from treesapp.phylo_seq import assignments_to_treesaps, PQuery, convert_entrez_to_tree_leaf_references
 from treesapp.refpkg import ReferencePackage, view, edit
-from treesapp.training_utils import train_classification_filter
+from treesapp.training_utils import train_classification_filter, vectorize_placement_data, generate_train_test_data,\
+    bin_headers, save_np_array, summarize_query_classes
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs, select_query_placements,\
-    summarize_placements_rpkm, write_classification_table, produce_itol_inputs, replace_contig_names, read_refpkg_tax_ids
+    summarize_placements_rpkm, write_classification_table, produce_itol_inputs, replace_contig_names,\
+    read_refpkg_tax_ids, load_homologs, load_pqueries
 from treesapp.jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from treesapp.clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
@@ -160,46 +162,62 @@ def train(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_trainer_arguments(ts_trainer, args)
-    ts_trainer.validate_continue(args)
+    ts_trainer.set_file_paths()
+    ts_trainer.decide_stage(args)
     ts_trainer.ref_pkg.disband(os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_RefPkg"))
 
+    if args.annot_map and args.classifier == "bin":
+        ts_trainer.pkg_dbname_dict = file_parsers.read_annotation_mapping_file(args.annot_map)
+
     train_seqs = fasta.FASTA(ts_trainer.input_sequences)
-
-    # Load saved pquery instances from a previous run
-    if os.path.isfile(ts_trainer.clade_ex_pquery_pkl):
-        clade_ex_pqueries = jload(filename=ts_trainer.clade_ex_pquery_pkl)
+    ##
+    # STAGE 1: Optionally validate and reformat the input FASTA
+    ##
+    if ts_trainer.stage_status("clean"):
+        logging.info("Reading and formatting {}... ".format(ts_trainer.input_sequences))
+        train_seqs.header_registry = fasta.format_fasta(fasta_input=ts_trainer.input_sequences, molecule="prot",
+                                                        output_fasta=ts_trainer.formatted_input)
+        logging.info("done.\n")
+        ts_trainer.increment_stage_dir()
     else:
-        clade_ex_pqueries = dict()
-    if os.path.isfile(ts_trainer.plain_pquery_pkl):
-        plain_pqueries = jload(filename=ts_trainer.plain_pquery_pkl)
-    else:
-        plain_pqueries = dict()
+        if not os.path.isfile(ts_trainer.formatted_input):
+            ts_trainer.formatted_input = ts_trainer.input_sequences
+    train_seqs.file = ts_trainer.formatted_input
 
+    ##
+    # STAGE 2: Run hmmsearch on the query sequences to search for reference package homologs
+    ##
     if ts_trainer.stage_status("search"):
-        # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        train_seqs.fasta_dict = fasta.format_read_fasta(ts_trainer.input_sequences, ts_trainer.molecule_type)
-        train_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_trainer.input_sequences))
-
-        logging.info("Searching for domain sequences... ")
+        logging.info("Searching for homologous sequences with hmmsearch... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"],
                                                  ts_trainer.ref_pkg.f__search_profile,
-                                                 ts_trainer.input_sequences,
-                                                 ts_trainer.var_output_dir)
+                                                 ts_trainer.formatted_input,
+                                                 ts_trainer.stage_output_dir)
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
-        marker_gene_dict = dict()
-        hmm_extract_seqs = utilities.extract_hmm_matches(hmm_matches, train_seqs.fasta_dict, train_seqs.header_registry)
-        for k, v in hmm_extract_seqs.items():
-            marker_gene_dict.update(v)
-        logging.info(train_seqs.summarize_fasta_sequences())
-        fasta.write_new_fasta(marker_gene_dict, ts_trainer.hmm_purified_seqs)
-        marker_gene_dict.clear()
-        utilities.hmm_pile(hmm_matches)
-    else:
-        train_seqs.load_fasta()
-        train_seqs.change_dict_keys("formatted")
-        ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
+        load_homologs(hmm_matches, ts_trainer.formatted_input, train_seqs)
 
+        logging.info(train_seqs.summarize_fasta_sequences())
+        fasta.write_new_fasta(train_seqs.fasta_dict, ts_trainer.hmm_purified_seqs)
+        train_seqs.file = ts_trainer.hmm_purified_seqs
+        utilities.hmm_pile(hmm_matches)
+        ts_trainer.increment_stage_dir()
+    else:
+        if not os.path.isfile(ts_trainer.hmm_purified_seqs):
+            ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
+            train_seqs.file = ts_trainer.hmm_purified_seqs
+            train_seqs.fasta_dict = fasta.read_fasta_to_dict(train_seqs.file)
+        else:
+            train_seqs.file = ts_trainer.hmm_purified_seqs
+            train_seqs.load_fasta()
+        logging.info("Profile HMM homology search skipped. Using all sequences in {}.\n".format(train_seqs.file))
+        train_seqs.change_dict_keys("formatted")
+
+    summarize_query_classes(set(ts_trainer.pkg_dbname_dict.keys()), set(train_seqs.fasta_dict.keys()))
+
+    ##
+    # STAGE 3: Download the taxonomic lineages for each query sequence
+    ##
     entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule, args.acc_to_taxid)
 
     entrez_utils.fill_ref_seq_lineages(entrez_record_dict, ts_trainer.seq_lineage_map, complete=True)
@@ -210,84 +228,120 @@ def train(sys_args):
     rank_depth_map = ts_trainer.ref_pkg.taxa_trie.accepted_ranks_depths
     taxa_evo_dists = dict()
 
+    query_seq_records = {}
+    for index, e_record in entrez_record_dict.items():  # type: entrez_utils.EntrezRecord
+        query_seq_records[e_record.description] = e_record
+
     # Goal is to use the distances already calculated but re-print
-    if os.path.isfile(ts_trainer.placement_summary) and not args.overwrite:
-        # Read the summary file and pull the phylogenetic distances for each rank
-        taxa_evo_dists = placement_trainer.read_placement_summary(ts_trainer.placement_summary)
-        # Remove any ranks that are not to be used in this estimation
-        estimated_ranks = set(taxa_evo_dists.keys())
-        for rank_key in estimated_ranks.difference(set(ts_trainer.training_ranks.keys())):
-            taxa_evo_dists.pop(rank_key)
+    if ts_trainer.stage_status("place"):
+        clade_ex_pqueries = dict()
+        if os.path.isfile(ts_trainer.placement_summary):
+            # Read the summary file and pull the phylogenetic distances for each rank
+            taxa_evo_dists = placement_trainer.read_placement_summary(ts_trainer.placement_summary)
+            # Remove any ranks that are not to be used in this estimation
+            estimated_ranks = set(taxa_evo_dists.keys())
+            for rank_key in estimated_ranks.difference(set(ts_trainer.training_ranks.keys())):
+                taxa_evo_dists.pop(rank_key)
 
-    if len(set(ts_trainer.training_ranks).difference(set(taxa_evo_dists))) > 0 or len(clade_ex_pqueries) == 0:
-        clade_ex_pqueries = placement_trainer.gen_cladex_data(ts_trainer.hmm_purified_seqs, ts_trainer.executables,
-                                                              ts_trainer.ref_pkg, ts_trainer.seq_lineage_map,
-                                                              ts_trainer.var_output_dir, args.num_threads)
-        jdump(value=clade_ex_pqueries, filename=os.path.join(ts_trainer.clade_ex_pquery_pkl))
+        if len(set(ts_trainer.training_ranks).difference(set(taxa_evo_dists))) > 0 or len(clade_ex_pqueries) == 0:
+            clade_ex_pqueries = placement_trainer.gen_cladex_data(train_seqs.file, ts_trainer.executables,
+                                                                  ts_trainer.ref_pkg, ts_trainer.seq_lineage_map,
+                                                                  ts_trainer.stage_output_dir, args.num_threads)
+            jdump(value=clade_ex_pqueries, filename=os.path.join(ts_trainer.clade_ex_pquery_pkl))
 
-    taxa_evo_dists = placement_trainer.evo_dists_from_pqueries(clade_ex_pqueries, ts_trainer.training_ranks)
+        # Write the tab-delimited file with metadata included for each placement
+        placement_trainer.write_placement_table(clade_ex_pqueries,
+                                                ts_trainer.placement_table, ts_trainer.ref_pkg.prefix)
 
-    # Write the tab-delimited file with metadata included for each placement
-    placement_trainer.write_placement_table(clade_ex_pqueries, ts_trainer.placement_table, ts_trainer.ref_pkg.prefix)
+        logging.info("Generating placement data without clade exclusion for SVM... ")
+        # TODO: Pause logging just to console and continue writing to log file
+        # Option 1. No logging to console or file
+        cl_log = logging.getLogger()
+        cl_log.disabled = True
+        # Option 2... ?
 
-    # Finish up
-    pfit_array = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
-    if pfit_array:
-        logging.info("Placement distance model complete.\n")
-    else:
-        logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
+        assign_prefix = os.path.join(ts_trainer.stage_output_dir, ts_trainer.ref_pkg.prefix + "_assign")
+        assign_params = ["-i", train_seqs.file,
+                         "-o", assign_prefix,
+                         "--num_procs", str(args.num_threads),
+                         "--refpkg_dir", os.path.dirname(ts_trainer.ref_pkg.f__json),
+                         "--targets", ts_trainer.ref_pkg.prefix,
+                         "--molecule", ts_trainer.ref_pkg.molecule,
+                         "--delete"]
+        if args.trim_align:
+            assign_params.append("--trim_align")
 
-    logging.info("Generating placement data without clade exclusion for OC-SVM... ")
-    # TODO: Pause logging just to console and continue writing to log file
-    # Option 1. No logging to console or file
-    cl_log = logging.getLogger()
-    cl_log.disabled = True
-    # Option 2... ?
-
-    assign_prefix = os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_assign")
-    assign_params = ["-i", ts_trainer.hmm_purified_seqs,
-                     "-o", assign_prefix,
-                     "--num_procs", str(args.num_threads),
-                     "--refpkg_dir", os.path.dirname(ts_trainer.ref_pkg.f__json),
-                     "--targets", ts_trainer.ref_pkg.prefix,
-                     "--molecule", ts_trainer.ref_pkg.molecule,
-                     "--delete"]
-    if args.trim_align:
-        assign_params.append("--trim_align")
-
-    if len(plain_pqueries) == 0:
         assign(assign_params)
-        plain_pqueries.update(assignments_to_treesaps(
-            file_parsers.read_classification_table(
-                os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")),
+        plain_pqueries = assignments_to_treesaps(file_parsers.read_classification_table(
+            os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")),
             {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
-        )
         jdump(value=plain_pqueries, filename=os.path.join(ts_trainer.plain_pquery_pkl))
 
-    # Re-enable logging at the previous level
-    cl_log.disabled = False
-    logging.info("done.\n")
+        # Re-enable logging at the previous level
+        cl_log.disabled = False
+        logging.info("done.\n")
+        ts_trainer.increment_stage_dir()
+    else:
+        logging.info("Phylogenetic placement stage is being skipped. Reading saved pickles... ")
+        # Load saved pquery instances from a previous run
+        clade_ex_pqueries = jload(filename=ts_trainer.clade_ex_pquery_pkl)
+        plain_pqueries = jload(filename=ts_trainer.plain_pquery_pkl)
+        logging.info("done.\n")
 
+    taxa_evo_dists = placement_trainer.evo_dists_from_pqueries(clade_ex_pqueries, ts_trainer.training_ranks)
     ts_trainer.pqueries.update(clade_ex_pqueries)
     ts_trainer.pqueries.update(plain_pqueries)
 
-    # Reformat the pqueries dictionary for classifier training and testing
-    refpkg_pqueries = placement_trainer.flatten_pquery_dict(ts_trainer.pqueries, ts_trainer.ref_pkg.prefix)
-    tp_names = {ts_trainer.ref_pkg.prefix:
-                [pquery.contig_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]}
+    if ts_trainer.stage_status("train"):
+        # Finish up the linear regression model
+        ts_trainer.ref_pkg.pfit = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
+        if ts_trainer.ref_pkg.pfit:
+            logging.info("Placement distance model complete.\n")
+        else:
+            logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
-    for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]:
-        if not pquery.rank:
-            pquery.rank = "species"
+        # Reformat the dictionary containing PQuery instances for classifier training and testing
+        refpkg_pqueries = placement_trainer.flatten_pquery_dict(ts_trainer.pqueries, ts_trainer.ref_pkg.prefix)
+        tp_names = {}
+        fp_names = {}
+        if args.classifier == "occ":
+            # The individual instances are of PQuery type
+            tp_names.update({ts_trainer.ref_pkg.prefix:
+                             [pquery.place_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]})
 
-    # Train the one-class SVM model
-    refpkg_classifiers = train_classification_filter(refpkg_pqueries, tp_names,
-                                                     refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg},
-                                                     kernel=args.kernel, tsne=args.tsne, grid_search=args.grid_search,
-                                                     num_procs=args.num_threads)
+            for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]:
+                if not pquery.rank:
+                    pquery.rank = "species"
+        else:
+            tp, fp, fn = bin_headers(refpkg_pqueries, ts_trainer.pkg_dbname_dict, query_seq_records)
+            # The individual instances are of QuerySequence type
+            for refpkg_name, tp_query_seqs in tp.items():
+                tp_names[refpkg_name] = [qseq.place_name for qseq in tp_query_seqs]
+            for refpkg_name, fp_query_seqs in fp.items():
+                fp_names[refpkg_name] = [qseq.place_name for qseq in fp_query_seqs]
+
+        logging.info("Extracting features from TreeSAPP classifications... ")
+        tp, t_pqs = vectorize_placement_data(condition_names=tp_names, classifieds=refpkg_pqueries,
+                                             refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+        fp, f_pqs = vectorize_placement_data(condition_names=fp_names, classifieds=refpkg_pqueries,
+                                             refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+        logging.info("done.\n")
+
+        # Split the training and testing data from the classifications
+        classified_data, conditions, x_train, x_test, y_train, y_test = generate_train_test_data(tp, fp)
+        # Save the feature vectors and condition vectors
+        save_np_array(classified_data, ts_trainer.feature_vector_file)
+        save_np_array(conditions, ts_trainer.conditions_file)
+        # Train the classifier
+        refpkg_classifiers = train_classification_filter(tp_names, t_pqs, classified_data, conditions,
+                                                         x_train, x_test, y_train, y_test,
+                                                         kernel=args.kernel, tsne=ts_trainer.tsne_plot,
+                                                         grid_search=args.grid_search, num_procs=args.num_threads)
+        ts_trainer.increment_stage_dir()
+    else:
+        refpkg_classifiers = {}
 
     if ts_trainer.stage_status("update"):
-        ts_trainer.ref_pkg.pfit = pfit_array
         if not ts_trainer.ref_pkg.pfit:
             logging.warning("Linear regression parameters could not be estimated. " +
                             "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
@@ -302,7 +356,7 @@ def train(sys_args):
 
     # Write the text file containing distances used in the regression analysis
     with open(ts_trainer.placement_summary, 'w') as out_handler:
-        trained_string = "Regression parameters = " + re.sub(' ', '', str(pfit_array)) + "\n"
+        trained_string = "Regression parameters = " + re.sub(' ', '', str(ts_trainer.ref_pkg.pfit)) + "\n"
         for rank in sorted(rank_depth_map, key=lambda x: rank_depth_map[x]):
             trained_string += "# " + rank + "\n"
             if rank in taxa_evo_dists:
@@ -331,7 +385,7 @@ def create(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_create_arguments(ts_create, args)
-    ts_create.validate_continue(args)
+    ts_create.decide_stage(args)
 
     # Populate the final TreeSAPP reference file paths with the proper output directory
     ts_create.ref_pkg.update_file_names()
@@ -369,6 +423,7 @@ def create(sys_args):
                                                   min_seq_length=args.min_seq_length)
     ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ref_seqs.file))
     ref_seqs.synchronize_seqs_n_headers()
+    ref_seqs.add_accession_to_headers()
     # Get rid of ambiguity or unusual characters
     ref_seqs.replace_ambiguity_chars(ts_create.ref_pkg.molecule)
     logging.info("Sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
@@ -406,8 +461,6 @@ def create(sys_args):
         # TODO: Replace this function with one offered by TaxonomicHierarchy
         fasta_records = create_refpkg.remove_by_truncated_lineages(fasta_records,
                                                                    args.min_taxonomic_rank, ref_seqs.amendments)
-        # Ensure there are no records with redundant headers and sequences
-        fasta_records = classy.dedup_records(ref_seqs, fasta_records)
 
         if len(fasta_records.keys()) < 2:
             logging.error("{} sequences post-homology + taxonomy filtering\n".format(len(fasta_records)))
@@ -634,7 +687,7 @@ def update(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_updater_arguments(ts_updater, args)
-    ts_updater.validate_continue(args)
+    ts_updater.decide_stage(args)
     ts_updater.ref_pkg.validate()
     ref_seq_lineage_info = ts_updater.ref_pkg.generate_tree_leaf_references_from_refpkg()
 
@@ -802,10 +855,9 @@ def update(sys_args):
         still_repping = []
         refs_resolved = []
         for num_id, ref_seq in entrez_records.items():  # type: (str, entrez_utils.EntrezRecord)
-            seq_name = ref_seq.versioned + ' ' + ref_seq.description
             if ref_seq.cluster_rep:
-                still_repping.append(seq_name)
-            elif seq_name in set(ref_fasta.fasta_dict.keys()):
+                still_repping.append(ref_seq.rebuild_header())
+            elif ref_seq.rebuild_header() in set(ref_fasta.fasta_dict.keys()):
                 refs_resolved.append(ref_seq)
             else:
                 pass
@@ -1003,7 +1055,7 @@ def assign(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_classify_arguments(ts_assign, args)
-    ts_assign.validate_continue(args)
+    ts_assign.decide_stage(args)
 
     refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
     prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
@@ -1022,19 +1074,14 @@ def assign(sys_args):
     query_seqs = fasta.FASTA(ts_assign.query_sequences)
     # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
     if ts_assign.stage_status("clean"):
-        logging.info("Reading and formatting " + ts_assign.query_sequences + "... ")
-        query_seqs.fasta_dict = fasta.format_read_fasta(ts_assign.query_sequences, "prot")
-        query_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_assign.query_sequences), True)
-        query_seqs.change_dict_keys("num")
-        logging.info("done.\n")
-        logging.info("Writing formatted FASTA file to " + ts_assign.formatted_input + "... ")
-        fasta.write_new_fasta(query_seqs.fasta_dict, ts_assign.formatted_input)
+        logging.info("Reading and formatting {}... ".format(ts_assign.query_sequences))
+        query_seqs.header_registry = fasta.format_fasta(fasta_input=ts_assign.query_sequences, molecule="prot",
+                                                        output_fasta=ts_assign.formatted_input)
         logging.info("done.\n")
     else:
         ts_assign.formatted_input = ts_assign.query_sequences
         query_seqs.load_fasta()
-        query_seqs.change_dict_keys("num")  # Swap the formatted headers for the numerical IDs for quick look-ups
-    logging.info("\tTreeSAPP will analyze the " + str(len(query_seqs.fasta_dict)) + " sequences found in input.\n")
+    logging.info("\tTreeSAPP will analyze the " + str(len(query_seqs.header_registry)) + " sequences found in input.\n")
 
     ##
     # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
@@ -1044,6 +1091,9 @@ def assign(sys_args):
                                                   refpkg_dict, ts_assign.formatted_input,
                                                   ts_assign.var_output_dir, args.num_threads, args.max_e)
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
+        load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
+        pqueries = load_pqueries(hmm_matches, query_seqs)
+        query_seqs.change_dict_keys("num")
         extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
         numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)
         homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
@@ -1058,8 +1108,7 @@ def assign(sys_args):
     split_msa_files = dict()
     if ts_assign.stage_status("align"):
         create_ref_phy_files(refpkg_dict, ts_assign.var_output_dir, homolog_seq_files, ref_alignment_dimensions)
-        concatenated_msa_files = multiple_alignments(ts_assign.executables, ts_assign.refpkg_dir,
-                                                     ts_assign.var_output_dir, homolog_seq_files, refpkg_dict,
+        concatenated_msa_files = multiple_alignments(ts_assign.executables, homolog_seq_files, refpkg_dict,
                                                      "hmmalign", args.num_threads)
         file_type = utilities.find_msa_type(concatenated_msa_files)
         alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
@@ -1099,14 +1148,14 @@ def assign(sys_args):
         sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, refpkg_dict)
 
     if ts_assign.stage_status("classify"):
-        tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, refpkg_dict)
+        tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, refpkg_dict, pqueries)
         select_query_placements(tree_saps)
         filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_likelihood)
         fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         for refpkg_code in tree_saps:
             for placed_seq in tree_saps[refpkg_code]:  # type: PQuery
-                abundance_dict[placed_seq.contig_name] = 1.0
+                abundance_dict[placed_seq.place_name] = 1.0
         if args.molecule == "dna":
             if os.path.isfile(ts_assign.nuc_orfs_file):
                 nuc_orfs = fasta.FASTA(ts_assign.nuc_orfs_file)
@@ -1177,7 +1226,7 @@ def abundance(sys_args):
     ts_abund.check_arguments(args)
     refpkg_dict = file_parsers.gather_ref_packages(ts_abund.refpkg_dir)
     # TODO: Implement check-pointing for abundance
-    # ts_abund.validate_continue(args)
+    # ts_abund.decide_stage(args)
 
     sam_file = align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.classified_nuc_seqs,
                                    ts_abund.var_output_dir, args.reads, args.pairing, args.reverse, args.num_threads)
@@ -1226,7 +1275,7 @@ def purity(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_purity_arguments(ts_purity, args)
-    ts_purity.validate_continue(args)
+    ts_purity.decide_stage(args)
 
     # Load FASTA data
     ref_seqs = fasta.FASTA(ts_purity.input_sequences)
@@ -1240,6 +1289,9 @@ def purity(sys_args):
                        "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
                        "-t", ts_purity.ref_pkg.prefix, "--refpkg_dir", ts_purity.refpkg_dir,
                        "--overwrite", "--delete"]
+        if args.trim_align:
+            assign_args.append("--trim_align")
+
         try:
             assign(assign_args)
         except:  # Just in case treesapp assign fails, just continue
@@ -1302,7 +1354,7 @@ def evaluate(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_evaluate_arguments(ts_evaluate, args)
-    ts_evaluate.validate_continue(args)
+    ts_evaluate.decide_stage(args)
     load_rank_depth_map(ts_evaluate)
 
     ref_leaves = ts_evaluate.ref_pkg.generate_tree_leaf_references_from_refpkg()

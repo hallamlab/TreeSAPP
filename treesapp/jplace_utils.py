@@ -57,21 +57,30 @@ def jplace_parser(filename: str) -> JPlace:
     return itol_datum
 
 
-def demultiplex_pqueries(jplace_data) -> list:
+def demultiplex_pqueries(jplace_data: JPlace, pquery_map=None) -> list:
     """
-    Demultiplexes each placed query sequence (PQuery) into its own TreeProtein instance,
-    copying over all Jplace information and the set of possible placements.
+    Demultiplexes each placed query sequence (PQuery) into its own PQuery instance,
+    copying over all JPlace information and the set of possible placements.
 
-    :param jplace_data:
-    :return: List of TreeProtein instances
+    :param jplace_data: A JPlace instance
+    :param pquery_map: A dictionary mapping placed query sequence names to their respective PQuery instances
+    :return: List of PQuery instances
     """
     tree_placement_queries = list()
     for pquery in jplace_data.placements:
         pquery_obj = PQuery()
-        pquery_obj.transfer(jplace_data)
+        # Copy the essential information to the PQuery instance
         pquery_obj.placements = [pquery]
         pquery_obj.name_placed_sequence()
+
+        if pquery_map:
+            pquery_obj = pquery_map[pquery_obj.place_name]
+            pquery_obj.placements = [pquery]
+            # Placed sequence has already been named
+
+        pquery_obj.transfer_metadata(jplace_data)
         pquery_obj.correct_decoding()
+
         tree_placement_queries.append(pquery_obj)
 
     return tree_placement_queries
@@ -88,7 +97,7 @@ def filter_jplace_data(jplace_data: JPlace, tree_saps: list):
     jplace_data.correct_decoding()
     jplace_data.filter_max_weight_placement()
     new_placement_collection = list()
-    sapling_map = {sapling.contig_name: sapling for sapling in tree_saps}
+    sapling_map = {sapling.place_name: sapling for sapling in tree_saps}
 
     for d_place in jplace_data.placements:
         dict_strings = list()

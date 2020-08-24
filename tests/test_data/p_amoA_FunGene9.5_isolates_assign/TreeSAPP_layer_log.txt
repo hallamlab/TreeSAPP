@@ -1,0 +1,35 @@
+15/07 23:03:09 INFO:
+
+##				Layering extra annotations on TreeSAPP classifications				##
+
+
+15/07 23:03:09 DEBUG:
+Gathering reference package files... 
+15/07 23:03:09 DEBUG:
+done.
+
+15/07 23:03:09 DEBUG:
+	Parsed 6 clades from 'Nitrogen_metabolism/Nitrification/XmoA/XmoA_Function.txt'
+
+15/07 23:03:09 DEBUG:
+	Parsed 6 clades from '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data/iTOL_data/XmoA_Function.txt'
+
+15/07 23:03:09 INFO:
+Annotating 'Function' classifications for the following reference package(s):
+
+15/07 23:03:09 INFO:
+	XmoA
+
+15/07 23:03:09 DEBUG:
+	Captured 45 nodes in clusters.
+
+15/07 23:03:09 WARNING:
+The following leaf nodes were not mapped to annotation groups:
+	1_XmoA, 2_XmoA, 3_XmoA, 4_XmoA, 5_XmoA, 6_XmoA, 7_XmoA, 8_XmoA, 9_XmoA, 10_XmoA, 12_XmoA, 13_XmoA, 14_XmoA, 15_XmoA, 17_XmoA, 18_XmoA, 19_XmoA, 20_XmoA, 22_XmoA, 23_XmoA, 24_XmoA, 25_XmoA, 26_XmoA, 27_XmoA, 28_XmoA, 29_XmoA, 33_XmoA, 34_XmoA, 35_XmoA, 36_XmoA, 37_XmoA, 38_XmoA, 39_XmoA, 42_XmoA, 49_XmoA, 50_XmoA, 51_XmoA, 52_XmoA, 57_XmoA, 64_XmoA, 65_XmoA, 69_XmoA, 74_XmoA, 77_XmoA, 87_XmoA, 89_XmoA, 90_XmoA, 91_XmoA, 92_XmoA
+
+15/07 23:03:09 DEBUG:
+Number of placed sequences that were unclassified: 39
+
+15/07 23:03:09 INFO:
+TreeSAPP has finished successfully.
+

@@ -63,7 +63,7 @@ def regress_ranks(rank_distance_ranges: dict, taxonomic_ranks: dict) -> (float, 
             dist_list += rank_distances
 
     if len(depth_dist_dict.keys()) <= 1:
-        logging.error("Only " + str(len(depth_dist_dict.keys())) + " ranks available for modelling.\n")
+        logging.error("Only {} ranks available for modelling.\n".format(len(depth_dist_dict.keys())))
         sys.exit(33)
 
     dist_list.clear()
