@@ -1,8 +1,18 @@
 import unittest
 import os
+from shutil import rmtree
 
 
 class TreesappTester(unittest.TestCase):
+    def tearDown(self) -> None:
+        # Clean up output directories
+        output_prefix = os.path.join(os.path.abspath("./"), "TreeSAPP_")
+        for test_name in ["assign", "train", "update", "evaluate", "create", "package", "purity", "MCC"]:
+            output_dir = output_prefix + test_name
+            if os.path.isdir(output_dir):
+                rmtree(output_dir)
+        return
+
     def test_assign_prot(self):
         ref_pkgs = ["McrA", "M0702", "S0001"]
         from treesapp.commands import assign
@@ -10,6 +20,7 @@ class TreesappTester(unittest.TestCase):
         from .testing_utils import get_test_data
         assign_commands_list = ["--fastx_input", get_test_data("marker_test_suite.faa"),
                                 "--targets", ','.join(ref_pkgs),
+                                "--refpkg_dir", get_test_data(os.path.join("refpkgs")),
                                 "--num_procs", str(2),
                                 "-m", "prot",
                                 "--output", "./TreeSAPP_assign/",
@@ -17,7 +28,8 @@ class TreesappTester(unittest.TestCase):
                                 "--trim_align", "--overwrite", "--delete"]
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
-        self.assertEqual(15, len(lines))
+        self.assertEqual(16, len(lines))
+        return
 
     def test_assign_dna(self):
         ref_pkgs = ["M0701", "M0702"]
@@ -66,6 +78,7 @@ class TreesappTester(unittest.TestCase):
                                 "--output", "./TreeSAPP_create_PuhA",
                                 "--refpkg_name", "PuhA",
                                 "--similarity", "0.97",
+                                "--profile", get_test_data("PuhA_search.hmm"),
                                 "--bootstraps", str(0),
                                 "--molecule", "prot",
                                 "--screen", "Bacteria,Archaea",
@@ -78,7 +91,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_create_PuhA/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(44, test_refpkg.num_seqs)
+        self.assertEqual(43, test_refpkg.num_seqs)
         return
 
     def test_create_accession2lin(self):
@@ -116,6 +129,7 @@ class TreesappTester(unittest.TestCase):
                                  "-n", str(2),
                                  "--trim_align", "--overwrite", "--delete"]
         evaluate(evaluate_command_list)
+        self.assertEqual(True, True)
         return
 
     def test_abundance(self):
@@ -145,6 +159,7 @@ class TreesappTester(unittest.TestCase):
                                "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
                                "--trim_align", "--molecule", "prot", "-n", str(2)]
         purity(purity_command_list)
+        self.assertEqual(True, True)
         return
 
     def test_layer(self):
@@ -224,20 +239,22 @@ class TreesappTester(unittest.TestCase):
         import csv
         from commands import train
         from .testing_utils import get_test_data
-        output_dir = "./TreeSAPP_train"
+        output_dir_path = "./TreeSAPP_train"
         train_command_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
-                              "--output", output_dir,
+                              "--annot_map", get_test_data("ENOG4111FIN_annot_map.tsv"),
+                              "--output", output_dir_path,
                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
                               "--num_proc", str(4),
                               "--molecule", "prot",
                               "--svm_kernel", "rbf",
+                              "--classifier", "bin",
                               "--trim_align", "--delete", "--overwrite"]
         train(train_command_list)
         rank_list = []
-        with open(os.path.join(output_dir, "final_outputs", "placement_info.tsv")) as placement_tbl:
+        with open(os.path.join(output_dir_path, "final_outputs", "placement_info.tsv")) as placement_tbl:
             csv_handler = csv.reader(placement_tbl, delimiter="\t")
-            header = next(csv_handler)
+            next(csv_handler)
             for fields in csv_handler:
                 rank_list.append(fields[1])
 
@@ -253,6 +270,7 @@ class TreesappTester(unittest.TestCase):
                         "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
                         "--output", "./TreeSAPP_package"]
         package(command_list)
+        self.assertEqual(True, True)
         return
 
     def test_mcc_calculator(self):
@@ -260,20 +278,23 @@ class TreesappTester(unittest.TestCase):
         from .testing_utils import get_test_data
         cmd = ["--fastx_input", get_test_data("EggNOG_McrA.faa"),
                "--annot_map", get_test_data("EggNOG_McrA_annot_map.tsv"),
-               "--output", "./test_MCC",
+               "--output", "./TreeSAPP_MCC",
+               "--targets", "McrA",
                "--molecule", "prot",
                "--tool", "treesapp",
                "--num_procs", str(4),
-               "--delete", "--svm"]
+               "--delete", "--svm", "--overwrite"]
         MCC_calculator.mcc_calculator(cmd)
+        self.assertEqual(True, True)
+        return
+    #
+    # def test_tmp(self):
+    #     from treesapp.commands import create
+    #     base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
+    #     cmd = "".format(base_dir)
+    #     create(cmd.split())
+    #     return
 
 
 if __name__ == '__main__':
     unittest.main()
-
-    # Clean up output directories
-    output_prefix = "TreeSAPP_"
-    for test_name in ["assign", "train", "update", "evaluate", "create"]:
-        output_dir = output_prefix + test_name
-        if os.path.isdir(output_dir):
-            os.rmdir(output_dir)

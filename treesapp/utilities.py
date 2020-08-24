@@ -544,21 +544,21 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict, header_registry: di
         for hmm_match in hmm_matches[refpkg_name]:
             # Now for the header format to be used in the bulk FASTA:
             # >contig_name|marker_gene|start_end
-            query_names = header_matching_dict[hmm_match.orf]
+            q_header = header_matching_dict[hmm_match.orf]
             if hmm_match.of > 1:
-                query_names.post_align = ' '.join([query_names.first_split,
-                                                   str(hmm_match.num) + '.' + str(hmm_match.of),
-                                                   re.sub(re.escape(query_names.first_split), '', query_names.original)])
+                q_header.post_align = ' '.join([q_header.first_split,
+                                                str(hmm_match.num) + '.' + str(hmm_match.of),
+                                                re.sub(re.escape(q_header.first_split), '', q_header.original)]).strip()
             else:
-                query_names.post_align = query_names.original
+                q_header.post_align = q_header.original
 
-            if query_names.post_align in extracted_loci:
-                logging.warning("Query '%s' being overwritten by an alternative alignment:\n%s\n" %
-                                (query_names.post_align, hmm_match.get_info()))
+            if q_header.post_align in extracted_loci:
+                logging.warning("Query '{}' being overwritten by an alternative alignment:\n"
+                                "{}\n".format(q_header.post_align, hmm_match.get_info()))
             try:
-                extracted_loci[query_names.post_align] = fasta_dict[query_names.first_split][hmm_match.start-1:hmm_match.end]
+                extracted_loci[q_header.post_align] = fasta_dict[q_header.original][hmm_match.start-1:hmm_match.end]
             except KeyError:
-                logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
+                logging.debug("Unable to map '{}' to a sequence in the input FASTA.\n".format(hmm_match.orf))
 
         marker_gene_dict[refpkg_name] = extracted_loci
 

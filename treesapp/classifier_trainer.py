@@ -199,7 +199,7 @@ def classifier_trainer(sys_args):
     ts_trainer.validate_continue(args)
 
     if args.annot_map:
-        pkg_dbname_dict = ts_MCC.read_annotation_mapping_file(args.annot_map)
+        pkg_dbname_dict = ts_fp.read_annotation_mapping_file(args.annot_map)
         if len(ts_trainer.target_refpkgs) == 0:
             ts_trainer.target_refpkgs = list(pkg_dbname_dict.keys())
     else:

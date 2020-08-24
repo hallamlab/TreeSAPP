@@ -52,6 +52,38 @@ class MyTestCase(unittest.TestCase):
                          seq_info_tuple.description)
         return
 
+    def test_read_fasta_to_dict(self):
+        from fasta import read_fasta_to_dict
+        from .testing_utils import get_test_data
+        fa_dict = read_fasta_to_dict(get_test_data("McrA_eval.faa"))
+        self.assertEqual(236, len(fa_dict))
+
+    def test_split_fa_size(self):
+        from fasta import split_fa, read_fasta_to_dict
+        from .testing_utils import get_test_data
+        split_files = split_fa(fastx=get_test_data("McrA_eval.faa"), outdir="./", file_num=4)
+        num_split_seqs = sum([len(read_fasta_to_dict(f)) for f in split_files])
+        self.assertEqual(len(read_fasta_to_dict(get_test_data("McrA_eval.faa"))), num_split_seqs)
+        self.assertEqual(4, len(split_files))
+        return
+
+    def test_split_fa_count(self):
+        from fasta import split_fa, read_fasta_to_dict
+        from .testing_utils import get_test_data
+        split_files = split_fa(fastx=get_test_data("McrA_eval.faa"), outdir="./", file_num=1, max_seq_count=236)
+        self.assertEqual(1, len(split_files))
+        split_files = split_fa(fastx=get_test_data("McrA_eval.faa"), outdir="./", file_num=1, max_seq_count=24)
+        num_split_seqs = sum([len(read_fasta_to_dict(f)) for f in split_files])
+        self.assertEqual(len(read_fasta_to_dict(get_test_data("McrA_eval.faa"))), num_split_seqs)
+        self.assertEqual(10, len(split_files))
+        return
+
+    def test_fq2fa(self):
+        from fasta import fq2fa
+        from .testing_utils import get_test_data
+        split_files = fq2fa(fastx=get_test_data("test_TarA.1.fq"), outdir="./", max_seq_count=6)
+        self.assertEqual(2, len(split_files))
+
 
 if __name__ == '__main__':
     unittest.main()

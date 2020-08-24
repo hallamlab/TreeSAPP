@@ -6,13 +6,13 @@ Stage: build
     /usr/local/bin/usearch
 
 %post
-    export TS_VERSION="0.8.7"
+    export TS_VERSION="0.8.8"
 
 	##
     # Install the linux package dependencies, this is currently including Python 3.6.5
     ##
     apt -y update
-    apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk time libssl-dev \
+    apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk time libssl-dev libsqlite3-dev \
     autotools-dev libtool flex bison cmake automake autoconf \
     python3 python3-distutils python3-dev
     ln -s /usr/bin/python3 /usr/bin/python
@@ -23,16 +23,21 @@ Stage: build
     # Pull TreeSAPP
     ##
     git clone https://github.com/hallamlab/TreeSAPP.git
-    cd TreeSAPP; git checkout ng-update; git pull
+    cd TreeSAPP; git checkout sub_fasta; git pull
     pip install -r requirements.txt
+    cd -
 
 	##
     # Install TreeSAPP dependencies
     ##
 
+    # BMGE
+    cp TreeSAPP/treesapp/sub_binaries/BMGE.jar /usr/local/bin/
+
     # MAFFT
 	curl -LJ0 --output mafft.deb https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
 	dpkg -i mafft.deb
+	rm mafft.deb
 
 	# Prodigal
 	curl -LJ0 --output /usr/bin/prodigal https://github.com/hyattpd/Prodigal/releases/download/v2.6.3/prodigal.linux
@@ -63,10 +68,10 @@ Stage: build
     chmod +x /usr/bin/FastTree
 
     # RAxML-NG
-    curl -LJ0 --output raxml-ng.zip https://github.com/amkozlov/raxml-ng/releases/download/0.9.0/raxml-ng_v0.9.0_linux_x86_64_MPI.zip
-    unzip raxml-ng.zip; unzip -d raxml-ng/ raxml-ng.zip; cd raxml-ng
-    ./install.sh; cp bin/raxml-ng /usr/bin/; cd -
-    rm raxml-ng.zip
+    curl -LJ0 --output raxml-ng_v1.0.0.zip https://github.com/amkozlov/raxml-ng/releases/download/1.0.0/raxml-ng_v1.0.0_linux_x86_64.zip
+    mkdir raxml-ng_v1.0.0; unzip raxml-ng_v1.0.0.zip -d raxml-ng_v1.0.0
+    cp raxml-ng_v1.0.0/raxml-ng /usr/local/bin/
+    rm -r raxml-ng_v1.0.0.zip raxml-ng_v1.0.0
 
     # EPA-NG
     curl -LJ0 --output epa-ng.tar.gz https://github.com/Pbdas/epa-ng/archive/v0.3.7.tar.gz
@@ -78,14 +83,16 @@ Stage: build
     # Install TreeSAPP
     ##
     # pip install treesapp==$TS_VERSION
-    python setup.py sdist; python3 -m pip install dist/treesapp-${TS_VERSION}.tar.gz
+    cd TreeSAPP; python setup.py sdist; cd -
+    python3 -m pip install TreeSAPP/dist/treesapp-${TS_VERSION}.tar.gz
+    rm -rf TreeSAPP/
 
 
 %labels
     Author Connor Morgan-Lang
-    Version v0.8.7
+    Version v0.8.8
 
 %help
     This container installs the latest TreeSAPP release from PyPI at https://pypi.org/project/treesapp/
     and installs all dependencies:
-    RaxML v8.2.12; MAFFT v7.450-1; Prodigal v2.6.3; BWA v0.7.17; HMMER v3.3; OD-Seq v1.0 and FastTree v2.1.11
+    RaxML-NG v1.0.0; EPA-NG v0.3.7; MAFFT v7.450-1; Prodigal v2.6.3; BWA v0.7.17; HMMER v3.3; OD-Seq v1.0 and FastTree v2.1.11

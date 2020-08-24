@@ -16,7 +16,7 @@ from numpy import var
 from treesapp.phylo_seq import convert_entrez_to_tree_leaf_references, PQuery
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes, sequence_info_groups
-from treesapp.utilities import median, which, is_exe, write_dict_to_table, validate_new_dir, fetch_executable_path
+from treesapp.utilities import median, write_dict_to_table, validate_new_dir, fetch_executable_path
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
@@ -26,7 +26,7 @@ import _tree_parser
 
 
 class ModuleFunction:
-    def __init__(self, name, order, func=None):
+    def __init__(self, name: str, order: int, func=None):
         self.order = order
         self.name = name
         self.function = func
@@ -63,7 +63,7 @@ class NodeRetrieverWorker(Process):
         return
 
 
-def get_header_info(header_registry, code_name=''):
+def get_header_info(header_registry: dict, code_name=''):
     """
 
     :param header_registry: A dictionary of Header instances, indexed by numerical treesapp_id
@@ -74,7 +74,7 @@ def get_header_info(header_registry, code_name=''):
     ref_records = dict()
     header_regexes = load_fasta_header_regexes(code_name)
     # TODO: Fix parsing of combined EggNOG and custom headers such that the taxid is parsed from the "accession"
-    for treesapp_id in sorted(header_registry.keys(), key=int):
+    for treesapp_id in sorted(header_registry.keys(), key=int):  # type: str
         original_header = header_registry[treesapp_id].original
         header_format_re, header_db, header_molecule = get_header_format(original_header, header_regexes)
         sequence_info = header_format_re.match(original_header)
@@ -95,69 +95,74 @@ def get_header_info(header_registry, code_name=''):
     return ref_records
 
 
-def dedup_records(ref_seqs: FASTA, ref_seq_records: dict):
+def dedup_records(ref_seqs: FASTA, ref_seq_records: dict) -> dict:
+    """
+    Entrez records with identical versioned accessions are grouped together and those grouped sequence records
+    are compared further. The Entrez records in ref_seq_records are deduplicated based on:
+ 1. Their full-length original headers
+ 2. Their EntrezRecord.bitflag values where the records with the most information attributed to them (e.g. NCBI tax_id,
+    lineage) at this stage are retained.
+
+    :param ref_seqs: A FASTA instance with populated fasta_dict and header_registry attributes
+    :param ref_seq_records: A dictionary mapping TreeSAPP numerical identifiers to their EntrezRecord instances
+    :return: ref_seq_records dictionary with duplicate records removed
+    """
+    duplicate_treesapp_ids = set()
+    all_accessions = dict()
+
     if ref_seqs.index_form != "num":
         ref_seqs.change_dict_keys("num")
 
-    deduped_accessions = list()
-    all_accessions = dict()
-    for treesapp_id in ref_seq_records:
-        record = ref_seq_records[treesapp_id]  # type: entrez_utils.EntrezRecord
-        if record.accession not in all_accessions:
-            all_accessions[record.accession] = []
-        all_accessions[record.accession].append(treesapp_id)
+    # Create a dictionary mapping versioned accessions to EntrezRecords for identifying duplicate accessions
+    for treesapp_id, record in ref_seq_records.items():  # type: (str, entrez_utils.EntrezRecord)
+        if record.versioned not in all_accessions:
+            all_accessions[record.versioned] = []
+        all_accessions[record.versioned].append(treesapp_id)
+
+    if len(all_accessions) != ref_seqs.n_seqs():
+        logging.debug("{}/{} unique versioned accessions were loaded for deduplication.\n"
+                      "".format(len(all_accessions), ref_seqs.n_seqs()))
 
     # If the sequences are identical across the records -> take record with greater bitflag
     # If the sequences are different -> keep
-    for accession in all_accessions:
-        dup_list = all_accessions[accession]
+    for accession, dup_list in all_accessions.items():  # type: (str, list)
+        # TODO: Deduplicate based on whether sequences or headers are substrings of others, using a Trie
         if len(dup_list) > 1:
-            dup_seqs_dict = dict()
-            # Load the occurrence of each duplicate record's sequence
-            for treesapp_id in dup_list:
-                # Could just pop from dup_list if the sequence isn't in dup_seqs_dict but bitflag filter is smarter
-                record_seq = ref_seqs.fasta_dict[treesapp_id]
-                try:
-                    dup_seqs_dict[record_seq] += 1
-                except KeyError:
-                    dup_seqs_dict[record_seq] = 1
-            x = 0
-            # Remove the sequences from dup_list if their sequence was found once
-            while x < len(dup_list):
-                treesapp_id = dup_list[x]
-                record_seq = ref_seqs.fasta_dict[treesapp_id]
-                if dup_seqs_dict[record_seq] == 1:
-                    dup_list.pop(x)
-                else:
-                    x += 1
-            # Move on to the next accession if dup_list is empty (because all duplicates have unique sequences)
-            if not dup_list:
-                continue
-
+            ##
             # Remove records with redundant accessions by removing those with the lower bitflag
+            ##
             max_bitflag = max([ref_seq_records[treesapp_id].bitflag for treesapp_id in dup_list])
             x = 0
             while x < len(dup_list):
                 treesapp_id = dup_list[x]
-                ref_seq = ref_seq_records[treesapp_id]
+                ref_seq = ref_seq_records[treesapp_id]  # type: entrez_utils.EntrezRecord
                 if ref_seq.bitflag < max_bitflag:
-                    ref_seq_records.pop(treesapp_id)
+                    duplicate_treesapp_ids.add(treesapp_id)
                     dup_list.pop(x)
-                    deduped_accessions.append(ref_seqs.header_registry[treesapp_id].original)
                 else:
                     x += 1
-            x = 1
             # Check for records with identical headers, keeping only one
-            while len(dup_list) > 1:
-                treesapp_id = dup_list[x]
-                ref_seq_records.pop(treesapp_id)
-                dup_list.pop(x)  # Don't increment
-                deduped_accessions.append(ref_seqs.header_registry[treesapp_id].original)
+            og_headers = dict()
+            for ts_id in dup_list:  # type: str
+                try:
+                    og_headers[ref_seqs.header_registry[ts_id].original].append(ts_id)
+                except KeyError:
+                    og_headers[ref_seqs.header_registry[ts_id].original] = [ts_id]
+            for seq_name, ts_ids in og_headers.items():
+                if len(ts_ids) > 1:
+                    for treesapp_id in ts_ids[1:]:
+                        duplicate_treesapp_ids.add(treesapp_id)
         else:
             pass
 
-    if deduped_accessions:
-        logging.warning("The following sequences were removed during deduplication of accession IDs:\n\t" +
+    # Actually remove the duplicates from the ref_seq_records dictionary
+    if duplicate_treesapp_ids:
+        deduped_accessions = []
+        for ts_id in duplicate_treesapp_ids:
+            ref_seq_records.pop(ts_id)
+            deduped_accessions.append(ref_seqs.header_registry[ts_id].original)
+
+        logging.warning("The following sequences were removed during deduplication of Entrez records:\n\t" +
                         "\n\t".join(deduped_accessions) + "\n")
 
     return ref_seq_records
@@ -288,10 +293,12 @@ class TreeSAPP:
         self.output_dir = ""
         self.final_output_dir = ""
         self.var_output_dir = ""
+        self.stage_output_dir = ""
         self.executables = dict()
         # Values that need to be entered later, in the command-specific class
         self.stages = dict()  # Used to track what progress stages need to be completed
         self.stage_file = ""  # The file to write progress updates to
+        self.current_stage = None
 
     def get_info(self):
         info_string = "Executables:\n\t" + "\n\t".join([k + ": " + v for k, v in self.executables.items()]) + "\n"
@@ -381,7 +388,7 @@ class TreeSAPP:
                 logging.warning("Reclassify impossible as " + self.output_dir + " is missing input files.\n")
         return
 
-    def stage_lookup(self, name: str, tolerant=False):
+    def stage_lookup(self, name: str, tolerant=False) -> ModuleFunction:
         """
         Used for looking up a stage in self.stages by its stage.name
 
@@ -389,16 +396,20 @@ class TreeSAPP:
         :param tolerant: Boolean controlling whether the function exits if look-up failed (defualt) or returns None
         :return: ModuleFunction instance that matches the name, or None if failed and tolerant, exit otherwise
         """
-        fingerprint = False
-        for module_step in sorted(self.stages, key=int):
+        found = False
+        stage_order = 0
+        for module_step in sorted(self.stages, key=int):  # type: int
             stage = self.stages[module_step]  # type: ModuleFunction
+            stage_order = stage.order
             if stage.name == name:
                 return stage
 
-        if not fingerprint and not tolerant:
-            logging.error("Unable to find '" + name + "' in " + self.command + " stages.\n")
+        if not found and not tolerant:
+            logging.error("Unable to find '{}' in {} stages.\n".format(name, self.command))
             sys.exit(3)
-        return
+        else:
+            logging.warning("Unable to find '{}' stage. Returning a new one instead.\n".format(name))
+            return ModuleFunction(name=name, order=stage_order+1)
 
     def first_stage(self):
         for x in sorted(self.stages, key=int):  # type: int
@@ -408,22 +419,58 @@ class TreeSAPP:
         logging.error("No stages are set to run!\n")
         sys.exit(3)
 
-    def read_progress_log(self):
-        """
-        Read the object's 'stage_file' and determine the completed stage
+    # def read_progress_log(self):
+    #     """
+    #     Read the object's 'stage_file' and determine the completed stage
+    #
+    #     :return: An integer corresponding to the last completed stage's rank in 'stage_order'
+    #     """
+    #     completed_int = self.first_stage()
+    #     try:
+    #         progress_handler = open(self.stage_file)
+    #     except IOError:
+    #         logging.debug("Unable to open stage file '" + self.stage_file +
+    #                       "' for reading. Defaulting to stage " + str(completed_int) + ".\n")
+    #         return completed_int
+    #     # TODO: Finish this to enable continuing part-way through an analysis
+    #     progress_handler.close()
+    #     return completed_int
 
-        :return: An integer corresponding to the last completed stage's rank in 'stage_order'
+    def find_stage_dirs(self) -> int:
         """
-        completed_int = self.first_stage()
-        try:
-            progress_handler = open(self.stage_file)
-        except IOError:
-            logging.debug("Unable to open stage file '" + self.stage_file +
-                          "' for reading. Defaulting to stage " + str(completed_int) + ".\n")
-            return completed_int
-        # TODO: Finish this to enable continuing part-way through an analysis
-        progress_handler.close()
-        return completed_int
+        Selects the earliest checkpoint that the workflow can be started from.
+        Stages (ModuleFunction instances) are skipped by setting their 'run' attribute to False.
+        This is the stage preceding the first stage whose directory does not exist.
+
+        :return: None
+        """
+        for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
+            if not module.run:
+                continue
+            else:
+                return module.order
+        return 0
+
+    def set_stage_dir(self) -> None:
+        self.stage_output_dir = os.path.join(self.var_output_dir, self.current_stage.name) + os.sep
+        if not os.path.isdir(self.stage_output_dir):
+            os.mkdir(self.stage_output_dir)
+        return
+
+    def increment_stage_dir(self) -> None:
+        """
+        Updates self.stage_output_dir with the directory path of the next ModuleFunction.
+
+        :return: None
+        """
+        # Find the next stage
+        self.current_stage.run = False
+        while not self.current_stage.run and self.current_stage.order < max(self.stages.keys()):
+            self.current_stage = self.stages[self.current_stage.order+1]
+
+        # Update the output directory for this stage
+        self.set_stage_dir()
+        return
 
     def stage_status(self, name):
         return self.stage_lookup(name).run
@@ -440,103 +487,53 @@ class TreeSAPP:
                 if x < start or x > end:
                     stage.run = False
             elif x < start:
-                    stage.run = False
+                stage.run = False
             else:
                 # These stages need to be ran
                 pass
 
         return
 
-    def validate_continue(self, args):
+    def validate_continue(self, args) -> None:
         """
         Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
 
         This function ensures all the required inputs are present for beginning at the desired first stage,
         otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
 
-        If a
+        If a directory exists with the name of a stage, that step is skipped.
         :return: None
         """
-        if self.command == "assign":
-            if args.rpkm:
-                if not args.reads:
-                    if args.reverse:
-                        logging.error("File containing reverse reads provided but forward mates file missing!\n")
-                        sys.exit(3)
-                    else:
-                        logging.error("At least one FASTQ file must be provided if -rpkm flag is active!\n")
-                        sys.exit(3)
-                elif args.reads and not os.path.isfile(args.reads):
-                    logging.error("Path to forward reads ('%s') doesn't exist.\n" % args.reads)
-                    sys.exit(3)
-                elif args.reverse and not os.path.isfile(args.reverse):
-                    logging.error("Path to reverse reads ('%s') doesn't exist.\n" % args.reverse)
-                    sys.exit(3)
-                else:
-                    self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
-        elif self.command == "create":
-            if not args.profile:
-                self.change_stage_status("search", False)
-            if args.pc:
-                self.edit_stages(self.stage_lookup("update").order)
-            # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
-            if args.acc_to_lin:
-                self.acc_to_lin = args.acc_to_lin
-                if os.path.isfile(self.acc_to_lin):
-                    self.change_stage_status("lineages", False)
-                else:
-                    logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
-                    sys.exit(3)
-            else:
-                self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-
-        elif self.command == "evaluate":
-            pass
-        elif self.command == "train":
-            if not args.profile:
-                self.change_stage_status("search", False)
-            # TODO: Remove duplicate code once the log-file parsing is implemented
-            if args.acc_to_lin:
-                self.acc_to_lin = args.acc_to_lin
-                if os.path.isfile(self.acc_to_lin):
-                    self.change_stage_status("lineages", False)
-                else:
-                    logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
-                    sys.exit(3)
-            else:
-                self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-        elif self.command == "update":
-            self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-        elif self.command == "purity":
-            pass
-        else:
-            logging.error("Unknown sub-command: " + str(self.command) + "\n")
-            sys.exit(3)
-
         # TODO: Summarise the steps to be taken and write to log
+        for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
+            if os.path.isdir(os.path.join(self.var_output_dir, module.name)):
+                module.run = False
+
         if args.overwrite:
             last_valid_stage = self.first_stage()
         else:
-            last_valid_stage = self.read_progress_log()
+            last_valid_stage = self.find_stage_dirs()
 
+        self.current_stage = self.stages[last_valid_stage]
+        self.set_stage_dir()
         if args.stage == "continue":
-            logging.debug("Continuing with stage '" + self.stages[last_valid_stage].name + "'\n")
+            logging.debug("Continuing with stage '{}'\n".format(self.current_stage.name))
             self.edit_stages(last_valid_stage)
             return
 
         # Update the stage status
         desired_stage = self.stage_lookup(args.stage).order
         if desired_stage > last_valid_stage:
-            logging.warning("Unable to run '" + args.stage + "' as it is ahead of the last completed stage.\n" +
-                            "Continuing with stage '" + self.stages[last_valid_stage].name + "'\n")
+            logging.warning("Unable to run '{}' as it is ahead of the last completed stage.\n"
+                            "Continuing with stage '{}'\n".format(args.stage, self.current_stage.name))
             self.edit_stages(last_valid_stage, desired_stage)
         elif desired_stage < last_valid_stage:
             logging.info("Wow - its your lucky day:\n"
-                         "All stages up to and including '" + args.stage + "' have already been completed!\n")
+                         "All stages up to and including '{}' have already been completed!\n".format(args.stage))
             self.edit_stages(desired_stage, desired_stage)
         else:
             # Proceed with running the desired stage
-            logging.debug("Proceeding with '" + args.stage + "'\n")
+            logging.debug("Proceeding with '{}'\n".format(args.stage))
             self.edit_stages(desired_stage, desired_stage)
 
         return
@@ -628,6 +625,7 @@ class TreeSAPP:
                 if accession[0] == '>':
                     self.seq_lineage_map[accession[1:]] = self.seq_lineage_map.pop(accession)
             write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
+            self.increment_stage_dir()
         else:
             logging.info("Reading cached lineages in '{}'... ".format(self.acc_to_lin))
             self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
@@ -657,6 +655,20 @@ class Updater(TreeSAPP):
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("lineages", 0),
                        1: ModuleFunction("rebuild", 1)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Updater instance summary:\n"
@@ -719,6 +731,33 @@ class Creator(TreeSAPP):
                        4: ModuleFunction("build", 4),
                        5: ModuleFunction("train", 5),
                        6: ModuleFunction("update", 6)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        if not args.profile:
+            self.change_stage_status("search", False)
+        if args.pc:
+            self.edit_stages(self.stage_lookup("update").order)
+        # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
+        if args.acc_to_lin:
+            self.acc_to_lin = args.acc_to_lin
+            if os.path.isfile(self.acc_to_lin):
+                self.change_stage_status("lineages", False)
+            else:
+                logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
+                sys.exit(3)
+        else:
+            self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Creator instance summary:\n"
@@ -792,6 +831,19 @@ class Purity(TreeSAPP):
         self.stages = {0: ModuleFunction("assign", 0),
                        1: ModuleFunction("summarize", 1)}
 
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        self.validate_continue(args)
+        return
+
     def summarize_groups_assigned(self, ortholog_map: dict, metadata=None):
         unique_orthologs = dict()
         tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
@@ -821,7 +873,7 @@ class Purity(TreeSAPP):
 
     def load_metadata(self) -> dict:
         metadat_dict = dict()
-        xtra_dat = namedtuple("xtra_dat", ["id", "ac", "de"])
+        xtra_dat = namedtuple("xtra_dat", ["db_id", "ac", "de"])
         if not os.path.isfile(self.metadata_file):
             logging.error("Extra information file '" + self.metadata_file + "' doesn't exist!\n")
             sys.exit(3)
@@ -832,13 +884,13 @@ class Purity(TreeSAPP):
             sys.exit(3)
         for line in metadata_handler:
             try:
-                id, accession, desc = line.strip().split("\t")
+                db_id, accession, desc = line.strip().split("\t")
             except ValueError:
                 logging.error("Bad format for '" + self.metadata_file + "'. Three tab-separated fields expected.\n" +
                               "Example line:\n" +
                               str(line) + "\n")
                 sys.exit(7)
-            metadat_dict[accession] = xtra_dat(id, accession, desc)
+            metadat_dict[accession] = xtra_dat(db_id, accession, desc)
         metadata_handler.close()
         return metadat_dict
 
@@ -849,15 +901,15 @@ class Purity(TreeSAPP):
         for leaf in tree_leaves:
             leaf_map[leaf.number + "_" + self.ref_pkg.prefix] = leaf.description
         for p_query in p_queries:  # type: PQuery
-            p_query.name = self.ref_pkg.prefix
-            if type(p_query.contig_name) is list and len(p_query.contig_name):
-                p_query.contig_name = p_query.contig_name[0]
-            seq_info = re.match(r"(.*)\|" + re.escape(p_query.name) + r"\|(\\d+)_(\\d+)$", p_query.contig_name)
+            p_query.ref_name = self.ref_pkg.prefix
+            if type(p_query.place_name) is list and len(p_query.place_name):
+                p_query.place_name = p_query.place_name[0]
+            seq_info = re.match(r"(.*)\|" + re.escape(p_query.ref_name) + r"\|(\\d+)_(\\d+)$", p_query.place_name)
             if seq_info:
-                p_query.contig_name = seq_info.group(1)
+                p_query.place_name = seq_info.group(1)
             p_query.inode = int(p_query.get_jplace_element("edge_num"))
             leaves = internal_node_map[p_query.inode]
-            ortholog_name = p_query.contig_name.split('_')[0]
+            ortholog_name = p_query.place_name.split('_')[0]
             if ortholog_name not in ortholog_map:
                 ortholog_map[ortholog_name] = []
             for descendent in leaves:
@@ -950,6 +1002,19 @@ class Evaluator(TreeSAPP):
         self.stages = {0: ModuleFunction("lineages", 0),
                        1: ModuleFunction("classify", 1),
                        2: ModuleFunction("calculate", 2)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Evaluator instance summary:\n"
@@ -1292,7 +1357,7 @@ class Abundance(TreeSAPP):
         self.target_refpkgs = list()
         self.classified_nuc_seqs = ""
         self.classifications = ""
-        self.fq_suffix_re = re.compile(r"([._-])+[pe|fq|fastq|fwd|R1]+$")
+        self.fq_suffix_re = re.compile(r"([._-])+(pe|fq|fastq|fwd|R1)$")
 
     def check_arguments(self, args):
         ##
@@ -1335,6 +1400,36 @@ class Assigner(TreeSAPP):
                        3: ModuleFunction("align", 3, self.align),
                        4: ModuleFunction("place", 4, self.place),
                        5: ModuleFunction("classify", 5, self.classify)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        if args.rpkm:
+            if not args.reads:
+                if args.reverse:
+                    logging.error("File containing reverse reads provided but forward mates file missing!\n")
+                    sys.exit(3)
+                else:
+                    logging.error("At least one FASTQ file must be provided if -rpkm flag is active!\n")
+                    sys.exit(3)
+            elif args.reads and not os.path.isfile(args.reads):
+                logging.error("Path to forward reads ('%s') doesn't exist.\n" % args.reads)
+                sys.exit(3)
+            elif args.reverse and not os.path.isfile(args.reverse):
+                logging.error("Path to reverse reads ('%s') doesn't exist.\n" % args.reverse)
+                sys.exit(3)
+            else:
+                self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
+
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Assigner instance summary:\n"
@@ -1434,16 +1529,56 @@ class PhyTrainer(TreeSAPP):
         self.placement_summary = ""
         self.clade_ex_pquery_pkl = ""
         self.plain_pquery_pkl = ""
+        self.feature_vector_file = ""
+        self.conditions_file = ""
+        self.tsne_plot = ""
+        self.pkg_dbname_dict = dict()
         self.target_refpkgs = list()
         self.training_ranks = {}
         self.pqueries = {}
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("search", 0),
-                       1: ModuleFunction("lineages", 1),
-                       2: ModuleFunction("place", 2),
-                       3: ModuleFunction("regress", 3),
-                       4: ModuleFunction("update", 4)}
+        self.stages = {0: ModuleFunction("clean", 0),
+                       1: ModuleFunction("search", 1),
+                       2: ModuleFunction("lineages", 2),
+                       3: ModuleFunction("place", 3),
+                       4: ModuleFunction("train", 4),
+                       5: ModuleFunction("update", 5)}
+
+    def decide_stage(self, args):
+        if not args.profile:
+            self.change_stage_status("search", False)
+
+        if args.acc_to_lin:
+            self.acc_to_lin = args.acc_to_lin
+            if os.path.isfile(self.acc_to_lin):
+                self.change_stage_status("lineages", False)
+            else:
+                logging.error("Unable to find accession-lineage mapping file '{}'\n".format(self.acc_to_lin))
+                sys.exit(3)
+
+        if os.path.isfile(self.clade_ex_pquery_pkl) and os.path.isfile(self.plain_pquery_pkl):
+            self.change_stage_status("place", False)
+
+        self.validate_continue(args)
+        return
+    
+    def set_file_paths(self) -> None:
+        """
+        Define the file path locations of treesapp train outputs
+
+        :return: None
+        """
+        self.placement_table = os.path.join(self.final_output_dir, "placement_info.tsv")
+        self.placement_summary = os.path.join(self.final_output_dir, "placement_trainer_results.txt")
+        self.clade_ex_pquery_pkl = os.path.join(self.final_output_dir, "clade_exclusion_pqueries.pkl")
+        self.plain_pquery_pkl = os.path.join(self.final_output_dir, "raw_refpkg_pqueries.pkl")
+        self.formatted_input = os.path.join(self.var_output_dir, "clean", self.ref_pkg.prefix + "_formatted.fa")
+        self.hmm_purified_seqs = os.path.join(self.var_output_dir, "search", self.ref_pkg.prefix + "_hmm_purified.fa")
+        self.acc_to_lin = os.path.join(self.var_output_dir, "lineages", "accession_id_lineage_map.tsv")
+        self.conditions_file = os.path.join(self.var_output_dir, "train", "conditions.npy")
+        self.feature_vector_file = os.path.join(self.var_output_dir, "train", "examples.npy")
+        return
 
     def get_info(self):
         info_string = "PhyTrainer instance summary:\n"

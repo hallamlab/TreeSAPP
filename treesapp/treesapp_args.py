@@ -68,6 +68,13 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       "They are to be referenced by their 'prefix' attribute. "
                                       "Use `treesapp info -v` to get the available list [ DEFAULT = ALL ]")
 
+    def add_annot_map(self, required=False):
+        self.optopt.add_argument("--annot_map", required=required, default=None, dest="annot_map",
+                                 help="Path to a tabular file mapping reference (refpkg) package names being tested to "
+                                      "database corresponding sequence names, indicating a true positive relationship."
+                                      " First column is the refpkg name, second is the orthologous group name and third"
+                                      " is the query sequence name.")
+
     def add_refpkg_file_param(self):
         self.reqs.add_argument("-r", "--refpkg_path", dest="pkg_path", required=True,
                                help="Path to the reference package pickle (.pkl) file.\n")
@@ -180,9 +187,9 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.optopt.add_argument("--tsne", default=False, required=False, action="store_true",
                                  help="Generate a tSNE plot. Output will be in the same directory as the model file. "
                                       "Binary classifier only.")
-        self.optopt.add_argument("--classifier", required=False, choices=["occ", "bin"], default="bin",
+        self.optopt.add_argument("--classifier", required=False, choices=["occ", "bin"], default="occ",
                                  help="Specify the kind of classifier to be trained: one-class classifier (OCC) or "
-                                      "a binary classifier (bin).")
+                                      "a binary classifier (bin). [ DEFAULT = occ ]")
 
 
 def add_info_arguments(parser: TreeSAPPArgumentParser):
@@ -422,12 +429,14 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_taxa_ranks_param()
     parser.add_compute_miscellany()
     parser.add_classifier_model_params()
+    parser.add_annot_map()
 
     parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
                                help="Flag indicating input sequences need to be purified using an HMM profile.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "search", "lineages", "place", "regress"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    return
 
 
 def check_parser_arguments(args, sys_args):
@@ -524,21 +533,25 @@ def check_trainer_arguments(phy_trainer: PhyTrainer, args):
     phy_trainer.ref_pkg.slurp()
     phy_trainer.ref_pkg.validate()
 
-    ##
-    # Define locations of files TreeSAPP outputs
-    ##
-    phy_trainer.placement_table = phy_trainer.final_output_dir + "placement_info.tsv"
-    phy_trainer.placement_summary = phy_trainer.final_output_dir + "placement_trainer_results.txt"
-    phy_trainer.hmm_purified_seqs = phy_trainer.output_dir + phy_trainer.ref_pkg.prefix + "_hmm_purified.fasta"
-    phy_trainer.clade_ex_pquery_pkl = os.path.join(phy_trainer.final_output_dir, "clade_exclusion_pqueries.pkl")
-    phy_trainer.plain_pquery_pkl = os.path.join(phy_trainer.final_output_dir, "raw_refpkg_pqueries.pkl")
-
     # Make the directory for storing intermediate outputs
     if not os.path.isdir(phy_trainer.var_output_dir):
         os.makedirs(phy_trainer.var_output_dir)
 
     for rank in args.taxon_rank:
         phy_trainer.training_ranks[rank] = phy_trainer.ref_pkg.taxa_trie.accepted_ranks_depths[rank]
+
+    # Check whether the parameters for the classifier make sense
+    if args.classifier == "bin":
+        if not args.annot_map:
+            logging.error("An annotation mapping file is required when building a binary classifier.\n")
+            sys.exit(3)
+        else:
+            phy_trainer.annot_map = args.annot_map
+    elif args.classifier == "occ" and args.annot_map:
+        logging.warning("Annotation mapping file is ignored when building a One-Class Classifier (OCC).\n")
+
+    if args.tsne:
+        phy_trainer.tsne_plot = os.path.join(phy_trainer.var_output_dir, "train", "tSNE.png")
 
     return
 

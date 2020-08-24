@@ -13,7 +13,7 @@ from numpy import sqrt
 from ete3 import Tree
 
 from treesapp import file_parsers
-from treesapp.phylo_seq import JPlace, assignments_to_treesaps
+from treesapp.phylo_seq import assignments_to_treesaps
 from treesapp.refpkg import ReferencePackage
 from treesapp.commands import assign
 from treesapp.fasta import get_headers, register_headers
@@ -23,23 +23,7 @@ from treesapp.entrez_utils import EntrezRecord, get_multiple_lineages
 from treesapp.lca_calculations import compute_taxonomic_distance, optimal_taxonomic_assignment, grab_graftm_taxa
 from treesapp.treesapp_args import TreeSAPPArgumentParser
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
-
-
-class QuerySequence:
-    def __init__(self, header: str) -> None:
-        """
-        Initialization function for QuerySequence objects. Sets self.name attribute to header if provided
-
-        :param header: Name of the classified sequence, used to set self.name
-        """
-        self.name = header
-        self.ref = ""
-        self.ncbi_tax = ""
-        self.assigned_lineage = ""
-        self.true_lineage = ""
-        self.optimal_lineage = ""
-        self.tax_dist = 0
-        return
+from treesapp.training_utils import bin_headers, QuerySequence
 
 
 class ConfusionTest:
@@ -144,7 +128,7 @@ class ConfusionTest:
 
     def populate_true_positive_lineage_map(self) -> None:
         for refpkg_code in self.ref_packages:
-            self.tp_lineage_map[refpkg_code] = {tp_inst.name: tp_inst.true_lineage
+            self.tp_lineage_map[refpkg_code] = {tp_inst.ref_name: tp_inst.true_lineage
                                                 for tp_inst in self.tp[refpkg_code]}
         return
 
@@ -190,7 +174,7 @@ class ConfusionTest:
         for marker in self.tp:
             for tp_inst in self.tp[marker]:  # type: QuerySequence
                 lineage_list.append(tp_inst.true_lineage)
-                info_string += "\t".join([marker, tp_inst.name, str(tp_inst.tax_dist), "True",
+                info_string += "\t".join([marker, tp_inst.place_name, str(tp_inst.tax_dist), "True",
                                           tp_inst.true_lineage, tp_inst.assigned_lineage,
                                           tp_inst.optimal_lineage]) + "\n"
         for marker in self.fn:
@@ -239,7 +223,7 @@ class ConfusionTest:
                 optimal_taxon = optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
                 if not optimal_taxon:
                     logging.debug("Optimal taxonomic assignment '{}' for {}"
-                                  " not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.name))
+                                  " not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.place_name))
                     continue
                 tp_inst.optimal_lineage = optimal_taxon
                 tp_inst.tax_dist, status = compute_taxonomic_distance(tp_inst.assigned_lineage, optimal_taxon)
@@ -248,9 +232,9 @@ class ConfusionTest:
                                   "'{}' and '{}' (taxid: {})\n".format(tp_inst.assigned_lineage,
                                                                        optimal_taxon, tp_inst.ncbi_tax))
                 try:
-                    self.dist_wise_tp[marker][tp_inst.tax_dist].append(tp_inst.name)
+                    self.dist_wise_tp[marker][tp_inst.tax_dist].append(tp_inst.place_name)
                 except KeyError:
-                    self.dist_wise_tp[marker][tp_inst.tax_dist] = [tp_inst.name]
+                    self.dist_wise_tp[marker][tp_inst.tax_dist] = [tp_inst.place_name]
         return
 
     def enumerate_optimal_rank_distances(self) -> dict:
@@ -275,7 +259,7 @@ class ConfusionTest:
                 optimal_taxon = optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
                 if not optimal_taxon:
                     logging.debug("Optimal taxonomic assignment '{}' for {} "
-                                  "not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.name))
+                                  "not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.place_name))
                     continue
                 try:
                     rank_representation[len(optimal_taxon.split("; "))] += 1
@@ -352,76 +336,25 @@ class ConfusionTest:
             return unique_fn
 
     def bin_headers(self, assignments: dict, annot_map: dict) -> None:
-        """
-        Function for sorting/binning the classified sequences at T/F positives/negatives based on the annot_map file
-        that specifies which queries belong to which orthologous group/protein family and reference package.
+        binned_tp, binned_fp, binned_fn = bin_headers(assignments, annot_map, self.entrez_query_dict)
 
-        :param assignments: Dictionary mapping the ReferencePackage.prefix to TreeProtein instances
-        :param annot_map: Dictionary mapping reference package (gene) name keys to database names values
-        :return: None
-        """
-        # False positives: those that do not belong to the annotation matching a reference package name
-        # False negatives: those whose annotations match a reference package name and were not classified
-        # True positives: those with a matching annotation and reference package name and were classified
-        # True negatives: those that were not classified and should not have been
-        positive_queries = {}
-        logging.info("Assigning test sequences to the four class conditions... ")
-        # Create a dictionary for rapid look-ups of queries that are homologs of sequences in the refpkg
-        for qname in annot_map:
-            for rname in annot_map[qname]:
-                try:
-                    positive_queries[rname].add(qname)
-                except KeyError:
-                    positive_queries[rname] = {qname}
+        self.tp.update(binned_tp)
+        self.fp.update(binned_fp)
+        self.fn.update(binned_fn)
 
-        for refpkg_name in assignments:
-            try:
-                positives = positive_queries[refpkg_name]
-            except KeyError:
-                logging.error("Unable to find '{}' in the set of positive queries:\n".format(refpkg_name) +
-                              ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
-                sys.exit(5)
-            true_positives = set()
-            for pquery in assignments[refpkg_name]:  # type: JPlace
-                # Populate the relevant information for the classified sequence
-                tp_inst = QuerySequence(pquery.contig_name)
-                tp_inst.ref = refpkg_name
-                tp_inst.assigned_lineage = pquery.recommended_lineage
-                e_record = self.entrez_query_dict[pquery.contig_name]
-                if not e_record.lineage:
-                    true_positives.add(tp_inst.name)
-                    continue
-                tp_inst.ncbi_tax = e_record.ncbi_tax
-                # Bin it if the mapping_dict is present, otherwise classify it as a TP
-                if tp_inst.name in positives:
-                    # Add the True Positive to the relevant collections
-                    self.tp[refpkg_name].append(tp_inst)
-                    true_positives.add(tp_inst.name)
-                else:
-                    self.fp[refpkg_name].add(tp_inst)
-
-            # Identify the False Negatives using set difference - those that were not classified but should have been
-            for seq_name in list(positives.difference(true_positives)):
-                qseq = QuerySequence(seq_name)
-                e_record = self.entrez_query_dict[seq_name]
-                if not e_record.lineage:
-                    continue
-                qseq.ncbi_tax = e_record.ncbi_tax
-                self.fn[refpkg_name].add(qseq)
-        logging.info("done.\n")
         return
 
     def validate_false_positives(self):
         # Get all the original Orthologous Group (OG) headers for sequences classified as TP or FN
         tp_names = []
         for marker in list(self.ref_packages.keys()):
-            tp_names += [pquery.name for pquery in self.tp[marker]]
-            tp_names += [pquery.name for pquery in self.fn[marker]]
+            tp_names += [pquery.place_name for pquery in self.tp[marker]]
+            tp_names += [pquery.place_name for pquery in self.fn[marker]]
 
         for marker in self.fp:
             validated_fp = set()
             for qseq in self.fp[marker]:  # type: QuerySequence
-                seq_name = qseq.name
+                seq_name = qseq.place_name
                 if seq_name[0] == '>':
                     seq_name = seq_name[1:]
                 if seq_name not in tp_names:
@@ -446,7 +379,7 @@ class ConfusionTest:
                 for og in refpkg_dbname_dict[marker]:
                     for homolgous_marker in refpkg_og_map[og]:
                         if homolgous_marker != marker:
-                            homologous_tps.update(set(cs.name for cs in self.tp[homolgous_marker]))
+                            homologous_tps.update(set(cs.ref_name for cs in self.tp[homolgous_marker]))
                 # Remove all sequences from this marker's false negatives that are found in a homologous TP set
                 self.fn[marker] = set(self.fn[marker]).difference(homologous_tps)
         return
@@ -475,7 +408,7 @@ class ConfusionTest:
             hmm_lengths[refpkg.prefix] = refpkg.profile_length
         #
         for fields in classification_lines:
-            _, header, refpkg_name, length, _, _, _, i_node, lwr, evo_dist, dists = fields
+            _, header, refpkg_name, start_pos, end_pos, _, _, i_node, e_val, lwr, evo_dist, dists = fields
             if header in self.fp[refpkg_map[refpkg_name]]:
                 distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
                 # hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 0)
@@ -555,43 +488,6 @@ def map_lineages(qseq_collection: set, tax_lineage_map: dict) -> None:
             continue
     return
 
-# def label_positive_classifications(test_seq_names: list, annot_map: dict, og_names_mapped: list) -> dict:
-#     """
-#     Collects the headers that are meant to be classified (i.e. could be either true positives or false negatives)
-#     for each reference package. A dictionary is returned where the ReferencePackage.prefix (or what the query was
-#     classified as) are keys and a list of all query sequence names (headers) are the values.
-#
-#     :param test_seq_names:
-#     :param annot_map:
-#     :param og_names_mapped:
-#     :return: A dictionary mapping refpkg names to a list of corresponding query sequences
-#     """
-#     positive_queries = dict()
-#     logging.info("Labelling true test sequences... ")
-#     for header in test_seq_names:
-#         if header in annot_map:
-#             markers = annot_map[header]
-#             ##
-#             # This leads to double-counting and is therefore deduplicated later
-#             ##
-#             for marker in markers:
-#                 if not marker:
-#                     logging.error("Bad marker name in annotation map:\n'{}'\n".format(', '.join(annot_map.keys())))
-#                     sys.exit(5)
-#                 try:
-#                     positive_queries[marker].append(header)
-#                 except KeyError:
-#                     positive_queries[marker] = [header]
-#                 if header in og_names_mapped:
-#                     i = 0
-#                     while i < len(og_names_mapped):
-#                         if og_names_mapped[i] == header:
-#                             og_names_mapped.pop(i)
-#                             i = len(og_names_mapped)
-#                         i += 1
-#     logging.info("done.\n")
-#     return positive_queries
-
 
 def summarize_taxonomy(taxa_list, rank, rank_depth_map=None):
     """
@@ -660,10 +556,7 @@ def get_arguments(sys_args):
     parser.add_refpkg_targets()
     parser.add_seq_params()
     parser.add_compute_miscellany()
-
-    parser.reqs.add_argument("--annot_map", required=True,
-                             help="Path to a tabular file mapping markers being tested to their database annotations."
-                                  " First column is the ")
+    parser.add_annot_map(required=True)
 
     parser.optopt.add_argument("--tool", default="treesapp", required=False,
                                choices=["treesapp", "graftm", "diamond"],
@@ -724,48 +617,12 @@ def validate_command(args, sys_args):
             logging.error("No GraftM reference packages found in " + args.refpkg_dir + ".\n")
             sys.exit(17)
 
+    if args.targets:
+        args.targets = args.targets.split(',')
+    else:
+        args.targets = []
+
     return
-
-
-def read_annotation_mapping_file(annot_map_file: str) -> dict:
-    """
-    Used for reading a file mapping the reference package name to all true positive orthologs in the query input
-    The first column is the ReferencePackage.prefix.
-    The second column is the ortholog name used by the database.
-    The third column is the name of a true positive.
-
-    :param annot_map_file: Path to a tab-delimited file
-    :return: A dictionary containing database sequence names mapped to their respective reference package names
-    """
-    annot_map = dict()
-    try:
-        annot_map_handler = open(annot_map_file)
-    except IOError:
-        logging.error("Unable to open annotation file '{}' for reading!\n".format(annot_map_file))
-        sys.exit(3)
-
-    # Assuming the first column is the reference package name and the second is the database annotation name
-    n = 0
-    for line in annot_map_handler:
-        n += 1
-        if line[0] == '#':
-            continue
-        elif not line:
-            continue
-        else:
-            try:
-                refpkg_name, og, query_name = line.strip().split("\t")
-            except ValueError:
-                logging.error("Unexpected number of fields on line {} in {}!\n".format(n, annot_map_file) +
-                              "File must have the reference package name and the database name in"
-                              " the first two columns, respectively. Any number of columns can follow.\n")
-                sys.exit(9)
-            if query_name not in annot_map:
-                annot_map[query_name] = set()
-            annot_map[query_name].add(refpkg_name)
-
-    annot_map_handler.close()
-    return annot_map
 
 
 def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: int):
@@ -807,7 +664,7 @@ def mcc_calculator(sys_args):
     ##
     # Read the file mapping reference package name to the database annotations
     ##
-    query_name_dict = read_annotation_mapping_file(args.annot_map)
+    query_name_dict = file_parsers.read_annotation_mapping_file(args.annot_map)
     refpkg_dict = file_parsers.gather_ref_packages(args.refpkg_dir, args.targets)
     test_obj = ConfusionTest(refpkg_dict.keys())
     test_obj.map_data(output_dir=args.output, tool=args.tool)

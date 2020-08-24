@@ -7,42 +7,11 @@ import logging
 from time import sleep, time
 from math import ceil
 
-import pyfastx
+from pyfastx import Fasta, Fastq
 from pyfastxcli import fastx_format_check
 from collections import namedtuple
 
 from treesapp.utilities import median, reformat_string, rekey_dict
-
-
-# No bioinformatic software would be complete without a contribution from Heng Li.
-# Adapted from his readfq generator
-def generate_fasta(fasta_handler):  # this is a generator function
-    last = None  # this is a buffer keeping the last unprocessed line
-    while True:  # mimic closure; is it a bad idea?
-        if not last:
-            for line in fasta_handler:  # search for the start of the next record
-                if line[0] == '>':  # fasta header line
-                    last = line[:-1]  # save this line
-                    break
-        if not last:
-            break
-        name, seqs, last = last[1:], [], None
-        for line in fasta_handler:  # read the sequence
-            if line[0] == '>':
-                last = line[:-1]
-                break
-            seqs.append(line[:-1])
-        if not last or last[0] != '+':  # this is a fasta record
-            yield name, ''.join(seqs)  # yield a fasta record
-            if not last:
-                break
-        else:
-            seq, seqs = ''.join(seqs), []
-            for line in fasta_handler:  # read the quality
-                seqs.append(line[:-1])
-            if last:  # reach EOF before reading enough quality
-                yield name, seq  # yield a fasta record instead
-                break
 
 
 def fastx_split(fastx: str, outdir: str, file_num=1) -> list:
@@ -58,31 +27,57 @@ def fastx_split(fastx: str, outdir: str, file_num=1) -> list:
     return split_files
 
 
-def split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num):
+def split_seq_writer_helper(fasta_string: str, fh, max_file_size: int):
     fh.write(fasta_string)
-    fasta_string = ""
 
     # Reduce the number of checks
-    if seq_write > seqs_num:
-        fh.write(fasta_string)
+    fh.seek(0, 2)
+    if fh.tell() > max_file_size:
         fh.close()
-        seq_write = 0
-    return fasta_string, seq_write
+        fh = None
+    return fh
 
 
-def spawn_new_fasta(file_num, outdir, file_name, digit):
+def spawn_new_file(file_num, outdir, file_name, ext="fasta"):
+    """
+    Creates a new file name based on the file_num and prefix.
+
+    :param file_num: Previous file number component of the file name in the series. Will be incremented.
+    :param outdir: Path to the directory to write files to
+    :param file_name: Prefix name of the new file
+    :param ext: File extension to use for the new file
+    :return: tuple(file_handler, name of the new file, number of file in the series)
+    """
     file_num += 1
 
-    subfile = "{}.{}.{}".format(file_name, str(file_num).zfill(digit), "fasta")
+    subfile = "{}.{}.{}".format(file_name, str(file_num), ext)
     if outdir is not None:
         subfile = os.path.join(outdir, subfile)
 
     fh = open(subfile, 'w')
-    logging.debug("Writing split FASTA to file '{}'.\n".format(subfile))
-    return fh, subfile, file_num
+    logging.debug("Writing split {} to file '{}'.\n".format(ext, subfile))
+
+    return fh, file_num
 
 
-def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
+def parameterize_sub_file_size(file_name: str, num_files: int, max_seqs: int):
+    # Determine the size of the FASTA file instead of building an index
+    f_size = os.path.getsize(file_name)
+
+    if num_files > 1:
+        max_file_size = ceil(f_size / num_files)
+        max_seq_count = 0
+    elif max_seqs > 1:
+        max_file_size = 0
+        max_seq_count = max_seqs
+    else:
+        logging.error("Unable to split FASTA into {} files and {} sequences.\n".format(num_files, max_seqs))
+        sys.exit(3)
+
+    return max_file_size, max_seq_count
+
+
+def split_fa(fastx: str, outdir: str, file_num=1, max_seq_count=0):
     """
     Credit: Lianming Du of pyfastx (v0.6.10)
 
@@ -93,7 +88,7 @@ def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
     :param fastx: Path to a FASTQ file to be read and converted to FASTA
     :param outdir: Path to write the output files
     :param file_num: Number of files to split the input FASTQ file into
-    :param seq_count: Optionally, instead of splitting into N number of files FASTQ can be split by number of sequences
+    :param max_seq_count: Instead of splitting into N number of files FASTQ can be split by number of sequences
     :return: List of fasta files generated
     """
     start = time()
@@ -101,53 +96,48 @@ def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
     fastx = os.path.expanduser(fastx)
     outdir = os.path.expanduser(outdir)
     outputs = []
-    fa = pyfastx.Fasta(file_name=fastx, build_index=False)
-
-    # Determine the number of reads in the FASTQ file - faster than building an index
-    count = 0
-    for _ in fa:
-        count += 1
-
-    if file_num > 1:
-        seqs_num = ceil(count / file_num)
-        parts_num = file_num
-    else:
-        seqs_num = seq_count
-        parts_num = ceil(count / seqs_num)
+    fa = Fasta(file_name=fastx, build_index=False, full_name=True)
 
     file_name, suffix1 = os.path.splitext(os.path.basename(fastx))
-
     if fa.is_gzip:
         file_name, suffix2 = os.path.splitext(file_name)
 
-    digit = len(str(parts_num))
+    max_file_size, max_seq_count = parameterize_sub_file_size(fastx, file_num, max_seq_count)
 
     seq_write = 0
-    max_buffer_size = 1E4
-    fasta_string = ""
-    fh = None
-    file_num = 0
+    max_buffer_size = min(1E5, max_file_size)  # Controls how often the strings are written to the file
+    fasta_string = ""  # Stores the intermediate fasta strings
+    fh = None  # File handler
+    file_num = 0  # The current file number
 
-    for name, seq in fa:
-        if seq_write == 0:
-            fh, subfile, file_num = spawn_new_fasta(file_num, outdir, file_name, digit)
-            outputs.append(subfile)
-
+    for name, seq in fa:  # type: (str, str)
         fasta_string += ">%s\n%s\n" % (name, seq)
         seq_write += 1
         # Batch write
-        if seq_write % max_buffer_size == 0:
-            fasta_string, seq_write = split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num)
+        if len(fasta_string) >= max_buffer_size and seq_write >= max_seq_count:
+            if not fh:
+                fh, file_num = spawn_new_file(file_num, outdir, file_name)
+                outputs.append(fh.name)
+            fh = split_seq_writer_helper(fasta_string, fh, max_file_size)
+            fasta_string = ""
+            seq_write = 0
 
-    fh.write(fasta_string)
-    fh.close()
+    if fasta_string:
+        try:
+            fh.write(fasta_string)
+            fh.close()
+        except AttributeError:
+            fh, file_num = spawn_new_file(file_num, outdir, file_name)
+            outputs.append(fh.name)
+            fh.write(fasta_string)
+            fh.close()
     end = time()
 
     logging.debug("{} completed split_fa in {}s.\n".format(fastx, end - start))
     return outputs
 
 
-def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
+def fq2fa(fastx: str, outdir: str, file_num=1, max_seq_count=0) -> list:
     """
     Credit: Lianming Du of pyfastx (v0.6.10)
     A modified version of the function fastq_split in the pyfastx python package: https://github.com/lmdu/pyfastx
@@ -159,7 +149,7 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
     :param fastx: Path to a FASTQ file to be read and converted to FASTA
     :param outdir: Path to write the output files
     :param file_num: Number of files to split the input FASTQ file into
-    :param seq_count: Optionally, instead of splitting into N number of files FASTQ can be split by number of sequences
+    :param max_seq_count: Instead of splitting into N number of files FASTQ can be split by number of sequences
     :return: List of fasta files generated
     """
     start = time()
@@ -167,46 +157,41 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
     fastx = os.path.expanduser(fastx)
     outdir = os.path.expanduser(outdir)
     outputs = []
-    fq = pyfastx.Fastq(file_name=fastx, build_index=False)
+    fq = Fastq(file_name=fastx, build_index=False)
 
-    # Determine the number of reads in the FASTQ file - faster than building an index
-    read_count = 0
-    for _ in fq:
-        read_count += 1
-
-    if file_num > 1:
-        seqs_num = ceil(read_count / file_num)
-        parts_num = file_num
-    else:
-        seqs_num = seq_count
-        parts_num = ceil(read_count / seqs_num)
-
-    name, suffix1 = os.path.splitext(os.path.basename(fastx))
-
+    file_name, suffix1 = os.path.splitext(os.path.basename(fastx))
     if fq.is_gzip:
-        name, suffix2 = os.path.splitext(name)
+        file_name, suffix2 = os.path.splitext(file_name)
 
-    digit = len(str(parts_num))
+    max_file_size, max_seq_count = parameterize_sub_file_size(fastx, file_num, max_seq_count)
 
     seq_write = 0
-    max_buffer_size = 1E4
-    fasta_string = ""
-    fh = None
-    file_num = 0
+    max_buffer_size = min(1E5, max_file_size)  # Controls how often the strings are written to the file
+    fasta_string = ""  # Stores the intermediate fasta strings
+    fh = None  # File handler
+    file_num = 0  # The current file number
 
-    for read_name, seq, _ in fq:
-        if seq_write == 0:
-            fh, subfile, file_num = spawn_new_fasta(file_num, outdir, name, digit)
-            outputs.append(subfile)
-
+    for read_name, seq, _ in fq:  # type: (str, str)
         fasta_string += ">%s\n%s\n" % (read_name, seq)
         seq_write += 1
         # Batch write
-        if seq_write % max_buffer_size == 0:
-            fasta_string, seq_write = split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num)
+        if len(fasta_string) >= max_buffer_size and seq_write >= max_seq_count:
+            if not fh:
+                fh, file_num = spawn_new_file(file_num, outdir, file_name)
+                outputs.append(fh.name)
+            fh = split_seq_writer_helper(fasta_string, fh, max_file_size)
+            fasta_string = ""
+            seq_write = 0
 
-    fh.write(fasta_string)
-    fh.close()
+    if fasta_string:
+        try:
+            fh.write(fasta_string)
+            fh.close()
+        except AttributeError:
+            fh, file_num = spawn_new_file(file_num, outdir, file_name)
+            outputs.append(fh.name)
+            fh.write(fasta_string)
+            fh.close()
     end = time()
 
     logging.debug("{} completed fq2fa in {}s.\n".format(fastx, end-start))
@@ -214,22 +199,27 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
     return outputs
 
 
-def read_fasta_to_dict(fasta_file):
+def read_fasta_to_dict(fasta_file: str) -> dict:
     """
-    Reads any fasta file using a generator function (generate_fasta) into a dictionary collection
+    Reads any fasta file using the pyfastx library
 
     :param fasta_file: Path to a FASTA file to be read into a dict
     :return: Dict where headers/record names are keys and sequences are the values
     """
     fasta_dict = dict()
+
+    if not os.path.exists(fasta_file):
+        logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
+
     try:
-        fasta_handler = open(fasta_file, 'r')
-    except IOError:
-        logging.error("Unable to open " + fasta_file + " for reading!\n")
-        sys.exit(5)
-    for record in generate_fasta(fasta_handler):
-        name, sequence = record
-        fasta_dict[name] = sequence.upper()
+        py_fa = Fasta(fasta_file, build_index=False, full_name=True)
+    except RuntimeError as error:
+        logging.warning(str(error))
+        return fasta_dict
+
+    for name, seq in py_fa:  # type: (str, str)
+        fasta_dict[name] = seq.upper()
+
     return fasta_dict
 
 
@@ -241,6 +231,7 @@ class Header:
         self.post_align = ""
         self.first_split = ""
         self.accession = ""
+        self.version = ""
 
     def get_info(self):
         info_string = "TreeSAPP ID = '%s'\tPrefix = '%s'\n" % (str(self.treesapp_num_id), self.first_split)
@@ -249,11 +240,12 @@ class Header:
             info_string += "Accession = " + self.accession + "\n"
         return info_string
 
-    def find_accession(self, refpkg_name=""):
+    def find_accession(self, refpkg_name="") -> None:
         header_regexes = load_fasta_header_regexes(refpkg_name)
         header_format_re, header_db, header_molecule = get_header_format(self.original, header_regexes)
         sequence_info = header_format_re.match(self.original)
         self.accession = sequence_info_groups(sequence_info, header_db, self.original, header_regexes).accession
+        return
 
 
 def register_headers(header_list: list, drop=True) -> dict:
@@ -651,7 +643,7 @@ class FASTA:
         logging.debug("done.\n")
 
         if duplicates:
-            logging.debug("Removed " + str(len(duplicates)) + " sequences with duplicate sequences.\n")
+            logging.debug("Removed {} sequences with duplicate sequences.\n".format(len(duplicates)))
         self.synchronize_seqs_n_headers()
 
         return
@@ -677,8 +669,8 @@ class FASTA:
             rep_acc = count_dict[accession].pop()
             dedup_header_dict[rep_acc] = self.header_registry[rep_acc]
         if duplicates:
-            logging.debug("Removed " + str(len(duplicates)) + " sequences with duplicate accessions:\n\t" +
-                          "\n\t".join(duplicates) + "\n")
+            logging.debug("Removed {} sequences with duplicate accessions:\n"
+                          "\t{}\n".format(len(duplicates), "\n\t".join(duplicates)))
         self.header_registry = dedup_header_dict
         self.synchronize_seqs_n_headers()
         return
@@ -772,22 +764,24 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
     for denominator in tree_saps:
         for placed_sequence in tree_saps[denominator]:  # type JPlace
             if placed_sequence.classified:
-                output_fasta_dict[placed_sequence.contig_name] = ""
+                output_fasta_dict[placed_sequence.place_name] = ""
                 try:
-                    output_fasta_dict[placed_sequence.contig_name] = formatted_fasta_dict[prefix +
-                                                                                          placed_sequence.contig_name]
+                    output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix +
+                                                                                         placed_sequence.place_name]
                 except KeyError:
-                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.name), '', placed_sequence.contig_name)
+                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.ref_name),
+                                      '',
+                                      placed_sequence.place_name)
                     try:
-                        output_fasta_dict[placed_sequence.contig_name] = formatted_fasta_dict[prefix + seq_name]
+                        output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix + seq_name]
                     except KeyError:
-                        logging.error("Unable to find '" + prefix + placed_sequence.contig_name +
+                        logging.error("Unable to find '" + prefix + placed_sequence.place_name +
                                       "' in predicted ORFs file!\nExample headers in the predicted ORFs file:\n\t" +
                                       '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
                         sys.exit(3)
 
                 if not placed_sequence.seq_len:
-                    placed_sequence.seq_len = len(output_fasta_dict[placed_sequence.contig_name])
+                    placed_sequence.seq_len = len(output_fasta_dict[placed_sequence.place_name])
                     len_parsing_problem = True
 
     if output_fasta_dict:
@@ -797,6 +791,78 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
         logging.warning("Problem parsing homologous subsequence lengths from headers of classified sequences.\n")
 
     return
+
+
+def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_length=10) -> dict:
+    """
+    Reads a FASTA file, ensuring each sequence and sequence name is valid, and writes the valid sequence to a new FASTA.
+    Only headers are read into memory and the formatted FASTA is saved to a buffer before written to a file and cleared.
+
+    :param fasta_input: Absolute path of the FASTA file to be read
+    :param molecule: Molecule type of the sequences ['prot', 'dna', 'rrna']
+    :param output_fasta: Path to the formatted FASTA file to write
+    :param min_seq_length: All sequences shorter than this will not be included in the returned list.
+    :return: A dictionary of Header instances indexed by a numerical identifier
+    """
+    start = time()
+
+    # Select the alphabet to use when determining whether there are any bad characters
+    if molecule == "prot":
+        bad_chars = re.compile(r"[OU]")
+    else:
+        bad_chars = re.compile(r"[EFIJLOPQZ]")
+    bad_seqs = set()
+
+    # Open the output FASTA for writing
+    try:
+        fa_out_handle = open(output_fasta, 'w')
+    except IOError:
+        logging.error("Unable to open '{}' for writing.\n")
+        sys.exit(15)
+
+    headers = []
+    max_buffer_size = 1E4
+    seq_acc = 0
+    fasta_string = ""
+    for name, seq in Fasta(fasta_input, build_index=False, full_name=True):  # type: (str, str)
+        if len(seq) < min_seq_length:
+            continue
+        if bad_chars.search(seq):
+            bad_seqs.add(name)
+            continue
+
+        seq_acc += 1
+        headers.append(name)
+        fasta_string += ">{}\n{}\n".format(seq_acc, seq)
+
+        # Write the fasta_string to the output fasta if the size exceeds the max_buffer_size
+        if len(fasta_string) > max_buffer_size:
+            fa_out_handle.write(fasta_string)
+            fasta_string = ""
+
+    # Write the final chunk in the FASTA file
+    fa_out_handle.write(fasta_string)
+
+    end = time()
+    logging.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, end-start))
+
+    if len(headers) == 0:
+        logging.error("No sequences in FASTA {0} were saved.\n"
+                      "Either the molecule type specified ({1}) or minimum sequence length ({2}) may be unsuitable.\n"
+                      "Consider changing these before rerunning.\n".format(fasta_input, molecule, min_seq_length))
+        sys.exit(13)
+
+    if len(bad_seqs) > 0:
+        logging.debug("The following sequences were removed due to bad characters:\n" +
+                      "\n".join(bad_seqs) + "\n")
+
+    header_registry = register_headers(headers, True)
+    # if len(header_registry) != seq_acc:
+    #     logging.error("The number of sequences read ({}) does not equal"
+    #                   " the number of sequence names registered ({}).\n".format(seq_acc, len(header_registry)))
+    #     sys.exit(13)
+
+    return header_registry
 
 
 def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_length=10):
@@ -823,7 +889,7 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
         sys.exit(13)
 
     formatted_fasta_dict = {}
-    for name, seq in pyfastx.Fasta(fasta_input, build_index=False):  # type: (str, str)
+    for name, seq in Fasta(fasta_input, build_index=False, full_name=True):  # type: (str, str)
         if len(seq) < min_seq_length:
             continue
         if subset:
@@ -858,23 +924,19 @@ def get_headers(fasta_file: str) -> list:
     :return:
     """
     original_headers = list()
-    try:
-        fasta = open(fasta_file, 'r')
-    except IOError:
-        logging.error("Unable to open the FASTA file '" + fasta_file + "' for reading!\n")
-        sys.exit(5)
+    if not os.path.exists(fasta_file):
+        logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
 
     n_headers = 0
-    for name, _ in generate_fasta(fasta):
+    for name, seq in Fasta(fasta_file, build_index=False, full_name=True):  # type: (str, str)
         n_headers += 1
         original_headers.append('>' + str(name))
 
-    fasta.close()
     if len(original_headers) == 0:
         # Not a good idea to exit right from here, handle it case-by-case
-        logging.warning("No sequence headers read from FASTA file " + fasta_file + "\n")
+        logging.warning("No sequence headers read from FASTA file '{}'\n".format(fasta_file))
     else:
-        logging.debug("Read " + str(n_headers) + " headers from " + fasta_file + ".\n")
+        logging.debug("Read {} headers from FASTA file '{}'.\n".format(n_headers, fasta_file))
 
     return original_headers
 
