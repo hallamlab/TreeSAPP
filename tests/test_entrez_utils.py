@@ -1,4 +1,5 @@
 import unittest
+from Bio import Entrez
 
 
 class MyTestCase(unittest.TestCase):
@@ -13,6 +14,14 @@ class MyTestCase(unittest.TestCase):
         test_fa.load_fasta()
         test_ts = Creator()
         test_ts.fetch_entrez_lineages(test_fa, 'prot')
+
+    def test_prep_for_entrez_query(self):
+        from treesapp.entrez_utils import prep_for_entrez_query
+        handle = prep_for_entrez_query()
+        for record in Entrez.read(handle):
+            self.assertTrue(record["TaxId"] == "158330")
+            self.assertEqual("Cypripedioideae", record["ScientificName"])
+        return
 
 
 if __name__ == '__main__':

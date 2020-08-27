@@ -607,10 +607,19 @@ class TaxonomicHierarchy:
         i = 0
         for taxon in lineage_list:  # type: str
             try:
-                _, _ = taxon.split(self.taxon_sep)
+                prefix, _ = taxon.split(self.taxon_sep)
             except ValueError:
                 self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for check_lineage(),"
                                                          " taxon: '{}'.\n".format(taxon))
+                sys.exit()
+
+            if self.rank_prefix_map[prefix] not in self.accepted_ranks_depths:
+                logging.warning("Rank '{0}' is not in the list of accepted taxonomic ranks.\n"
+                                "Lineage will be truncated to '{1}'.\n".format(self.rank_prefix_map[prefix],
+                                                                               self.lin_sep.join(lineage_list[0:i])))
+                lineage_list = lineage_list[0:i]
+                # TODO: Decide whether the corresponding Taxon instances be removed from the hierarchy
+                break
 
             if self.accepted_ranks_depths[self.rank_prefix_map[taxon[0]]] > i+1:
                 logging.warning("Order of taxonomic ranks in cleaned lineage '{0}' is unexpected.\n"

@@ -213,7 +213,7 @@ def parse_gbseq_info_from_esearch_record(record, gb_key="IdList"):
     return gb_value
 
 
-def prep_for_entrez_query() -> None:
+def prep_for_entrez_query():
     """
     Tests checks to ensure the correct version of BioPython is imported,
     sends a test Entrez.efetch query to see if the internet connection is currently stable.
@@ -226,11 +226,12 @@ def prep_for_entrez_query() -> None:
     Entrez.tool = "treesapp"
     # Test the internet connection:
     try:
-        Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
+        record = Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
     except error.URLError:
         logging.warning("Unable to serve Entrez query. Are you connected to the internet?\n")
+        record = None
     logging.info("done.\n")
-    return
+    return record
 
 
 def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None:
@@ -257,6 +258,7 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
         else:
             ref_seq.lineage = "r__Root"
 
+    prep_for_entrez_query()
     # Build list of entrez queries for EntrezRecords with un-annotated lineages
     entrez_query_list = entrez_records_from_lineages_and_chop(unprefixed_lineages, tmp_lineages,
                                                               t_hierarchy.get_taxon_names())
