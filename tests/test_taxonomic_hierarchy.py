@@ -60,9 +60,9 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         return
 
     def test_emit(self):
-        actino_line = "cellular organisms; Bacteria; Terrabacteria group; Actinobacteria;" \
+        actino_line = "Bacteria; Terrabacteria group; Actinobacteria;" \
                       " Actinobacteria; Actinomycetales; Actinomycetaceae; Actinomyces"
-        bifido_line = "cellular organisms; Bacteria; Terrabacteria group; Actinobacteria;" \
+        bifido_line = "Bacteria; Terrabacteria group; Actinobacteria;" \
                       " Actinobacteria; Bifidobacteriales; Bifidobacteriaceae; Bifidobacterium"
         self.assertEqual(actino_line, self.db.emit("g__Actinomyces"))
         self.assertEqual(bifido_line, self.db.emit("g__Bifidobacterium"))
@@ -83,7 +83,7 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         return
 
     def test_check_lineage_nonexistant(self):
-        with pytest.raises(SystemExit):
+        with pytest.raises(RuntimeError):
             self.db.check_lineage(lineage="d__Archaea", organism="Archaea")
         return
 
@@ -161,6 +161,12 @@ class TaxonomicHierarchyTester(unittest.TestCase):
     def test_strip_taxon(self):
         self.assertEqual("Bacteria; Proteobacteria", self.db.strip_rank_prefix("Bacteria; Proteobacteria"))
         self.assertEqual("Bacteria; Mock", self.db.strip_rank_prefix("d__Bacteria; n__Mock"))
+
+    def test_resolve_conflicts(self):
+        return
+
+    def test_rm_absent_taxa_from_lineage(self):
+        return
 
 
 if __name__ == '__main__':

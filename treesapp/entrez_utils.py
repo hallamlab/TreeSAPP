@@ -10,7 +10,7 @@ from Bio import Entrez
 from urllib import error
 
 from treesapp.utilities import get_list_positions, get_field_delimiter
-from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
 
 
 class EntrezRecord:
@@ -234,6 +234,70 @@ def prep_for_entrez_query():
     return record
 
 
+def repair_conflict_lineages(t_hierarchy: TaxonomicHierarchy, ref_seq_dict: dict) -> None:
+    """
+    When some taxon nodes are removed from a TaxonomicHierarchy, the original lineages with those included may persist.
+
+    The purpose of repair_conflict_lineages is to substitute the former nodes causing conflict for the replacement nodes
+    in the taxonomic lineages of
+
+    :return: None
+    """
+    if len(t_hierarchy.conflicts) == 0:
+        return
+
+    nodes_replaced_map = t_hierarchy.resolve_conflicts()  # return taxa whose nodes were merged
+
+    for old_taxon, new_taxon in nodes_replaced_map.items():  # type: (Taxon, Taxon)
+        taxon_name = old_taxon.prefix_taxon()
+        for record in ref_seq_lineage_scanner(ref_seq_dict, taxon_name):  # type: EntrezRecord
+            # Find the name of the organism to use for building the new taxonomic lineage
+            if t_hierarchy.canonical_prefix.match(record.organism):
+                organism_query = record.organism
+            elif t_hierarchy.canonical_prefix.match(record.lineage.split(t_hierarchy.lin_sep)[-1]):
+                organism_query = record.lineage.split(t_hierarchy.lin_sep)[-1]
+            else:
+                continue
+
+            # If the current record's most resolved taxon has been substituted
+            # swap all taxonomic information to the new representative
+            if organism_query == taxon_name:
+                record.organism = new_taxon.prefix_taxon()
+                organism_query = record.organism
+
+            ref_taxon = t_hierarchy.get_taxon(organism_query)  # type: Taxon
+            try:
+                record.lineage = t_hierarchy.lin_sep.join([taxon.prefix_taxon() for taxon in ref_taxon.lineage()])
+                continue
+            except AttributeError:
+                logging.warning("Unable to repair the conflicted lineage of record {}, "
+                                "'{}'".format(record.accession, record.lineage))
+                continue
+    return
+
+
+def ref_seq_lineage_scanner(ref_seq_dict: dict, taxon_name: str) -> list:
+    """
+    Finds the EntrezRecord instances in ref_seq_dict with lineages that contain a specific taxon (taxon_name).
+
+    :param ref_seq_dict: A dictionary containing unique, numerical TreeSAPP identifiers mapper to EntrezRecord objects
+    :param taxon_name: The string to be used for matching EntrezRecord.lineage attributes.
+     It should represent a single taxon.
+    :return: A list of EntrezRecord instances whose lineage attributes contain taxon_name
+    """
+    ref_seq_matches = []
+    for treesapp_id, ref_seq in ref_seq_dict.items():  # type: (str, EntrezRecord)
+        if ref_seq.lineage and taxon_name in ref_seq.lineage:
+            ref_seq_matches.append(ref_seq)
+    return ref_seq_matches
+
+
+def sync_record_and_hierarchy_lineages(ref_leaf_nodes: list, records: dict) -> None:
+    for leaf_node in ref_leaf_nodes:
+        records[leaf_node.number].lineage = leaf_node.lineage  # type: EntrezRecord
+    return
+
+
 def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None:
     """
     This is used for adding rank prefixes (e.g. d__) to the taxonomic lineages in a dictionary of EntrezRecord instances
@@ -248,7 +312,9 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
 
     # Search for any taxon that doesn't have a rank prefix in all the reference sequence lineages
     t_hierarchy.clean_trie = True
+    repair_conflict_lineages(t_hierarchy, ref_seq_dict)
     t_hierarchy.build_multifurcating_trie(key_prefix=True)
+    # TODO: handle the lineages with rank-prefixes but are absent from the hierarchy
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         ref_seq = ref_seq_dict[treesapp_id]  # type: EntrezRecord
         if ref_seq.lineage:
@@ -956,7 +1022,7 @@ def map_accessions_to_lineages(query_accession_list: list, t_hierarchy: Taxonomi
 
 
 class Lineage:
-    def __init__(self):
+    def __init__(self, lin_sep="; "):
         self.Organism = None
         self.Lineage = None
         self.Domain = None
@@ -967,31 +1033,58 @@ class Lineage:
         self.Genus = None
         self.Species = None
         self.rank_attributes = ["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]
+        self.lin_sep = lin_sep
+
+    def verify_rank_occupancy(self) -> None:
+        """
+        Checks each rank in the lineage and ensures that a string representing a taxon exists.
+        If a rank is empty, it truncates the lineage at the preceding rank (which is occupied).
+
+        :return: None
+        """
+        if not self.Lineage:
+            return
+
+        i = 0
+        ranks = self.Lineage.split(self.lin_sep)  # Create a list from which the lineage can be rebuilt
+        while i < len(ranks):  # type: str
+            if not ranks[i]:
+                break
+            pn = ranks[i].split('__')
+            if len(pn) == 2:
+                if len(pn[1]) == 0:
+                    break
+            i += 1
+
+        while i < len(ranks):
+            ranks.pop(i)
+        self.Lineage = self.lin_sep.join(ranks)
+
+        return
 
     def build_lineage(self, add_organism=False) -> str:
         self.domain_check()
         self.ensure_prefix()
-        if self.Lineage:
-            lineage = self.Lineage
-        else:
+        self.lineage_format_check()
+        if not self.Lineage:
             taxa = []
             # Cut the lineage at the first empty rank
             for rank in self.rank_attributes:
                 taxon = self.__dict__[rank]
-                if not taxon:
-                    break
-                else:
-                    taxa.append(taxon)
-            lineage = "; ".join(taxa)
-        if not lineage:
+                taxa.append(taxon)
+            self.Lineage = self.lin_sep.join(taxa)
+
+        self.verify_rank_occupancy()
+
+        if not self.Lineage:
             logging.warning("Taxonomic lineage information was found in neither lineage nor taxonomic rank fields.\n")
             return ""
 
         if add_organism and self.Organism:
-            if lineage.split("; ")[-1] != self.Organism:
-                lineage += "; " + self.Organism
+            if self.Lineage.split(self.lin_sep)[-1] != self.Organism:
+                self.Lineage += self.lin_sep + self.Organism
 
-        return lineage
+        return self.Lineage
 
     def ensure_prefix(self) -> None:
         """
@@ -1013,10 +1106,41 @@ class Lineage:
                 self.Organism = "n__" + self.Organism
         return
 
+    def lineage_format_check(self) -> bool:
+        """
+        The Lineage.Lineage attribute's format is checked to determine whether:
+
+1. it is populated
+2. the separator matches the Lineage object's lineage separator
+
+        :return: A boolean representing whether the lineage's format was modified
+        """
+        if not self.Lineage:
+            return False
+
+        try:
+            # Test whether the lineage separator (self.lin_sep) exists in self.Lineage
+            if self.Lineage.find(self.lin_sep) >= 0:
+                return False
+            else:
+                # Does a separator exist?
+                split_lin = re.split(r'[,|;"]+', self.Lineage)
+                # TODO: Find the correct separator being used
+                if len(split_lin) > 1:
+                    # Replace the current separator with self.lin_sep
+                    self.Lineage = self.lin_sep.join(split_lin)
+                    return True
+                else:
+                    return False
+
+        except ValueError:
+            logging.error("Unable to split the lineage '{}' by the separator {}.\n".format(self.Lineage, self.lin_sep))
+            raise ValueError()
+
     def domain_check(self) -> None:
         """
         Checks for whether or not the Domain is valid.
-        Options are Bacteria, Archaea, Eukaryota and Viruses (I know, but...)
+        Options are Bacteria, Archaea, Eukaryota and Viruses
 
         :return: None
         """
@@ -1089,7 +1213,7 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
     classified_seq_lineage_map = dict()
     treesapp_nums = list(header_registry.keys())
     mapped_treesapp_nums = []
-    for seq_name in seq_lineage_map:
+    for seq_name, lineage in seq_lineage_map.items():  # type: (str, Lineage)
         # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
         # we can't use hash-based data structures to bring it to O(N)
         parent_re = re.compile(seq_name)
@@ -1099,7 +1223,7 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
             original = header.original
             assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(refpkg_name), '', original)
             if parent_re.search(assigned_seq_name):
-                classified_seq_lineage_map[header.first_split] = seq_lineage_map[seq_name].build_lineage(add_organism=True)
+                classified_seq_lineage_map[header.first_split] = lineage.build_lineage(add_organism=True)
                 mapped_treesapp_nums.append(treesapp_nums.pop(x))
             else:
                 x += 1

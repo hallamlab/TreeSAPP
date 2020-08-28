@@ -223,6 +223,7 @@ def train(sys_args):
     entrez_utils.fill_ref_seq_lineages(entrez_record_dict, ts_trainer.seq_lineage_map, complete=True)
     ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
     ts_trainer.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+    entrez_utils.sync_record_and_hierarchy_lineages(ref_leaf_nodes, entrez_record_dict)
     ts_trainer.ref_pkg.taxa_trie.validate_rank_prefixes()
     ts_trainer.ref_pkg.taxa_trie.build_multifurcating_trie()
     rank_depth_map = ts_trainer.ref_pkg.taxa_trie.accepted_ranks_depths
@@ -446,6 +447,7 @@ def create(sys_args):
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
     ref_leaf_nodes = convert_entrez_to_tree_leaf_references(fasta_records)
     ts_create.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+    entrez_utils.sync_record_and_hierarchy_lineages(ref_leaf_nodes, fasta_records)
     entrez_utils.repair_lineages(fasta_records, ts_create.ref_pkg.taxa_trie)
     entrez_utils.fill_entrez_record_taxon_rank(fasta_records, ts_create.ref_pkg.taxa_trie)
     ts_create.ref_pkg.taxa_trie.validate_rank_prefixes()
@@ -745,6 +747,7 @@ def update(sys_args):
         entrez_utils.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
         ref_leaf_nodes = convert_entrez_to_tree_leaf_references(fasta_records)
         ts_updater.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+        entrez_utils.sync_record_and_hierarchy_lineages(ref_leaf_nodes, fasta_records)
         ts_updater.ref_pkg.taxa_trie.validate_rank_prefixes()
         ts_updater.ref_pkg.taxa_trie.build_multifurcating_trie()
 
@@ -1377,6 +1380,7 @@ def evaluate(sys_args):
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
     ref_leaf_nodes = convert_entrez_to_tree_leaf_references(fasta_records)
     ts_evaluate.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+    entrez_utils.sync_record_and_hierarchy_lineages(ref_leaf_nodes, fasta_records)
     ts_evaluate.ref_pkg.taxa_trie.validate_rank_prefixes()
     ts_evaluate.ref_pkg.taxa_trie.build_multifurcating_trie()
 

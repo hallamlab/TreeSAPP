@@ -32,6 +32,17 @@ class Taxon:
         lineage.append(self)
         return lineage
 
+    def merge(self, taxon) -> None:
+        """
+        Merge the values from one Taxon instance into the current Taxon instance.
+        Coverages are summed. Other attributes may be merged here in the future.
+
+        :param taxon: A Taxon instance that will be folded into the current instance
+        :return: None
+        """
+        self.coverage += taxon.coverage
+        return
+
 
 class TaxonomicHierarchy:
     def __init__(self, sep="; "):
@@ -42,10 +53,11 @@ class TaxonomicHierarchy:
         self.no_rank_name = "no rank"  # Name of rank for non-canonical taxonomic ranks
         self.lin_sep = sep
         self.taxon_sep = "__"  # Separator between the rank prefix and the taxon name
-        self.bad_taxa = ["cellular organisms"]  # Optional list that can be used to ensure some taxa are removed
+        self.bad_taxa = ["cellular organisms", "unclassified"]  # Optional list that can be used to remove some taxa
         self.canonical_prefix = re.compile(r"^[nrdpcofgs]" + re.escape(self.taxon_sep))
         self.proper_species_re = re.compile("^(s__)?[A-Z][a-z]+ [a-z]+$")
         self.no_rank = re.compile(r"^" + re.escape(self.no_rank_name[0] + self.taxon_sep) + r".*")
+        self.conflicts = set()  # A tuple to store Taxon instances that create conflicting paths in the hierarchy
         # Main data structures
         self.trie = StringTrie(separator=sep)  # Trie used for more efficient searches of taxa and whole lineages
         self.hierarchy = dict()  # Dict of prefix_taxon (e.g. p__Proteobacteria) name to Taxon instances
@@ -77,7 +89,7 @@ class TaxonomicHierarchy:
         for key, value in self.get_state().items():
             summary_string += "\t" + key + " = " + str(value) + "\n"
         logging.error(summary_string)
-        sys.exit(17)
+        raise RuntimeError(17)
 
     def get_taxon_names(self, with_prefix=False):
         if with_prefix:
@@ -136,6 +148,50 @@ class TaxonomicHierarchy:
         except IndexError:
             self.so_long_and_thanks_for_all_the_fish("Empty taxon in lineage '{}'\n".format(lineage))
 
+    def redirect_hierarchy_paths(self, rep: Taxon, old: Taxon):
+        for taxon in self.hierarchy.values():  # type: Taxon
+            if taxon.parent == old:
+                taxon.parent = rep
+        return
+
+    def resolve_conflicts(self) -> dict:
+        """
+
+        :return: A dictionary mapping the obsolete Taxon instance to the new representative Taxon instance
+        """
+        replaced_nodes = {}
+        if len(self.conflicts) == 0:
+            return replaced_nodes
+
+        conflict_resolution_summary = "Taxonomic hierarchy conflicts were resolved by merging the left taxon into the right:\n"
+        while self.conflicts:
+            node_one, node_two = self.conflicts.pop()  # type: (Taxon, Taxon)
+
+            if "unclassified" in [node_one.name, node_two.name]:
+                continue
+            if node_one.rank == self.no_rank:
+                obsolete = node_one
+                rep = node_two
+            elif node_two.rank == self.no_rank:
+                obsolete = node_two
+                rep = node_one
+            else:
+                # Which one has higher coverage?
+                if node_one.coverage > node_two.coverage:
+                    rep = node_one
+                    obsolete = node_two
+                else:
+                    rep = node_two
+                    obsolete = node_one
+                # TODO: Find which Taxon has the path traversing the most valid nodes and/or shortest path?
+            rep.merge(obsolete)
+            self.redirect_hierarchy_paths(rep=rep, old=obsolete)
+            replaced_nodes[self.hierarchy.pop(obsolete.prefix_taxon())] = rep
+            conflict_resolution_summary += "\t'{}' -> '{}'\n".format(obsolete.name, rep.name)
+
+        logging.warning(conflict_resolution_summary)
+        return replaced_nodes
+
     def validate_rank_prefixes(self) -> None:
         """
         Ensures that there is only a single rank name mapped to a rank prefix (in self.rank_prefix_map) and changes
@@ -180,21 +236,36 @@ class TaxonomicHierarchy:
         return
 
     def digest_taxon(self, taxon: str, rank: str, rank_prefix: str, previous: Taxon) -> Taxon:
+        """
+        Digest taxon adds a new taxon to the TaxonomicHierarchy.hierarchy dictionary if it isn't already in the keys,
+        or will increment the coverage attribute of a Taxon if it is already in the hierarchy dictionary.
+
+        :param taxon: A string representing a taxon
+        :param rank: A string representing the taxonomic rank for which taxon is a member
+        :param rank_prefix: The one character prefix for taxon's rank e.g. 'd' for Domain
+        :param previous: The Taxon instance representing the parent of taxon
+        :return: The Taxon instance representing taxon
+        """
         # taxon can come with the rank_prefix included and we don't want to prepend it again
         if taxon.startswith(rank_prefix + self.taxon_sep):
             taxon = taxon.lstrip(rank_prefix + self.taxon_sep)
         prefix_name = rank_prefix + self.taxon_sep + taxon
 
-        if prefix_name not in self.hierarchy:
+        if taxon in self.bad_taxa:
+            return None
+
+        try:
+            ti = self.hierarchy[prefix_name]  # type: Taxon
+            ti.coverage += 1
+            if previous and previous != ti.parent:
+                self.conflicts.add((previous, ti.parent))
+        except KeyError:
             ti = Taxon(taxon, rank)
             ti.parent = previous
             ti.prefix = rank_prefix
             self.hierarchy[prefix_name] = ti
-            previous = ti
-        else:
-            self.hierarchy[prefix_name].coverage += 1
-            previous = self.hierarchy[prefix_name]
-        return previous
+
+        return ti
 
     def feed(self, lineage: str, lineage_ex: list) -> Taxon:
         """
@@ -217,13 +288,13 @@ class TaxonomicHierarchy:
         taxa = lineage.split(self.lin_sep)
         while taxa and lineage_ex:
             taxon_info = lineage_ex.pop(0)
-            taxon = taxa.pop(0)
-            if taxon != taxon_info["ScientificName"]:
+            taxon_name = taxa.pop(0)
+            if taxon_name != taxon_info["ScientificName"]:
                 if previous:
                     self.remove_leaf_nodes(previous.prefix_taxon())
                 logging.error("Lineage and Entrez lineage extra information list don't match. Current state:\n"
                               "taxon = {0}\n"
-                              "taxon_info = {1}\n".format(taxon, str(taxon_info)))
+                              "taxon_info = {1}\n".format(taxon_name, str(taxon_info)))
                 sys.exit(11)
             rank = taxon_info["Rank"]
             # Decide what the prefix will be
@@ -242,7 +313,11 @@ class TaxonomicHierarchy:
             except AttributeError:
                 self.so_long_and_thanks_for_all_the_fish("TaxonomicHierarchy.rank_prefix_map values are not all sets.\n")
 
-            previous = self.digest_taxon(taxon, rank, rank_prefix, previous)
+            taxon = self.digest_taxon(taxon_name, rank, rank_prefix, previous)  # type: Taxon
+            if not taxon and previous:
+                break
+            else:
+                previous = taxon
 
         if len(taxa) > 0 or len(lineage_ex) > 0:
             if previous:
@@ -311,16 +386,21 @@ class TaxonomicHierarchy:
                 continue
             taxa = ref_leaf.lineage.split(self.lin_sep)
             while taxa:
-                taxon = taxa.pop(0)
-                rank_prefix = taxon.split(self.taxon_sep)[0]
+                taxon_name = taxa.pop(0)  # type: str
+                rank_prefix = taxon_name.split(self.taxon_sep)[0]
                 try:
                     rank = self.rank_prefix_map[rank_prefix]
                 except KeyError:
                     logging.debug("Unexpected format of taxon '{}' in lineage {} - no rank prefix separated by '{}'?\n"
-                                  "".format(taxon, ref_leaf.lineage, self.taxon_sep))
+                                  "".format(taxon_name, ref_leaf.lineage, self.taxon_sep))
                     taxa.clear()
                     continue
-                previous = self.digest_taxon(taxon, rank, rank_prefix, previous)
+                taxon = self.digest_taxon(taxon_name, rank, rank_prefix, previous)  # type: Taxon
+                if not taxon and previous:
+                    ref_leaf.lineage = self.lin_sep.join([taxon.prefix_taxon() for taxon in previous.lineage()])
+                    break
+                else:
+                    previous = taxon
 
             # Update the number of lineages provided to TaxonomicHierarchy
             self.lineages_fed += 1
@@ -530,19 +610,22 @@ class TaxonomicHierarchy:
         reconstructed_lineage = []
         for rank in lineage.split(self.lin_sep):
             try:
-                _, _ = rank.split(self.taxon_sep)
+                _, name = rank.split(self.taxon_sep)
             except ValueError:
                 rank = re.sub(r'(?<!^[a-z])' + re.escape(self.taxon_sep), '_', rank)
                 try:
-                    _, _ = rank.split(self.taxon_sep)
+                    _, name = rank.split(self.taxon_sep)
                 except ValueError:
                     self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for clean_lineage_string().\n"
-                                                             "None was provided for lineage '{}'\n".format(lineage))
+                                                             "None was provided for taxon '{}' in lineage {}\n"
+                                                             "".format(rank, lineage))
+                    raise ValueError()
 
             if not self.no_rank.match(rank):
                 if with_prefix is False:
                     rank = self.canonical_prefix.sub('', rank)
-                reconstructed_lineage.append(str(rank))
+                if name:
+                    reconstructed_lineage.append(str(rank))
         return self.lin_sep.join(reconstructed_lineage)
 
     def check_lineage(self, lineage: str, organism: str, verbosity=0) -> str:

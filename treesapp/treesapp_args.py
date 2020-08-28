@@ -434,7 +434,7 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
                                help="Flag indicating input sequences need to be purified using an HMM profile.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "search", "lineages", "place", "regress"],
+                               choices=["continue", "clean", "search", "lineages", "place", "train", "update"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
     return
 

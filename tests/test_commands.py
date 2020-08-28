@@ -68,6 +68,8 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.slurp()
         test_refpkg.validate()
         self.assertEqual(69, test_refpkg.num_seqs)
+        self.assertEqual(2, len(test_refpkg.pfit))
+        self.assertTrue(test_refpkg.pfit[0] < 0)
         return
 
     def test_create_eggnog(self):
@@ -91,7 +93,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_create_PuhA/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(44, test_refpkg.num_seqs)
+        self.assertTrue(43 <= test_refpkg.num_seqs <= 44)
         return
 
     def test_create_accession2lin(self):
@@ -287,7 +289,7 @@ class TreesappTester(unittest.TestCase):
         MCC_calculator.mcc_calculator(cmd)
         self.assertEqual(True, True)
         return
-    #
+
     # def test_tmp(self):
     #     from treesapp.commands import create
     #     base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"

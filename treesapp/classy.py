@@ -603,6 +603,7 @@ class TreeSAPP:
                                                complete=(len(refs_mapped) == ref_seqs.n_seqs()))
             ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
             self.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+            entrez_utils.sync_record_and_hierarchy_lineages(ref_leaf_nodes, entrez_record_dict)
             self.ref_pkg.taxa_trie.validate_rank_prefixes()
             self.ref_pkg.taxa_trie.build_multifurcating_trie()
         if self.stage_status("lineages"):
