@@ -504,26 +504,22 @@ class ReferencePackage:
 
         return
 
-    def infer_phylogeny(self, input_msa: str, executables: dict, phylogeny_dir: str, bootstraps,
-                        num_threads=2, sub_model=None) -> None:
+    def infer_phylogeny(self, input_msa: str, executables: dict, phylogeny_dir: str,
+                        num_threads=2, sub_model=None) -> str:
         """
-        Selects the substitution model and parameters for the phylogenetic inference tools,
-        builds a phylogeny using the software specified by the ReferencePackage's tree_tool,
-        uses RAxML-NG to calculate the pertinent model parameters necessary for phylogenetic placement with EPA-NG,
-        and copies the outputs at the end of each step that are destined for the ReferencePackage to their destinations.
+        Selects the substitution model and parameters for the phylogenetic inference tools then
+        builds a phylogeny using the software specified by the ReferencePackage's tree_tool
 
         :param input_msa: A multiple sequence alignment (MSA) compatible with any of the supported tree building tools
         :param executables: A dictionary of executable names mapped to the
         :param phylogeny_dir: A directory for writing the outputs of this workflow
-        :param bootstraps: The number of bootstraps to use
         :param num_threads: Number of threads to use while building the tree and bootstrapping
         :param sub_model: The substitution model to use
-        :return: None
+        :return: Path to the final phylogeny with greatest likelihood
         """
         self.sub_model = wrapper.select_model(self.molecule, sub_model)
         best_tree = wrapper.construct_tree(self.tree_tool, executables, self.sub_model, input_msa,
-                                           phylogeny_dir, self.prefix,
-                                           bootstraps, num_threads)
+                                           phylogeny_dir, self.prefix, num_threads)
 
         if self.tree_tool == "FastTree":
             etree = Tree(best_tree)
@@ -531,16 +527,8 @@ class ReferencePackage:
             etree.set_outgroup(farthest_node)
             etree.resolve_polytomy(recursive=True)  # Remove any polytomies (where a node divides into >two edges)
             etree.write(outfile=best_tree, format=5)
-            if int(bootstraps) != 0:
-                wrapper.support_tree_raxml(raxml_exe=executables["raxml-ng"], ref_tree=best_tree, ref_msa=input_msa,
-                                           model=self.sub_model, tree_prefix=phylogeny_dir + self.prefix,
-                                           mre=False, n_bootstraps=bootstraps, num_threads=num_threads)
-            wrapper.model_parameters(executables["raxml-ng"],
-                                     input_msa, best_tree, phylogeny_dir + self.prefix,
-                                     self.sub_model, num_threads)
 
-        self.format_raxmlng_outputs(phylogeny_dir, bootstraps)
-        return
+        return best_tree
 
     def recover_raxmlng_model_outputs(self, phylogeny_dir: str) -> None:
         # Find the best model file
@@ -551,24 +539,19 @@ class ReferencePackage:
 
         return
 
-    def recover_raxmlng_tree_outputs(self, phylogeny_dir: str, bootstraps) -> None:
+    def recover_raxmlng_tree_outputs(self, phylogeny_dir: str) -> None:
         # Find the best tree file
         raw_newick_tree = match_file(phylogeny_dir + "*.bestTree")
 
         # Import the tree files into the reference package
         copy(raw_newick_tree, self.f__tree)
-
-        # Annotate the bootstrapped phylogeny
-        if bootstraps > 0:
-            bootstrap_tree = match_file(phylogeny_dir + "*.raxml.support")
-            annotate_partition_tree(self.prefix, self.generate_tree_leaf_references_from_refpkg(), bootstrap_tree)
-            copy(bootstrap_tree, self.f__boot_tree)
-
         return
 
-    def format_raxmlng_outputs(self, phylogeny_dir: str, bootstraps) -> None:
-        self.recover_raxmlng_model_outputs(phylogeny_dir)
-        self.recover_raxmlng_tree_outputs(phylogeny_dir, bootstraps)
+    def recover_raxmlng_supports(self, phylogeny_dir: str) -> None:
+        # Annotate the bootstrapped phylogeny
+        bootstrap_tree = match_file(phylogeny_dir + "*.raxml.support")
+        annotate_partition_tree(self.prefix, self.generate_tree_leaf_references_from_refpkg(), bootstrap_tree)
+        copy(bootstrap_tree, self.f__boot_tree)
         return
 
     def exclude_clade_from_ref_files(self, tmp_dir: str, target_clade: str, executables: dict,

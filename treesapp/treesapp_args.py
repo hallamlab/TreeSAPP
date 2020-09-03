@@ -105,12 +105,11 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
     def add_phylogeny_params(self):
         self.optopt.add_argument("-b", "--bootstraps",
                                  help="The maximum number of bootstrap replicates RAxML-NG should perform using "
-                                      "the autoMRE algorithm.\n"
-                                      "[ DEFAULT = 1000 ]",
-                                 required=False, default=1000, type=int)
+                                      "the autoMRE algorithm.\n[ DEFAULT = 0 ]",
+                                 required=False, default=0, type=int)
         self.optopt.add_argument("-e", "--raxml_model",
-                                 help="The evolutionary model for RAxML to use\n"
-                                      "[ Proteins = PROTGAMMAAUTO | Nucleotides =  GTRGAMMA ]",
+                                 help="The evolutionary model for RAxML-NG to use\n"
+                                      "[ Proteins = LG+G4 | Nucleotides =  GTR+G ]",
                                  required=False, default=None)
         self.optopt.add_argument("--fast",
                                  help="A flag indicating the tree should be built rapidly, using FastTree.",

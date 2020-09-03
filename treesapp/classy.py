@@ -730,8 +730,10 @@ class Creator(TreeSAPP):
                        2: ModuleFunction("clean", 2),
                        3: ModuleFunction("cluster", 3),
                        4: ModuleFunction("build", 4),
-                       5: ModuleFunction("train", 5),
-                       6: ModuleFunction("update", 6)}
+                       5: ModuleFunction("evaluate", 5),
+                       6: ModuleFunction("support", 6),
+                       7: ModuleFunction("train", 7),
+                       8: ModuleFunction("update", 8)}
 
     def decide_stage(self, args):
         """
@@ -753,10 +755,15 @@ class Creator(TreeSAPP):
             if os.path.isfile(self.acc_to_lin):
                 self.change_stage_status("lineages", False)
             else:
-                logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
+                logging.error("Unable to find accession-lineage mapping file '{}'\n".format(self.acc_to_lin))
                 sys.exit(3)
         else:
             self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+
+        if args.bootstraps == 0:
+            self.change_stage_status("support", False)
+        if not args.fast:
+            self.change_stage_status("evaluate", False)
         self.validate_continue(args)
         return
 

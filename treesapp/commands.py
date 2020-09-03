@@ -638,8 +638,24 @@ def create(sys_args):
         ##
         # Build the tree using either RAxML-NG or FastTree
         ##
-        ts_create.ref_pkg.infer_phylogeny(ts_create.phylip_file, ts_create.executables, ts_create.phy_dir,
-                                          args.bootstraps, args.num_threads, args.raxml_model)
+        best_tree = ts_create.ref_pkg.infer_phylogeny(ts_create.phylip_file, ts_create.executables, ts_create.phy_dir,
+                                                      args.num_threads, args.raxml_model)
+
+    if ts_create.stage_status("evaluate"):
+        # Evaluate the model parameters with RAxML-NG. Output is required by EPA-NG
+        wrapper.model_parameters(ts_create.executables["raxml-ng"],
+                                 ts_create.phylip_file, best_tree, ts_create.phy_dir + ts_create.ref_pkg.prefix,
+                                 ts_create.ref_pkg.sub_model, args.num_threads)
+    ts_create.ref_pkg.recover_raxmlng_model_outputs(ts_create.phy_dir)
+    ts_create.ref_pkg.recover_raxmlng_tree_outputs(ts_create.phy_dir)
+
+    if ts_create.stage_status("support"):
+        # Perform non-parametric bootstrapping with RAxML-NG and calculate branch support values from bootstraps
+        wrapper.support_tree_raxml(raxml_exe=ts_create.executables["raxml-ng"], model=ts_create.ref_pkg.sub_model,
+                                   ref_tree=best_tree, ref_msa=ts_create.phylip_file,
+                                   tree_prefix=ts_create.phy_dir + ts_create.ref_pkg.prefix,
+                                   mre=True, n_bootstraps=args.bootstraps, num_threads=args.num_threads)
+        ts_create.ref_pkg.recover_raxmlng_supports(ts_create.phy_dir)
 
     ts_create.ref_pkg.band()
     # Build the regression model of placement distances to taxonomic ranks

@@ -45,6 +45,7 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     :param threads: The number of threads that should be used by RAxML-NG
     :return: Path to the bestModel file that can be used by epa-ng for phylogenetic placement
     """
+    output_prefix += "_evaluate"
     model_params_file = output_prefix + ".raxml.bestModel"
     model_eval_cmd = [raxml_exe, "--evaluate"]
     model_eval_cmd += ["--msa", ref_msa]
@@ -52,6 +53,7 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     model_eval_cmd += ["--prefix", output_prefix]
     model_eval_cmd += ["--model", model]
     model_eval_cmd += ["--threads", str(threads)]
+    model_eval_cmd += ["--seed", str(12345)]
     model_eval_cmd += ["--workers", str(1)]
     model_eval_cmd.append("--force")
 
@@ -60,9 +62,8 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     logging.debug("done.\n")
 
     if returncode != 0:
-        logging.error(raxml_exe + " did not complete successfully! " +
-                      "Look in " + output_prefix + "_info.txt for an error message.\n" +
-                      "RAxML-ng command used:\n" + ' '.join(model_eval_cmd) + "\n")
+        logging.error("{} did not complete successfully! Look in {}_info.txt for an error message.\n"
+                      "RAxML-NG command used:\n{}\n".format(raxml_exe, output_prefix, ' '.join(model_eval_cmd)))
         sys.exit(13)
 
     return model_params_file
@@ -94,7 +95,7 @@ def bootstrap_tree_raxml(raxml_exe: str, multiple_alignment: str, model: str, tr
 
 
 def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, tree_prefix: str,
-                       mre=True, n_bootstraps=1000, num_threads=2) -> str:
+                       mre=False, n_bootstraps=1000, num_threads=2) -> str:
     bootstraps = bootstrap_tree_raxml(raxml_exe, ref_msa, model, tree_prefix, mre, n_bootstraps, num_threads)
 
     support_cmd = [raxml_exe, "--support"]
@@ -116,7 +117,7 @@ def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, 
 
 
 def construct_tree(tree_builder: str, executables: dict, evo_model: str, multiple_alignment_file: str,
-                   tree_output_dir: str, tree_prefix: str, bootstraps=1000, num_threads=2) -> str:
+                   tree_output_dir: str, tree_prefix: str, num_threads=2) -> str:
     """
     Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
 
@@ -127,7 +128,6 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
     :param multiple_alignment_file: Path to the multiple sequence alignment file
     :param tree_output_dir: Path to the directory where output files should be written to
     :param tree_prefix: Prefix to be used for the outputs
-    :param bootstraps: The maximum number of bootstraps to be performed with autoMRE (checking convergence)
     :param num_threads: Number of threads to use (for RAxML-NG only)
     :return: Stylized name of the tree-building software used
     """
@@ -148,15 +148,13 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
         with open(tree_output_dir + tree_prefix + ".FastTree.log", 'w') as fast_info:
             fast_info.write(stdout + "\n")
     elif tree_builder == "RAxML-NG":
-        best_tree = tree_output_dir + tree_prefix + ".raxml.nwk"
-        tree_build_cmd = [executables["raxml-ng"], "--all"]
+        best_tree = tree_output_dir + tree_prefix + ".raxml.bestTree"
+        tree_build_cmd = [executables["raxml-ng"], "--search"]
         tree_build_cmd += ["--prefix", tree_output_dir + tree_prefix]
         tree_build_cmd += ["--msa", multiple_alignment_file]
         tree_build_cmd += ["--model", evo_model]
         # tree_build_cmd += ["--msa-format", "PHYLIP"]  # File isn't read properly with this parameter, use auto-detect
-        tree_build_cmd += ["--seed", "12345"]
-        tree_build_cmd += ["--bs-trees", "autoMRE{%d}" % bootstraps]
-        # tree_build_cmd += ["--bs-trees", "2"]  # For debugging
+        tree_build_cmd += ["--seed", str(12345)]
         tree_build_cmd += ["--threads", str(num_threads)]
         # tree_build_cmd += ["--tree", "rand{1},pars{1}"]  # For debugging, alternatively could use '--search1'
 
@@ -169,10 +167,10 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
     logging.debug(stdout + "\n")
 
     if returncode != 0:
-        logging.error(tree_builder + " did not complete successfully! " +
-                      "Look in " + tree_output_dir + '.'.join([tree_prefix, tree_builder, "log"]) +
-                      " for an error message.\n" +
-                      tree_builder + " command used:\n" + ' '.join(tree_build_cmd) + "\n")
+        logging.error("{0} did not complete successfully! Look in {1} for an error message.\n"
+                      "{0} command used:\n{2}\n".format(tree_builder,
+                                                        tree_output_dir + '.'.join([tree_prefix, tree_builder, "log"]),
+                                                        ' '.join(tree_build_cmd)))
         sys.exit(13)
 
     return best_tree

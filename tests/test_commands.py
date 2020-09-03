@@ -25,7 +25,7 @@ class TreesappTester(unittest.TestCase):
                                 "-m", "prot",
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "relaxed",
-                                "--trim_align", "--overwrite", "--delete"]
+                                "--trim_align", "--overwrite", "--delete", "--svm"]
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(16, len(lines))
@@ -73,27 +73,26 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_create_eggnog(self):
-        from commands import create
+        from treesapp.commands import create
         from refpkg import ReferencePackage
         from .testing_utils import get_test_data
         create_commands_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
                                 "--output", "./TreeSAPP_create_PuhA",
                                 "--refpkg_name", "PuhA",
-                                "--similarity", "0.97",
+                                "--similarity", "0.90",
                                 "--profile", get_test_data("PuhA_search.hmm"),
-                                "--bootstraps", str(0),
                                 "--molecule", "prot",
                                 "--screen", "Bacteria,Archaea",
                                 "--num_proc", str(2),
                                 "--min_taxonomic_rank", 'p',
-                                "--trim_align", "--outdet_align", "--cluster", "--fast", "--headless",
+                                "--trim_align", "--outdet_align", "--cluster", "--headless",
                                 "--overwrite", "--delete"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_create_PuhA/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertTrue(43 <= test_refpkg.num_seqs <= 44)
+        self.assertEqual(39, test_refpkg.num_seqs)
         return
 
     def test_create_accession2lin(self):
@@ -120,7 +119,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_evaluate(self):
-        from commands import evaluate
+        from treesapp.commands import evaluate
         from .testing_utils import get_test_data
         evaluate_command_list = ["--fastx_input", get_test_data("McrA_eval.faa"),
                                  "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
@@ -135,7 +134,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_abundance(self):
-        from commands import abundance
+        from treesapp.commands import abundance
         from file_parsers import read_classification_table
         from .testing_utils import get_test_data
         classification_table = os.path.join(get_test_data("test_output_TarA/"),
@@ -153,7 +152,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_purity(self):
-        from commands import purity
+        from treesapp.commands import purity
         from .testing_utils import get_treesapp_file, get_test_data
         purity_command_list = ["--fastx_input", get_treesapp_file("dev_utils/TIGRFAM_seed_named.faa"),
                                "--extra_info", get_treesapp_file("dev_utils/TIGRFAM_info.tsv"),
@@ -165,7 +164,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_layer(self):
-        from commands import layer
+        from treesapp.commands import layer
         from .testing_utils import get_test_data
         from file_parsers import read_classification_table
         original_table = os.path.join(get_test_data("test_output_TarA/"), "final_outputs", "marker_contig_map.tsv")
@@ -180,7 +179,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_xmoa_layer(self):
-        from commands import layer
+        from treesapp.commands import layer
         from .testing_utils import get_test_data
         from file_parsers import read_classification_table
         classification_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
@@ -195,7 +194,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_update_resolve(self):
-        from commands import update
+        from treesapp.commands import update
         from refpkg import ReferencePackage
         from .testing_utils import get_test_data
         update_command_list = ["--fastx_input", get_test_data("Photosynthesis/PuhA/ENOG4111FIN_PF03967_seed.faa"),
@@ -216,7 +215,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_update_seqs2lineage(self):
-        from commands import update
+        from treesapp.commands import update
         from refpkg import ReferencePackage
         from .testing_utils import get_test_data
         update_command_list = ["--fastx_input", get_test_data("Photosynthesis/PuhA/ENOG4111FIN_PF03967_seed.faa"),
@@ -239,7 +238,7 @@ class TreesappTester(unittest.TestCase):
 
     def test_train(self):
         import csv
-        from commands import train
+        from treesapp.commands import train
         from .testing_utils import get_test_data
         output_dir_path = "./TreeSAPP_train"
         train_command_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
@@ -265,7 +264,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_package(self):
-        from commands import package
+        from treesapp.commands import package
         from .testing_utils import get_test_data
         command_list = ["view",
                         "lineage_ids",
