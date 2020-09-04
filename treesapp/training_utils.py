@@ -49,6 +49,8 @@ def summarize_query_classes(positives: set, query_seq_names: set) -> None:
     false_neg = set()
     true_pos = set()
     total = positives.union(query_seq_names)
+    if not positives:
+        positives = query_seq_names
 
     for seq_name in positives:
         if seq_name in query_seq_names:
