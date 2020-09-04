@@ -234,14 +234,13 @@ class TaxonomicHierarchy:
                 else:
                     rep = node_two
                     obsolete = node_one
-                # TODO: Find which Taxon has the path traversing the most valid nodes and/or shortest path?
             rep.absorb(obsolete)
             self.redirect_hierarchy_paths(rep=rep, old=obsolete)
             replaced_nodes[self.hierarchy.pop(obsolete.prefix_taxon())] = rep
-            conflict_resolution_summary += "\t'{}' ({})-> '{}' ({})\n".format(obsolete.name, obsolete.rank,
-                                                                              rep.name, rep.rank)
+            conflict_resolution_summary += "\t'{}' ({}) -> '{}' ({})\n".format(obsolete.name, obsolete.rank,
+                                                                               rep.name, rep.rank)
 
-        logging.warning(conflict_resolution_summary)
+        logging.debug(conflict_resolution_summary)
         return replaced_nodes
 
     def validate_rank_prefixes(self) -> None:
@@ -287,6 +286,32 @@ class TaxonomicHierarchy:
             self.build_multifurcating_trie(key_prefix=self.trie_key_prefix, value_prefix=self.trie_value_prefix)
         return
 
+    def hierarchy_key_chain(self, child: Taxon, parent: Taxon) -> Taxon:
+        """
+
+        :param child:
+        :param parent:
+        :return:
+        """
+        i = 1
+        alias = "{}{}{}_{}".format(child.prefix, self.taxon_sep, child.name, i)
+        # Has this new taxon already been added?
+        while alias in self.hierarchy:
+            # This taxon's alias has been added before
+            if self.hierarchy[alias].parent == parent:
+                return self.hierarchy[alias]
+            i += 1
+            alias = "{}{}{}_{}".format(child.prefix, self.taxon_sep, child.name, i)
+        # This is a taxon representing a new conflict. It's alias must be added to the hierarchy
+        if alias not in self.hierarchy:
+            logging.debug("Taxon '{}' with diverging lineage ({}) renamed '{}'\n"
+                          "".format(child.name, self.lin_sep.join([t.name for t in parent.lineage()]), alias))
+            twin = Taxon(alias.split(self.taxon_sep)[-1], child.rank)
+            twin.parent = parent
+            twin.prefix = child.prefix
+            self.hierarchy[twin.prefix_taxon()] = twin
+            return twin
+
     def evaluate_hierarchy_clash(self, child: Taxon, p1: Taxon, p2: Taxon) -> Taxon:
         """
         Determines whether parents of a taxon being added to self.hierarchy are the same (no clash) or unique (clash).
@@ -310,32 +335,21 @@ class TaxonomicHierarchy:
             return child
         # Ensure they are both not valid ranks, or the same rank
         parent_lca = Taxon.lca(p1, p2)
+        if parent_lca is None:
+            return self.hierarchy_key_chain(child, p1)
         p1_ranks = {t.rank for t in Taxon.lineage_slice(p1, parent_lca)}
         p2_ranks = {t.rank for t in Taxon.lineage_slice(p2, parent_lca)}
-        # If all of the ranks between a parent and the lca of the parents, add it to conflicts
-        if not p1_ranks.difference({self.no_rank_name}) or not p2_ranks.difference({self.no_rank_name}):
+        p1_lca_dist = p1.tax_dist(parent_lca)
+        p2_lca_dist = p2.tax_dist(parent_lca)
+        # TODO: What if the taxonomic distance between a parent and the LCA is 0 i.e. the parent is the LCA?
+        # If all of the ranks are 'no rank' between a parent and the lca of the parents, add it to conflicts
+        if (p1_ranks and not p1_ranks.difference({self.no_rank_name})) or \
+                (p2_ranks and not p2_ranks.difference({self.no_rank_name})):
             self.conflicts.add((p1, p2))
             return child
-        elif max(p1.tax_dist(parent_lca), p2.tax_dist(parent_lca)) > 1:
+        elif max(p1_lca_dist, p2_lca_dist) > 1:  # The hierarchy path between the parent and LCA is too long to pop
             # These are both taxa with a valid rank - the job gets a bit harder now. Time to prevent a clash!
-            i = 1
-            alias = "{}{}{}_{}".format(child.prefix, self.taxon_sep, child.name, i)
-            # Has this new taxon already been added?
-            while alias in self.hierarchy:
-                # This taxon's alias has been added before
-                if self.hierarchy[alias].parent == p1:
-                    return self.hierarchy[alias]
-                i += 1
-                alias = "{}{}{}_{}".format(child.prefix, self.taxon_sep, child.name, i)
-            # This is a taxon representing a new conflict. It's alias must be added to the hierarchy
-            if alias not in self.hierarchy:
-                twin = Taxon(alias.split(self.taxon_sep)[-1], child.rank)
-                twin.parent = p1
-                twin.prefix = child.prefix
-                self.hierarchy[twin.prefix_taxon()] = twin
-                logging.warning("Taxon '{}' with diverging lineage ({}) renamed '{}'\n"
-                                "".format(child.name, self.lin_sep.join([t.name for t in twin.lineage()]), alias))
-                return twin
+            return self.hierarchy_key_chain(child, p1)
         else:
             self.conflicts.add((p1, p2))
             return child
@@ -712,6 +726,7 @@ class TaxonomicHierarchy:
         :return: String with the purified taxonomic lineage adhering to the NCBI hierarchy
         """
         reconstructed_lineage = []
+        self.validate_rank_prefixes()
         for rank in lineage.split(self.lin_sep):  # type: str
             try:
                 prefix, name = rank.split(self.taxon_sep)
@@ -808,17 +823,17 @@ class TaxonomicHierarchy:
                 raise ValueError
 
             if self.rank_prefix_map[prefix] not in self.accepted_ranks_depths:
-                logging.warning("Rank '{0}' is not in the list of accepted taxonomic ranks.\n"
-                                "Lineage will be truncated to '{1}'.\n".format(self.rank_prefix_map[prefix],
-                                                                               self.lin_sep.join(lineage_list[0:i])))
+                logging.debug("Rank '{0}' is not in the list of accepted taxonomic ranks.\n"
+                              "Lineage will be truncated to '{1}'.\n".format(self.rank_prefix_map[prefix],
+                                                                             self.lin_sep.join(lineage_list[0:i])))
                 lineage_list = lineage_list[0:i]
                 # TODO: Decide whether the corresponding Taxon instances be removed from the hierarchy
                 break
 
             if self.accepted_ranks_depths[self.rank_prefix_map[taxon[0]]] > i+1:
-                logging.warning("Order of taxonomic ranks in cleaned lineage '{0}' is unexpected.\n"
-                                "Lineage will be truncated to '{1}'.\n".format(self.lin_sep.join(lineage_list),
-                                                                               self.lin_sep.join(lineage_list[0:i])))
+                logging.debug("Order of taxonomic ranks in cleaned lineage '{0}' is unexpected.\n"
+                              "Lineage will be truncated to '{1}'.\n".format(self.lin_sep.join(lineage_list),
+                                                                             self.lin_sep.join(lineage_list[0:i])))
                 lineage_list = lineage_list[0:i]
                 # TODO: Decide whether the corresponding Taxon instances be removed from the hierarchy
                 break
