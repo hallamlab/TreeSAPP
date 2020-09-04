@@ -32,7 +32,7 @@ class Taxon:
         lineage.append(self)
         return lineage
 
-    def merge(self, taxon) -> None:
+    def absorb(self, taxon) -> None:
         """
         Merge the values from one Taxon instance into the current Taxon instance.
         Coverages are summed. Other attributes may be merged here in the future.
@@ -42,6 +42,56 @@ class Taxon:
         """
         self.coverage += taxon.coverage
         return
+
+    def tax_dist(self, taxon) -> int:
+        if self.name == taxon.name:
+            return 0
+        if not self.parent and not taxon.parent:
+            return 1
+        if taxon.name not in [t.name for t in self.lineage()]:
+            return taxon.tax_dist(self)
+        return self.parent.tax_dist(taxon) + 1
+
+    def valid(self, tax_hierarchy_map: dict) -> bool:
+        if self.name == "unclassified":
+            return False
+        if self.prefix_taxon() not in tax_hierarchy_map:
+            logging.warning("Unable to find {} in hierarchy map.\n".format(self.prefix_taxon()))
+            return False
+        return True
+
+    @staticmethod
+    def lca(left_taxon, right_taxon):
+        l1 = left_taxon.lineage()
+        l2 = right_taxon.lineage()
+
+        while len(l1) > len(l2):
+            l1.pop()
+        while len(l2) > len(l1):
+            l2.pop()
+
+        while l1 and l2:
+            t1 = l1.pop()
+            t2 = l2.pop()
+            if t1 == t2:
+                return t1
+        return
+
+    @staticmethod
+    def lineage_slice(start_taxon, stop_taxon) -> list:
+        """
+        Does not include the stop_taxon, includes the start_taxon.
+
+        :param start_taxon: A Taxon instance that is more resolved (further from root)
+        :param stop_taxon: A Taxon instance whose taxon is closer to the root
+        :return: A list of all Taxon instances between the start_taxon and stop_taxon, start inclusive
+        """
+        lineage = start_taxon.lineage()
+        while lineage:
+            taxon = lineage.pop(0)
+            if taxon == stop_taxon:
+                break
+        return lineage
 
 
 class TaxonomicHierarchy:
@@ -167,8 +217,9 @@ class TaxonomicHierarchy:
         while self.conflicts:
             node_one, node_two = self.conflicts.pop()  # type: (Taxon, Taxon)
 
-            if "unclassified" in [node_one.name, node_two.name]:
+            if not node_one.valid(self.hierarchy) or not node_two.valid(self.hierarchy):
                 continue
+
             if node_one.rank == self.no_rank:
                 obsolete = node_one
                 rep = node_two
@@ -184,10 +235,11 @@ class TaxonomicHierarchy:
                     rep = node_two
                     obsolete = node_one
                 # TODO: Find which Taxon has the path traversing the most valid nodes and/or shortest path?
-            rep.merge(obsolete)
+            rep.absorb(obsolete)
             self.redirect_hierarchy_paths(rep=rep, old=obsolete)
             replaced_nodes[self.hierarchy.pop(obsolete.prefix_taxon())] = rep
-            conflict_resolution_summary += "\t'{}' -> '{}'\n".format(obsolete.name, rep.name)
+            conflict_resolution_summary += "\t'{}' ({})-> '{}' ({})\n".format(obsolete.name, obsolete.rank,
+                                                                              rep.name, rep.rank)
 
         logging.warning(conflict_resolution_summary)
         return replaced_nodes
@@ -235,6 +287,59 @@ class TaxonomicHierarchy:
             self.build_multifurcating_trie(key_prefix=self.trie_key_prefix, value_prefix=self.trie_value_prefix)
         return
 
+    def evaluate_hierarchy_clash(self, child: Taxon, p1: Taxon, p2: Taxon) -> Taxon:
+        """
+        Determines whether parents of a taxon being added to self.hierarchy are the same (no clash) or unique (clash).
+        If they are the same, there is nothing to do - this is the ideal situation!
+        Otherwise, there may be a conflict in the taxonomic lineages of multiple taxa. For example:
+
+        1. "d__Bacteria; p__Proteobacteria; n__environmental samples"
+        2. "d__Bacteria; p__Firmicutes; c__Fake; n__environmental samples"
+
+        Clashes are common when either the parent or the taxon (child) has no rank,
+        and can show up in a taxonomic lineage at multiple different ranks.
+
+        Prevents a hash clash by renaming the child uniquely by appending an incrementing number.
+
+        :param child: The Taxon instance which has both p1 and p2 as potential parents
+        :param p1: One parent of child, specifically the new one encountered (adoptive or in-law?)
+        :param p2: A second parent of child, specifically the original one (direct descendent?)
+        :return: A taxon instance representing the child with a unique, correct parent
+        """
+        if not p1 or p1 == p2:
+            return child
+        # Ensure they are both not valid ranks, or the same rank
+        parent_lca = Taxon.lca(p1, p2)
+        p1_ranks = {t.rank for t in Taxon.lineage_slice(p1, parent_lca)}
+        p2_ranks = {t.rank for t in Taxon.lineage_slice(p2, parent_lca)}
+        # If all of the ranks between a parent and the lca of the parents, add it to conflicts
+        if not p1_ranks.difference({self.no_rank_name}) or not p2_ranks.difference({self.no_rank_name}):
+            self.conflicts.add((p1, p2))
+            return child
+        elif max(p1.tax_dist(parent_lca), p2.tax_dist(parent_lca)) > 1:
+            # These are both taxa with a valid rank - the job gets a bit harder now. Time to prevent a clash!
+            i = 1
+            alias = "{}{}{}_{}".format(child.prefix, self.taxon_sep, child.name, i)
+            # Has this new taxon already been added?
+            while alias in self.hierarchy:
+                # This taxon's alias has been added before
+                if self.hierarchy[alias].parent == p1:
+                    return self.hierarchy[alias]
+                i += 1
+                alias = "{}{}{}_{}".format(child.prefix, self.taxon_sep, child.name, i)
+            # This is a taxon representing a new conflict. It's alias must be added to the hierarchy
+            if alias not in self.hierarchy:
+                twin = Taxon(alias.split(self.taxon_sep)[-1], child.rank)
+                twin.parent = p1
+                twin.prefix = child.prefix
+                self.hierarchy[twin.prefix_taxon()] = twin
+                logging.warning("Taxon '{}' with diverging lineage ({}) renamed '{}'\n"
+                                "".format(child.name, self.lin_sep.join([t.name for t in twin.lineage()]), alias))
+                return twin
+        else:
+            self.conflicts.add((p1, p2))
+            return child
+
     def digest_taxon(self, taxon: str, rank: str, rank_prefix: str, previous: Taxon) -> Taxon:
         """
         Digest taxon adds a new taxon to the TaxonomicHierarchy.hierarchy dictionary if it isn't already in the keys,
@@ -256,9 +361,8 @@ class TaxonomicHierarchy:
 
         try:
             ti = self.hierarchy[prefix_name]  # type: Taxon
+            ti = self.evaluate_hierarchy_clash(ti, previous, ti.parent)
             ti.coverage += 1
-            if previous and previous != ti.parent:
-                self.conflicts.add((previous, ti.parent))
         except KeyError:
             ti = Taxon(taxon, rank)
             ti.parent = previous
@@ -608,20 +712,20 @@ class TaxonomicHierarchy:
         :return: String with the purified taxonomic lineage adhering to the NCBI hierarchy
         """
         reconstructed_lineage = []
-        for rank in lineage.split(self.lin_sep):
+        for rank in lineage.split(self.lin_sep):  # type: str
             try:
-                _, name = rank.split(self.taxon_sep)
+                prefix, name = rank.split(self.taxon_sep)
             except ValueError:
                 rank = re.sub(r'(?<!^[a-z])' + re.escape(self.taxon_sep), '_', rank)
                 try:
-                    _, name = rank.split(self.taxon_sep)
+                    prefix, name = rank.split(self.taxon_sep)
                 except ValueError:
                     self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for clean_lineage_string().\n"
                                                              "None was provided for taxon '{}' in lineage {}\n"
                                                              "".format(rank, lineage))
                     raise ValueError()
 
-            if not self.no_rank.match(rank):
+            if not self.no_rank.match(rank) and self.rank_prefix_map[prefix] in self.accepted_ranks_depths:
                 if with_prefix is False:
                     rank = self.canonical_prefix.sub('', rank)
                 if name:
@@ -667,10 +771,17 @@ class TaxonomicHierarchy:
                     organism = child_lineage.split(self.lin_sep)[-1]
 
         lineage_list = lineage.split(self.lin_sep)
+        rank_resolution = self.resolved_to(lineage)
+        try:
+            rank_depth = self.accepted_ranks_depths[rank_resolution]
+        except KeyError:
+            logging.error("'{}' not in list of accepted ranks ({}).\n"
+                          "".format(rank_resolution, ", ".join(self.accepted_ranks_depths.keys())))
+            raise KeyError
         if self.proper_species_re.match(lineage_list[-1]):
             if verbosity:
                 logging.debug("check_lineage(): Perfect lineage.\n")
-        elif len(lineage_list) == 6 and self.accepted_ranks_depths[self.resolved_to(lineage)] == 6 and self.proper_species_re.match(organism):
+        elif len(lineage_list) == 6 and rank_depth == 6 and self.proper_species_re.match(organism):
             if not self.canonical_prefix.search(organism):
                 if self.rank_prefix_map['s'] == "species":
                     organism = "s" + self.taxon_sep + organism
@@ -694,7 +805,7 @@ class TaxonomicHierarchy:
             except ValueError:
                 self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for check_lineage(),"
                                                          " taxon: '{}'.\n".format(taxon))
-                sys.exit()
+                raise ValueError
 
             if self.rank_prefix_map[prefix] not in self.accepted_ranks_depths:
                 logging.warning("Rank '{0}' is not in the list of accepted taxonomic ranks.\n"

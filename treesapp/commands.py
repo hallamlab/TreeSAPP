@@ -579,9 +579,7 @@ def create(sys_args):
         ts_create.ref_pkg.num_seqs = ref_seqs.n_seqs()
         n_rows, n_cols = fasta.multiple_alignment_dimensions(mfa_file=ts_create.ref_pkg.f__msa,
                                                              seq_dict=ref_seqs.fasta_dict)
-        logging.debug("Reference alignment contains " +
-                      str(n_rows) + " sequences with " +
-                      str(n_cols) + " character positions.\n")
+        logging.debug("Reference alignment contains {} sequences with {} character positions.\n".format(n_rows, n_cols))
 
         ##
         # Build the HMM profile from the aligned reference FASTA file

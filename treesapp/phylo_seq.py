@@ -472,7 +472,7 @@ class TreeLeafReference:
     """
     Objects for each leaf in a tree
     """
-    def __init__(self, number, description):
+    def __init__(self, number: str, description: str):
         self.number = number
         self.description = description
         self.lineage = ""

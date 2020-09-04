@@ -1,6 +1,8 @@
 import pytest
 import unittest
 
+from treesapp.phylo_seq import TreeLeafReference
+
 _dup_lineage = "cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria;" \
                " Actinomycetales; Actinomycetaceae; Actinomyces; Actinomyces nasicola"
 _dup_lineage_ex = [{'TaxId': '131567', 'ScientificName': 'cellular organisms', 'Rank': 'no rank'},
@@ -28,6 +30,12 @@ _diff_lineage_ex = [{'TaxId': '131567', 'ScientificName': 'cellular organisms', 
                     {'TaxId': '85004', 'ScientificName': 'Bifidobacteriales', 'Rank': 'order'},
                     {'TaxId': '31953', 'ScientificName': 'Bifidobacteriaceae', 'Rank': 'family'},
                     {'TaxId': '1678', 'ScientificName': 'Bifidobacterium', 'Rank': 'genus'}]
+_conflict_node_one = TreeLeafReference('1', 'clashy')
+_conflict_node_one.lineage = "d__Bacteria; p__Proteobacteria; n__environmental samples"
+_conflict_node_two = TreeLeafReference('2', 'clashier')
+_conflict_node_two.lineage = "d__Bacteria; p__Firmicutes; c__Fake; n__environmental samples"
+_conflict_node_three = TreeLeafReference('3', 'clashiest')
+_conflict_node_three.lineage = "d__Bacteria; p__Firmicutes; c__Fake; n__environmental samples"
 
 
 @pytest.fixture(scope="class")
@@ -57,6 +65,17 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         with pytest.raises(SystemExit):
             self.db.feed("Archaea; Crenarchaeota", [{'ScientificName': 'Archaea', 'Rank': 'superkingdom'},
                                                     {'ScientificName': 'Euryarchaeota', 'Rank': 'phylum'}])
+        return
+
+    def test_feed_leaf_nodes(self):
+        from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+        test_th = TaxonomicHierarchy()
+        test_th.feed_leaf_nodes([_conflict_node_one, _conflict_node_two, _conflict_node_three])
+        post_feed = test_th.lineages_fed
+        self.assertEqual(3, post_feed)
+        self.assertTrue("n__environmental samples_1" in test_th.hierarchy)
+        self.assertTrue("n__environmental samples_2" not in test_th.hierarchy)
+        self.assertEqual(0, len(test_th.conflicts))
         return
 
     def test_emit(self):
@@ -163,9 +182,74 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.assertEqual("Bacteria; Mock", self.db.strip_rank_prefix("d__Bacteria; n__Mock"))
 
     def test_resolve_conflicts(self):
+
         return
 
     def test_rm_absent_taxa_from_lineage(self):
+        return
+
+    def test_evaluate_hierarchy_clash(self):
+
+        return
+
+
+class TaxonTester(unittest.TestCase):
+    def setUp(self) -> None:
+        from treesapp.taxonomic_hierarchy import Taxon
+        self.lin_sep = "; "
+        self.taxon_sep = "__"
+
+        # Lineages used in tests:
+        # "d__Archaea; p__Crenarchaeota; c__Thermoprotei; n__environmental samples"
+        # "d__Archaea; p__Euryarchaeota; c__Methanomicrobia; o__Methanomicrobiales; n__environmental samples"
+
+        # Instantiate some Taxon class objects
+        self.t_arc = Taxon("Archaea", "domain")
+        self.t_cren = Taxon("Crenarchaeota", "phylum")
+        self.t_therm = Taxon("Thermoprotei", "class")
+
+        self.t_eury = Taxon("Euryarchaeota", "phylum")
+        self.t_methia = Taxon("Methanomicrobia", "class")
+        self.t_methales = Taxon("Methanomicrobiales", "order")
+        self.t_envsam = Taxon("environmental samples", "no rank")
+
+        self.t_bac = Taxon("Bacteria", "domain")
+        self.t_bac.parent = None
+
+        # Populate their prefix and parent attributes
+        previous = None
+        for taxon in [self.t_arc, self.t_cren, self.t_therm]:  # type: Taxon
+            taxon.prefix = taxon.rank[0]
+            taxon.parent = previous
+            previous = taxon
+        previous = None
+        for taxon in [self.t_arc, self.t_eury, self.t_methia, self.t_methales, self.t_envsam]:  # type: Taxon
+            taxon.prefix = taxon.rank[0]
+            taxon.parent = previous
+            previous = taxon
+
+        # Off to the races
+        return
+
+    def test_lca(self):
+        from treesapp.taxonomic_hierarchy import Taxon
+        self.assertEqual("Archaea", Taxon.lca(self.t_eury, self.t_cren).name)
+        self.assertEqual("Archaea", Taxon.lca(self.t_envsam, self.t_therm).name)
+        self.assertEqual("Methanomicrobia", Taxon.lca(self.t_methia, self.t_methales).name)
+        self.assertEqual(None, Taxon.lca(self.t_bac, self.t_arc))
+        return
+
+    def test_tax_dist(self):
+        self.assertEqual(0, self.t_arc.tax_dist(self.t_arc))
+        self.assertEqual(0, self.t_cren.tax_dist(self.t_cren))
+        self.assertEqual(1, self.t_bac.tax_dist(self.t_arc))
+        self.assertEqual(2, self.t_arc.tax_dist(self.t_methia))
+        self.assertEqual(2, self.t_methia.tax_dist(self.t_arc))
+        return
+
+    def test_lineage_slice(self):
+        from treesapp.taxonomic_hierarchy import Taxon
+        self.assertEqual(2, len(Taxon.lineage_slice(self.t_therm, self.t_arc)))
         return
 
 
