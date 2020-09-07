@@ -36,6 +36,8 @@ _conflict_node_two = TreeLeafReference('2', 'clashier')
 _conflict_node_two.lineage = "d__Bacteria; p__Firmicutes; c__Fake; n__environmental samples"
 _conflict_node_three = TreeLeafReference('3', 'clashiest')
 _conflict_node_three.lineage = "d__Bacteria; p__Firmicutes; c__Fake; n__environmental samples"
+_conflict_node_four = TreeLeafReference('4', 'redirect')
+_conflict_node_four.lineage = "d__Bacteria; p__Firmicutes; n__RemoveMe; c__Fake"
 
 
 @pytest.fixture(scope="class")
@@ -160,7 +162,7 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.assertEqual("c__Actinobacteria", self.db.trie["Bacteria; Actinobacteria; Actinobacteria"])
 
     def test_rm_bad_taxa(self):
-        self.assertEqual(["Archaea"], self.db.rm_bad_taxa(["cellular organisms", "Archaea"]))
+        self.assertEqual(["Archaea"], self.db.rm_bad_taxa_from_lineage(["cellular organisms", "Archaea"]))
 
     def test_get_prefixed_lineage_from_bare(self):
         self.db.clean_trie = True
@@ -182,15 +184,23 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.assertEqual("Bacteria; Mock", self.db.strip_rank_prefix("d__Bacteria; n__Mock"))
 
     def test_resolve_conflicts(self):
-
+        from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+        test_th = TaxonomicHierarchy()
+        test_leaf_nodes = [_conflict_node_two, _conflict_node_three, _conflict_node_four]
+        test_th.feed_leaf_nodes(test_leaf_nodes)
+        self.assertEqual(len(test_leaf_nodes), test_th.lineages_fed)
+        test_th.resolve_conflicts()
+        self.assertEqual(4, len(test_th.hierarchy))
+        coverage_values = [test_th.hierarchy[t].coverage for t in test_th.hierarchy]
+        self.assertTrue(len(test_leaf_nodes) == max(coverage_values))
         return
 
-    def test_rm_absent_taxa_from_lineage(self):
-        return
-
-    def test_evaluate_hierarchy_clash(self):
-
-        return
+    # def test_rm_absent_taxa_from_lineage(self):
+    #     return
+    #
+    # def test_evaluate_hierarchy_clash(self):
+    #     from taxonomic_hierarchy import TaxonomicHierarchy
+    #     return
 
 
 class TaxonTester(unittest.TestCase):

@@ -589,7 +589,10 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
             tax_lineage += "; " + tax_organism
             lineage_ex += [{"ScientificName": tax_organism, "Rank": tax_rank}]
 
-        taxon = t_hierarchy.feed(tax_lineage, lineage_ex)
+        taxon = t_hierarchy.feed(tax_lineage, lineage_ex)  # type: Taxon
+        # We don't want to begin accumulating coverage at this stage
+        for t in taxon.lineage():
+            t.coverage = 0
         lineage_anno = t_hierarchy.emit(taxon.prefix_taxon(), True)
 
         try:

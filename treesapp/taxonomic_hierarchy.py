@@ -56,7 +56,7 @@ class Taxon:
         if self.name == "unclassified":
             return False
         if self.prefix_taxon() not in tax_hierarchy_map:
-            logging.warning("Unable to find {} in hierarchy map.\n".format(self.prefix_taxon()))
+            logging.debug("Unable to find {} in hierarchy map.\n".format(self.prefix_taxon()))
             return False
         return True
 
@@ -106,7 +106,7 @@ class TaxonomicHierarchy:
         self.bad_taxa = ["cellular organisms", "unclassified"]  # Optional list that can be used to remove some taxa
         self.canonical_prefix = re.compile(r"^[nrdpcofgs]" + re.escape(self.taxon_sep))
         self.proper_species_re = re.compile("^(s__)?[A-Z][a-z]+ [a-z]+$")
-        self.no_rank = re.compile(r"^" + re.escape(self.no_rank_name[0] + self.taxon_sep) + r".*")
+        self.no_rank_re = re.compile(r"^" + re.escape(self.no_rank_name[0] + self.taxon_sep) + r".*")
         self.conflicts = set()  # A tuple to store Taxon instances that create conflicting paths in the hierarchy
         # Main data structures
         self.trie = StringTrie(separator=sep)  # Trie used for more efficient searches of taxa and whole lineages
@@ -198,10 +198,33 @@ class TaxonomicHierarchy:
         except IndexError:
             self.so_long_and_thanks_for_all_the_fish("Empty taxon in lineage '{}'\n".format(lineage))
 
+    def rm_taxon_from_hierarchy(self, taxon: Taxon, decrement=1) -> None:
+        # Decrease Taxon.coverage for every Taxon instance in the lineage
+        taxon.coverage -= decrement
+        # Remove a Taxon from self.hierarchy dictionary if its coverage equals zero
+        if taxon.coverage <= 0:
+            try:
+                self.hierarchy.pop(taxon.prefix_taxon())
+            except KeyError:
+                pass
+                # logging.error("Unable to pop taxon '{}' from taxonomic hierarchy.\n".format(taxon.prefix_taxon()))
+                # raise KeyError
+        return
+
     def redirect_hierarchy_paths(self, rep: Taxon, old: Taxon):
+        # Do not add values to rep since old is likely in its lineage so double counting
+        if rep not in old.lineage():  # Just to make sure though...
+            rep.absorb(old)
         for taxon in self.hierarchy.values():  # type: Taxon
             if taxon.parent == old:
-                taxon.parent = rep
+                if taxon == rep:
+                    pass
+                else:
+                    taxon.parent = rep
+        # Remove all taxa between the old taxon and the LCA(rep, old)
+        lca = Taxon.lca(old, rep)
+        for taxon in Taxon.lineage_slice(old, lca):
+            self.rm_taxon_from_hierarchy(taxon)
         return
 
     def resolve_conflicts(self) -> dict:
@@ -220,13 +243,7 @@ class TaxonomicHierarchy:
             if not node_one.valid(self.hierarchy) or not node_two.valid(self.hierarchy):
                 continue
 
-            if node_one.rank == self.no_rank:
-                obsolete = node_one
-                rep = node_two
-            elif node_two.rank == self.no_rank:
-                obsolete = node_two
-                rep = node_one
-            else:
+            if node_one.rank == self.no_rank_name and node_two.rank == self.no_rank_name:
                 # Which one has higher coverage?
                 if node_one.coverage > node_two.coverage:
                     rep = node_one
@@ -234,9 +251,18 @@ class TaxonomicHierarchy:
                 else:
                     rep = node_two
                     obsolete = node_one
-            rep.absorb(obsolete)
-            self.redirect_hierarchy_paths(rep=rep, old=obsolete)
-            replaced_nodes[self.hierarchy.pop(obsolete.prefix_taxon())] = rep
+            elif node_one.rank == self.no_rank_name:
+                obsolete = node_one
+                rep = node_two
+            elif node_two.rank == self.no_rank_name:
+                obsolete = node_two
+                rep = node_one
+            else:
+                logging.debug("Conflicting nodes both had valid ranks and were therefore skipped. "
+                              "These should not have been flagged as conflicting nodes.\n")
+                continue
+            self.redirect_hierarchy_paths(rep=rep, old=obsolete)  # obsolete Taxon is removed from self.hierarchy
+            replaced_nodes[obsolete] = rep
             conflict_resolution_summary += "\t'{}' ({}) -> '{}' ({})\n".format(obsolete.name, obsolete.rank,
                                                                                rep.name, rep.rank)
 
@@ -332,6 +358,7 @@ class TaxonomicHierarchy:
         :return: A taxon instance representing the child with a unique, correct parent
         """
         if not p1 or p1 == p2:
+            child.coverage += 1
             return child
         # Ensure they are both not valid ranks, or the same rank
         parent_lca = Taxon.lca(p1, p2)
@@ -345,12 +372,14 @@ class TaxonomicHierarchy:
         # If all of the ranks are 'no rank' between a parent and the lca of the parents, add it to conflicts
         if (p1_ranks and not p1_ranks.difference({self.no_rank_name})) or \
                 (p2_ranks and not p2_ranks.difference({self.no_rank_name})):
+            child.coverage += 1
             self.conflicts.add((p1, p2))
             return child
         elif max(p1_lca_dist, p2_lca_dist) > 1:  # The hierarchy path between the parent and LCA is too long to pop
             # These are both taxa with a valid rank - the job gets a bit harder now. Time to prevent a clash!
             return self.hierarchy_key_chain(child, p1)
         else:
+            child.coverage += 1
             self.conflicts.add((p1, p2))
             return child
 
@@ -376,7 +405,6 @@ class TaxonomicHierarchy:
         try:
             ti = self.hierarchy[prefix_name]  # type: Taxon
             ti = self.evaluate_hierarchy_clash(ti, previous, ti.parent)
-            ti.coverage += 1
         except KeyError:
             ti = Taxon(taxon, rank)
             ti.parent = previous
@@ -624,7 +652,7 @@ class TaxonomicHierarchy:
         # Clean up the taxonomic lineage query by removing bad taxa (e.g. 'cellular organisms').
         lineage_split = bare_lineage.split(self.lin_sep)
         if self.clean_trie:
-            lineage_split = self.rm_bad_taxa(lineage_split)  # Not guided by rank prefix
+            lineage_split = self.rm_bad_taxa_from_lineage(lineage_split)  # Not guided by rank prefix
             lineage_split = self.rm_absent_taxa_from_lineage(lineage_split)  # Not guided by rank prefix
 
         ref_lineage = ""
@@ -671,7 +699,7 @@ class TaxonomicHierarchy:
                     taxa.add(taxon.name)
         return taxa
 
-    def rm_bad_taxa(self, split_lineage: list) -> list:
+    def rm_bad_taxa_from_lineage(self, split_lineage: list) -> list:
         """
         For removing bad taxa from a lineage. Useful when the lineage lacks rank-prefixes
 
@@ -740,7 +768,7 @@ class TaxonomicHierarchy:
                                                              "".format(rank, lineage))
                     raise ValueError()
 
-            if not self.no_rank.match(rank) and self.rank_prefix_map[prefix] in self.accepted_ranks_depths:
+            if not self.no_rank_re.match(rank) and self.rank_prefix_map[prefix] in self.accepted_ranks_depths:
                 if with_prefix is False:
                     rank = self.canonical_prefix.sub('', rank)
                 if name:
@@ -826,16 +854,20 @@ class TaxonomicHierarchy:
                 logging.debug("Rank '{0}' is not in the list of accepted taxonomic ranks.\n"
                               "Lineage will be truncated to '{1}'.\n".format(self.rank_prefix_map[prefix],
                                                                              self.lin_sep.join(lineage_list[0:i])))
+                for prefix_taxon_name in lineage_list[i:]:
+                    if self.get_taxon(prefix_taxon=prefix_taxon_name):
+                        self.rm_taxon_from_hierarchy(self.get_taxon(prefix_taxon=prefix_taxon_name))  # type: Taxon
                 lineage_list = lineage_list[0:i]
-                # TODO: Decide whether the corresponding Taxon instances be removed from the hierarchy
                 break
 
             if self.accepted_ranks_depths[self.rank_prefix_map[taxon[0]]] > i+1:
                 logging.debug("Order of taxonomic ranks in cleaned lineage '{0}' is unexpected.\n"
                               "Lineage will be truncated to '{1}'.\n".format(self.lin_sep.join(lineage_list),
                                                                              self.lin_sep.join(lineage_list[0:i])))
+                for prefix_taxon_name in lineage_list[i:]:
+                    if self.get_taxon(prefix_taxon=prefix_taxon_name):
+                        self.rm_taxon_from_hierarchy(self.get_taxon(prefix_taxon=prefix_taxon_name))  # type: Taxon
                 lineage_list = lineage_list[0:i]
-                # TODO: Decide whether the corresponding Taxon instances be removed from the hierarchy
                 break
             i += 1
         if len(lineage_list) == 0:
@@ -843,7 +875,7 @@ class TaxonomicHierarchy:
 
         return self.lin_sep.join(lineage_list)
 
-    def remove_leaf_nodes(self, taxa) -> None:
+    def remove_leaf_nodes(self, taxa: list) -> None:
         """
         Decrements the coverage attribute for each taxon and all parent taxa (deeper ranks).
         If coverage reaches zero, for a taxon its key is popped from the hierarchy dictionary
@@ -855,17 +887,12 @@ class TaxonomicHierarchy:
         """
         if type(taxa) is str:
             taxa = [taxa]
-        for prefix_taxon_name in taxa:
+        for prefix_taxon_name in sorted(taxa):
             leaf_taxon = self.get_taxon(prefix_taxon=prefix_taxon_name)  # type: Taxon
             if leaf_taxon:
                 for taxon in leaf_taxon.lineage():
-                    # Decrease Taxon.coverage for every Taxon instance in the lineage
-                    taxon.coverage -= 1
-                    # Remove a Taxon from self.hierarchy dictionary if its coverage equals zero
-                    if taxon.coverage == 0:
-                        self.hierarchy.pop(taxon.prefix_taxon())
-
-                # Update self.lin_fed
+                    self.rm_taxon_from_hierarchy(taxon)
+                # Update self.lineages_fed
                 self.lineages_fed -= 1
 
         # Update self.trie if the number of lineages fed is not equal to number of lineages in the trie
@@ -879,21 +906,25 @@ class TaxonomicHierarchy:
         :param entrez_records: A list of EntrezRecord instances
         :return: None
         """
-        taxa = []
+        taxa_names = []
         for e_record in entrez_records:  # type: entrez_utils.EntrezRecord
+            # Find the prefixed names of the organisms to be removed
             if e_record.organism and not self.canonical_prefix.search(e_record.organism):
                 try:
                     taxon = e_record.taxon_rank[0] + self.taxon_sep + e_record.organism
+                    if taxon not in self.hierarchy:
+                        taxon = e_record.lineage.split(self.lin_sep)[-1]
                 except IndexError:
                     taxon = e_record.lineage.split(self.lin_sep)[-1]
-            elif e_record.organism and self.canonical_prefix.search(e_record.organism):
+            elif e_record.organism in self.hierarchy:
                 taxon = e_record.organism
             else:
                 continue
-            taxa.append(taxon)
+            taxa_names.append(taxon)
 
-        logging.debug("Removing {} taxa ({} unique) from taxonomic hierarchy.\n".format(len(taxa), len(set(taxa))))
-        self.remove_leaf_nodes(taxa)
+        logging.debug("Removing {} taxa ({} unique) from taxonomic hierarchy.\n".format(len(taxa_names),
+                                                                                        len(set(taxa_names))))
+        self.remove_leaf_nodes(taxa_names)
         return
 
     def summarize_taxa(self):

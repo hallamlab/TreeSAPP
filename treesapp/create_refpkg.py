@@ -314,6 +314,11 @@ def screen_filter_taxa(fasta_records: dict, screen_strs="", filter_strs="", guar
     else:
         filter_terms = []
 
+    if len(set(screen_terms).intersection(filter_terms)) > 0:
+        logging.error("Taxon name(s) {} present in both search and filter terms. This is confusing, please fix.\n"
+                      "".format(', '.join(set(screen_terms).intersection(filter_terms))))
+        sys.exit(13)
+
     num_filtered = 0
     num_screened = 0
     saved = set()
