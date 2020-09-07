@@ -324,7 +324,8 @@ def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
                                help="The broad classification of marker gene type, either "
                                     "functional or taxonomic. [ DEFAULT = functional ]")
     parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "lineages", "clean", "cluster", "build", "train", "cc"],
+                               choices=["continue", "search", "lineages", "clean", "cluster", "build",
+                                        "evaluate", "support", "train", "update"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
 
     parser.miscellany.add_argument('--pc', action='store_true', default=False,

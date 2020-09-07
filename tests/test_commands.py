@@ -57,7 +57,7 @@ class TreesappTester(unittest.TestCase):
                                 "--similarity", "0.95",
                                 "--bootstraps", str(0),
                                 "--molecule", "prot",
-                                "--screen", "Bacteria,Archaea", "--filter", "Archaea",
+                                "--screen", "Bacteria", "--filter", "Archaea",
                                 "--min_taxonomic_rank", 'p',
                                 "--output", "./TreeSAPP_create",
                                 "--num_proc", str(2),
@@ -85,6 +85,7 @@ class TreesappTester(unittest.TestCase):
                                 "--screen", "Bacteria,Archaea",
                                 "--num_proc", str(2),
                                 "--min_taxonomic_rank", 'p',
+                                "--stage", "support",
                                 "--trim_align", "--outdet_align", "--cluster", "--headless",
                                 "--overwrite", "--delete"]
         create(create_commands_list)
@@ -109,6 +110,7 @@ class TreesappTester(unittest.TestCase):
                     "--screen", "Archaea", "--filter", "Bacteria,Eukaryota",
                     "--min_taxonomic_rank", 'g',
                     "--num_proc", str(2),
+                    "--stage", "evaluate",
                     "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
         create(cmd_list)
         test_refpkg = ReferencePackage()
@@ -289,12 +291,17 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(True, True)
         return
 
-    # def test_tmp(self):
-    #     from treesapp.commands import create
-    #     base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
-    #     cmd = "".format(base_dir)
-    #     create(cmd.split())
-    #     return
+    def test_tmp(self):
+        from treesapp.commands import create
+        base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
+        cmd = "-n 4 -m prot --headless --overwrite --trim_align --delete --fast --cluster --screen Bacteria,Archaea --min_taxonomic_rank g" \
+              " -i {0}/Translation/PF00900/PF00900_ncbi_ML60_uclust99.faa " \
+              "-c PF00900 -p 0.95 " \
+              "-o {0}/Translation/PF00900/seed_refpkg/ " \
+              "--accession2taxid /mnt/sdb/Hallam_projects/Hallam_Databases/raw/Taxonomy/prot.accession2taxid".format(base_dir)
+              # "--accession2lin {0}/Translation/PF00900/PF00900_accession2lineage_map.tsv".format(base_dir)
+        create(cmd.split())
+        return
 
 
 if __name__ == '__main__':
