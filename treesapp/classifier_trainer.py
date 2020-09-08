@@ -84,10 +84,10 @@ def generate_training_data(ts_trainer: PhyTrainer, refpkg_dict: dict, accession_
     :return: A dictionary returned by assignments_to_treesaps
     """
     classification_lines = []
-    file_name, suffix1 = os.path.splitext(os.path.basename(ts_trainer.input_sequences))
+    file_name, _ = os.path.splitext(os.path.basename(ts_trainer.input_sequences))
     ts_trainer.sample_prefix = file_name
     # Run a vanilla treesapp assign on the inputs to get distance values without clade exclusion
-    for name, refpkg in refpkg_dict.items():  # type: str, ReferencePackage
+    for _, refpkg in refpkg_dict.items():  # type: str, ReferencePackage
         # Set up the output paths
         assign_prefix = os.path.join(ts_trainer.var_output_dir, refpkg.prefix + "_assign")
         clade_exclusion_prefix = os.path.join(ts_trainer.var_output_dir, refpkg.prefix + "_ce")

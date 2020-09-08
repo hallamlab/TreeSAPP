@@ -70,19 +70,19 @@ class TreeSAPPClassTester(unittest.TestCase):
         return
 
     def test_find_stage_dirs(self):
-        from treesapp.classy import TreeSAPP
-        ts_inst = self.db  # type: TreeSAPP
+        ts_inst = self.db
         self.assertEqual(0, ts_inst.find_stage_dirs())
         ts_inst.change_stage_status("orf-call", False)
         ts_inst.change_stage_status("clean", False)
         self.assertEqual(2, ts_inst.find_stage_dirs())
+        return
 
     def test_dedup_records(self):
         from treesapp.classy import dedup_records, get_header_info
         test_fasta_headers = get_header_info(self.test_fasta.header_registry)
         self.assertEqual(76, len(self.test_fasta.fasta_dict))
         deduped_records = dedup_records(self.test_fasta, test_fasta_headers)
-        self.assertEqual(75, len(deduped_records))
+        self.assertEqual(76, len(deduped_records))
         return
 
 

@@ -15,6 +15,16 @@ from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
 
 class EntrezRecord:
     def __init__(self, acc: str, ver: str):
+        """
+        Instantiation function for the EntrezRecord class.
+        This class is used for querying the Entrez database, typically to retrieve taxonomic lineage information for
+        a given sequence deposited in GenBank, or just to get the lineage from a NCBI taxid.
+
+        The remaining class attributes are populated while parsing records returned by various queries.
+
+        :param acc: The accession of the Entrez record
+        :param ver: The versioned accession of the Entrez record
+        """
         self.accession = acc
         self.versioned = ver
         self.short_id = ""  # A unique alphanumerical TreeSAPP ID

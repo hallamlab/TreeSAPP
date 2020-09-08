@@ -52,11 +52,7 @@ class MyTestCase(unittest.TestCase):
         for i_nodes in clusters.values():
             annot_i_nodes += i_nodes
         self.assertEqual(10, len(annot_i_nodes))
-        return
-
-    @pytest.mark.usefixtures("xmoa_refpkg_class")
-    def test_convert_outer_to_inner_nodes(self):
-        from utilities import convert_outer_to_inner_nodes
+        # With variable types representing nodes
         group_dict = {'EmoA': [('69', '69')],
                       'PxmA': [('57', '57')],
                       'AmoA_AOA': [('9', '9'), (0, 0), (10, 10), ('13', '13'), (14, 14)],
@@ -88,10 +84,9 @@ class MyTestCase(unittest.TestCase):
         cols_dict = read_colours_file(annotation_file=get_test_data("colours_file.txt"), refpkg_name="McrA")
         self.assertEqual(6, len(cols_dict))
 
-    def test_annotate_internal_nodes(self):
-        from annotate_extra import annotate_internal_nodes
-
-        return
+    # def test_annotate_internal_nodes(self):
+    #     from annotate_extra import annotate_internal_nodes
+    #     return
 
 
 if __name__ == '__main__':

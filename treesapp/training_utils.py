@@ -384,7 +384,7 @@ a numpy array from each query's data:
                 try:
                     leaf_children = len(internal_nodes[int(pquery.inode)])
                 except KeyError:
-                    logging.error("Unable to find internal node '%d' in the %s node-leaf map indicating a discrepancy "
+                    logging.error("Unable to find internal node '{}' in the {} node-leaf map indicating a discrepancy "
                                   "between reference package versions used by treesapp assign and those used here.\n"
                                   "Was the correct output directory provided?".format(pquery.inode, pquery.ref_name))
                     sys.exit(5)

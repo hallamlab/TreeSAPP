@@ -175,28 +175,12 @@ def available_cpu_count():
         pass
 
     try:
-        import os
         return os.cpu_count()
     except (ImportError, NotImplementedError):
         pass
 
-    # Python 2.6+
-    try:
-        import multiprocessing
-        return multiprocessing.cpu_count()
-    except (ImportError, NotImplementedError):
-        pass
-
-    # http://code.google.com/p/psutil/
-    try:
-        import psutil
-        return psutil.NUM_CPUS
-    except (ImportError, AttributeError):
-        pass
-
     # POSIX
     try:
-        import os
         res = int(os.sysconf('SC_NPROCESSORS_ONLN'))
 
         if res > 0:

@@ -234,7 +234,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
                     q_accession = genome_position_re.match(query).group(1)
                     database = "dna"
                 else:
-                    header_format_re, header_db, header_molecule = get_header_format(original_header, header_regex_dict)
+                    header_format_re, header_db, _ = get_header_format(original_header, header_regex_dict)
                     sequence_info = header_format_re.match(original_header)
                     q_accession = sequence_info_groups(sequence_info, header_db, original_header).accession
                 # print(q_accession)
@@ -298,7 +298,7 @@ def map_headers_to_lineage(assignments: dict, ref_sequences: dict) -> dict:
             lineage_assignments[refpkg_name][assigned_lineage] = list()
             for query in classified_headers:
                 mapped = False
-                for treesapp_id, ref_seq in ref_sequences.items():  # type: (int, EntrezRecord)
+                for _, ref_seq in ref_sequences.items():  # type: (int, EntrezRecord)
                     if ref_seq.accession == query:
                         lineage_assignments[refpkg_name][assigned_lineage].append(ref_seq.lineage)
                         mapped = True
@@ -496,7 +496,7 @@ def select_rep_seqs(deduplicated_assignments: dict, test_sequences: dict, target
     for lineage in sorted(filtered_assignments):
         for accession in filtered_assignments[lineage]:
             matched = False
-            for treesapp_id, ref_seq in test_sequences.items():  # type: (str, EntrezRecord)
+            for _, ref_seq in test_sequences.items():  # type: (str, EntrezRecord)
                 if ref_seq.accession == accession:
                     deduplicated_fasta_dict[accession] = ref_seq.sequence
                     matched = True

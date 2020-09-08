@@ -156,7 +156,7 @@ class HmmMatch:
 
         :param overlap_threshold: A float representing the maximum HMM profile length proportion the two alignments
          can overlap on the HMM profile to be considered discrete loci; they are considered duplicates if exceeded.
-        :return: Boolean, True indicates there are duplicate loci 
+        :return: Boolean, True indicates there are duplicate loci
         """
         if not self.next_domain:
             return False

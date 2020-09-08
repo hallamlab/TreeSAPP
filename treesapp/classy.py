@@ -27,6 +27,13 @@ import _tree_parser
 
 class ModuleFunction:
     def __init__(self, name: str, order: int, func=None):
+        """
+        Create a new instance of the ModuleFunction class
+
+        :param name: Name of the function's module (e.g. clean, lineages, assign, build)
+        :param order: The order in which the module is supposed to be ran
+        :param func: An optional function to call when this module is reached
+        """
         self.order = order
         self.name = name
         self.function = func

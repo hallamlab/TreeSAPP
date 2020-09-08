@@ -24,6 +24,10 @@ _COMPATIBLE_VERSION = "0.8.3"
 
 
 class ReferencePackage:
+    """
+    The ReferencePackage class is a collection of all attributes required by a TreeSAPP reference package as well as
+    the suite of functions for building, manipulating, and accessing different attributes.
+    """
     def __init__(self, refpkg_name=""):
         self.prefix = refpkg_name
         self.refpkg_code = "Z1111"  # AKA denominator
@@ -68,6 +72,11 @@ class ReferencePackage:
         self.taxa_trie = TaxonomicHierarchy()
 
     def __iter__(self):
+        """
+        Used for iterative through an instance's dictionary of attributes, returning both the key and value pairs
+
+        :return: A tuple of a attribute name (key) and its corresponding value
+        """
         for attr, value in self.__dict__.items():
             yield attr, value
 

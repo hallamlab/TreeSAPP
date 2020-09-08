@@ -9,6 +9,15 @@ from treesapp.phylo_seq import TreeLeafReference
 
 
 class Taxon:
+    """
+    The Taxon class represents an individual component from which the TaxonomicHierarchy is based on.
+    These instances essentially form a unidirectional linked-list data structure linking the "child" taxa to their
+    respective taxonomic "parents" deeper ranks (i.e. closer to the root).
+
+    The coverage attribute is necessarily modified when adding to the TaxonomicHierarchy to control which taxa are
+    present/absent (a Taxon is removed from TaxonomicHierarchy.hierarchy if coverage <= 0) and in cases where a child
+    has two different parents the Taxon with greater coverage is replaces the other and forms a single path.
+    """
     def __init__(self, name, rank):
         self.name = name
         self.rank = rank
@@ -95,6 +104,9 @@ class Taxon:
 
 
 class TaxonomicHierarchy:
+    """
+    Used for storing and querying the taxonomic hierarchy of a reference package.
+    """
     def __init__(self, sep="; "):
         # Private variables - should not be changed after instantiation
         self.rank_name_map = {'superkingdom': 'domain', "strain": "type_strain"}

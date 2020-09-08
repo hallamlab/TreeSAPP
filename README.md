@@ -79,7 +79,7 @@ This was brought to you by the team:
 
 If you're feeling extra citation-happy, please consider citing the following works as well:
 
-* Eddy, S. R. (1998). Profile hidden Markov models. Bioinformatics (Oxford, England), 14(9), 755–763.
-* Criscuolo, A., & Gribaldo, S. (2010). BMGE (Block Mapping and Gathering with Entropy): A new software for selection of phylogenetic informative regions from multiple sequence alignments. BMC Evolutionary Biology, 10(1).
-* Kozlov, A. M., Darriba, D., Flouri, T., Morel, B., & Stamatakis, A. (2019). RAxML-NG: a fast, scalable and user-friendly tool for maximum likelihood phylogenetic inference. Bioinformatics, 35(21), 4453–4455.
-* Barbera, P., Kozlov, A. M., Czech, L., Morel, B., & Stamatakis, A. (2018). EPA-ng: Massively Parallel Evolutionary Placement of Genetic Sequences. Systematic Biology, 0(0), 291658.
+  - Eddy, S. R. (1998). Profile hidden Markov models. Bioinformatics (Oxford, England), 14(9), 755–763.
+  - Criscuolo, A., & Gribaldo, S. (2010). BMGE (Block Mapping and Gathering with Entropy): A new software for selection of phylogenetic informative regions from multiple sequence alignments. BMC Evolutionary Biology, 10(1).
+  - Kozlov, A. M., Darriba, D., Flouri, T., Morel, B., & Stamatakis, A. (2019). RAxML-NG: a fast, scalable and user-friendly tool for maximum likelihood phylogenetic inference. Bioinformatics, 35(21), 4453–4455.
+  - Barbera, P., Kozlov, A. M., Czech, L., Morel, B., & Stamatakis, A. (2018). EPA-ng: Massively Parallel Evolutionary Placement of Genetic Sequences. Systematic Biology, 0(0), 291658.

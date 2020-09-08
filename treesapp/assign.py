@@ -6,7 +6,6 @@ __license__ = "GPL-3.0"
 
 try:
     import profile
-    import argparse
     import sys
     import os
     import shutil
@@ -34,7 +33,7 @@ try:
     from treesapp.fasta import get_headers, write_new_fasta, read_fasta_to_dict, FASTA,\
         multiple_alignment_dimensions, Header
     from treesapp.entish import deconvolute_assignments, read_and_understand_the_reference_tree,\
-        get_node, index_tree_edges, map_internal_nodes_leaves
+        index_tree_edges, map_internal_nodes_leaves
     from treesapp.external_command_interface import launch_write_command
     from treesapp.lca_calculations import lowest_common_taxonomy, weighted_taxonomic_distance
     from treesapp import jplace_utils
