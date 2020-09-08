@@ -291,17 +291,12 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(True, True)
         return
 
-    def test_tmp(self):
-        from treesapp.commands import create
-        base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
-        cmd = "-n 4 -m prot --headless --overwrite --trim_align --delete --fast --cluster --screen Bacteria,Archaea --min_taxonomic_rank g" \
-              " -i {0}/Translation/PF00900/PF00900_ncbi_ML60_uclust99.faa " \
-              "-c PF00900 -p 0.95 " \
-              "-o {0}/Translation/PF00900/seed_refpkg/ " \
-              "--accession2taxid /mnt/sdb/Hallam_projects/Hallam_Databases/raw/Taxonomy/prot.accession2taxid".format(base_dir)
-              # "--accession2lin {0}/Translation/PF00900/PF00900_accession2lineage_map.tsv".format(base_dir)
-        create(cmd.split())
-        return
+    # def test_tmp(self):
+    #     from treesapp.commands import create
+    #     base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
+    #     cmd = "".format(base_dir)
+    #     create(cmd.split())
+    #     return
 
 
 if __name__ == '__main__':
