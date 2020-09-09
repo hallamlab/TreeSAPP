@@ -239,6 +239,14 @@ class TaxonomicHierarchy:
             self.rm_taxon_from_hierarchy(taxon)
         return
 
+    @staticmethod
+    def max_node_force(node_one, node_two) -> (Taxon, Taxon):
+        # Which one has higher coverage?
+        if node_one.coverage > node_two.coverage:
+            return node_one, node_two
+        else:
+            return node_two, node_one
+
     def resolve_conflicts(self) -> dict:
         """
 
@@ -256,13 +264,7 @@ class TaxonomicHierarchy:
                 continue
 
             if node_one.rank == self.no_rank_name and node_two.rank == self.no_rank_name:
-                # Which one has higher coverage?
-                if node_one.coverage > node_two.coverage:
-                    rep = node_one
-                    obsolete = node_two
-                else:
-                    rep = node_two
-                    obsolete = node_one
+                rep, obsolete = self.max_node_force(node_one, node_two)
             elif node_one.rank == self.no_rank_name:
                 obsolete = node_one
                 rep = node_two
@@ -270,9 +272,10 @@ class TaxonomicHierarchy:
                 obsolete = node_two
                 rep = node_one
             else:
-                logging.debug("Conflicting nodes both had valid ranks and were therefore skipped. "
-                              "These should not have been flagged as conflicting nodes.\n")
-                continue
+                rep, obsolete = self.max_node_force(node_one, node_two)
+                logging.debug("Conflicting nodes '{}' and '{}' both had valid ranks and the one with greater coverage"
+                              " was selected as the representative.\n".format(rep.name, obsolete.name))
+
             self.redirect_hierarchy_paths(rep=rep, old=obsolete)  # obsolete Taxon is removed from self.hierarchy
             replaced_nodes[obsolete] = rep
             conflict_resolution_summary += "\t'{}' ({}) -> '{}' ({})\n".format(obsolete.name, obsolete.rank,
