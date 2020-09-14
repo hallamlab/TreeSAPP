@@ -272,10 +272,15 @@ def train(sys_args):
         if args.trim_align:
             assign_params.append("--trim_align")
 
-        assign(assign_params)
-        plain_pqueries = assignments_to_treesaps(file_parsers.read_classification_table(
-            os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")),
-            {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+        try:
+            assign(assign_params)
+            plain_pqueries = assignments_to_treesaps(file_parsers.read_classification_table(
+                os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")),
+                {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+        except (SystemExit, IOError):
+            logging.info("failed.\n")
+            logging.error("treesapp assign did not complete successfully.\n")
+            sys.exit(11)
         jdump(value=plain_pqueries, filename=os.path.join(ts_trainer.plain_pquery_pkl))
 
         # Re-enable logging at the previous level
@@ -564,10 +569,7 @@ def create(sys_args):
         else:
             create_refpkg.create_new_ref_fasta(ts_create.unaln_ref_fasta, fasta_replace_dict)
 
-        if ts_create.ref_pkg.molecule == 'rrna':
-            create_refpkg.generate_cm_data(args, ts_create.unaln_ref_fasta)
-            args.multiple_alignment = True
-        elif args.multiple_alignment is False:
+        if args.multiple_alignment is False:
             logging.info("Aligning the sequences using MAFFT... ")
             create_refpkg.run_mafft(ts_create.executables["mafft"],
                                     ts_create.unaln_ref_fasta, ts_create.ref_pkg.f__msa, args.num_threads)
@@ -813,7 +815,7 @@ def update(sys_args):
         logging.error("Something's not adding up between the reference (%d), candidate (%d) and complete (%d) "
                       "sequence collections. Reference and candidate should sum to equal complete.\n" %
                       (num_ref_seqs, num_assigned_candidates, len(classified_seq_lineage_map)))
-        sys.exit()
+        sys.exit(13)
 
     update_refpkg.validate_mixed_lineages(classified_seq_lineage_map)
     utilities.prepend_deep_rank(classified_seq_lineage_map)

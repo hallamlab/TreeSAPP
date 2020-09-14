@@ -310,16 +310,7 @@ def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
                                     "in the tree after all clustering and filtering",
                                default=None,
                                required=False)
-    parser.seqops.add_argument('-r', "--rfam_cm",
-                               help="The covariance model of the RNA family being packaged.\n"
-                                    "REQUIRED if molecule is rRNA!",
-                               default=None,
-                               required=False)
 
-    parser.optopt.add_argument("-u", "--uc",
-                               help="The USEARCH cluster format file produced from clustering reference sequences.\n"
-                                    "This can be used for selecting representative headers from identical sequences.",
-                               required=False, default=None)
     parser.optopt.add_argument("--kind", default="functional", choices=["functional", "taxonomic"], required=False,
                                help="The broad classification of marker gene type, either "
                                     "functional or taxonomic. [ DEFAULT = functional ]")
@@ -625,18 +616,11 @@ def check_create_arguments(creator: Creator, args) -> None:
         logging.error("Name should be <= 10 characters.\n")
         sys.exit(13)
 
-    if args.rfam_cm is None and args.molecule == "rrna":
-        logging.error("Covariance model file must be provided for rRNA data!\n")
-        sys.exit(13)
-
     # TODO: Check the substitution model for compatibility with RAxML-NG
 
     if args.cluster:
         if args.multiple_alignment:
             logging.error("--cluster and --multiple_alignment are mutually exclusive!\n")
-            sys.exit(13)
-        if args.uc:
-            logging.error("--cluster and --uc are mutually exclusive!\n")
             sys.exit(13)
         if not 0.5 <= float(args.similarity) <= 1.0:
             if 0.5 < float(args.similarity)/100 < 1.0:
@@ -646,18 +630,16 @@ def check_create_arguments(creator: Creator, args) -> None:
                 logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
 
-    if args.taxa_lca:
-        if not args.cluster and not args.uc:
-            logging.error("Unable to perform LCA for representatives without clustering information: " +
-                          "either with a provided UCLUST file or by clustering within the pipeline.\n")
-            sys.exit(13)
+    if args.taxa_lca and not args.cluster:
+        logging.error("Unable to perform LCA for representatives without clustering information: " +
+                      "either with a provided UCLUST file or by clustering within the pipeline.\n")
+        sys.exit(13)
 
-    if args.guarantee:
-        if not args.uc and not args.cluster:
-            logging.error("--guarantee used but without clustering there is no reason for it.\n" +
-                          "Include all sequences in " + args.guarantee +
-                          " in " + creator.input_sequences + " and re-run without --guarantee\n")
-            sys.exit(13)
+    if args.guarantee and not args.cluster:
+        logging.error("--guarantee used but without clustering there is no reason for it.\n" +
+                      "Include all sequences in " + args.guarantee +
+                      " in " + creator.input_sequences + " and re-run without --guarantee\n")
+        sys.exit(13)
 
     if args.profile:
         if not os.path.isfile(args.profile):
