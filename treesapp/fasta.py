@@ -723,12 +723,17 @@ class FASTA:
         self.synchronize_seqs_n_headers()
         return
 
-    def unalign(self):
-        unaligned_dict = {}
-        for header in self.fasta_dict:
-            seq = self.fasta_dict[header]
-            unaligned_dict[header] = re.sub("[-.]", '', seq)
-        self.fasta_dict = unaligned_dict
+    def unalign(self) -> None:
+        """
+        Removes common multiple sequence alignments characters ('-', '.') from all sequences in self.fasta_dict
+
+        :return: None
+        """
+        for header, seq in self.fasta_dict.items():
+            if seq.find('-') >= 0:
+                self.fasta_dict[header] = re.sub("[-.]", '', seq)
+            else:
+                self.fasta_dict[header] = seq
         return
 
 

@@ -476,6 +476,7 @@ def create(sys_args):
 
     ref_seqs.file = ts_create.filtered_fasta
     # NOTE: original header must be used as this is being passed to train
+    ref_seqs.unalign()
     ref_seqs.change_dict_keys("original")
     filtered_headers = [ref_seqs.header_registry[num_id].original for num_id in fasta_records]
     # ref_seqs.keep_only(filtered_headers)  # Currently avoiding this as it causes a KeyError for guaranteed seqs
