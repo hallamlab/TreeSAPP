@@ -273,8 +273,8 @@ class TaxonomicHierarchy:
                 rep = node_one
             else:
                 rep, obsolete = self.max_node_force(node_one, node_two)
-                logging.debug("Conflicting nodes '{}' and '{}' both had valid ranks and the one with greater coverage"
-                              " was selected as the representative.\n".format(rep.name, obsolete.name))
+                logging.debug("Conflicting nodes '{0}' and '{1}' both had valid ranks and the one with greater coverage"
+                              " ({0} = {2}) was selected to represent.\n".format(rep.name, obsolete.name, rep.coverage))
 
             self.redirect_hierarchy_paths(rep=rep, old=obsolete)  # obsolete Taxon is removed from self.hierarchy
             replaced_nodes[obsolete] = rep
@@ -384,7 +384,7 @@ class TaxonomicHierarchy:
         p1_lca_dist = p1.tax_dist(parent_lca)
         p2_lca_dist = p2.tax_dist(parent_lca)
         # TODO: What if the taxonomic distance between a parent and the LCA is 0 i.e. the parent is the LCA?
-        # If all of the ranks are 'no rank' between a parent and the lca of the parents, add it to conflicts
+        # If all of the ranks are 'no rank' between _one_ parent and the lca of the parents, add it to conflicts
         if (p1_ranks and not p1_ranks.difference({self.no_rank_name})) or \
                 (p2_ranks and not p2_ranks.difference({self.no_rank_name})):
             child.coverage += 1
@@ -392,6 +392,8 @@ class TaxonomicHierarchy:
             return child
         elif max(p1_lca_dist, p2_lca_dist) > 1:  # The hierarchy path between the parent and LCA is too long to pop
             # These are both taxa with a valid rank - the job gets a bit harder now. Time to prevent a clash!
+            return self.hierarchy_key_chain(child, p1)
+        elif p1.rank != p2.rank:
             return self.hierarchy_key_chain(child, p1)
         else:
             child.coverage += 1
@@ -419,7 +421,11 @@ class TaxonomicHierarchy:
 
         try:
             ti = self.hierarchy[prefix_name]  # type: Taxon
-            ti = self.evaluate_hierarchy_clash(ti, previous, ti.parent)
+            # Ensure they are the same rank
+            if not previous or previous == ti.parent:
+                ti.coverage += 1
+            else:
+                ti = self.evaluate_hierarchy_clash(ti, previous, ti.parent)
         except KeyError:
             ti = Taxon(taxon, rank)
             ti.parent = previous
