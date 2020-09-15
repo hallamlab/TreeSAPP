@@ -5,43 +5,13 @@ import re
 import os
 import logging
 from time import sleep, time
-
 from math import ceil
-import pyfastx
+
+from pyfastx import Fasta, Fastq
 from pyfastxcli import fastx_format_check
+from collections import namedtuple
 
-from .utilities import median, reformat_string, rekey_dict, return_sequence_info_groups
-
-
-# No bioinformatic software would be complete without a contribution from Heng Li.
-# Adapted from his readfq generator
-def generate_fasta(fasta_handler):  # this is a generator function
-    last = None  # this is a buffer keeping the last unprocessed line
-    while True:  # mimic closure; is it a bad idea?
-        if not last:
-            for line in fasta_handler:  # search for the start of the next record
-                if line[0] == '>':  # fasta header line
-                    last = line[:-1]  # save this line
-                    break
-        if not last:
-            break
-        name, seqs, last = last[1:], [], None
-        for line in fasta_handler:  # read the sequence
-            if line[0] == '>':
-                last = line[:-1]
-                break
-            seqs.append(line[:-1])
-        if not last or last[0] != '+':  # this is a fasta record
-            yield name, ''.join(seqs)  # yield a fasta record
-            if not last:
-                break
-        else:
-            seq, seqs = ''.join(seqs), []
-            for line in fasta_handler:  # read the quality
-                seqs.append(line[:-1])
-            if last:  # reach EOF before reading enough quality
-                yield name, seq  # yield a fasta record instead
-                break
+from treesapp.utilities import median, reformat_string, rekey_dict
 
 
 def fastx_split(fastx: str, outdir: str, file_num=1) -> list:
@@ -57,31 +27,57 @@ def fastx_split(fastx: str, outdir: str, file_num=1) -> list:
     return split_files
 
 
-def split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num):
+def split_seq_writer_helper(fasta_string: str, fh, max_file_size: int):
     fh.write(fasta_string)
-    fasta_string = ""
 
     # Reduce the number of checks
-    if seq_write > seqs_num:
-        fh.write(fasta_string)
+    fh.seek(0, 2)
+    if fh.tell() > max_file_size:
         fh.close()
-        seq_write = 0
-    return fasta_string, seq_write
+        fh = None
+    return fh
 
 
-def spawn_new_fasta(file_num, outdir, file_name, digit):
+def spawn_new_file(file_num, outdir, file_name, ext="fasta"):
+    """
+    Creates a new file name based on the file_num and prefix.
+
+    :param file_num: Previous file number component of the file name in the series. Will be incremented.
+    :param outdir: Path to the directory to write files to
+    :param file_name: Prefix name of the new file
+    :param ext: File extension to use for the new file
+    :return: tuple(file_handler, name of the new file, number of file in the series)
+    """
     file_num += 1
 
-    subfile = "{}.{}.{}".format(file_name, str(file_num).zfill(digit), "fasta")
+    subfile = "{}.{}.{}".format(file_name, str(file_num), ext)
     if outdir is not None:
         subfile = os.path.join(outdir, subfile)
 
     fh = open(subfile, 'w')
-    logging.debug("Writing split FASTA to file '{}'.\n".format(subfile))
-    return fh, subfile, file_num
+    logging.debug("Writing split {} to file '{}'.\n".format(ext, subfile))
+
+    return fh, file_num
 
 
-def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
+def parameterize_sub_file_size(file_name: str, num_files: int, max_seqs: int):
+    # Determine the size of the FASTA file instead of building an index
+    f_size = os.path.getsize(file_name)
+
+    if num_files > 1:
+        max_file_size = ceil(f_size / num_files)
+        max_seq_count = 0
+    elif max_seqs > 1:
+        max_file_size = 0
+        max_seq_count = max_seqs
+    else:
+        logging.error("Unable to split FASTA into {} files and {} sequences.\n".format(num_files, max_seqs))
+        sys.exit(3)
+
+    return max_file_size, max_seq_count
+
+
+def split_fa(fastx: str, outdir: str, file_num=1, max_seq_count=0):
     """
     Credit: Lianming Du of pyfastx (v0.6.10)
 
@@ -92,7 +88,7 @@ def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
     :param fastx: Path to a FASTQ file to be read and converted to FASTA
     :param outdir: Path to write the output files
     :param file_num: Number of files to split the input FASTQ file into
-    :param seq_count: Optionally, instead of splitting into N number of files FASTQ can be split by number of sequences
+    :param max_seq_count: Instead of splitting into N number of files FASTQ can be split by number of sequences
     :return: List of fasta files generated
     """
     start = time()
@@ -100,53 +96,48 @@ def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
     fastx = os.path.expanduser(fastx)
     outdir = os.path.expanduser(outdir)
     outputs = []
-    fa = pyfastx.Fasta(file_name=fastx, build_index=False)
-
-    # Determine the number of reads in the FASTQ file - faster than building an index
-    count = 0
-    for _ in fa:
-        count += 1
-
-    if file_num > 1:
-        seqs_num = ceil(count / file_num)
-        parts_num = file_num
-    else:
-        seqs_num = seq_count
-        parts_num = ceil(count / seqs_num)
+    fa = Fasta(file_name=fastx, build_index=False, full_name=True)
 
     file_name, suffix1 = os.path.splitext(os.path.basename(fastx))
-
     if fa.is_gzip:
         file_name, suffix2 = os.path.splitext(file_name)
 
-    digit = len(str(parts_num))
+    max_file_size, max_seq_count = parameterize_sub_file_size(fastx, file_num, max_seq_count)
 
     seq_write = 0
-    max_buffer_size = 1E4
-    fasta_string = ""
-    fh = None
-    file_num = 0
+    max_buffer_size = min(1E5, max_file_size)  # Controls how often the strings are written to the file
+    fasta_string = ""  # Stores the intermediate fasta strings
+    fh = None  # File handler
+    file_num = 0  # The current file number
 
-    for name, seq in fa:
-        if seq_write == 0:
-            fh, subfile, file_num = spawn_new_fasta(file_num, outdir, file_name, digit)
-            outputs.append(subfile)
-
+    for name, seq in fa:  # type: (str, str)
         fasta_string += ">%s\n%s\n" % (name, seq)
         seq_write += 1
         # Batch write
-        if seq_write % max_buffer_size == 0:
-            fasta_string, seq_write = split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num)
+        if len(fasta_string) >= max_buffer_size and seq_write >= max_seq_count:
+            if not fh:
+                fh, file_num = spawn_new_file(file_num, outdir, file_name)
+                outputs.append(fh.name)
+            fh = split_seq_writer_helper(fasta_string, fh, max_file_size)
+            fasta_string = ""
+            seq_write = 0
 
-    fh.write(fasta_string)
-    fh.close()
+    if fasta_string:
+        try:
+            fh.write(fasta_string)
+            fh.close()
+        except AttributeError:
+            fh, file_num = spawn_new_file(file_num, outdir, file_name)
+            outputs.append(fh.name)
+            fh.write(fasta_string)
+            fh.close()
     end = time()
 
     logging.debug("{} completed split_fa in {}s.\n".format(fastx, end - start))
     return outputs
 
 
-def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
+def fq2fa(fastx: str, outdir: str, file_num=1, max_seq_count=0) -> list:
     """
     Credit: Lianming Du of pyfastx (v0.6.10)
     A modified version of the function fastq_split in the pyfastx python package: https://github.com/lmdu/pyfastx
@@ -158,7 +149,7 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
     :param fastx: Path to a FASTQ file to be read and converted to FASTA
     :param outdir: Path to write the output files
     :param file_num: Number of files to split the input FASTQ file into
-    :param seq_count: Optionally, instead of splitting into N number of files FASTQ can be split by number of sequences
+    :param max_seq_count: Instead of splitting into N number of files FASTQ can be split by number of sequences
     :return: List of fasta files generated
     """
     start = time()
@@ -166,46 +157,41 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
     fastx = os.path.expanduser(fastx)
     outdir = os.path.expanduser(outdir)
     outputs = []
-    fq = pyfastx.Fastq(file_name=fastx, build_index=False)
+    fq = Fastq(file_name=fastx, build_index=False)
 
-    # Determine the number of reads in the FASTQ file - faster than building an index
-    read_count = 0
-    for _ in fq:
-        read_count += 1
-
-    if file_num > 1:
-        seqs_num = ceil(read_count / file_num)
-        parts_num = file_num
-    else:
-        seqs_num = seq_count
-        parts_num = ceil(read_count / seqs_num)
-
-    name, suffix1 = os.path.splitext(os.path.basename(fastx))
-
+    file_name, suffix1 = os.path.splitext(os.path.basename(fastx))
     if fq.is_gzip:
-        name, suffix2 = os.path.splitext(name)
+        file_name, suffix2 = os.path.splitext(file_name)
 
-    digit = len(str(parts_num))
+    max_file_size, max_seq_count = parameterize_sub_file_size(fastx, file_num, max_seq_count)
 
     seq_write = 0
-    max_buffer_size = 1E4
-    fasta_string = ""
-    fh = None
-    file_num = 0
+    max_buffer_size = min(1E5, max_file_size)  # Controls how often the strings are written to the file
+    fasta_string = ""  # Stores the intermediate fasta strings
+    fh = None  # File handler
+    file_num = 0  # The current file number
 
-    for read_name, seq, _ in fq:
-        if seq_write == 0:
-            fh, subfile, file_num = spawn_new_fasta(file_num, outdir, name, digit)
-            outputs.append(subfile)
-
+    for read_name, seq, _ in fq:  # type: (str, str)
         fasta_string += ">%s\n%s\n" % (read_name, seq)
         seq_write += 1
         # Batch write
-        if seq_write % max_buffer_size == 0:
-            fasta_string, seq_write = split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num)
+        if len(fasta_string) >= max_buffer_size and seq_write >= max_seq_count:
+            if not fh:
+                fh, file_num = spawn_new_file(file_num, outdir, file_name)
+                outputs.append(fh.name)
+            fh = split_seq_writer_helper(fasta_string, fh, max_file_size)
+            fasta_string = ""
+            seq_write = 0
 
-    fh.write(fasta_string)
-    fh.close()
+    if fasta_string:
+        try:
+            fh.write(fasta_string)
+            fh.close()
+        except AttributeError:
+            fh, file_num = spawn_new_file(file_num, outdir, file_name)
+            outputs.append(fh.name)
+            fh.write(fasta_string)
+            fh.close()
     end = time()
 
     logging.debug("{} completed fq2fa in {}s.\n".format(fastx, end-start))
@@ -213,22 +199,27 @@ def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
     return outputs
 
 
-def read_fasta_to_dict(fasta_file):
+def read_fasta_to_dict(fasta_file: str) -> dict:
     """
-    Reads any fasta file using a generator function (generate_fasta) into a dictionary collection
+    Reads any fasta file using the pyfastx library
 
     :param fasta_file: Path to a FASTA file to be read into a dict
     :return: Dict where headers/record names are keys and sequences are the values
     """
     fasta_dict = dict()
+
+    if not os.path.exists(fasta_file):
+        logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
+
     try:
-        fasta_handler = open(fasta_file, 'r')
-    except IOError:
-        logging.error("Unable to open " + fasta_file + " for reading!\n")
-        sys.exit(5)
-    for record in generate_fasta(fasta_handler):
-        name, sequence = record
-        fasta_dict[reformat_string(name)] = sequence.upper()
+        py_fa = Fasta(fasta_file, build_index=False, full_name=True)
+    except RuntimeError as error:
+        logging.warning(str(error))
+        return fasta_dict
+
+    for name, seq in py_fa:  # type: (str, str)
+        fasta_dict[name] = seq.upper()
+
     return fasta_dict
 
 
@@ -240,26 +231,38 @@ class Header:
         self.post_align = ""
         self.first_split = ""
         self.accession = ""
+        self.version = ""
 
     def get_info(self):
-        info_string = "TreeSAPP ID = '" + str(self.treesapp_num_id) + "'\tPrefix = '" + self.first_split + "'\n"
-        info_string += "Original =  " + self.original + "\nFormatted = " + self.formatted
+        info_string = "TreeSAPP ID = '%s'\tPrefix = '%s'\n" % (str(self.treesapp_num_id), self.first_split)
+        info_string += "Original =  %s\nFormatted = %s\n" % (self.original, self.formatted)
         if self.accession:
             info_string += "Accession = " + self.accession + "\n"
         return info_string
 
-    def find_accession(self, refpkg_name=""):
-        header_format_re, header_db, header_molecule = get_header_format(self.original, refpkg_name)
+    def find_accession(self, refpkg_name="") -> None:
+        header_regexes = load_fasta_header_regexes(refpkg_name)
+        header_format_re, header_db, header_molecule = get_header_format(self.original, header_regexes)
         sequence_info = header_format_re.match(self.original)
-        self.accession = return_sequence_info_groups(sequence_info, header_db, self.original).accession
+        self.accession = sequence_info_groups(sequence_info, header_db, self.original, header_regexes).accession
+        return
 
 
-def register_headers(header_list, drop=True):
+def register_headers(header_list: list, drop=True) -> dict:
+    """
+    Instantiates a Header instance for each sequence name (i.e. header) in header_list.
+    The attributes 'formatted', 'first_split', 'original' and 'treesapp_num_id' are populated
+
+    :param header_list: A list of headers to parse
+    :param drop: A flag indicating whether the '>' character should be dropped from the sequence names
+    :return: A dictionary of Header instances indexed by a numerical identifier
+    """
     acc = 1
     header_registry = dict()
     dup_checker = set()
     dups = []
     for header in header_list:
+        header = header.strip()
         if drop and header[0] == '>':
             header = header[1:]
         if header in dup_checker:
@@ -288,9 +291,23 @@ class FASTA:
     def __init__(self, file_name):
         self.file = file_name
         self.fasta_dict = dict()
-        self.header_registry = dict()
+        self.header_registry = dict()  # A dictionary of Header instances indexed by a unique numerical identifier
         self.amendments = set()  # Set of the TreeSAPP numerical identifiers for all guaranteed sequences
         self.index_form = None
+
+    def clone(self, fasta) -> None:
+        """
+        Used for cloning a one FASTA instance into the current one.
+
+        :param fasta: A FASTA instance with attributes to copy into the current instance
+        :return: None
+        """
+        self.file = fasta.file
+        self.fasta_dict.update(fasta.fasta_dict)
+        self.header_registry.update(fasta.header_registry)
+        self.amendments.update(fasta.amendments)
+        self.index_form = fasta.index_form
+        return
 
     def load_fasta(self):
         self.fasta_dict = read_fasta_to_dict(self.file)
@@ -305,12 +322,13 @@ class FASTA:
             header.find_accession(refpkg_name)
 
     def mapping_error(self, bad_headers):
-        logging.error("No classified sequences were mapped to '" + self.file + "' FASTA dictionary.\n" +
-                      "Here are some example names from the mapping list:\n\t" +
-                      "\n\t".join(sorted(bad_headers)[0:6]) + "\n" +
-                      "And example names from FASTA dict:\n\t" +
-                      "\n\t".join(list(sorted(self.fasta_dict.keys()))[0:6]) + "\n")
-        sys.exit(3)
+        logging.error("No classified sequences were mapped to '{}' FASTA dictionary.\n"
+                      "Here are some example names from the mapping list:\n\t{}\n"
+                      "And example names from FASTA dict:\n\t{}\n".format(self.file,
+                                                                          "\n\t".join(sorted(bad_headers)[0:6]),
+                                                                          "\n\t".join(list(sorted(
+                                                                              self.fasta_dict.keys()))[0:6])))
+        raise AssertionError
 
     def n_seqs(self):
         if len(self.header_registry) != len(self.fasta_dict):
@@ -342,11 +360,22 @@ class FASTA:
                 header_map[fs_h] = [header]
         return header_map
 
-    def unversion_first_split_header_map(self) -> dict:
-        first_splits = self.first_split_header_map()
+    def get_accession_header_map(self) -> dict:
         accession_header_map = dict()
-        for accession in first_splits:
-            accession_header_map[re.sub(r'\.\d$', '', accession)] = first_splits[accession]
+        for index, header in self.header_registry.items():  # type: (str, Header)
+            if len(header.accession) == 0:
+                header.find_accession()
+            try:
+                accession_header_map[header.accession].append(header)
+            except KeyError:
+                accession_header_map[header.accession] = [header]
+            except TypeError:
+                if not header.accession:
+                    logging.error("Attempting to create an accession:header dictionary but"
+                                  " accession could not be set for header '{}'.\n".format(header.original))
+                    sys.exit(17)
+                else:
+                    raise TypeError
         return accession_header_map
 
     def get_seq_names(self, name_format="original") -> list:
@@ -363,9 +392,17 @@ class FASTA:
                           " Options are 'original', 'formatted', 'first_split' and 'num'.\n")
             sys.exit(5)
 
+    def create_header_mapping_table(self):
+        table_str = "\t".join(["TreeSAPP number", "Accession", "Original", "Formatted"]) + "\n"
+        for acc in sorted(self.header_registry):
+            header = self.header_registry[acc]  # type: Header
+            table_str += "\t".join([header.treesapp_num_id, header.accession, header.original, header.formatted]) + "\n"
+        return table_str
+
     def keep_only(self, header_subset: list, superset=False):
         """
         Removes all entries from self.fasta_dict and self.header_registry that are not in header_subset.
+
         :param header_subset: The list of headers found in self.fasta_dict that are to be kept
         :param superset: The header_subset list is a superset so not all headers will be found - do not emit a warning
         :return: None
@@ -391,12 +428,28 @@ class FASTA:
             unmapped.clear()
 
         if unmapped:
-            logging.warning(str(len(unmapped)) + " sequences were not mapped to FASTA dictionary.\n")
-            logging.debug("Headers that were not mapped to FASTA dictionary:\n\t" +
-                          "\n\t".join(unmapped) + "\n")
+            logging.warning("{} sequences were not mapped to FASTA dictionary.\n".format(str(len(unmapped))))
+            logging.debug("Headers that were not mapped to FASTA dictionary:\n\t{}\n".format("\n\t".join(unmapped)))
 
         self.fasta_dict = pruned_fasta_dict
         self.synchronize_seqs_n_headers()
+
+        return
+
+    def replace_ambiguity_chars(self, molecule, replace_char='X'):
+        if molecule == "prot":
+            invalid = {'U', 'O'}
+        else:
+            logging.debug("FASTA.replace_ambiguity_chars is not equipped to handle molecule type '%s'.\n" % molecule)
+            return
+        invalid_re = re.compile('|'.join(invalid))
+        bad_seqs = 0
+        for seq_name in self.fasta_dict:
+            if invalid_re.search(self.fasta_dict[seq_name]):
+                bad_seqs += 1
+            self.fasta_dict[seq_name] = invalid_re.sub(replace_char, self.fasta_dict[seq_name])
+
+        logging.debug("Identified and replaced invalid ambiguity characters in %d sequences.\n" % bad_seqs)
 
         return
 
@@ -409,7 +462,7 @@ class FASTA:
             else:
                 dropped += 1
         if dropped >= 1:
-            logging.debug(str(dropped) + " sequences were found to be shorter than " + str(min_len) + " and removed.\n")
+            logging.debug("{} sequences were found to be shorter than {} and removed.\n".format(dropped, min_len))
         self.keep_only(long_seqs)
         return
 
@@ -417,6 +470,7 @@ class FASTA:
         """
         Creates a dictionary mapping all forms of the header formats (original, first_split, num, and formatted)
         to the unique, numeric TreeSAPP IDs for rapid look-ups
+
         :return: Dictionary for look-ups
         """
         mapping_dict = dict()
@@ -428,6 +482,10 @@ class FASTA:
     def change_dict_keys(self, index_replace="original"):
         # TODO: Include a value to track the fasta dict key-type (e.g. num, original)
         # TODO: Use utilities.rekey_dict
+        if len(self.header_registry) == 0:
+            logging.error("FASTA.header_registry is empty. Unable to change dictionary keys.\n")
+            raise AssertionError
+
         repl_fasta_dict = dict()
         for acc in sorted(self.header_registry, key=int):
             header = self.header_registry[acc]  # type: Header
@@ -446,7 +504,7 @@ class FASTA:
                 logging.error("Unknown replacement type.\n")
                 sys.exit(3)
             # Find the old header to be replaced
-            # NOTE: Using .first_split may be lossy from duplicates. This will _not_ propagate under current scheme.
+            # NOTE: Using .first_split may be lossy if duplicates exist. This will _not_ propagate under current scheme.
             if header.original in self.fasta_dict:
                 repl_fasta_dict[new_header] = self.fasta_dict[header.original]
             elif header.formatted in self.fasta_dict:
@@ -467,12 +525,13 @@ class FASTA:
         self.index_form = index_replace
         return
 
-    def synchronize_seqs_n_headers(self):
+    def synchronize_seqs_n_headers(self) -> None:
         """
         If the header_registry and fasta_dict objects are of different sizes,
         the header registry is remade, excluding sequences that are not found in fasta_dict.
         The num_id is static during the synchronization so sequences can be mapped from before-and-after.
-        :return:
+
+        :return: None
         """
         excluded_headers = list()
         self.change_dict_keys("num")
@@ -497,7 +556,10 @@ class FASTA:
                           "\n\t".join(excluded_headers) + "\n")
         if len(self.header_registry) == 0:
             logging.error("All sequences were discarded during header_registry and fasta_dict synchronization.\n")
-            sys.exit()
+            sys.exit(-1)
+        if len(self.fasta_dict) == 0:
+            logging.error("No fasta sequence names were mapped to the header registry!\n")
+            sys.exit(-1)
         self.change_dict_keys()
         return
 
@@ -509,12 +571,12 @@ class FASTA:
     def custom_lineage_headers(self, header_lineage_map: dict):
         """
         Converts a header to the TreeSAPP custom header format (below) using a dictionary
-
         Custom fasta header with taxonomy:
          First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
          There are no character restrictions on the first and third groups
          The lineage must be formatted like:
-          cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+        cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+
         :param header_lineage_map: A dictionary mapping sequence names/headers to NCBI-formatted taxonomic lineages
         :return: None
         """
@@ -581,12 +643,12 @@ class FASTA:
         logging.debug("done.\n")
 
         if duplicates:
-            logging.debug("Removed " + str(len(duplicates)) + " sequences with duplicate sequences.\n")
+            logging.debug("Removed {} sequences with duplicate sequences.\n".format(len(duplicates)))
         self.synchronize_seqs_n_headers()
 
         return
 
-    def dedup_by_accession(self):
+    def dedup_by_accession(self) -> None:
         count_dict = dict()
         dedup_header_dict = dict()
         duplicates = list()
@@ -607,8 +669,8 @@ class FASTA:
             rep_acc = count_dict[accession].pop()
             dedup_header_dict[rep_acc] = self.header_registry[rep_acc]
         if duplicates:
-            logging.debug("Removed " + str(len(duplicates)) + " sequences with duplicate accessions:\n\t" +
-                          "\n\t".join(duplicates) + "\n")
+            logging.debug("Removed {} sequences with duplicate accessions:\n"
+                          "\t{}\n".format(len(duplicates), "\n\t".join(duplicates)))
         self.header_registry = dedup_header_dict
         self.synchronize_seqs_n_headers()
         return
@@ -661,12 +723,17 @@ class FASTA:
         self.synchronize_seqs_n_headers()
         return
 
-    def unalign(self):
-        unaligned_dict = {}
-        for header in self.fasta_dict:
-            seq = self.fasta_dict[header]
-            unaligned_dict[header] = re.sub("[-.]", '', seq)
-        self.fasta_dict = unaligned_dict
+    def unalign(self) -> None:
+        """
+        Removes common multiple sequence alignments characters ('-', '.') from all sequences in self.fasta_dict
+
+        :return: None
+        """
+        for header, seq in self.fasta_dict.items():
+            if seq.find('-') >= 0:
+                self.fasta_dict[header] = re.sub("[-.]", '', seq)
+            else:
+                self.fasta_dict[header] = seq
         return
 
 
@@ -679,18 +746,20 @@ def merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index):
     return merged_extracted_seq_dict
 
 
-def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fasta_file: str):
+def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fasta_file: str) -> None:
     """
     Function to write the nucleotide sequences representing the full-length ORF for each classified sequence
-    Sequence names are from ItolJplace.contig_name values so output format is:
+    Sequence names are from JPlace.contig_name values so output format is:
 
      >contig_name|RefPkg|StartCoord_StopCoord
+
     :param tree_saps: A dictionary of gene_codes as keys and TreeSap objects as values
     :param formatted_fasta_dict: A dictionary with headers/sequence names as keys and sequences as values
     :param fasta_file: Path to a file to write the sequences to in FASTA format
     :return: None
     """
     output_fasta_dict = dict()
+    len_parsing_problem = False
     prefix = ''  # For adding a '>' if the formatted_fasta_dict sequences have them
     for seq_name in formatted_fasta_dict:
         if seq_name[0] == '>':
@@ -698,29 +767,107 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
         break
 
     for denominator in tree_saps:
-        for placed_sequence in tree_saps[denominator]:  # type ItolJplace
+        for placed_sequence in tree_saps[denominator]:  # type JPlace
             if placed_sequence.classified:
-                output_fasta_dict[placed_sequence.contig_name] = ""
+                output_fasta_dict[placed_sequence.place_name] = ""
                 try:
-                    output_fasta_dict[placed_sequence.contig_name] = formatted_fasta_dict[prefix +
-                                                                                          placed_sequence.contig_name]
+                    output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix +
+                                                                                         placed_sequence.place_name]
                 except KeyError:
-                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.name), '', placed_sequence.contig_name)
+                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.ref_name),
+                                      '',
+                                      placed_sequence.place_name)
                     try:
-                        output_fasta_dict[placed_sequence.contig_name] = formatted_fasta_dict[prefix + seq_name]
+                        output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix + seq_name]
                     except KeyError:
-                        logging.error("Unable to find '" + prefix + placed_sequence.contig_name +
+                        logging.error("Unable to find '" + prefix + placed_sequence.place_name +
                                       "' in predicted ORFs file!\nExample headers in the predicted ORFs file:\n\t" +
                                       '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
                         sys.exit(3)
 
                 if not placed_sequence.seq_len:
-                    placed_sequence.seq_len = len(output_fasta_dict[placed_sequence.contig_name])
+                    placed_sequence.seq_len = len(output_fasta_dict[placed_sequence.place_name])
+                    len_parsing_problem = True
 
     if output_fasta_dict:
         write_new_fasta(output_fasta_dict, fasta_file)
 
+    if len_parsing_problem:
+        logging.warning("Problem parsing homologous subsequence lengths from headers of classified sequences.\n")
+
     return
+
+
+def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_length=10) -> dict:
+    """
+    Reads a FASTA file, ensuring each sequence and sequence name is valid, and writes the valid sequence to a new FASTA.
+    Only headers are read into memory and the formatted FASTA is saved to a buffer before written to a file and cleared.
+
+    :param fasta_input: Absolute path of the FASTA file to be read
+    :param molecule: Molecule type of the sequences ['prot', 'dna', 'rrna']
+    :param output_fasta: Path to the formatted FASTA file to write
+    :param min_seq_length: All sequences shorter than this will not be included in the returned list.
+    :return: A dictionary of Header instances indexed by a numerical identifier
+    """
+    start = time()
+
+    # Select the alphabet to use when determining whether there are any bad characters
+    if molecule == "prot":
+        bad_chars = re.compile(r"[OU]")
+    else:
+        bad_chars = re.compile(r"[EFIJLOPQZ]")
+    bad_seqs = set()
+
+    # Open the output FASTA for writing
+    try:
+        fa_out_handle = open(output_fasta, 'w')
+    except IOError:
+        logging.error("Unable to open '{}' for writing.\n")
+        sys.exit(15)
+
+    headers = []
+    max_buffer_size = 1E4
+    seq_acc = 0
+    fasta_string = ""
+    for name, seq in Fasta(fasta_input, build_index=False, full_name=True):  # type: (str, str)
+        if len(seq) < min_seq_length:
+            continue
+        if bad_chars.search(seq):
+            bad_seqs.add(name)
+            continue
+
+        seq_acc += 1
+        headers.append(name)
+        fasta_string += ">{}\n{}\n".format(seq_acc, seq)
+
+        # Write the fasta_string to the output fasta if the size exceeds the max_buffer_size
+        if len(fasta_string) > max_buffer_size:
+            fa_out_handle.write(fasta_string)
+            fasta_string = ""
+
+    # Write the final chunk in the FASTA file
+    fa_out_handle.write(fasta_string)
+
+    end = time()
+    logging.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, end-start))
+
+    if len(headers) == 0:
+        logging.error("No sequences in FASTA {0} were saved.\n"
+                      "Either the molecule type specified ({1}) or minimum sequence length ({2}) may be unsuitable.\n"
+                      "Consider changing these before rerunning.\n".format(fasta_input, molecule, min_seq_length))
+        sys.exit(13)
+
+    if len(bad_seqs) > 0:
+        logging.debug("The following sequences were removed due to bad characters:\n" +
+                      "\n".join(bad_seqs) + "\n")
+
+    header_registry = register_headers(headers, True)
+    # if len(header_registry) != seq_acc:
+    #     logging.error("The number of sequences read ({}) does not equal"
+    #                   " the number of sequence names registered ({}).\n".format(seq_acc, len(header_registry)))
+    #     sys.exit(13)
+
+    return header_registry
 
 
 def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_length=10):
@@ -747,7 +894,7 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
         sys.exit(13)
 
     formatted_fasta_dict = {}
-    for name, seq in pyfastx.Fasta(fasta_input, build_index=False):  # type: (str, str)
+    for name, seq in Fasta(fasta_input, build_index=False, full_name=True):  # type: (str, str)
         if len(seq) < min_seq_length:
             continue
         if subset:
@@ -774,34 +921,32 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
     return formatted_fasta_dict
 
 
-def get_headers(fasta_file):
+def get_headers(fasta_file: str) -> list:
     """
     Reads a FASTA file and returns a list of all headers it found in the file. No reformatting or filtering performed.
+
     :param fasta_file: Path to the FASTA file to be read.
     :return:
     """
     original_headers = list()
-    try:
-        fasta = open(fasta_file, 'r')
-    except IOError:
-        logging.error("Unable to open the FASTA file '" + fasta_file + "' for reading!\n")
-        sys.exit(5)
+    if not os.path.exists(fasta_file):
+        logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
 
     n_headers = 0
-    for name, _ in generate_fasta(fasta):
+    for name, seq in Fasta(fasta_file, build_index=False, full_name=True):  # type: (str, str)
         n_headers += 1
         original_headers.append('>' + str(name))
 
-    fasta.close()
     if len(original_headers) == 0:
-        logging.error("No sequence headers read from FASTA file " + fasta_file + "\n")
-        sys.exit(3)
-    logging.debug("Read " + str(n_headers) + " headers from " + fasta_file + ".\n")
+        # Not a good idea to exit right from here, handle it case-by-case
+        logging.warning("No sequence headers read from FASTA file '{}'\n".format(fasta_file))
+    else:
+        logging.debug("Read {} headers from FASTA file '{}'.\n".format(n_headers, fasta_file))
 
     return original_headers
 
 
-def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
+def write_new_fasta(fasta_dict: dict, fasta_name: str, max_seqs=None, headers=None) -> list:
     """
     Function for writing sequences stored in dictionary to file in FASTA format; optional filtering with headers list
 
@@ -809,7 +954,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     :param fasta_name: Name of the FASTA file to write to
     :param max_seqs: If not None, the maximum number of sequences to write to a single FASTA file
     :param headers: Optional list of sequence headers. Only fasta_dict keys in headers will be written
-    :return:
+    :return: List of FASTA files written to
     """
     split_files = list()
     file_counter = 1
@@ -874,24 +1019,23 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     return split_files
 
 
-def get_header_format(header, code_name=""):
+def load_fasta_header_regexes(code_name="") -> dict:
     """
-    Used to decipher which formatting style was used and parse information, ideally reliably
+    Create the dictionary of all currently known regular expressions that match database-specific fasta headers
     HOW TO ADD A NEW REGULAR EXPRESSION:
         1. create a new compiled regex pattern, like below
         2. add the name of the compiled regex pattern to the header_regexes dictionary
         3. if the regex groups are new and complicated (parsing more than the accession and organism info),
-        alter return_sequence_info_groups in create_treesapp_ref_data to add another case
+        alter sequence_info_groups in create_treesapp_ref_data to add another case
 
-    :param header: A sequences header from a FASTA file
-    :param code_name:
-    :return:
+    :param code_name: Reference package name/prefix (e.g. DsrAB, p_amoA)
+    :return: Dictionary of regular expressions that match database-specific fasta headers indexed by molecule type (str)
     """
     # The regular expressions with the accession and organism name grouped
     # Protein databases:
     gi_re = re.compile(r">?gi\|(\d+)\|[a-z]+\|[_A-Z0-9.]+\|.* RecName: Full=([A-Za-z1-9 _\-]+);?.*$")  # a
     gi_prepend_proper_re = re.compile(r">?gi\|\d+\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)\]$")  # a, d, o
-    gi_prepend_mess_re = re.compile(r">?gi\|(\d+)\|[a-z]{2,4}\|.*\|([\w\s.,\-()]+)$")  # a
+    gi_prepend_mess_re = re.compile(r">?gi\|(\d+)[|/]?.*$")  # a
     dbj_re = re.compile(r">?dbj\|(.*)\|.*\[(.*)\]")  # a, o
     emb_re = re.compile(r">?emb\|(.*)\|.*\[(.*)\]")
     gb_re = re.compile(r">?gb\|(.*)\|.*\[(.*)\]")
@@ -901,10 +1045,9 @@ def get_header_format(header, code_name=""):
     presf_re = re.compile(r">?prf\|.*\|([A-Z0-9]+)\s+.*$")  # a
     sp_re = re.compile(r">?sp\|(.*)\|.*$")  # a
     tr_re = re.compile(r">?tr\|(\w+)\|\w+_\w+ .* OS=(.*) GN=.*$")  # a, o
-    fungene_gi_bad = re.compile(r"^>?[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     treesapp_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
-    pfam_re = re.compile(r"^>?([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
-    eggnog_re = re.compile(r"^>?(\d+)\.([A-Za-z][-A-Za-z0-9_]+)(\.\d)?(\s\[.*\])?$")  # t, o
+    pfam_re = re.compile(r">?([A-Z]+\|)?([A-Z0-9]+)(\.\d)?(_[A-Z0-9]+)?/\d+-\d+$")  # a
+    eggnog_re = re.compile(r"^>?(\d+)\.([-\w]+)((\.[\w-]+){0,2})?(?!\s\[.*\])$")  # t, o
     eggnot_re = re.compile(r">?eggnog\|(\d+)\|(.*)")  # a
     # Nucleotide databases:
     # silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
@@ -913,10 +1056,10 @@ def get_header_format(header, code_name=""):
 
     # Ambiguous:
     # genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
-    accession_only = re.compile(r"^>?([A-Z]+_?[0-9]+\.?[0-9]?)$")  # a
-    ncbi_ambiguous = re.compile(r"^>?([A-Za-z0-9.\-_]+)\s+.*(?<!])$")  # a
+    # accession_only = re.compile(r"^>?([A-Za-z_0-9.]+\.?[0-9]?)$")  # a
+    ncbi_ambiguous = re.compile(r"^>?([A-Za-z]{1,6}_[0-9.\-]{5,11})\s+.*(?<!])$")  # a
     ncbi_org = re.compile(r"^>?([A-Z][A-Za-z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
-    assign_re = re.compile(r"^>?(.*)\|({0})\|(\d+_\d+)$".format(re.escape(code_name)))  # a, d, l
+    assign_re = re.compile(r"^>?(\w+)?(.*)\|({0})\|(\d+_\d+)$".format(re.escape(code_name)))  # a, d, l
 
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
@@ -924,6 +1067,7 @@ def get_header_format(header, code_name=""):
     # The lineage must be formatted like:
     #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
     custom_tax = re.compile(r"^>?(.*) lineage=([A-Za-z ]+.*) \[(.*)\]$")  # a, l, o
+    unformat_re = re.compile(r"^>?(\w+)?(.*)")
 
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",
@@ -941,42 +1085,130 @@ def get_header_format(header, code_name=""):
                                eggnog_re: "eggnog",
                                eggnot_re: "eggnot"},
                       "dna": {treesapp_re: "treesapp"},
-                      "ambig": {accession_only: "bare",
-                                ncbi_ambiguous: "ncbi_ambig",
+                      "ambig": {ncbi_ambiguous: "ncbi_ambig",
+                                # accession_only: "bare",
                                 ncbi_org: "ncbi_org",
                                 custom_tax: "custom",
-                                assign_re: "ts_assign"}
+                                assign_re: "ts_assign",
+                                unformat_re: "unformatted"}
                       }
+    return header_regexes
 
-    if fungene_gi_bad.match(header):
+
+def sequence_info_groups(regex_match_groups, header_db: str, header: str, header_regexes=None):
+    """
+    Depending on the header formats, returns a namedtuple with certain fields filled
+
+    :param regex_match_groups: regular expression (re) match groups
+    :param header_db: The name of the assumed database/source of the sequence
+    :param header: Header i.e. sequence name that was analyzed
+    :param header_regexes: Dictionary of regular expressions matching database-specific headers indexed by molecule type
+    :return: namedtuple called seq_info with "description", "locus", "organism", "lineage" and "taxid" fields
+    """
+    seq_info = namedtuple(typename="seq_info",
+                          field_names=["accession", "version", "description", "locus", "organism", "lineage", "taxid"])
+    accession = ""
+    locus = ""
+    organism = ""
+    lineage = ""
+    taxid = ""
+    version = ""
+
+    if regex_match_groups:
+        if header_db == "custom":
+            lineage = regex_match_groups.group(2)
+            organism = regex_match_groups.group(3)
+        elif header_db in ["eggnog", "eggnot"]:
+            taxid = regex_match_groups.group(1)
+            accession = regex_match_groups.group(1) + '.' + regex_match_groups.group(2)
+        elif header_db == "ts_assign":
+            stripped_header = '|'.join(header.split('|')[:-2])
+            header_format_re, stripped_header_db, _ = get_header_format(stripped_header, header_regexes)
+            stripped_info = sequence_info_groups(header_format_re.match(stripped_header),
+                                                 stripped_header_db, stripped_header)
+            accession, version = stripped_info.accession, stripped_info.version
+            locus = regex_match_groups.group(3)
+        elif header_db == "unformatted":
+            if regex_match_groups.group(1):
+                accession = regex_match_groups.group(1)
+            else:
+                accession = re.sub(r"^>", '', header)
+        elif header_db == "silva":
+            locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
+            lineage = regex_match_groups.group(4)
+        elif header_db == "pfam":
+            accession = str(regex_match_groups.group(2))
+        elif len(regex_match_groups.groups()) == 3:
+            organism = regex_match_groups.group(3)
+        elif len(regex_match_groups.groups()) == 2:
+            organism = regex_match_groups.group(2)
+        if not accession:
+            accession = regex_match_groups.group(1)
+        if accession.find('.') >= 0:
+            pieces = accession.split('.')
+            version_match = re.match(r"^(\d{1,2})( (.*)?)?", pieces[1])
+            if version_match:
+                accession = pieces[0]
+                version = '.'.join([accession, version_match.group(1)])
+
+    else:
+        logging.error("Unable to handle header: '" + header + "'\n")
+        sys.exit(13)
+
+    if not (accession or organism or lineage or taxid):
+        logging.error("Insufficient information was loaded for header:\n" +
+                      header + "\n" + "regex_match: " + header_db + '\n')
+        sys.exit(13)
+
+    if not version:
+        version = re.sub(r"^>", '', header.split()[0])
+
+    seq_info = seq_info(accession, version, header, locus, organism, lineage, taxid)
+
+    return seq_info
+
+
+def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, str):
+    """
+    Used to decipher which formatting style was used and parse information, ideally reliably
+
+    :param header: A sequences header from a FASTA file
+    :param header_regexes: Dictionary of regular expressions matching database-specific headers indexed by molecule type
+    :return: Tuple containing the compiled regular expression, matched database name and assumed molecule type
+    """
+    if re.match(r"^>?[0-9]+\s+coded_by=.+,organism=.+,definition=.+$", header):
         logging.warning(header + " uses GI numbers which are now unsupported by the NCBI! " +
                         "Consider switching to Accession.Version identifiers instead.\n")
 
-    header_format_re = None
-    header_db = None
-    header_molecule = None
-    format_matches = list()
+    # Gather all possible matches
+    format_matches = dict()
     for molecule in header_regexes:
         for regex in header_regexes[molecule]:
             if regex.match(header):
-                header_format_re = regex
                 header_db = header_regexes[molecule][regex]
-                header_molecule = molecule
-                format_matches.append(header_db)
+                format_matches[header_db] = (molecule, regex)
             else:
                 pass
+
+    # Exit if there were no matches
+    if len(format_matches) == 0:
+        logging.error("Unable to parse header '{}'. Unknown format.\n".format(header))
+        sys.exit(5)
+
+    # Sort through the matches to find the most specific
+    if len(format_matches) == 2 and "unformatted" in format_matches:
+        format_matches.pop("unformatted")
     if len(format_matches) > 1:
         if "ts_assign" in format_matches:
-            return assign_re, "ts_assign", "ambig"
-        logging.error("Header '" + header + "' matches multiple potential formats:\n\t" +
-                      ", ".join(format_matches) + "\n" +
-                      "TreeSAPP is unable to parse necessary information properly.\n")
-        sys.exit(5)
+            format_matches = {"ts_assign": format_matches["ts_assign"]}  # ts_assign over-rules all others
+        else:
+            logging.error("Header '{}' matches multiple potential formats:\n\t{}\n"
+                          "TreeSAPP is unable to parse necessary information.\n".format(header,
+                                                                                        ", ".join(format_matches)))
+            sys.exit(5)
 
-    if header_format_re is None:
-        logging.error("Unable to parse header '" + header + "'\n")
-        sys.exit(5)
-
+    header_db, info = format_matches.popitem()
+    header_molecule, header_format_re = info
     return header_format_re, header_db, header_molecule
 
 
@@ -1035,6 +1267,7 @@ def rename_cluster_headers(cluster_dict, header_registry):
     """
     Map the numerical TreeSAPP IDs to each sequence's original header
     cluster.representative and header are both 'treesapp_id's
+
     :param cluster_dict:
     :param header_registry:
     :return:
@@ -1052,3 +1285,38 @@ def rename_cluster_headers(cluster_dict, header_registry):
             members.append([header_registry[header].original, identity])
         cluster.members = members
     return
+
+
+def split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file) -> None:
+    combined_fasta = FASTA(combined_msa)
+    combined_fasta.load_fasta()
+    seq_names = combined_fasta.get_seq_names()
+    write_new_fasta(combined_fasta.fasta_dict, query_msa_file, None,
+                    [seq_name for seq_name in seq_names if int(seq_name.split('_')[0]) < 0])
+    write_new_fasta(combined_fasta.fasta_dict, ref_msa_file, None,
+                    [seq_name for seq_name in seq_names if int(seq_name.split('_')[0]) > 0])
+    return
+
+
+def multiple_alignment_dimensions(mfa_file, seq_dict=None):
+    """
+    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+
+    :param seq_dict: A dictionary containing headers as keys and sequences as values
+    :param mfa_file: The name of the multiple alignment FASTA file being validated
+    :return: tuple = (nrow, ncolumn)
+    """
+    if not seq_dict:
+        seq_dict = read_fasta_to_dict(mfa_file)
+    sequence_length = 0
+    for seq_name in seq_dict:
+        sequence = seq_dict[seq_name]
+        if sequence_length == 0:
+            sequence_length = len(sequence)
+        elif sequence_length != len(sequence) and sequence_length > 0:
+            logging.error("Number of aligned columns is inconsistent in " + mfa_file + "!\n")
+            sys.exit(3)
+        else:
+            pass
+            # Sequence is the right length, carrying on
+    return len(seq_dict), sequence_length

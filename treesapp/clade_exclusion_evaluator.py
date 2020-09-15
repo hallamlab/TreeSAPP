@@ -4,19 +4,21 @@ __author__ = 'Connor Morgan-Lang'
 
 import os
 import shutil
-from ete3 import Tree
+import logging
+import sys
+import re
 from glob import glob
 
-from .fasta import write_new_fasta, read_fasta_to_dict
-from .utilities import return_sequence_info_groups
-from .external_command_interface import launch_write_command
-from .file_parsers import tax_ids_file_to_leaves
-from .classy import get_header_format, Evaluator, MarkerBuild
-from .entrez_utils import *
+from treesapp.fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes, sequence_info_groups
+from treesapp.external_command_interface import launch_write_command
+from treesapp.classy import get_header_format, Evaluator
+from treesapp.refpkg import ReferencePackage
+from treesapp.phylo_dist import trim_lineages_to_rank
+from treesapp.entrez_utils import EntrezRecord
 
-_RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
-                   2: "Phylum", 3: "Class", 4: "Order",
-                   5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
+_RANK_DEPTH_MAP = {0: "cellular organisms", 1: "domain",
+                   2: "phylum", 3: "class", 4: "order",
+                   5: "family", 6: "genus", 7: "species", 8: "strain"}
 
 
 def load_rank_depth_map(evaluator: Evaluator):
@@ -82,13 +84,8 @@ def write_intermediate_assignments(inter_class_file, assignments):
                 logging.warning("No lineage information was downloaded for queries assigned to " +
                                 ref + "\n")
             else:
-                cleaned_ref = clean_lineage_string(ref)
-                if not cleaned_ref:
-                    logging.debug("Reference assignment is empty after cleaning the lineage:\n" +
-                                  ref + "\n")
-                else:
-                    assignments_string += marker + "\t" + cleaned_ref + "\t"
-                    assignments_string += ','.join(queries) + "\n"
+                assignments_string += marker + "\t" + ref + "\t"
+                assignments_string += ','.join(queries) + "\n"
 
     file_handler.write(assignments_string)
     file_handler.close()
@@ -96,7 +93,7 @@ def write_intermediate_assignments(inter_class_file, assignments):
     return
 
 
-def determine_containment(marker_eval_inst):
+def determine_containment(marker_eval_inst: Evaluator):
     """
     Determines the accuracy of sequence classifications of all sequences contained at different taxonomic ranks
 
@@ -110,24 +107,24 @@ def determine_containment(marker_eval_inst):
     rank_assigned_dict = marker_eval_inst.classifications
     # Set up collection for this analysis
     lowest_rank = ""
-    for depth in sorted(_RANK_DEPTH_MAP):
-        if _RANK_DEPTH_MAP[depth] in marker_eval_inst.ranks:
-            if marker_eval_inst.get_sensitivity(_RANK_DEPTH_MAP[depth])[1] > 0:
-                lowest_rank = _RANK_DEPTH_MAP[depth]
+    for depth in sorted(marker_eval_inst.rank_depth_map):
+        if marker_eval_inst.rank_depth_map[depth] in marker_eval_inst.ranks:
+            if marker_eval_inst.get_sensitivity(marker_eval_inst.rank_depth_map[depth])[1] > 0:
+                lowest_rank = marker_eval_inst.rank_depth_map[depth]
     containment_strings = list()
     n_queries, n_classified, _ = marker_eval_inst.get_sensitivity(lowest_rank)
 
-    sys.stdout.write("Accuracy of " + str(n_classified) + ' ' + marker_eval_inst.target_marker.cog +
+    sys.stdout.write("Accuracy of " + str(n_classified) + ' ' + marker_eval_inst.ref_pkg.prefix +
                      " classifications at " + lowest_rank + ":\n" +
                      "\tRank\tCorrect\tToo Shallow (%)\n")
 
     # Begin parsing through the depths
-    if lowest_rank == "Cellular organisms":
+    if lowest_rank == "root":
         return
-    for depth in sorted(_RANK_DEPTH_MAP):
+    for depth in sorted(marker_eval_inst.rank_depth_map):
         incorrect_assignments = dict()
-        rank = _RANK_DEPTH_MAP[depth]
-        if rank in ["Cellular organisms", "Species", "Strain"]:
+        rank = marker_eval_inst.rank_depth_map[depth]
+        if rank in ["root", "species", "strain"]:
             continue
         elif rank == lowest_rank:
             break
@@ -189,7 +186,6 @@ def clean_classification_names(assignments):
     for marker in assignments.keys():
         cleaned_assignments[marker] = dict()
         for ref, queries in assignments[marker].items():
-            ref = clean_lineage_string(ref)
             cleaned_assignments[marker][ref] = list()
             for query in queries:
                 try:
@@ -198,7 +194,6 @@ def clean_classification_names(assignments):
                     logging.error("Unexpected type of lineage string (" + str(type(query)) + "):\n" +
                                   str(query) + "\n")
                     sys.exit(21)
-                query = clean_lineage_string(query)
                 cleaned_assignments[marker][ref].append(query)
     return cleaned_assignments
 
@@ -208,6 +203,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
     Since the headers used throughout the TreeSAPP pipeline are truncated,
     we read the FASTA file and use those headers instead of their short version
     in case valuable information was discarded
+
     :param fasta_headers: full-length headers that will replace those in assignments
     :param header_map:
     :param assignments: A dictionary of reference (lineage) and query names
@@ -218,6 +214,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
     marker_assignments = dict()
     entrez_query_list = list()
     num_queries = 0
+    header_regex_dict = load_fasta_header_regexes()
     for robust_classification in assignments.keys():
         marker_assignments[robust_classification] = list()
         for query in assignments[robust_classification]:
@@ -237,9 +234,9 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
                     q_accession = genome_position_re.match(query).group(1)
                     database = "dna"
                 else:
-                    header_format_re, header_db, header_molecule = get_header_format(original_header)
+                    header_format_re, header_db, _ = get_header_format(original_header, header_regex_dict)
                     sequence_info = header_format_re.match(original_header)
-                    q_accession = return_sequence_info_groups(sequence_info, header_db, original_header).accession
+                    q_accession = sequence_info_groups(sequence_info, header_db, original_header).accession
                 # print(q_accession)
                 entrez_query_list.append((q_accession, database))
                 marker_assignments[robust_classification].append(q_accession)
@@ -283,43 +280,46 @@ def assign_lineages(complete_ref_seqs, assignments):
     return assignments
 
 
-def map_headers_to_lineage(assignments, ref_sequences):
+def map_headers_to_lineage(assignments: dict, ref_sequences: dict) -> dict:
     """
     The alternative function to map_full_headers. Using ReferenceSequence objects,
-    :param assignments:
+
+    :param assignments: A dictionary of ReferencePackage.prefix keys mapped to a dictionary of assigned lineage keys
+    mapped to the headers of sequences assigned as their respective lineages.
     :param ref_sequences:
-    :return:
+    :return:  A dictionary mapping ReferencePackage.prefix's to a dictionary of assigned lineage keys to a list of
+    reference sequences (values). An example is
     """
     lineage_assignments = dict()
-    for marker in assignments:
-        lineage_assignments[marker] = dict()
-        for assigned_lineage in assignments[marker].keys():
-            classified_headers = assignments[marker][assigned_lineage]
-            c_lineage = clean_lineage_string(assigned_lineage)
-            lineage_assignments[marker][c_lineage] = list()
+    for refpkg_name in assignments:
+        lineage_assignments[refpkg_name] = dict()
+        for assigned_lineage in assignments[refpkg_name].keys():
+            classified_headers = assignments[refpkg_name][assigned_lineage]
+            lineage_assignments[refpkg_name][assigned_lineage] = list()
             for query in classified_headers:
                 mapped = False
-                for treesapp_id, ref_seq in ref_sequences.items():
+                for _, ref_seq in ref_sequences.items():  # type: (int, EntrezRecord)
                     if ref_seq.accession == query:
-                        lineage_assignments[marker][c_lineage].append(clean_lineage_string(ref_seq.lineage))
+                        lineage_assignments[refpkg_name][assigned_lineage].append(ref_seq.lineage)
                         mapped = True
                         break
                 if not mapped:
                     logging.error("Unable to map classified sequence '" + query + "' to a lineage.\n")
                     sys.exit(3)
-            if len(lineage_assignments[marker][c_lineage]) > len(classified_headers):
+            if len(lineage_assignments[refpkg_name][assigned_lineage]) > len(classified_headers):
                 logging.error(str(len(classified_headers)) + " accessions mapped to " +
-                              str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
+                              str(len(lineage_assignments[refpkg_name][assigned_lineage])) + " lineages.\n")
                 sys.exit(21)
-            elif len(lineage_assignments[marker][c_lineage]) < len(classified_headers):
+            elif len(lineage_assignments[refpkg_name][assigned_lineage]) < len(classified_headers):
                 logging.debug(str(len(classified_headers)) + " accessions mapped to " +
-                              str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
+                              str(len(lineage_assignments[refpkg_name][assigned_lineage])) + " lineages.\n")
     return lineage_assignments
 
 
 def get_unclassified_rank(pos, split_lineage):
     """
     Recursive function to retrieve the first rank at which the
+
     :param pos:
     :param split_lineage:
     :return:
@@ -329,6 +329,31 @@ def get_unclassified_rank(pos, split_lineage):
     else:
         pos = get_unclassified_rank(pos+1, split_lineage)
     return pos
+
+
+def get_testable_lineages_for_rank(ref_lineage_map: dict, query_lineage_map: dict, rank: str) -> list:
+    """
+
+
+    :param ref_lineage_map: A dictionary mapping all reference sequences to their respective taxonomic lineages
+    :param query_lineage_map: A dictionary mapping representative query sequences to taxonomic lineages
+    :param rank: Name of a taxonomic rank to test and is used to guide taxonomic lineage trimming with
+     {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
+    :return: List of lineages where the optimal rank exists in the reference tree after clade exclusion
+    """
+    lineages = []
+    leaf_trimmed_taxa_map = trim_lineages_to_rank(ref_lineage_map, rank)
+    unique_ref_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
+    unique_query_lineages = sorted(set(trim_lineages_to_rank(query_lineage_map, rank).values()))
+    for lineage in unique_query_lineages:
+        # Is the optimal placement in the pruned reference tree?
+        optimal_lca_taxonomy = "; ".join(lineage.split("; ")[:-1])
+        if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_ref_lineages
+                                        if tl != lineage]:
+            logging.debug("Optimal placement target '" + optimal_lca_taxonomy + "' not in pruned tree.\n")
+        else:
+            lineages.append(lineage)
+    return lineages
 
 
 def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict, max_cluster_size=5):
@@ -346,12 +371,11 @@ def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict,
     dereplicated_lineages = dict()
     num_rep_seqs = 0
     for tree_id, ref_seq in ref_seqs.items():
-        query_taxonomy = clean_lineage_string(ref_seq.lineage)
-        if len(query_taxonomy.split("; ")) < 5:
+        if len(ref_seq.lineage.split("; ")) < 5:
             continue
-        if query_taxonomy not in good_classified_lineages:
-            good_classified_lineages[query_taxonomy] = list()
-        if re.search("unclassified|environmental sample", query_taxonomy, re.IGNORECASE):
+        if ref_seq.lineage not in good_classified_lineages:
+            good_classified_lineages[ref_seq.lineage] = list()
+        if re.search("unclassified|environmental sample", ref_seq.lineage, re.IGNORECASE):
             # # Remove taxonomic lineages that are unclassified at the Phylum level or higher
             # unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
             # if unclassified_depth > 4:
@@ -360,7 +384,7 @@ def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict,
             taxonomic_filter_stats["Unclassified"] += 1
         else:
             taxonomic_filter_stats["Classified"] += 1
-            good_classified_lineages[query_taxonomy].append(ref_seq.accession)
+            good_classified_lineages[ref_seq.lineage].append(ref_seq.accession)
 
     if taxonomic_filter_stats["Unclassified"] == len(ref_seqs):
         logging.error("All sequences provided are derived from uncultured, unclassified organisms.\n")
@@ -421,12 +445,13 @@ def same_lineage(target_lineage: str, candidate_lineage: str) -> bool:
     4. "Root; Bacteria", "Root; Bacteria; Proteobacteria" True
     5. "Bacteria", "Root; Bacteria; Proteobacteria"       True
     Runs in O(n) complexity
+
     :param target_lineage:
     :param candidate_lineage:
     :return: Boolean
     """
-    target_lineage = clean_lineage_string(target_lineage).split("; ")
-    candidate_lineage = clean_lineage_string(candidate_lineage).split("; ")
+    target_lineage = target_lineage.split("; ")
+    candidate_lineage = candidate_lineage.split("; ")
     tlen = len(target_lineage)
     clen = len(candidate_lineage)
     k = 0  # For tracking the overlapping positions
@@ -471,7 +496,7 @@ def select_rep_seqs(deduplicated_assignments: dict, test_sequences: dict, target
     for lineage in sorted(filtered_assignments):
         for accession in filtered_assignments[lineage]:
             matched = False
-            for treesapp_id, ref_seq in test_sequences.items():
+            for _, ref_seq in test_sequences.items():  # type: (str, EntrezRecord)
                 if ref_seq.accession == accession:
                     deduplicated_fasta_dict[accession] = ref_seq.sequence
                     matched = True
@@ -528,40 +553,31 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
     return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
 
 
-def correct_accession(description):
-    header_format_re, header_db, header_molecule = get_header_format(description)
-    sequence_info = header_format_re.match(description)
-    return return_sequence_info_groups(sequence_info, header_db, description).accession
-
-
-def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon: str, marker: MarkerBuild, depth: int):
+def prep_graftm_ref_files(intermediate_dir: str, target_taxon: str, refpkg: ReferencePackage, depth: int):
     """
     From the original TreeSAPP reference package files, the necessary GraftM create input files are generated
     with all reference sequences related to the target_taxon removed from the multiple sequence alignment,
     unaligned reference FASTA file and the tax_ids file.
-    :param treesapp_dir: Path to the TreeSAPP reference package directory
+
     :param intermediate_dir:  Path to write the intermediate files with target references removed
     :param target_taxon: Name of the taxon that is being tested in the current clade exclusion iteration
-    :param marker: MarkerBuild instance for the reference package being tested
+    :param refpkg: A ReferencePackage instance for the reference package being tested
     :param depth: Depth of the current taxonomic rank in hierarchy (e.g. Phylum = 2, Class = 3, etc.)
     :return: None
     """
     # Move the original FASTA, tree and tax_ids files to a temporary location
-    marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker.cog + ".fa"])
-    marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker.cog + ".txt"])
     off_target_ref_leaves = dict()
     # tax_ids file
-    ref_tree_leaves = tax_ids_file_to_leaves(marker_tax_ids)
-    with open(intermediate_dir + "tax_ids_" + marker.cog + ".txt", 'w') as tax_ids_handle:
+    ref_tree_leaves = refpkg.generate_tree_leaf_references_from_refpkg()
+    with open(intermediate_dir + "tax_ids_" + refpkg.prefix + ".txt", 'w') as tax_ids_handle:
         tax_ids_strings = list()
         for ref_leaf in ref_tree_leaves:
-            c_lineage = clean_lineage_string(ref_leaf.lineage)
-            if re.search(target_taxon, c_lineage):
+            if re.search(target_taxon, ref_leaf.lineage):
                 continue
-            sc_lineage = c_lineage.split("; ")
+            sc_lineage = ref_leaf.lineage.split("; ")
             if len(sc_lineage) < depth:
                 continue
-            if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
+            if re.search("unclassified|environmental sample", ref_leaf.lineage, re.IGNORECASE):
                 i = 0
                 while i <= depth:
                     if re.search("unclassified|environmental sample", sc_lineage[i], re.IGNORECASE):
@@ -572,11 +588,11 @@ def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon
                     continue
             organism, accession = ref_leaf.description.split(" | ")
             off_target_ref_leaves[ref_leaf.number] = accession
-            tax_ids_strings.append(accession + "\t" + clean_lineage_string(ref_leaf.lineage))
+            tax_ids_strings.append(accession + "\t" + ref_leaf.lineage)
         tax_ids_handle.write("\n".join(tax_ids_strings) + "\n")
 
     # fasta
-    ref_fasta_dict = read_fasta_to_dict(marker_fa)
+    ref_fasta_dict = read_fasta_to_dict(refpkg.msa)
     accession_fasta_dict = dict()
     for key_id in ref_fasta_dict:
         num_key = key_id.split('_')[0]
@@ -584,117 +600,14 @@ def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon
             accession_fasta_dict[off_target_ref_leaves[num_key]] = ref_fasta_dict[key_id]
         else:
             pass
-    write_new_fasta(accession_fasta_dict, intermediate_dir + marker.cog + ".mfa")
+    write_new_fasta(accession_fasta_dict, intermediate_dir + refpkg.prefix + ".mfa")
     for acc in accession_fasta_dict:
         accession_fasta_dict[acc] = re.sub('-', '', accession_fasta_dict[acc])
-    write_new_fasta(accession_fasta_dict, intermediate_dir + marker.cog + ".fa")
+    write_new_fasta(accession_fasta_dict, intermediate_dir + refpkg.prefix + ".fa")
     return
 
 
-def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_clade, depth,
-                                 executables, fresh, molecule):
-    # Move the original FASTA, tree and tax_ids files to a temporary location
-    marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
-    marker_hmm = os.sep.join([treesapp_dir, "data", "hmm_data", marker + ".hmm"])
-    marker_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"])
-    marker_bipart_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"])
-    marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
-    intermediate_prefix = intermediate_dir + "ORIGINAL"
-
-    shutil.copy(marker_fa, intermediate_prefix + ".fa")
-    shutil.copy(marker_hmm, intermediate_prefix + ".hmm")
-    shutil.copy(marker_tree, intermediate_prefix + "_tree.txt")
-    if os.path.isfile(marker_bipart_tree):
-        shutil.copy(marker_bipart_tree, intermediate_prefix + "_bipartitions.txt")
-        os.remove(marker_bipart_tree)
-    shutil.copy(marker_tax_ids, intermediate_prefix + "_tax_ids.txt")
-
-    off_target_ref_leaves = list()
-    n_match = 0
-    n_shallow = 0
-    n_unclassified = 0
-    # tax_ids file
-    ref_tree_leaves = tax_ids_file_to_leaves(marker_tax_ids)
-    target_clade = clean_lineage_string(target_clade, ["Root; "])
-    with open(marker_tax_ids, 'w') as tax_ids_handle:
-        for ref_leaf in ref_tree_leaves:
-            tax_ids_string = ""
-            c_lineage = clean_lineage_string(ref_leaf.lineage, ["Root; "])
-            sc_lineage = c_lineage.split("; ")
-            if len(sc_lineage) < depth:
-                n_shallow += 1
-                continue
-            if target_clade == '; '.join(sc_lineage[:depth+1]):
-                n_match += 1
-                continue
-            if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
-                i = 0
-                while i <= depth:
-                    if re.search("unclassified|environmental sample", sc_lineage[i], re.IGNORECASE):
-                        i -= 1
-                        break
-                    i += 1
-                if i < depth:
-                    n_unclassified += 1
-                    continue
-            off_target_ref_leaves.append(ref_leaf.number)
-            tax_ids_string += "\t".join([ref_leaf.number, ref_leaf.description, ref_leaf.lineage])
-            tax_ids_handle.write(tax_ids_string + "\n")
-
-    logging.debug("Reference sequence filtering stats for " + target_clade + "\n" +
-                  "\n".join(["Match taxon\t" + str(n_match),
-                             "Unclassified\t" + str(n_unclassified),
-                             "Too shallow\t" + str(n_shallow),
-                             "Remaining\t" + str(len(off_target_ref_leaves))]) + "\n")
-
-    # fasta
-    ref_fasta_dict = read_fasta_to_dict(marker_fa)
-    off_target_headers = [num_id + '_' + marker for num_id in off_target_ref_leaves]
-    if len(off_target_headers) == 0:
-        logging.error("No reference sequences were retained for building testing " + target_clade + "\n")
-        sys.exit(19)
-    split_files = write_new_fasta(ref_fasta_dict, marker_fa, len(off_target_ref_leaves)+1, off_target_headers)
-    if len(split_files) > 1:
-        logging.error("Only one FASTA file should have been written.\n")
-        sys.exit(21)
-    else:
-        shutil.copy(split_files[0], marker_fa)
-
-    # HMM profile
-    hmm_build_command = [executables["hmmbuild"],
-                         marker_hmm,
-                         marker_fa]
-    launch_write_command(hmm_build_command)
-
-    # Trees
-    if fresh:
-        tree_build_cmd = [executables["FastTree"]]
-        if molecule == "rrna" or molecule == "dna":
-            tree_build_cmd += ["-nt", "-gtr"]
-        else:
-            tree_build_cmd += ["-lg", "-wag"]
-        tree_build_cmd += ["-out", marker_tree]
-        tree_build_cmd.append(marker_fa)
-        logging.info("Building Approximately-Maximum-Likelihood tree with FastTree... ")
-        stdout, returncode = launch_write_command(tree_build_cmd, True)
-        with open(intermediate_dir + os.sep + "FastTree_info." + marker, 'w') as fast_info:
-            fast_info.write(stdout + "\n")
-        logging.info("done.\n")
-    else:
-        ref_tree = Tree(marker_tree)
-        ref_tree.prune(off_target_ref_leaves)
-        logging.debug("\t" + str(len(ref_tree.get_leaves())) + " leaves in pruned tree.\n")
-        ref_tree.write(outfile=marker_tree, format=5)
-
-    return intermediate_prefix
-
-
-def validate_ref_package_files(treesapp_dir, marker, intermediate_dir):
-    # Move the original FASTA, tree and tax_ids files to a temporary location
-    marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
-    marker_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"])
-    marker_bipart_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"])
-    marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
+def validate_ref_package_files(refpkg: ReferencePackage, intermediate_dir):
     intermediate_prefix = intermediate_dir + "ORIGINAL"
 
     # This prevents users from quitting mid-analysis then using bad reference package files with clades removed
@@ -704,47 +617,15 @@ def validate_ref_package_files(treesapp_dir, marker, intermediate_dir):
         logging.info("Attempting recovery... ")
         # Easiest way to recover is to move the originals back to proper location and proceed
         try:
-            shutil.copy(intermediate_prefix + ".fa", marker_fa)
-            shutil.copy(intermediate_prefix + "_tree.txt", marker_tree)
+            shutil.copy(intermediate_prefix + ".fa", refpkg.msa)
+            shutil.copy(intermediate_prefix + "_tree.txt", refpkg.tree)
             if os.path.isfile(intermediate_prefix + "_bipartitions.txt"):
-                shutil.copy(intermediate_prefix + "_bipartitions.txt", marker_bipart_tree)
-            shutil.copy(intermediate_prefix + "_tax_ids.txt", marker_tax_ids)
+                shutil.copy(intermediate_prefix + "_bipartitions.txt", refpkg.boot_tree)
+            shutil.copy(intermediate_prefix + "_tax_ids.txt", refpkg.lineage_ids)
             logging.info("succeeded.\n")
         except FileNotFoundError:
             logging.info("failed. Redownload data files and start over.\n")
             sys.exit(21)
-    return
-
-
-def remove_clade_exclusion_files(intermediate_dir):
-    remnants = glob(intermediate_dir + "ORIGINAL*", recursive=True)
-    if not remnants:
-        logging.warning("No remaining original reference package files found for destruction.\n")
-    for tmp_file in remnants:
-        os.remove(tmp_file)
-    return
-
-
-def restore_reference_package(treesapp_dir, prefix, output_dir, marker):
-    """
-      Prepares TreeSAPP tree, alignment and taxonomic identification map (tax_ids) files for clade exclusion analysis,
-    and performs classification with TreeSAPP
-
-    :return: The paths to the classification table and the taxon-excluded tax_ids file
-    """
-    # The edited tax_ids file with clade excluded is required for performance analysis
-    # Copy the edited, clade-excluded tax_ids file to the output directory
-    shutil.copy(os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"]), output_dir)
-
-    # Move the original FASTA, tree and tax_ids files back to the proper directories
-    shutil.copy(prefix + "_tree.txt", os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"]))
-    if os.path.isfile(prefix + "_bipartitions.txt"):
-        shutil.copy(prefix + "_bipartitions.txt",
-                    os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"]))
-    shutil.copy(prefix + "_tax_ids.txt", os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"]))
-    shutil.copy(prefix + ".fa", os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"]))
-    shutil.copy(prefix + ".hmm", os.sep.join([treesapp_dir, "data", "hmm_data", marker + ".hmm"]))
-
     return
 
 

@@ -1,0 +1,12 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+103	range	rgb(246, 232, 195)	EmoA
+126	range	#8c510a	AmoA
+47	range	#8c510a	AmoA
+138	range	rgb(223, 194, 125)	PxmA
+66	range	#01665e	PmoA
+167	range	#01665e	PmoA
+Candidatus_Methylomirabilis_oxyfera_|_671143.DAMO_2450	range	#01665e	PmoA
+65_McrA|67_McrA	range	#5aae61	CO2-dependent	hydrogenotrophic
+Thaumarchaeota_|_AHZ90671	range	rgb(84, 48, 5)	AmoA_AOA

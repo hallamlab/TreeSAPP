@@ -4,8 +4,10 @@ import sys
 import re
 import logging
 from glob import glob
-from .classy import Assigner, Evaluator, Creator, PhyTrainer, Updater, Purity
-from .utilities import available_cpu_count, get_refpkg_build
+from datetime import datetime as dt
+
+from treesapp.classy import Assigner, Evaluator, Creator, PhyTrainer, Updater, Purity
+from treesapp.utilities import available_cpu_count
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):
@@ -22,13 +24,14 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
             for example verbose, help, num_threads
         :param kwargs:
         """
-        super(TreeSAPPArgumentParser, self).__init__(add_help=False, **kwargs)
+        _prog = " ".join(os.path.basename(x) for x in sys.argv[0:2])
+        super(TreeSAPPArgumentParser, self).__init__(add_help=False, prog=_prog, **kwargs)
         self.reqs = self.add_argument_group("Required parameters")
         self.seqops = self.add_argument_group("Sequence operation arguments")
         self.rpkm_opts = self.add_argument_group("RPKM options")
         self.optopt = self.add_argument_group("Optional options")
-        self.miscellany = self.add_argument_group("Miscellaneous options")
         self.taxa_args = self.add_argument_group("Taxonomic-lineage arguments")
+        self.miscellany = self.add_argument_group("Miscellaneous options")
 
         self.miscellany.add_argument("-v", "--verbose", action="store_true", default=False,
                                      help="Prints a more verbose runtime log")
@@ -42,12 +45,39 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         return args
 
     # The following are building-block functions
+    def add_delete(self):
+        self.miscellany.add_argument('--delete', default=False, action="store_true",
+                                     help='Delete all intermediate files to save disk space.')
+
     def add_io(self):
         self.reqs.add_argument('-i', '--fastx_input', required=True, dest="input",
                                help='An input file containing DNA or protein sequences in either FASTA or FASTQ format')
         self.optopt.add_argument('-o', '--output', default='./output/', required=False,
                                  help='Path to an output directory [DEFAULT = ./output/]')
+        self.add_delete()
         return
+
+    def add_refpkg_opt(self):
+        self.optopt.add_argument("--refpkg_dir", dest="refpkg_dir", default=None,
+                                 help="Path to the directory containing reference package pickle (.pkl) files. "
+                                      "[ DEFAULT = treesapp/data/ ]")
+
+    def add_refpkg_targets(self):
+        self.optopt.add_argument('-t', '--targets', default='', type=str, dest="targets",
+                                 help="A comma-separated list specifying which reference packages to use. "
+                                      "They are to be referenced by their 'prefix' attribute. "
+                                      "Use `treesapp info -v` to get the available list [ DEFAULT = ALL ]")
+
+    def add_annot_map(self, required=False):
+        self.optopt.add_argument("--annot_map", required=required, default=None, dest="annot_map",
+                                 help="Path to a tabular file mapping reference (refpkg) package names being tested to "
+                                      "database corresponding sequence names, indicating a true positive relationship."
+                                      " First column is the refpkg name, second is the orthologous group name and third"
+                                      " is the query sequence name.")
+
+    def add_refpkg_file_param(self):
+        self.reqs.add_argument("-r", "--refpkg_path", dest="pkg_path", required=True,
+                               help="Path to the reference package pickle (.pkl) file.\n")
 
     def add_seq_params(self):
         self.optopt.add_argument("--trim_align", default=False, action="store_true",
@@ -72,6 +102,23 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                  help="HMM-threshold mode affects the number of query sequences that advance "
                                       "[DEFAULT = relaxed]")
 
+    def add_phylogeny_params(self):
+        self.optopt.add_argument("-b", "--bootstraps",
+                                 help="The maximum number of bootstrap replicates RAxML-NG should perform using "
+                                      "the autoMRE algorithm.\n[ DEFAULT = 0 ]",
+                                 required=False, default=0, type=int)
+        self.optopt.add_argument("-e", "--raxml_model",
+                                 help="The evolutionary model for RAxML-NG to use\n"
+                                      "[ Proteins = LG+G4 | Nucleotides =  GTR+G ]",
+                                 required=False, default=None)
+        self.optopt.add_argument("--fast",
+                                 help="A flag indicating the tree should be built rapidly, using FastTree.",
+                                 required=False, default=False, action="store_true")
+        # Doesn't _really_ fit in here but good enough. Needs to be used by create and update.
+        self.optopt.add_argument("--outdet_align", default=False, action="store_true", dest="od_seq",
+                                 help="Flag to activate outlier detection and removal from multiple sequence alignments"
+                                      " using OD-seq. [DEFAULT = False]")
+
     def add_compute_miscellany(self):
         self.miscellany.add_argument('--overwrite', action='store_true', default=False,
                                      help='overwrites previously processed output folders')
@@ -80,12 +127,25 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                           'to use in various pipeline steps [DEFAULT = 2]')
 
     def add_accession_params(self):
-        self.optopt.add_argument("--accession2taxid", dest="acc_to_taxid", required=False, default=None,
-                                 help="Path to an NCBI accession2taxid file "
-                                      "for more rapid accession-to-lineage mapping.\n")
-        self.optopt.add_argument("-a", "--accession2lin", dest="acc_to_lin", required=False, default=None,
-                                 help="Path to a file that maps sequence accessions to taxonomic lineages, "
-                                      "possibly made by `treesapp create`...")
+        self.taxa_args.add_argument("--accession2taxid", dest="acc_to_taxid", required=False, default=None,
+                                    help="Path to an NCBI accession2taxid file "
+                                         "for more rapid accession-to-lineage mapping.\n")
+        self.taxa_args.add_argument("-a", "--accession2lin", dest="acc_to_lin", required=False, default=None,
+                                    help="Path to a file that maps sequence accessions to taxonomic lineages, "
+                                         "possibly made by `treesapp create`...")
+
+    def add_lineage_table_param(self):
+        self.taxa_args.add_argument("--seqs2lineage", dest="seq_names_to_taxa", required=False, default=None,
+                                    help="Path to a file mapping sequence names to taxonomic lineages.\n")
+
+    def add_cluster_args(self):
+        self.seqops.add_argument("--cluster",
+                                 help="Cluster input sequences at the proportional similarity indicated by identity",
+                                 action="store_true",
+                                 required=False, default=False)
+        self.seqops.add_argument("-p", "--similarity",
+                                 help="Proportional similarity (between 0.50 and 1.0) to cluster sequences.",
+                                 required=False, default=1.0, type=float)
 
     def add_taxa_args(self):
         self.taxa_args.add_argument("-s", "--screen",
@@ -97,7 +157,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                     help="Keywords for removing specific taxa; the opposite of `--screen`.\n"
                                          "[ DEFAULT is no filter ]",
                                     default="", required=False)
-        self.taxa_args.add_argument("-t", "--min_taxonomic_rank",
+        self.taxa_args.add_argument("--min_taxonomic_rank",
                                     required=False, default='k', choices=['k', 'p', 'c', 'o', 'f', 'g', 's'],
                                     help="The minimum taxonomic resolution for reference sequences [ DEFAULT = k ].\n")
         self.taxa_args.add_argument("--taxa_lca",
@@ -109,25 +169,70 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                          "A comma-separated argument with the Rank (e.g. Phylum) and\n"
                                          "number of representatives is required.\n")
 
+    def add_taxa_ranks_param(self):
+        self.optopt.add_argument("--taxonomic_ranks", dest="taxon_rank", required=False, nargs='+',
+                                 default=["class", "species"],
+                                 help="A list of the taxonomic ranks (space-separated) to test."
+                                      " [ DEFAULT = class species ]",
+                                 choices=["domain", "phylum", "class", "order", "family", "genus", "species"])
+
+    def add_classifier_model_params(self):
+        self.optopt.add_argument("-k", "--svm_kernel", required=False, default="lin",
+                                 choices=["lin", "rbf", "poly"], dest="kernel",
+                                 help="Specifies the kernel type to be used in the SVM algorithm. "
+                                      "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
+        self.optopt.add_argument("--grid_search", default=False, required=False, action="store_true",
+                                 help="Perform a grid search across hyperparameters. Binary classifier only.")
+        self.optopt.add_argument("--tsne", default=False, required=False, action="store_true",
+                                 help="Generate a tSNE plot. Output will be in the same directory as the model file. "
+                                      "Binary classifier only.")
+        self.optopt.add_argument("--classifier", required=False, choices=["occ", "bin"], default="occ",
+                                 help="Specify the kind of classifier to be trained: one-class classifier (OCC) or "
+                                      "a binary classifier (bin). [ DEFAULT = occ ]")
+
+
+def add_info_arguments(parser: TreeSAPPArgumentParser):
+    parser.add_refpkg_opt()
+    return
+
+
+def add_package_arguments(parser: TreeSAPPArgumentParser, attributes: list):
+    parser.add_refpkg_file_param()
+
+    parser.reqs.add_argument("attributes", nargs="+",
+                             help="One or more reference package attributes to view. "
+                                  "Note: edit will only modify a single attribute at a time. "
+                                  "Choices include: {}\n".format(', '.join(attributes)))
+    parser.optopt.add_argument('-o', '--output', default=None, required=False,
+                               help='Path to an output directory. Default is the same directory as reference package.')
+    parser.optopt.add_argument("--overwrite", default=False, required=False, action="store_true",
+                               help="When editing a reference package, should the current file be overwritten?")
+    return
+
 
 def add_layer_arguments(parser: TreeSAPPArgumentParser):
+    parser.add_refpkg_opt()
     parser.reqs.add_argument("-o", "--treesapp_output", dest="output", required=True,
                              help="The TreeSAPP output directory.")
     parser.optopt.add_argument("-c", "--colours_style", required=False, nargs='+',
                                help="The colours_style file exported from iTOL with the annotation information. "
-                                     "For the variable name to be automatically inferred (rather than through `names`). "
-                                     "Format of the file should be `marker`_`var`.txt. For example: mcrA_Metabolism.txt "
+                                     "To automatically infer the variable name (rather than through `names`). "
+                                     "File name format should be `marker`_`var`.txt. For example: McrA_Metabolism.txt "
                                      "would create a new column in marker_contig_map.tsv named 'Metabolism'.")
     parser.optopt.add_argument("-d", "--annot_dir", required=False, default=None,
                                help="Path to a directory containing iTOL annotation files for layering.")
     return
 
 
-def add_classify_arguments(parser: TreeSAPPArgumentParser):
+def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     """
-    Returns the parser to interpret user options.
+    Adds command-line arguments that are specific to *treesapp assign*
+
+    :return: None
     """
     parser.add_io()
+    parser.add_refpkg_opt()
+    parser.add_refpkg_targets()
     parser.add_rpkm_params()
     parser.add_seq_params()
     parser.add_search_params()
@@ -138,15 +243,11 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
     parser.optopt.add_argument('-c', '--composition', default="meta", choices=["meta", "single"],
                                help="Sample composition being either a single organism or a metagenome.")
     parser.optopt.add_argument("-l", "--min_likelihood", default=0.1, type=float,
-                               help="The minimum likelihood weight ratio required for a RAxML placement. "
+                               help="The minimum likelihood weight ratio required for an EPA placement. "
                                "[DEFAULT = 0.1]")
-    parser.optopt.add_argument("-P", "--placement_parser", default="best", type=str, choices=["best", "lca"],
-                               help="Algorithm used for parsing each sequence's potential RAxML placements. "
-                               "[DEFAULT = 'best']")
-    parser.optopt.add_argument('-t', '--targets', default='', type=str,
-                               help='A comma-separated list specifying which marker genes to query in input by'
-                               ' the "denominator" column in data/tree_data/cog_list.tsv'
-                               ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
+    parser.optopt.add_argument("--svm", default=False, required=False, action="store_true",
+                               help="Uses the support vector machine (SVM) classification filter. "
+                                    "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "orf-call", "search", "align", "place", "classify"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
@@ -154,53 +255,47 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
                                   help="Flag indicating RPKM values should be calculated for the sequences detected")
 
     # The miscellany
-    parser.miscellany.add_argument('-R', '--reftree', default='p', type=str,
-                                   help='Reference tree (p = MLTreeMap reference phylogenetic tree [DEFAULT])'
-                                   ' Change to code to map query sequences to specific phylogenetic tree.')
-    parser.miscellany.add_argument("--check_trees", action="store_true", default=False,
-                                   help="Quality-check the reference trees before running TreeSAPP")
-    parser.miscellany.add_argument('-d', '--delete', default=False, action="store_true",
-                                   help='Delete intermediate file to save disk space. '
-                                        'Recommended for large metagenomes!')
-
+    parser.miscellany.add_argument('-R', '--reftree', required=False, default="", type=str,
+                                   help="[IN PROGRESS] Reference package that all queries should be immediately and "
+                                        "directly classified as (i.e. homology search step is skipped).")
     return
 
 
 def add_abundance_arguments(parser: TreeSAPPArgumentParser):
+    parser.add_refpkg_opt()
     parser.add_rpkm_params()
     parser.add_compute_miscellany()
+    parser.add_delete()
     parser.reqs.add_argument("--treesapp_output", dest="output", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
     # TODO: Include an option to append new values to the classification table
-    parser.optopt.add_argument("--report", choices=["update", "nothing"], required=False, default="nothing",
+    parser.optopt.add_argument("--report", choices=["update", "nothing"], required=False, default="update",
                                help="What should be done with the abundance values? The TreeSAPP classification table "
-                                    "can overwritten (update) or left unchanged. "
-                                    "[ DEFAULT = nothing ]")
+                                    "can be overwritten (update) or left unchanged. "
+                                    "[ DEFAULT = update ]")
 
 
-def add_create_arguments(parser: TreeSAPPArgumentParser):
+def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp create*
+
+    :return: None
+    """
     parser.add_io()
     parser.add_seq_params()
     parser.add_taxa_args()
+    parser.add_cluster_args()
+    parser.add_lineage_table_param()
+    parser.add_phylogeny_params()
     parser.add_accession_params()
     parser.add_compute_miscellany()
-    # The required parameters
+
     parser.reqs.add_argument("-c", "--refpkg_name",
                              help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
                                   "Examples are 'McrA', 'DsrAB', and 'p_amoA'.",
                              required=True)
-    parser.reqs.add_argument("-p", "--identity",
-                             help="Fractional identity value (between 0.50 and 1.0)\n"
-                                  "the input sequences were clustered at.",
-                             required=True,
-                             type=str)
 
-    parser.seqops.add_argument("--cluster",
-                               help="Flag indicating usearch should be used to cluster sequences\n"
-                                    "at the fractional similarity indicated by identity (`-p`)",
-                               action="store_true",
-                               default=False)
     parser.seqops.add_argument("--multiple_alignment",
                                help='The FASTA input is also the multiple alignment file to be used.\n'
                                     'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
@@ -215,33 +310,13 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
                                     "in the tree after all clustering and filtering",
                                default=None,
                                required=False)
-    parser.seqops.add_argument('-r', "--rfam_cm",
-                               help="The covariance model of the RNA family being packaged.\n"
-                                    "REQUIRED if molecule is rRNA!",
-                               default=None,
-                               required=False)
 
-    parser.optopt.add_argument("-b", "--bootstraps",
-                               help="The number of bootstrap replicates RAxML should perform\n"
-                                    "[ DEFAULT = autoMR ]",
-                               required=False, default="autoMR")
-    parser.optopt.add_argument("-e", "--raxml_model",
-                               help="The evolutionary model for RAxML to use\n"
-                                    "[ Proteins = PROTGAMMAAUTO | Nucleotides =  GTRGAMMA ]",
-                               required=False, default=None)
-    parser.optopt.add_argument("-u", "--uc",
-                               help="The USEARCH cluster format file produced from clustering reference sequences.\n"
-                                    "This can be used for selecting representative headers from identical sequences.",
-                               required=False, default=None)
-    parser.optopt.add_argument("--fast",
-                               help="A flag indicating the tree should be built rapidly, using FastTree.",
-                               default=False, required=False,
-                               action="store_true")
     parser.optopt.add_argument("--kind", default="functional", choices=["functional", "taxonomic"], required=False,
                                help="The broad classification of marker gene type, either "
                                     "functional or taxonomic. [ DEFAULT = functional ]")
     parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "lineages", "clean", "cluster", "build", "train", "cc"],
+                               choices=["continue", "search", "lineages", "clean", "cluster", "build",
+                                        "evaluate", "support", "train", "update"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
 
     parser.miscellany.add_argument('--pc', action='store_true', default=False,
@@ -251,14 +326,16 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
                                    help="Do not require any user input during runtime.")
 
 
-def add_purity_arguments(parser: TreeSAPPArgumentParser):
+def add_purity_arguments(parser: TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp purity*
+
+    :return: None
+    """
     parser.add_io()
+    parser.add_refpkg_file_param()
     parser.add_seq_params()
     parser.add_compute_miscellany()
-    parser.reqs.add_argument("-r", "--reference_marker", dest="refpkg", required=True,
-                             help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)")
-    parser.reqs.add_argument("-p", "--pkg_path", dest="pkg_path", required=True,
-                             help="Path to the reference package.\n")
     parser.optopt.add_argument("-x", "--extra_info", required=False, default=None,
                                help="File mapping header prefixes to description information.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
@@ -268,14 +345,18 @@ def add_purity_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
+def add_evaluate_arguments(parser: TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp evaluate*
+
+    :return: None
+    """
     parser.add_io()
     parser.add_seq_params()
+    parser.add_refpkg_file_param()
     parser.add_accession_params()
     parser.add_compute_miscellany()
-    parser.reqs.add_argument("-r", "--reference_marker",
-                             help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)",
-                             required=True)
+    parser.add_taxa_ranks_param()
 
     parser.optopt.add_argument("--fresh", default=False, required=False, action="store_true",
                                help="Recalculate a fresh phylogenetic tree with the target clades removed instead of"
@@ -283,11 +364,6 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
     parser.optopt.add_argument("--tool", default="treesapp", required=False,
                                choices=["treesapp", "graftm", "diamond"],
                                help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
-    parser.optopt.add_argument("-t", "--taxon_rank",
-                               help="Comma-separated list of the taxonomic ranks to test " +
-                                    "choices = [Phylum, Class, Order, Family, Genus, Species] (DEFAULT = Species)",
-                               default="Species",
-                               required=False)
     parser.optopt.add_argument("-l", "--length",
                                required=False, type=int, default=0,
                                help="Arbitrarily slice the input sequences to this length. "
@@ -298,23 +374,25 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_update_arguments(parser: TreeSAPPArgumentParser):
-    parser.add_io()
-    parser.add_seq_params()
-    parser.add_taxa_args()
-    parser.add_compute_miscellany()
-    parser.reqs.add_argument("-c", "--refpkg_name", dest="name", required=True,
-                             help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
-                                  "Examples are 'McrA', 'DsrAB', and 'p_amoA'.")
+def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp update*
+
+    :return: None
+    """
+    parser.add_io()  # i, o
+    parser.add_seq_params()  # w, m
+    parser.add_cluster_args()  # p
+    parser.add_taxa_args()  # s, f, t
+    parser.add_refpkg_file_param()  # r
+    parser.add_lineage_table_param()
+    parser.add_phylogeny_params()  # b, e
+    parser.add_compute_miscellany()  # n
     parser.reqs.add_argument("--treesapp_output", dest="ts_out", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
     parser.optopt.add_argument("-l", "--min_lwr", dest="min_lwr", required=False, default=0.0, type=float,
                                help="The minimum likelihood weight ratio for a sequence to be included in update.")
-    parser.optopt.add_argument("-a", "--seqs2taxa", dest="seq_names_to_taxa", required=False, default=None,
-                               help="Path to a file mapping sequence names (i.e. contig headers) to taxonomic lineages")
-    parser.optopt.add_argument("--fast", default=False, required=False, action="store_true",
-                               help="A flag indicating the tree should be built rapidly, using FastTree.")
     parser.optopt.add_argument("--skip_assign", default=False, required=False, action="store_true",
                                help="The assigned sequences are from a database and their database lineages "
                                     "should be used instead of the TreeSAPP-assigned lineages.")
@@ -325,35 +403,38 @@ def add_update_arguments(parser: TreeSAPPArgumentParser):
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "lineages", "rebuild"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
-    parser.seqops.add_argument("--cluster", required=False, default=False, action="store_true",
-                               help="Cluster sequences that mapped to the reference tree prior to updating")
-    parser.seqops.add_argument("-p", "--identity", required=False, type=float,
-                               help="Fractional similarity (between 0.50 and 1.0) to cluster sequences.")
     parser.miscellany.add_argument("--headless", action="store_true", default=False,
                                    help="Do not require any user input during runtime.")
 
 
-def add_trainer_arguments(parser: TreeSAPPArgumentParser):
+def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp train*
+
+    :return: None
+    """
     parser.add_io()
+    parser.add_refpkg_file_param()
     parser.add_seq_params()
     parser.add_accession_params()
+    parser.add_taxa_ranks_param()
     parser.add_compute_miscellany()
-    parser.reqs.add_argument("-c", "--refpkg_name", dest="name", required=True,
-                             help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
-                                  "Examples are 'McrA', 'DsrAB', and 'p_amoA'.")
-    parser.reqs.add_argument("-p", "--pkg_path", required=True,
-                             help="Path to the reference package.\n")
+    parser.add_classifier_model_params()
+    parser.add_annot_map()
+
     parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
                                help="Flag indicating input sequences need to be purified using an HMM profile.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "search", "lineages", "place", "regress"],
+                               choices=["continue", "clean", "search", "lineages", "place", "train", "update"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    return
 
 
 def check_parser_arguments(args, sys_args):
     """
     Function for checking arguments that are found in args.namespace()
     This is the only parser validation function used by clade exclusion evaluator
+
     :param args: Parsed command-line arguments
     :param sys_args: Unparsed command-line arguments passed to the current TreeSAPP module
     :return: None
@@ -387,13 +468,10 @@ def check_parser_arguments(args, sys_args):
     return
 
 
-def check_purity_arguments(purity_instance: Purity, args, marker_build_dict: dict):
-    purity_instance.ref_pkg.prefix = args.refpkg
-    purity_instance.refpkg_build = get_refpkg_build(purity_instance.ref_pkg.prefix,
-                                                    marker_build_dict,
-                                                    purity_instance.refpkg_code_re)
-    purity_instance.pkg_path = args.pkg_path
-    purity_instance.ref_pkg.gather_package_files(purity_instance.pkg_path, purity_instance.molecule_type)
+def check_purity_arguments(purity_instance: Purity, args):
+    purity_instance.ref_pkg.f__json = args.pkg_path
+    purity_instance.ref_pkg.slurp()
+    purity_instance.refpkg_dir = os.path.dirname(purity_instance.ref_pkg.f__json)
 
     ##
     # Define locations of files TreeSAPP outputs
@@ -409,26 +487,19 @@ def check_purity_arguments(purity_instance: Purity, args, marker_build_dict: dic
     return
 
 
-def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_dict):
-    taxa_choices = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
-    args.taxon_rank = args.taxon_rank.split(',')
+def check_evaluate_arguments(evaluator_instance: Evaluator, args):
     for rank in args.taxon_rank:
-        if rank not in taxa_choices:
-            logging.error(rank + " not an available option for `--taxon_rank`.\n")
-            sys.exit(21)
-        else:
-            evaluator_instance.ranks.append(rank)
-    evaluator_instance.target_marker = get_refpkg_build(args.reference_marker,
-                                                        marker_build_dict,
-                                                        evaluator_instance.refpkg_code_re)
-    evaluator_instance.targets.append(evaluator_instance.target_marker.denominator)
+        evaluator_instance.ranks.append(rank)
+
+    evaluator_instance.ref_pkg.f__json = args.pkg_path
+    evaluator_instance.ref_pkg.slurp()
 
     if args.acc_to_lin:
         evaluator_instance.acc_to_lin = args.acc_to_lin
         if os.path.isfile(evaluator_instance.acc_to_lin):
             evaluator_instance.change_stage_status("lineages", False)
         else:
-            logging.error("Unable to find accession-lineage mapping file '" + evaluator_instance.acc_to_lin + "'\n")
+            logging.error("Unable to find accession-lineage mapping file '{}'\n".format(evaluator_instance.acc_to_lin))
             sys.exit(3)
     else:
         evaluator_instance.acc_to_lin = evaluator_instance.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
@@ -448,29 +519,38 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_d
     return
 
 
-def check_trainer_arguments(trainer_instance: PhyTrainer, args, marker_build_dict):
-    target_marker_build = get_refpkg_build(args.name,
-                                           marker_build_dict,
-                                           trainer_instance.refpkg_code_re)
-    trainer_instance.ref_pkg.prefix = target_marker_build.cog
-    trainer_instance.ref_pkg.refpkg_code = target_marker_build.denominator
+def check_trainer_arguments(phy_trainer: PhyTrainer, args):
+    phy_trainer.ref_pkg.f__json = args.pkg_path
+    phy_trainer.ref_pkg.slurp()
+    phy_trainer.ref_pkg.validate()
 
-    ##
-    # Define locations of files TreeSAPP outputs
-    ##
-    trainer_instance.placement_table = trainer_instance.output_dir + "placement_info.tsv"
-    trainer_instance.placement_summary = trainer_instance.output_dir + "placement_trainer_results.txt"
-    trainer_instance.hmm_purified_seqs = trainer_instance.output_dir + trainer_instance.ref_pkg.prefix + "_hmm_purified.fasta"
+    # Make the directory for storing intermediate outputs
+    if not os.path.isdir(phy_trainer.var_output_dir):
+        os.makedirs(phy_trainer.var_output_dir)
 
-    if not os.path.isdir(trainer_instance.var_output_dir):
-        os.makedirs(trainer_instance.var_output_dir)
+    for rank in args.taxon_rank:
+        phy_trainer.training_ranks[rank] = phy_trainer.ref_pkg.taxa_trie.accepted_ranks_depths[rank]
+
+    # Check whether the parameters for the classifier make sense
+    if args.classifier == "bin":
+        if not args.annot_map:
+            logging.error("An annotation mapping file is required when building a binary classifier.\n")
+            sys.exit(3)
+        else:
+            phy_trainer.annot_map = args.annot_map
+    elif args.classifier == "occ" and args.annot_map:
+        logging.warning("Annotation mapping file is ignored when building a One-Class Classifier (OCC).\n")
+
+    if args.tsne:
+        phy_trainer.tsne_plot = os.path.join(phy_trainer.var_output_dir, "train", "tSNE.png")
 
     return
 
 
 def check_classify_arguments(assigner: Assigner, args):
     """
-    Ensures the command-line arguments returned by argparse are sensible
+    Ensures the command-line arguments returned by argparse are sensible.
+
     :param assigner: An instantiated Assigner object
     :param args: object with parameters returned by argparse.parse_args()
     :return: 'args', a summary of TreeSAPP settings.
@@ -482,14 +562,10 @@ def check_classify_arguments(assigner: Assigner, args):
     
     if args.targets:
         assigner.target_refpkgs = args.targets.split(',')
-        for marker in assigner.target_refpkgs:
-            if not assigner.refpkg_code_re.match(marker):
-                logging.error("Incorrect format for target: " + str(marker) +
-                              "\nRefer to column 'Denominator' in " + assigner.treesapp_dir +
-                              "data/ref_build_parameters.tsv for identifiers that can be used.\n")
-                sys.exit(3)
     else:
         assigner.target_refpkgs = []
+
+    assigner.validate_refpkg_dir(args.refpkg_dir)
 
     if args.molecule == "prot":
         assigner.change_stage_status("orf-call", False)
@@ -497,17 +573,20 @@ def check_classify_arguments(assigner: Assigner, args):
             logging.error("Unable to calculate RPKM values for protein sequences.\n")
             sys.exit(3)
 
+    if args.svm:
+        assigner.svc_filter = True
+
     # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
     # Parameterizing the hmmsearch output parsing:
     args.perc_aligned = 10
     args.min_acc = 0.7
     if args.stringency == "relaxed":
-        args.min_e = 1E-3
-        args.min_ie = 1E-1
+        args.max_e = 1E-3
+        args.max_ie = 1E-1
         args.min_score = 15
     elif args.stringency == "strict":
-        args.min_e = 1E-7
-        args.min_ie = 1E-5
+        args.max_e = 1E-5
+        args.max_ie = 1E-3
         args.min_score = 30
     else:
         logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
@@ -516,63 +595,51 @@ def check_classify_arguments(assigner: Assigner, args):
     return args
 
 
-def check_create_arguments(creator: Creator, args):
+def check_create_arguments(creator: Creator, args) -> None:
+    # Populate ReferencePackage attributes from command-line arguments
+    if args.fast:
+        creator.ref_pkg.tree_tool = "FastTree"
+    else:
+        creator.ref_pkg.tree_tool = "RAxML-NG"
     creator.ref_pkg.prefix = args.refpkg_name
+    creator.ref_pkg.pid = args.similarity
+    creator.ref_pkg.molecule = args.molecule
+    creator.ref_pkg.kind = args.kind
+    creator.ref_pkg.sub_model = args.raxml_model
+    creator.ref_pkg.date = dt.now().strftime("%Y-%m-%d")
+    creator.ref_pkg.f__json = creator.final_output_dir + creator.ref_pkg.prefix + creator.ref_pkg.refpkg_suffix
+    # TODO: Create placement trainer output directory and make it an attribute
     if not args.output:
         args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
 
-    if len(creator.ref_pkg.prefix) > 6:
-        logging.error("Name must be <= 6 characters!\n")
+    if len(creator.ref_pkg.prefix) > 10:
+        logging.error("Name should be <= 10 characters.\n")
         sys.exit(13)
 
-    if args.rfam_cm is None and args.molecule == "rrna":
-        logging.error("Covariance model file must be provided for rRNA data!\n")
-        sys.exit(13)
-
-    # Check the RAxML model
-    raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALG", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
-                    "ASC_GTRGAMMA", "ASC_GTRCAT", "BINGAMMA", "PROTGAMMAILGX", "PROTGTRGAMMA"]
-    if args.raxml_model:
-        valid = False
-        for model in raxml_models:
-            if re.search(model, args.raxml_model):
-                valid = True
-                break
-        if not valid:
-            logging.error("Phylogenetic substitution model '" + args.raxml_model + "' is not valid!\n" +
-                          "If this model is valid (not a typo), add it to `raxml_models` list and re-run.\n")
-            sys.exit(13)
-        else:
-            creator.ref_pkg.sub_model = args.raxml_model
+    # TODO: Check the substitution model for compatibility with RAxML-NG
 
     if args.cluster:
         if args.multiple_alignment:
             logging.error("--cluster and --multiple_alignment are mutually exclusive!\n")
             sys.exit(13)
-        if args.uc:
-            logging.error("--cluster and --uc are mutually exclusive!\n")
-            sys.exit(13)
-        if not 0.5 <= float(args.identity) <= 1.0:
-            if 0.5 < float(args.identity)/100 < 1.0:
-                args.identity = str(float(args.identity)/100)
-                logging.warning("--identity  set to " + args.identity + " for compatibility with USEARCH \n")
+        if not 0.5 <= float(args.similarity) <= 1.0:
+            if 0.5 < float(args.similarity)/100 < 1.0:
+                args.similarity = str(float(args.similarity)/100)
+                logging.warning("--similarity  set to {} for compatibility with USEARCH.\n".format(args.similarity))
             else:
-                logging.error("--identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
+                logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
-        creator.prop_sim = args.identity
 
-    if args.taxa_lca:
-        if not args.cluster and not args.uc:
-            logging.error("Unable to perform LCA for representatives without clustering information: " +
-                          "either with a provided UCLUST file or by clustering within the pipeline.\n")
-            sys.exit(13)
+    if args.taxa_lca and not args.cluster:
+        logging.error("Unable to perform LCA for representatives without clustering information: " +
+                      "either with a provided UCLUST file or by clustering within the pipeline.\n")
+        sys.exit(13)
 
-    if args.guarantee:
-        if not args.uc and not args.cluster:
-            logging.error("--guarantee used but without clustering there is no reason for it.\n" +
-                          "Include all sequences in " + args.guarantee +
-                          " in " + creator.input_sequences + " and re-run without --guarantee\n")
-            sys.exit(13)
+    if args.guarantee and not args.cluster:
+        logging.error("--guarantee used but without clustering there is no reason for it.\n" +
+                      "Include all sequences in " + args.guarantee +
+                      " in " + creator.input_sequences + " and re-run without --guarantee\n")
+        sys.exit(13)
 
     if args.profile:
         if not os.path.isfile(args.profile):
@@ -582,33 +649,48 @@ def check_create_arguments(creator: Creator, args):
 
     # Names of files and directories to be created
     creator.phy_dir = os.path.abspath(creator.var_output_dir) + os.sep + "phylogeny_files" + os.sep
+    creator.training_dir = os.path.abspath(creator.var_output_dir) + os.sep + "placement_trainer" + os.sep
     creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
     creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
     creator.cluster_input = creator.var_output_dir + creator.sample_prefix + "_uclust_input.fasta"
-    creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)
+    creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.ref_pkg.pid)
     creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
     creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
+
+    # Ensure the phylogenetic tree output directory from a previous run isn't going to be over-written
+    if not os.path.exists(creator.phy_dir):
+        os.mkdir(creator.phy_dir)
+    else:
+        logging.error(creator.phy_dir + " already exists from a previous run! " +
+                      "Please delete or rename it and try again.\n")
+        sys.exit(13)
+
+    if not os.path.isdir(creator.training_dir):
+        os.mkdir(creator.training_dir)
 
     return
 
 
-def check_updater_arguments(updater: Updater, args, marker_build_dict):
-    updater.ref_pkg.prefix = args.name
+def check_updater_arguments(updater: Updater, args):
+    updater.ref_pkg.f__json = args.pkg_path
+    updater.ref_pkg.slurp()
+    updater.updated_refpkg_path = os.path.join(updater.output_dir, "final_outputs", os.path.basename(args.pkg_path))
+    updater.ref_pkg.disband(os.path.join(updater.output_dir, "intermediates"))
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
-    updater.target_marker = get_refpkg_build(updater.ref_pkg.prefix, marker_build_dict, updater.refpkg_code_re)
-    if not args.identity:
-        updater.prop_sim = updater.target_marker.pid
+
+    if args.similarity == 1.0:
+        updater.prop_sim = updater.ref_pkg.pid
     else:
-        updater.prop_sim = args.identity
+        updater.prop_sim = args.similarity
 
     if args.cluster:
-        if not 0.5 <= float(updater.prop_sim) <= 1.0:
-            if 0.5 < float(updater.prop_sim)/100 < 1.0:
-                updater.prop_sim = str(float(updater.prop_sim) / 100)
-                logging.warning("--identity  set to " + updater.prop_sim + " for compatibility with USEARCH \n")
+        if not 0.5 <= float(args.similarity) <= 1.0:
+            if 0.5 < float(args.similarity) / 100 < 1.0:
+                args.similarity = str(float(args.similarity) / 100)
+                logging.warning("--similarity  set to {} for compatibility with USEARCH.\n".format(args.similarity))
             else:
-                logging.error("--identity " + updater.prop_sim + " is not between the supported range [0.5-1.0]\n")
+                logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
 
     if updater.seq_names_to_taxa and not os.path.isfile(updater.seq_names_to_taxa):
@@ -622,18 +704,22 @@ def check_updater_arguments(updater: Updater, args, marker_build_dict):
     if updater.treesapp_output[-1] != os.sep:
         updater.treesapp_output += os.sep
     updater.final_output_dir = updater.treesapp_output + "final_outputs" + os.sep
-    updater.var_output_dir = updater.treesapp_output + "intermediates" + os.sep
-    updater.old_ref_fasta = updater.output_dir + "original_refs.fasta"
-    updater.combined_fasta = updater.output_dir + "all_refs.fasta"
-    updater.lineage_map_file = updater.output_dir + "accession_id_lineage_map.tsv"
+    # updater.var_output_dir = updater.treesapp_output + "intermediates" + os.sep
+    updater.old_ref_fasta = updater.var_output_dir + "original_refs.fasta"
+    updater.combined_fasta = updater.var_output_dir + "all_refs.fasta"
+    updater.lineage_map_file = updater.var_output_dir + "accession_id_lineage_map.tsv"
     updater.assignment_table = updater.final_output_dir + "marker_contig_map.tsv"
     updater.cluster_input = updater.var_output_dir + updater.sample_prefix + "_uclust_input.fasta"
     updater.uclust_prefix = updater.var_output_dir + updater.sample_prefix + "_uclust" + str(updater.prop_sim)
     classified_seqs = glob(updater.final_output_dir + "*_classified.faa")
+
     if len(classified_seqs) == 1:
         updater.query_sequences = classified_seqs.pop()
+    elif len(classified_seqs) == 0:
+        logging.error("No classified sequence files found in {}.\n".format(updater.final_output_dir))
     else:
-        logging.error("Multiple classified sequence files in '" + updater.final_output_dir + "' but only 1 expected.\n")
+        logging.error("Multiple classified sequence files in '{}'"
+                      " where only one expected.\n".format(updater.final_output_dir))
         sys.exit(5)
 
     return

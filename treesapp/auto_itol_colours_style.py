@@ -10,8 +10,8 @@ import logging
 import ete3
 from collections import namedtuple
 from seaborn import color_palette
-from treesapp.classy import TreeLeafReference, prep_logging
-from treesapp.utilities import clean_lineage_string
+from treesapp.classy import prep_logging
+from treesapp.phylo_seq import TreeLeafReference
 from treesapp.entish import map_internal_nodes_leaves
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
@@ -42,24 +42,34 @@ class TaxaColours:
         self.unique_clades = dict()  # Unique numeric ID -> taxon
         self.internal_node_map = dict()  # Internal node -> child leaf names
 
-    def get_clades(self, target_depth):
+    def get_clades(self, target_depth: int) -> None:
         """
         Loads unique taxa found in the tree into a dictionary where the values are all leaves of a taxon.
         num_taxa is incremented here and represents the number of unique taxa.
         The number of keys in taxon_leaf_map represents the number of
+
         :param target_depth: A numeric value representing the taxonomic rank threshold, i.e., 0 is Kingdom, 7 is species
         :return: None
         """
         clades = dict()
         truncated_lineages = dict()
         self.num_taxa = 0
+        potential_domains = ["Archaea", "Bacteria", "Eukaryota"]
+        potential_luca = ["Root", "cellular organisms"]
 
         for leaf in sorted(self.tree_leaves, key=lambda x: x.lineage):  # type: TreeLeafReference
             if not leaf.lineage:
                 continue
             lineage_path = leaf.lineage.split('; ')
-            if len(lineage_path) > target_depth:
-                taxon = lineage_path[target_depth]
+            if lineage_path[0] in potential_domains:
+                depth = target_depth - 1
+            elif lineage_path[0] in potential_luca:
+                depth = target_depth
+            else:
+                logging.debug("Unable to find root or domain name for '%s'. Skipping.\n" % leaf.lineage)
+                continue
+            if len(lineage_path) > depth:
+                taxon = lineage_path[depth]
                 try:
                     self.taxon_leaf_map[taxon].append(leaf.number)
                 except KeyError:
@@ -294,7 +304,7 @@ def create_write_file(file_name: str, text: str) -> None:
     return
 
 
-def read_tax_ids_file(taxa_colours):
+def read_tax_ids_file(taxa_colours: TaxaColours) -> None:
     """
 
     :param taxa_colours: A TaxaColours instance
@@ -323,9 +333,10 @@ def read_tax_ids_file(taxa_colours):
             logging.error("Unexpected number of fields in " + taxa_colours.tax_ids_file +
                           ".\nInvoked .split(\'\\t\') on line " + str(line))
             raise ValueError
-        leaf = TreeLeafReference(number, translation)
+        leaf_node = number + "_" + taxa_colours.marker
+        leaf = TreeLeafReference(leaf_node, translation)
         if lineage:
-            leaf.lineage = clean_lineage_string(lineage)
+            leaf.lineage = lineage
             leaf.complete = True
         leaves.append(leaf)
         taxa_colours.num_seqs += 1
@@ -366,6 +377,7 @@ def get_colours(args, taxa_colours, palette):
 def map_colours_to_taxa(taxa_order, colours):
     """
     Function for mapping
+
     :param taxa_order: Dictionary indexed by numerical order of the taxa
     :param colours:
     :return:
@@ -469,9 +481,9 @@ def find_rank_depth(args):
     target_depth = 0
     for depth in rank_depth_map:
         if rank_depth_map[depth] == args.rank:
-            target_depth = depth - 1
+            target_depth = depth
             break
-    if target_depth < 0:
+    if target_depth == 0:
         logging.error("Rank '" + args.rank + "' not accepted!\n")
         sys.exit(3)
     return target_depth

@@ -12,7 +12,6 @@ CLASSIFIERS = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
     "Programming Language :: C++",
-    "Programming Language :: Python :: 3.5",
     "Programming Language :: Python :: 3.6",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
@@ -22,7 +21,7 @@ CLASSIFIERS = [
 SETUP_METADATA = \
     {
         "name": "treesapp",
-        "version": "0.6.8",
+        "version": "0.9.0",
         "description": "TreeSAPP is a functional and taxonomic annotation tool for genomes and metagenomes.",
         "long_description": LONG_DESCRIPTION,
         "long_description_content_type": "text/markdown",
@@ -43,8 +42,14 @@ SETUP_METADATA = \
                                   language="c++",
                                   include_dirs=["./treesapp/include"])
                         ],
-        "install_requires": ["samsum>=0.1.0", "pygtrie>=2.3", "ete3>=3.1.1",
-                             "numpy>=1.18.1", "biopython>=1.68", "scipy", "six>=1.14.0"]
+        "install_requires": ["samsum", "pyfastx",
+                             "pygtrie", "six",
+                             "biopython", "ete3",
+                             "numpy", "scipy", "scikit-learn", "joblib",
+                             "seaborn", "matplotlib", "tqdm", "packaging"],
+        "extras_require": {
+            'test': ['pytest', 'pytest-cov'],
+        }
     }
 
 setup(**SETUP_METADATA)

@@ -4,76 +4,66 @@ import sys
 import os
 import re
 import logging
+from glob import glob
 from collections import namedtuple
-from .classy import TreeLeafReference, MarkerBuild, Cluster
-from .HMMER_domainTblParser import DomainTableParser, HmmSearchStats,\
-    format_split_alignments, filter_incomplete_hits, filter_poor_hits, renumber_multi_matches, detect_orientation
-from .fasta import read_fasta_to_dict
+
+from treesapp.classy import Cluster
+from treesapp.refpkg import ReferencePackage
+from treesapp.fasta import read_fasta_to_dict
+from treesapp import HMMER_domainTblParser
 
 __author__ = 'Connor Morgan-Lang'
 
 
-def parse_ref_build_params(base_dir: str, targets=None):
+def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
     """
-    Returns a dictionary of MarkerBuild objects storing information pertaining to the build parameters of each marker.
-    :param base_dir: Path to the treesapp package directory containing 'data/ref_build_parameters.tsv'
+    Returns a dictionary of ReferencePackage instances for each MarkerBuild instance in the marker_build_dict.
+    Optionally these markers can be subsetted further by a list of targets
+
+    :param refpkg_data_dir: Path to the directory containing TreeSAPP reference packages (JSON-format)
     :param targets: List of refpkg codes that are desired or an empty list suggesting all refpkgs should be used
+    :return: Dictionary of ReferencePackage.prefix keys indexing their respective instances
     """
-    ref_build_parameters = base_dir + os.sep + "data" + os.sep + 'ref_build_parameters.tsv'
-    if type(targets) is str:
-        targets = [targets]
+    refpkg_dict = dict()
+    refpkgs_found = set()
+    logging.debug("Gathering reference package files... ")
 
-    try:
-        param_handler = open(ref_build_parameters, 'r')
-    except IOError:
-        logging.error("\tUnable to open " + ref_build_parameters + " for reading.\n")
-        sys.exit(5)
+    if targets is None:
+        targets = set()
+    else:
+        targets = set(targets)
 
-    header_fields = ["name", "code", "molecule", "sub_model", "marker_info", "cluster_identity", "ref_sequences",
-                     "tree_tool", "poly-params", "lowest_reliable_rank", "last_updated", "description"]
-    header_re = re.compile("\t".join(header_fields))
-    if not header_re.match(param_handler.readline().strip()):
-        logging.error("Header of '" + ref_build_parameters + "' is unexpected!")
-        sys.exit(5)
+    refpkg_files = glob(refpkg_data_dir + os.sep + "*_build.pkl")
+    if len(refpkg_files) == 0:
+        logging.error("No reference package files were found in {}".format(refpkg_data_dir))
+        sys.exit(3)
 
-    logging.debug("Reading build parameters of reference markers... ")
-    skipped_lines = []
-    missing_info = []
-    marker_build_dict = dict()
-    for line in param_handler:
-        if header_re.match(line):
-            continue
-        if line[0] == '#':
-            skipped_lines.append(line)
-            continue
-        marker_build = MarkerBuild()
-        marker_build.load_build_params(line, len(header_fields))
-        if targets and marker_build.denominator not in targets:
-            skipped_lines.append(line)
-        else:
-            if marker_build.denominator in marker_build_dict:
-                logging.debug("Multiple '" + marker_build.denominator + "' codes in " + ref_build_parameters +
-                              ". Previous entry in marker_build_dict being overwritten...\n")
-            marker_build_dict[marker_build.denominator] = marker_build
-            if marker_build.load_pfit_params(line):
-                missing_info.append(marker_build)
-            marker_build.check_rank()
-    param_handler.close()
-
+    for rp_file in refpkg_files:
+        refpkg = ReferencePackage()
+        refpkg.f__json = rp_file
+        refpkg.slurp()
+        if targets:  # type: list
+            if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:
+                continue
+            elif refpkg.prefix in refpkgs_found and refpkg.refpkg_code in refpkgs_found:
+                logging.warning("RefPkg for {} has already been found. Skipping {}.\n".format(refpkg.prefix, rp_file))
+            else:
+                match = targets.intersection({refpkg.prefix, refpkg.refpkg_code}).pop()
+                refpkgs_found.add(match)
+        if refpkg.validate():
+            refpkg_dict[refpkg.prefix] = refpkg
     logging.debug("done.\n")
 
-    if missing_info:
-        logging.debug("Rank distance information missing for:\n\t" +
-                      "\n\t".join([mb.cog + '-' + mb.denominator for mb in missing_info]) + "\n")
-    if skipped_lines:
-        logging.debug("Skipped the following lines:\n\t" +
-                      "\n\t".join([line.strip() for line in skipped_lines]) + "\n")
+    targets = targets.difference(refpkgs_found)
+    if len(targets) > 0:
+        logging.warning("Reference packages for targets {} could not be found.\n".format(", ".join(targets)))
 
-    if len(marker_build_dict) == 0:
-        logging.error("No reference package information was parsed.\n" +
-                      "Is your target '" + ','.join(targets) + "' in " + ref_build_parameters + "?\n")
+    if len(refpkg_dict) == 0:
+        logging.error("No reference package data was found.\n" +
+                      "Are there reference packages in '{}'?\n".format(refpkg_data_dir))
         sys.exit(3)
-    return marker_build_dict
+
+    return refpkg_dict
 
 
 def read_graftm_classifications(assignment_file):
@@ -104,7 +94,7 @@ def read_graftm_classifications(assignment_file):
                     continue
                 else:
                     header = re.sub("_split_.*", '', header)
-            classified = '; '.join([re.sub('e\d+$', '', taxon) for taxon in classified.split('; ')])
+            classified = '; '.join([re.sub(r'e\d+$', '', taxon) for taxon in classified.split('; ')])
             if header and classified:
                 if classified not in assignments:
                     assignments[classified] = list()
@@ -116,7 +106,7 @@ def read_graftm_classifications(assignment_file):
     return assignments
 
 
-def parse_assignments(classified_lines: list):
+def parse_assignments(classified_lines: list) -> dict:
     """
     Parses the marker_contig_map.tsv lines loaded to retrieve lineage assignment and marker information
 
@@ -127,7 +117,7 @@ def parse_assignments(classified_lines: list):
       Alternatively, the number of query sequences could be calculated from the classification tables
       but we don't think this is the best route as unclassified seqs would wreak havoc.
 
-    :param classified_lines: A list of classification lines returned by read_marker_classification_table
+    :param classified_lines: A list of classification lines returned by read_classification_table
     :return: A dictionary of lineage information for each assignment, indexed by the marker gene it was classified as
     """
     classified = namedtuple("classified", ["refpkg", "taxon", "length"])
@@ -135,16 +125,17 @@ def parse_assignments(classified_lines: list):
     unique_headers = dict()  # Temporary storage for classified sequences prior to filtering
     dups = set()  # For storing the names of all query sequences that were split and classified separately
     for fields in classified_lines:
-        _, header, marker, length, raw_tax, rob_class, _, _, _, _, _ = fields
-        if marker and rob_class:
+        _, header, marker, start_pos, end_pos, rec_tax, _, _, _, _, _, _ = fields
+        length = int(end_pos) - int(start_pos)
+        if marker and rec_tax:
             if marker not in assignments:
                 assignments[marker] = dict()
-            if rob_class not in assignments[marker]:
-                assignments[marker][rob_class] = list()
+            if rec_tax not in assignments[marker]:
+                assignments[marker][rec_tax] = list()
             if header not in unique_headers:
                 unique_headers[header] = None
             # If fragments from the same parent query had identical lengths these would be overwritten anyway
-            unique_headers[header] = {int(length): classified(refpkg=marker, taxon=rob_class, length=int(length))}
+            unique_headers[header] = {int(length): classified(refpkg=marker, taxon=rec_tax, length=int(length))}
         else:
             logging.error("Bad line in classification table - no robust taxonomic classification:\n" +
                           '\t'.join(fields) + "\n")
@@ -161,7 +152,7 @@ def parse_assignments(classified_lines: list):
     return assignments
 
 
-def read_marker_classification_table(assignment_file):
+def read_classification_table(assignment_file) -> list:
     """
     Function for reading the tabular assignments file (currently marker_contig_map.tsv)
     Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
@@ -171,7 +162,7 @@ def read_marker_classification_table(assignment_file):
     :return: A list of lines that have been split by tabs into lists themselves
     """
     classified_lines = list()
-    header = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
+    header = "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\tiNode\tE-value\tLWR\tEvoDist\tDistances\n"
 
     try:
         assignments_handle = open(assignment_file, 'r')
@@ -181,17 +172,17 @@ def read_marker_classification_table(assignment_file):
 
     header_line = assignments_handle.readline()
     if not header_line:
-        logging.error("Classification file '" + assignment_file + "' is empty!\n")
+        logging.error("Classification file '{}' is empty!\n".format(assignment_file))
         sys.exit(21)
 
     # This is the header line
-    if header_line != header:
+    if not header_line.startswith(header.strip()):
         logging.error("Header of assignments file is unexpected!\n")
         sys.exit(21)
 
     # First line in the table containing data
     line = assignments_handle.readline()
-    n_fields = len(header.split("\t"))
+    n_fields = len(header_line.split("\t"))
     while line:
         fields = line.strip().split('\t')
         if len(fields) == n_fields:
@@ -223,7 +214,8 @@ def best_discrete_matches(matches: list) -> list:
         while j < len(len_sorted_matches):
             b_match = len_sorted_matches[j]  # type HmmMatch
             if a_match.target_hmm != b_match.target_hmm:
-                if detect_orientation(a_match.start, a_match.end, b_match.start, b_match.end) != "satellite":
+                if HMMER_domainTblParser.detect_orientation(a_match.start, a_match.end,
+                                                            b_match.start, b_match.end) != "satellite":
                     if a_match.full_score > b_match.full_score:
                         dropped_annotations.append(len_sorted_matches.pop(j))
                         j -= 1
@@ -240,47 +232,42 @@ def best_discrete_matches(matches: list) -> list:
 
     logging.debug("HMM search annotations for " + orf +
                   ":\n\tRetained\t" + 
-                  ', '.join([match.target_hmm + " (%d-%d)" % (match.start, match.end) for match in len_sorted_matches]) +
+                  ', '.join([match.target_hmm +
+                             " (%d-%d)" % (match.start, match.end) for match in len_sorted_matches]) +
                   "\n\tDropped\t\t" +
-                  ', '.join([match.target_hmm + " (%d-%d)" % (match.start, match.end) for match in dropped_annotations]) + "\n")
+                  ', '.join([match.target_hmm +
+                             " (%d-%d)" % (match.start, match.end) for match in dropped_annotations]) + "\n")
     return len_sorted_matches
 
 
-def parse_domain_tables(args, hmm_domtbl_files):
+def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
+    """
+
+    :param args:
+    :param hmm_domtbl_files: A list of domain table files written by hmmsearch
+    :return: Dictionary of HmmMatch objects indexed by their reference package and/or HMM name
+    """
     # Check if the HMM filtering thresholds have been set
-    if not hasattr(args, "min_e"):
-        args.min_e = 1E-5
-        args.min_ie = 1E-3
-        args.min_acc = 0.7
-        args.min_score = 20
-        args.perc_aligned = 80
-    # Print some stuff to inform the user what they're running and what thresholds are being used.
-    info_string = "Filtering HMM alignments using the following thresholds:\n"
-    info_string += "\tMaximum E-value = " + str(args.min_e) + "\n"
-    info_string += "\tMaximum i-Evalue = " + str(args.min_ie) + "\n"
-    info_string += "\tMinimum acc = " + str(args.min_acc) + "\n"
-    info_string += "\tMinimum score = " + str(args.min_score) + "\n"
-    info_string += "\tMinimum percentage of the HMM covered = " + str(args.perc_aligned) + "%\n"
-    logging.debug(info_string)
+    thresholds = HMMER_domainTblParser.prep_args_for_parsing(args)
 
     logging.info("Parsing HMMER domain tables for high-quality matches... ")
 
-    search_stats = HmmSearchStats()
+    search_stats = HMMER_domainTblParser.HmmSearchStats()
     hmm_matches = dict()
     orf_gene_map = dict()
     optional_matches = list()
 
     # TODO: Capture multimatches across multiple domain table files
     for domtbl_file in hmm_domtbl_files:
-        rp_marker, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
-        domain_table = DomainTableParser(domtbl_file)
+        prefix, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
+        domain_table = HMMER_domainTblParser.DomainTableParser(domtbl_file)
         domain_table.read_domtbl_lines()
-        distinct_matches = format_split_alignments(domain_table, search_stats)
-        purified_matches = filter_poor_hits(args, distinct_matches, search_stats)
-        complete_gene_hits = filter_incomplete_hits(args, purified_matches, search_stats)
-        renumber_multi_matches(complete_gene_hits)
+        distinct_hits = HMMER_domainTblParser.format_split_alignments(domain_table, search_stats)
+        purified_hits = HMMER_domainTblParser.filter_poor_hits(thresholds, distinct_hits, search_stats)
+        complete_hits = HMMER_domainTblParser.filter_incomplete_hits(thresholds, purified_hits, search_stats)
+        HMMER_domainTblParser.renumber_multi_matches(complete_hits)
 
-        for match in complete_gene_hits:
+        for match in complete_hits:
             match.genome = reference
             if match.orf not in orf_gene_map:
                 orf_gene_map[match.orf] = dict()
@@ -336,11 +323,13 @@ def parse_domain_tables(args, hmm_domtbl_files):
     return hmm_matches
 
 
-def read_colours_file(annotation_file):
+def read_colours_file(annotation_file: str, refpkg_name: str) -> dict:
     """
     Read annotation data from 'annotation_file' and store it in marker_subgroups under the appropriate
     marker and data_type.
-    :param annotation_file:
+
+    :param annotation_file: Path to an iTOL-compatible annotation file (e.g. colours_styles_file.txt)
+    :param refpkg_name: Name of the reference package
     :return: A dictionary of lists where each list is populated by tuples with start and end leaves
     """
     try:
@@ -351,7 +340,6 @@ def read_colours_file(annotation_file):
 
     clusters = dict()
     field_sep = ''
-    internal_nodes = True
 
     line = style_handler.readline()
     # Skip the header
@@ -366,33 +354,38 @@ def read_colours_file(annotation_file):
                 logging.error("Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
                 sys.exit(5)
         line = style_handler.readline()
+
     # For RGB
-    range_line_rgb = re.compile(r"^(\d+)\|(\d+)" + re.escape(field_sep) +
-                                "range" + re.escape(field_sep) +
-                                r".*\)" + re.escape(field_sep) +
+    range_line_rgb = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + r"\|(\d+)_" + re.escape(refpkg_name) +
+                                re.escape(field_sep) + "range" + re.escape(field_sep) + r".*\)" + re.escape(field_sep) +
                                 "(.*)$")
-    single_node_rgb = re.compile(r"^(\d+)" + re.escape(field_sep) +
+    single_node_rgb = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + re.escape(field_sep) +
                                  "range" + re.escape(field_sep) +
                                  r".*\)" + re.escape(field_sep) +
                                  "(.*)$")
-    lone_node_rgb = re.compile("^(.*)" + re.escape(field_sep) +
-                               "range" + re.escape(field_sep) +
-                               r".*\)" + re.escape(field_sep) +
-                               "(.*)$")
+    internal_node_rgb = re.compile(r"^(\d+)" + re.escape(field_sep) +
+                                   "range" + re.escape(field_sep) +
+                                   r".*\)" + re.escape(field_sep) +
+                                   "(.*)$")
 
     # For hexadecimal
-    range_line = re.compile(r"^(\d+)\|(\d+)" + re.escape(field_sep) +
+    range_line = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + r"\|(\d+)_" +
+                            re.escape(refpkg_name) + re.escape(field_sep) +
                             "range" + re.escape(field_sep) +
                             "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
                             "(.*)$")
-    single_node = re.compile(r"^(\d+)" + re.escape(field_sep) +
+    single_node = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + re.escape(field_sep) +
                              "range" + re.escape(field_sep) +
                              "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
                              "(.*)$")
-    lone_node = re.compile("^(.*)" + re.escape(field_sep) +
-                           "range" + re.escape(field_sep) +
-                           "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                           "(.*)$")
+    internal_node = re.compile(r"^(\d+)" + re.escape(field_sep) +
+                               "range" + re.escape(field_sep) +
+                               "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
+                               "(.*)$")
+
+    single_name = re.compile(r"^([\w\d|.]+)" + re.escape(field_sep) +
+                             "range" + re.escape(field_sep) + r"[#(), \w]+" +
+                             re.escape(field_sep) + "(.*)$")
 
     # Begin parsing the data from 4 columns
     line = style_handler.readline().strip()
@@ -400,111 +393,57 @@ def read_colours_file(annotation_file):
         if range_line.match(line):
             style_data = range_line.match(line)
             start, end, description = style_data.groups()
-            internal_nodes = False
+            label_node = True
         elif range_line_rgb.match(line):
             style_data = range_line_rgb.match(line)
             start, end, description = style_data.groups()
-            internal_nodes = False
+            label_node = True
         elif single_node.match(line):
             style_data = single_node.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+            label_node = True
         elif single_node_rgb.match(line):
             style_data = single_node_rgb.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif lone_node.match(line):
-            style_data = lone_node.match(line)
+            label_node = True
+        elif internal_node.match(line):
+            style_data = internal_node.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif lone_node_rgb.match(line):
-            style_data = lone_node_rgb.match(line)
+            label_node = False
+        elif internal_node_rgb.match(line):
+            style_data = internal_node_rgb.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+            label_node = False
+        elif single_name.match(line):
+            style_data = single_name.match(line)
+            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+            label_node = False
         else:
-            logging.error("Unrecognized line formatting in " + annotation_file + ":\n" + line + "\n")
+            logging.error("Unrecognized line formatting in '{}':\n{}\n".format(annotation_file, line))
             sys.exit(5)
 
         description = style_data.groups()[-1]
         if description not in clusters.keys():
             clusters[description] = list()
-        clusters[description].append((start, end))
+
+        if label_node:
+            clusters[description].append((start + "_" + refpkg_name, end + "_" + refpkg_name))
+        else:
+            clusters[description].append((start, end))
 
         line = style_handler.readline().strip()
 
     style_handler.close()
 
-    logging.debug("\tParsed " + str(len(clusters)) + " clades from " + annotation_file + "\n")
+    logging.debug("\tParsed {} clades from '{}'\n".format(len(clusters), annotation_file))
 
-    return clusters, internal_nodes
-
-
-def tax_ids_file_to_leaves(tax_ids_file):
-    # TODO: Replace all instances of this function call with that from the class ReferencePackage
-    tree_leaves = list()
-    unknown = 0
-    try:
-        tax_ids_handler = open(tax_ids_file, 'r', encoding='utf-8')
-    except IOError:
-        logging.error("Unable to open " + tax_ids_file + "\n")
-        sys.exit(5)
-
-    for line in tax_ids_handler:
-        line = line.strip()
-        try:
-            fields = line.split("\t")
-        except ValueError:
-            logging.error('ValueError: .split(\'\\t\') on ' + str(line) +
-                          " generated " + str(len(line.split("\t"))) + " fields.\n")
-            sys.exit(5)
-        if len(fields) == 3:
-            number, seq_name, lineage = fields
-        else:
-            logging.error("ValueError: Unexpected number of fields in " + tax_ids_file +
-                          ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
-            raise ValueError
-        leaf = TreeLeafReference(number, seq_name)
-        try:
-            leaf.accession = seq_name.split(" | ")[1]
-        except IndexError:
-            pass
-        if lineage:
-            leaf.lineage = lineage
-            leaf.complete = True
-        else:
-            unknown += 1
-        tree_leaves.append(leaf)
-
-    if len(tree_leaves) == unknown:
-        logging.error("Lineage information was not properly loaded for " + tax_ids_file + "\n")
-        sys.exit(5)
-
-    tax_ids_handler.close()
-    return tree_leaves
-
-
-def read_species_translation_files(treesapp_dir, marker_build_dict):
-    """
-    :param treesapp_dir: Path to the TreeSAPP python package containing the 'data' directory with Reference Packages
-    :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
-    :return: The taxonomic identifiers for each of the organisms in a tree for all trees
-    """
-
-    tree_numbers_translation = dict()
-    translation_files = dict()
-    tree_resources_dir = os.sep.join([treesapp_dir, "data", "tree_data"]) + os.sep
-
-    for denominator in sorted(marker_build_dict.keys()):
-        marker_build_obj = marker_build_dict[denominator]
-        filename = 'tax_ids_' + str(marker_build_obj.cog) + '.txt'
-        translation_files[denominator] = tree_resources_dir + filename
-
-    for denominator in sorted(translation_files.keys()):
-        filename = translation_files[denominator]
-        tree_numbers_translation[denominator] = tax_ids_file_to_leaves(filename)
-
-    return tree_numbers_translation
+    return clusters
 
 
 def xml_parser(xml_record, term):
     """
     Recursive function for parsing individual xml records
+
     :param xml_record:
     :param term:
     :return:
@@ -626,7 +565,7 @@ def read_stockholm_to_dict(sto_file):
 
             if seq_name not in seq_dict:
                 seq_dict[seq_name] = ""
-            seq_dict[seq_name] += re.sub('\.', '-', sequence.upper())
+            seq_dict[seq_name] += re.sub(r'\.', '-', sequence.upper())
         line = sto_handler.readline()
 
     return seq_dict
@@ -672,19 +611,21 @@ def read_uc(uc_file):
 def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, queries_mapped=False, min_seq_length=30):
     """
     Parse a list of multiple sequence alignment (MSA) files and determine whether the multiple alignment:
-        1. is shorter then the min_seq_length (30 by default)
+        1. is shorter than the min_seq_length (30 by default)
         2. is missing any reference sequences
     The number of query sequences discarded - these may have been added by hmmalign or PaPaRa - is returned via a string
-    NOTE: Initially design for sequences records with numeric names (e.g. >4889) but accomodates other TreeSAPP formats
 
-    :param msa_files: A list of either Phylip- or FASTA-formatted MSA files
+    NOTE: Initially designed for sequence records with numeric names (e.g. >488) but accommodates other TreeSAPP formats
+
+    :param msa_files: A list of either Phylip or FASTA formatted MSA files
     :param unique_ref_headers: A set of all headers that were in the untrimmed MSA
     :param queries_mapped: Boolean indicating whether sequences should be present in addition to reference sequences.
-        While query sequences _could_ be identified as any that are not in unique_ref_headers,
-        queries have names that are negative integers for more rapid and scalable identification
+           While query sequences _could_ be identified as any that are not in unique_ref_headers,
+           queries have names that are negative integers for more rapid and scalable identification
     :param min_seq_length: Optional minimum unaligned (no '-'s) length a sequence must exceed to be retained
-    :return: 1. Dictionary indexed by MSA file name mapping to FASTA-dictionaries and
-    2. A string mapping the number of query sequences removed from each MSA file
+    :return: 1. Dictionary indexed by MSA file name mapping to FASTA-dictionaries
+             2. A string mapping the number of query sequences removed from each MSA file
+             3. A string describing the number of sequences discarded
     """
     discarded_seqs_string = ""
     successful_multiple_alignments = dict()
@@ -718,15 +659,15 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
                     n_msa_refs += 1
             except ValueError:
                 if re.match(r"^_\d+", seq_name):
-                    seq_name = re.sub("^_", '-', seq_name)
+                    leaf_num = re.sub("^_", '-', seq_name)
                 # The section of regular expresion after '_' needs to match denominator and refpkg names
-                elif re.match(r"^\d+_\w{3,7}$", seq_name):
-                    seq_name = seq_name.split('_')[0]
+                elif re.match(r"^\d+_\w{2,10}$", seq_name):
+                    leaf_num = seq_name.split('_')[0]
                 else:
-                    logging.error("Unexpected sequence name " + seq_name +
-                                  " detected in " + multi_align_file + ".\n")
+                    logging.error("Unexpected sequence name '{}' detected in {}.\n".format(seq_name, multi_align_file))
                     sys.exit(13)
-                n_msa_refs += 1
+                if int(leaf_num) > 0:
+                    n_msa_refs += 1
             multi_align[seq_name] = seq
         if len(multi_align) == 0:
             logging.warning("No sequences were read from " + multi_align_file + ".\n" +
@@ -734,7 +675,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
             failed_multiple_alignments.append(multi_align_file)
             continue
         # The numeric identifiers make it easy to maintain order in the Phylip file by a numerical sort
-        for seq_name in sorted(multi_align, key=int):
+        for seq_name in sorted(multi_align, key=lambda x: int(x.split('_')[0])):
             seq_dummy = re.sub('-', '', multi_align[seq_name])
             if len(seq_dummy) < min_seq_length:
                 discarded_seqs.append(seq_name)
@@ -748,9 +689,8 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
         discarded_seqs_string += "\n\t\t" + multi_align_file + " = " + str(len(discarded_seqs))
         if len(discarded_seqs) == len(multi_align.keys()):
             # Throw an error if the final trimmed alignment is shorter than min_seq_length, and therefore empty
-            logging.warning("Multiple sequence alignment in " + multi_align_file +
-                            " is shorter than minimum sequence length threshold (" + str(min_seq_length) +
-                            ").\nThe untrimmed alignment will be used instead.\n")
+            logging.warning("Multiple sequence alignment in {} is shorter than minimum sequence length threshold ({})."
+                            "\nThe untrimmed MSA will be used instead.\n".format(multi_align_file, min_seq_length))
             failed_multiple_alignments.append(multi_align_file)
         elif n_refs > n_msa_refs:
             # Testing whether there were more sequences in the untrimmed alignment than the trimmed one
@@ -778,45 +718,42 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
     return successful_multiple_alignments, failed_multiple_alignments, discarded_seqs_string
 
 
-def multiple_alignment_dimensions(seq_dict, mfa_file):
+def read_annotation_mapping_file(annot_map_file: str) -> dict:
     """
-    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+    Used for reading a file mapping the reference package name to all true positive orthologs in the query input
+    The first column is the ReferencePackage.prefix.
+    The second column is the ortholog name used by the database.
+    The third column is the name of a true positive.
 
-    :param seq_dict: A dictionary containing headers as keys and sequences as values
-    :param mfa_file: The name of the multiple alignment FASTA file being validated
-    :return: tuple = (nrow, ncolumn)
+    :param annot_map_file: Path to a tab-delimited file
+    :return: A dictionary containing database sequence names mapped to their respective reference package names
     """
-    sequence_length = 0
-    for seq_name in seq_dict:
-        sequence = seq_dict[seq_name]
-        if sequence_length == 0:
-            sequence_length = len(sequence)
-        elif sequence_length != len(sequence) and sequence_length > 0:
-            logging.error("Number of aligned columns is inconsistent in " + mfa_file + "!\n")
-            sys.exit(3)
-        else:
-            pass
-            # Sequence is the right length, carrying on
-    return len(seq_dict), sequence_length
-
-
-def read_seq_taxa_table(seq_names_to_taxa: str):
-    seq_lineage_map = dict()
+    annot_map = dict()
     try:
-        handler = open(seq_names_to_taxa, 'r')
+        annot_map_handler = open(annot_map_file)
     except IOError:
-        logging.error("Unable to open '" + seq_names_to_taxa + "' for reading!\n")
+        logging.error("Unable to open annotation file '{}' for reading!\n".format(annot_map_file))
         sys.exit(3)
 
-    for line in handler:
-        try:
-            seq_name, lineage = line.strip().split("\t")
-        except (ValueError, IndexError):
-            logging.error("Bad line encountered in '" + seq_names_to_taxa + "' - expected two tab-separated fields:\n" +
-                          line)
-            sys.exit(3)
-        if seq_name[0] == '>':
-            seq_name = seq_name[1:]
-        seq_lineage_map[seq_name] = lineage
-    handler.close()
-    return seq_lineage_map
+    # Assuming the first column is the reference package name and the second is the database annotation name
+    n = 0
+    for line in annot_map_handler:
+        n += 1
+        if line[0] == '#':
+            continue
+        elif not line:
+            continue
+        else:
+            try:
+                refpkg_name, og, query_name = line.strip().split("\t")
+            except ValueError:
+                logging.error("Unexpected number of fields on line {} in {}!\n".format(n, annot_map_file) +
+                              "File must have the reference package name and the database name in"
+                              " the first two columns, respectively. Any number of columns can follow.\n")
+                sys.exit(9)
+            if query_name not in annot_map:
+                annot_map[query_name] = set()
+            annot_map[query_name].add(refpkg_name)
+
+    annot_map_handler.close()
+    return annot_map

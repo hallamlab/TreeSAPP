@@ -6,10 +6,31 @@ import sys
 import subprocess
 import logging
 import time
-from collections import namedtuple
+import joblib
+from glob import glob
+from csv import Sniffer
 from shutil import rmtree
-from .external_command_interface import launch_write_command
+
 from pygtrie import StringTrie
+
+from treesapp.external_command_interface import launch_write_command
+
+
+def base_file_prefix(file_path: str) -> str:
+    return os.path.splitext(os.path.basename(file_path))[0]
+
+
+def load_pickle(filename: str):
+    if not os.path.isfile(filename):
+        logging.error("Pickled file '%s' does not exist!\n" % filename)
+    try:
+        pickled_handler = open(filename, 'rb')
+    except IOError:
+        logging.error("Unable to open pickled file '%s' for reading in binary.\n" % filename)
+        sys.exit(3)
+    pkl_dat = joblib.load(pickled_handler)
+    pickled_handler.close()
+    return pkl_dat
 
 
 def load_taxonomic_trie(lineages: list) -> StringTrie:
@@ -38,6 +59,7 @@ def rekey_dict(og_dict: dict, key_map: dict) -> dict:
     """
     Creates a new dictionary with new keys, indicated by a map, mapped to the original values.
     Logs a warning if not all of the original keys are popped.
+
     :param og_dict: The original dictionary with keys found in key_map. Values are retained.
     :param key_map: A dictionary mapping old keys to new keys
     :return: Dictionary with new keys, same values
@@ -79,38 +101,11 @@ def reluctant_remove_replace(dir_path):
     return
 
 
-def get_refpkg_build(name: str, marker_build_dict: dict, refpkg_code_re):
-    """
-    Find and return the MarkerBuild instance with a matching name
-    :param name:
-    :param marker_build_dict: A dictionary of MarkerBuild objects indexed by their refpkg codes/denominators
-    :param refpkg_code_re: A compiled regular expression (re) for matching refpkg code names
-    :return: MarkerBuild
-    """
-    if refpkg_code_re.match(name):
-        try:
-            return marker_build_dict[name]
-        except KeyError:
-            # Alert the user if the denominator format was (incorrectly) provided to Clade_exclusion_analyzer
-            logging.error("Unable to find '" + name + "' in ref_build_parameters collection!\n" +
-                          "Has it been added to data/tree_data/ref_build_parameters.tsv?\n")
-            sys.exit(21)
-    else:
-        for denominator in marker_build_dict:
-            refpkg_build = marker_build_dict[denominator]
-            if refpkg_build.cog == name:
-                return refpkg_build
-            elif name == denominator:
-                return refpkg_build
-        logging.error("Wrong format for the reference code_name provided: " + name + "\n")
-        sys.exit(21)
-
-
 def is_exe(fpath):
     return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
 
-def which(program):
+def which(program: str):
     fpath, fname = os.path.split(program)
     if fpath:
         if is_exe(program):
@@ -122,6 +117,26 @@ def which(program):
             if is_exe(exe_file):
                 return exe_file
     return None
+
+
+def match_file(glob_pattern) -> str:
+    """
+    Using a valid glob pattern, glob.glob is used to find a single file and
+    return the path to the file that matches the pattern.
+
+    :param glob_pattern: A string representing a glob pattern. Used to search for files.
+    :return: Path to the single file matching the glob pattern
+    """
+    file_matches = glob(glob_pattern)
+
+    if len(file_matches) > 1:
+        logging.error("Multiple files match glob pattern '{}':\n{}".format(glob_pattern, ", ".join(file_matches)))
+        sys.exit(17)
+    elif len(file_matches) == 0:
+        logging.error("Unable to find file matching glob pattern '{}'.\n".format(glob_pattern))
+        sys.exit(19)
+    else:
+        return file_matches.pop()
 
 
 def os_type():
@@ -159,18 +174,9 @@ def available_cpu_count():
     except IOError:
         pass
 
-    # Python 2.6+
     try:
-        import multiprocessing
-        return multiprocessing.cpu_count()
+        return os.cpu_count()
     except (ImportError, NotImplementedError):
-        pass
-
-    # http://code.google.com/p/psutil/
-    try:
-        import psutil
-        return psutil.NUM_CPUS
-    except (ImportError, AttributeError):
         pass
 
     # POSIX
@@ -245,17 +251,18 @@ def available_cpu_count():
     logging.error('Can not determine number of CPUs on this system')
 
 
-def executable_dependency_versions(exe_dict):
+def executable_dependency_versions(exe_dict: dict) -> str:
     """
     Function for retrieving the version numbers for each executable in exe_dict
+
     :param exe_dict: A dictionary mapping names of software to the path to their executable
     :return: A formatted string with the executable name and its respective version found
     """
     versions_dict = dict()
     versions_string = "Software versions used:\n"
 
-    simple_v = ["prodigal", "raxmlHPC"]
-    version_param = ["trimal", "mafft"]
+    simple_v = ["prodigal", "raxmlHPC", "epa-ng"]
+    version_param = ["trimal", "mafft", "raxml-ng"]
     no_params = ["usearch", "papara"]
     help_param = ["hmmbuild", "hmmalign", "hmmsearch", "OD-seq"]
     version_re = re.compile(r"[Vv]\d+.\d|version \d+.\d|\d\.\d\.\d|HMMER")
@@ -334,69 +341,11 @@ class Autovivify(dict):
             return value
 
 
-def return_sequence_info_groups(regex_match_groups, header_db: str, header: str):
-    """
-    Depending on the header formats, returns a namedtuple with certain fields filled
-    :param regex_match_groups: regular expression (re) match groups
-    :param header_db: The name of the assumed database/source of the sequence
-    :param header: Header i.e. sequence name that was analyzed
-    :return: namedtuple called seq_info with "description", "locus", "organism", "lineage" and "taxid" fields
-    """
-    seq_info = namedtuple(typename="seq_info",
-                          field_names=["accession", "version", "description", "locus", "organism", "lineage", "taxid"])
-    description = ""
-    locus = ""
-    organism = ""
-    lineage = ""
-    taxid = ""
-    version = ""
-
-    if regex_match_groups:
-        accession = regex_match_groups.group(1)
-        if accession.find('.'):
-            pieces = accession.split('.')
-            if len(pieces) == 2 and re.match(r"\d+", pieces[1]):
-                version = accession
-                accession = pieces[0]
-        if header_db == "custom":
-            lineage = regex_match_groups.group(2)
-            organism = regex_match_groups.group(3)
-            description = regex_match_groups.group(3)
-        elif header_db in ["eggnog", "eggnot"]:
-            taxid = regex_match_groups.group(1)
-            accession = regex_match_groups.group(1) + '.' + regex_match_groups.group(2)
-        elif header_db == "ts_assign":
-            accession = '|'.join(regex_match_groups.groups())
-            description = regex_match_groups.group(1)
-            locus = regex_match_groups.group(3)
-        elif header_db == "silva":
-            locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
-            lineage = regex_match_groups.group(4)
-            description = regex_match_groups.group(4)
-        elif len(regex_match_groups.groups()) == 3:
-            description = regex_match_groups.group(2)
-            organism = regex_match_groups.group(3)
-        elif len(regex_match_groups.groups()) == 2:
-            organism = regex_match_groups.group(2)
-    else:
-        logging.error("Unable to handle header: " + header + "\n")
-        sys.exit(13)
-
-    if not (accession or organism or lineage or taxid):
-        logging.error("Insufficient information was loaded for header:\n" +
-                      header + "\n" + "regex_match: " + header_db + '\n')
-        sys.exit(13)
-    if not accession:
-        accession = re.sub(r"^>", '', header)
-    seq_info = seq_info(accession, version, description, locus, organism, lineage, taxid)
-
-    return seq_info
-
-
 def remove_dashes_from_msa(fasta_in, fasta_out):
     """
     fasta_out is the new FASTA file written with no dashes (unaligned)
     There are no line breaks in this file, whereas there may have been in fasta_in
+
     :param fasta_in: Multiply-aligned FASTA file
     :param fasta_out: FASTA file to write
     :return:
@@ -421,82 +370,20 @@ def remove_dashes_from_msa(fasta_in, fasta_out):
     return
 
 
-def clean_lineage_string(lineage: str, also=None) -> str:
-    """
-    Removes superfluous taxonomic ranks and characters that make lineage comparisons difficult
-
-    :param lineage: A taxonomic lineage string where each rank is separated by a semi-colon
-    :param also: An optional list containing other strings to filter out e.g. ["Root; "]
-    :return: String with the purified taxonomic lineage adhering to the NCBI hierarchy
-    """
-    non_standard_names_re = re.compile(" group| cluster| complex", re.IGNORECASE)
-    bad_strings = ["cellular organisms; ", "delta/epsilon subdivisions; ", "\(miscellaneous\)", "[a-p]__"]
-    if also:
-        bad_strings += also
-    for bs in bad_strings:
-        lineage = re.sub(bs, '', lineage)
-    # filter 'group' and 'cluster'
-    if non_standard_names_re.search(lineage):
-        reconstructed_lineage = ""
-        ranks = lineage.split("; ")
-        for rank in ranks:
-            if not non_standard_names_re.search(rank):
-                reconstructed_lineage = reconstructed_lineage + str(rank) + '; '
-        reconstructed_lineage = re.sub('; $', '', reconstructed_lineage)
-        lineage = reconstructed_lineage
-    return re.sub(r"^; ", '', lineage)
-
-
-def remove_elongated_lineages(fasta_records: dict, guarantees=None):
-    """
-    Meant to address the issues caused by unreasonable long lineages -- those that are expanded beyond the canonical 7
-    (R; K; P; C; O; F; G; S). Since taxon labels are not linked or validated with a database we simply infer their
-    rank from their position in a lineage.
-    If a lineage has sub-ranks that haven't been filtered by `clean_lineage_string()` this can cause a problem in
-    `treesapp train` as the phylogenetic distance data wouldn't reflect the rank its supposed to, and `treesapp evaluate`
-    where the sequences being evaluated wouldn't reflect the performance of the target rank.
-    :param fasta_records: Dictionary mapping numerical treesapp_id values to EntrezRecord instances
-    :param guarantees: Set object containing treesapp_id values corresponding to sequences that need to be retained
-    :return:
-    """
-    num_removed = 0
-    fasta_replace_dict = dict()
-
-    for treesapp_id in fasta_records:
-        ref_seq = fasta_records[treesapp_id]
-        if guarantees and treesapp_id in guarantees:
-            fasta_replace_dict[treesapp_id] = ref_seq
-            continue
-        # Not much can be done here without searching for each taxon's rank
-        if len(clean_lineage_string(ref_seq.lineage, ["Root; "]).split("; ")) >= 7:
-            lp = clean_lineage_string(ref_seq.lineage, ["Root; ", "Candidatus ", "sp. "]).split("; ")
-            # Check if the Species-position matches a typical species RE
-            if not re.match(r"^[A-z][a-z]+ [.a-z0-9]+$", lp[6]):
-                num_removed += 1
-            else:
-                fasta_replace_dict[treesapp_id] = ref_seq
-        else:
-            fasta_replace_dict[treesapp_id] = ref_seq
-
-    logging.debug('\t' + str(num_removed) + " sequences removed with elongated taxonomic lineages.\n" +
-                  '\t' + str(len(fasta_replace_dict) - num_removed) + " sequences retained for building tree.\n")
-
-    return fasta_replace_dict
-
-
 def median(num_list: list):
     n = len(num_list)
     if n < 1:
-            return None
+        return None
     if n % 2 == 1:
-            return sorted(num_list)[n//2]
+        return sorted(num_list)[n//2]
     else:
-            return sum(sorted(num_list)[n//2-1:n//2+1])/2.0
+        return sum(sorted(num_list)[n//2-1:n//2+1])/2.0
 
 
 def mean(num_list: list):
     """
     Simple function for a returning a floating-point integer for the mean of a list of numbers
+
     :param num_list: List of numbers
     :return: Float
     """
@@ -507,40 +394,55 @@ def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict):
     """
     Find the lowest common ancestor (internal node) for all leaves in the range.
     This is only necessary if the original nodes parsed from the colours_style.txt file were leaves.
+
     :param clusters: A dictionary mapping start and end leaves of a clade for a single marker's colours_style.txt layer
     :param internal_node_map: A dictionary mapping each internal node to a list of all of its descendent leaves
-    :return:
+    :return: A dictionary of annotation strings mapped to a list of internal nodes
     """
     leaf_annotation_map = dict()
-    for cluster in clusters.keys():
-        if cluster not in leaf_annotation_map:
-            leaf_annotation_map[cluster] = list()
-        for frond_tips in clusters[cluster]:
-            start, end = frond_tips
-            # Find the minimum set that includes both start and end
-            warm_front = dict()
-            # Add all the potential internal nodes
-            for inode in internal_node_map:
-                clade = internal_node_map[inode]
-                if start in clade:
-                    warm_front[inode] = clade
-            for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
-                if end in warm_front[inode]:
-                    leaf_annotation_map[cluster].append((inode, inode))
-                    break
+    for annotation in clusters:
+        leaf_annotation_map[annotation] = list()
+        for leaf_nodes in clusters[annotation]:
+            start, end = leaf_nodes
+            try:
+                if int(start) == int(end) and int(start) in internal_node_map:
+                    leaf_annotation_map[annotation].append(int(start))
+            except ValueError:
+                # Find the minimum set that includes both start and end
+                warm_front = dict()
+                # Add all the potential internal nodes
+                for inode in internal_node_map:
+                    clade = internal_node_map[inode]
+                    if start in clade:
+                        warm_front[inode] = clade
+                for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
+                    if end in warm_front[inode]:
+                        leaf_annotation_map[annotation].append(inode)
+                        break
     return leaf_annotation_map
 
 
-def reformat_fasta_to_phy(fasta_dict):
+def reformat_fasta_to_phy(fasta_dict: dict) -> dict:
+    """
+    The fasta_dict input is a dictionary of sequence names (seq_name) keys indexing their respective sequences.
+    Each sequence in the dictionary is split into subsequences of 50 characters and indexed first by the line count
+    as well as the sequence name. These are stored in a dictionary of dictionaries and fairly trivial to iterate the
+    sorted keys.
+
+    :param fasta_dict: A dictionary of sequence names (seq_name) keys indexing their respective sequences.
+    :return: A dictionary of line counts indexing sequence names indexing that sequence's subsequence for that line
+    """
     phy_dict = dict()
     for seq_name in fasta_dict:
         sequence = fasta_dict[seq_name]
         sub_sequences = re.findall(r'.{1,50}', sequence)
         count = 0
         for sub_sequence in sub_sequences:
-            if count not in phy_dict:
+            try:
+                phy_dict[count][seq_name] = sub_sequence
+            except KeyError:
                 phy_dict[count] = dict()
-            phy_dict[count][seq_name] = sub_sequence
+                phy_dict[count][seq_name] = sub_sequence
             count += 1
     return phy_dict
 
@@ -549,6 +451,7 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
     """
     Writes a Phylip-formatted alignment file
     PaPaRa is EXTREMELY particular about the input of its Phylip file. Don't mess.
+
     :param phy_output_file: File path to write the Phylip file
     :param phy_dict: Dictionary of sequences to write
     :param alignment_dims: Tuple containing (num_seqs, alignment_len)
@@ -574,6 +477,7 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
     else:
         num_seqs, alignment_len = alignment_dims
 
+    longest_seq_name = max([len(seq_name) for seq_name in phy_dict[0]])
     with open(phy_output_file, 'w') as phy_output:
         phy_string = ' ' + str(num_seqs) + ' ' + str(alignment_len) + '\n'
         for count in sorted(phy_dict.keys(), key=int):
@@ -583,11 +487,11 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
                     phy_string += str(seq_name)
                     length = len(str(seq_name))
                     c = length
-                    while c < 11:
+                    while c < longest_seq_name + 1:
                         phy_string += ' '
                         c += 1
                 else:
-                    phy_string += 11*' '
+                    phy_string += (longest_seq_name+1)*' '
                 phy_string += ' '.join(re.findall(r'.{1,10}', sequence_part)) + '\n'
             phy_string += "\n"
 
@@ -595,20 +499,16 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
     return
 
 
-def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
+def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict, header_registry: dict) -> dict:
     """
     Function for slicing sequences guided by alignment co-ordinates.
 
-    :param hmm_matches: Dictionary containing a list HmmMatch() objects as values for each 'marker' key
+    :param hmm_matches: A dictionary containing a list of HmmMatch() objects indexed by reference package name
     :param fasta_dict: A dictionary with headers as keys and sequences as values
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
-    :return:
+    :return: Dictionary containing a modified query name mapped to its corresponding (sub)sequence that was aligned
+     to the HMM, indexed by the HMM profile name (i.e. marker or reference package name)
     """
-
-    if len(hmm_matches.keys()) > 1:
-        logging.error("Number of markers found from HMM alignments is >1\n" +
-                      "Does your HMM file contain more than 1 profile? TreeSAPP is unprepared for this.\n")
-        sys.exit(13)
 
     marker_gene_dict = dict()
     header_matching_dict = dict()
@@ -623,40 +523,39 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
 
     logging.info("Extracting the quality-controlled protein sequences... ")
 
-    for marker in hmm_matches:
-        if marker not in marker_gene_dict:
-            marker_gene_dict[marker] = dict()
-
-        for hmm_match in hmm_matches[marker]:
+    for refpkg_name in hmm_matches:
+        extracted_loci = dict()
+        for hmm_match in hmm_matches[refpkg_name]:
             # Now for the header format to be used in the bulk FASTA:
             # >contig_name|marker_gene|start_end
-            query_names = header_matching_dict[hmm_match.orf]
-            try:
-                sequence = fasta_dict[query_names.first_split]
-            except KeyError:
-                logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
-                continue
+            q_header = header_matching_dict[hmm_match.orf]
             if hmm_match.of > 1:
-                query_names.post_align = ' '.join([query_names.first_split,
-                                                   str(hmm_match.num) + '.' + str(hmm_match.of),
-                                                   re.sub(re.escape(query_names.first_split), '', query_names.original)])
+                q_header.post_align = ' '.join([q_header.first_split,
+                                                str(hmm_match.num) + '.' + str(hmm_match.of),
+                                                re.sub(re.escape(q_header.first_split), '', q_header.original)]).strip()
             else:
-                query_names.post_align = query_names.original
-            bulk_header = query_names.post_align
+                q_header.post_align = q_header.original
 
-            if bulk_header in marker_gene_dict[marker]:
-                logging.warning(bulk_header + " being overwritten by an alternative alignment!\n" + hmm_match.get_info())
-            marker_gene_dict[marker][bulk_header] = sequence[hmm_match.start-1:hmm_match.end]
+            if q_header.post_align in extracted_loci:
+                logging.warning("Query '{}' being overwritten by an alternative alignment:\n"
+                                "{}\n".format(q_header.post_align, hmm_match.get_info()))
+            try:
+                extracted_loci[q_header.post_align] = fasta_dict[q_header.original][hmm_match.start-1:hmm_match.end]
+            except KeyError:
+                logging.debug("Unable to map '{}' to a sequence in the input FASTA.\n".format(hmm_match.orf))
+
+        marker_gene_dict[refpkg_name] = extracted_loci
 
     logging.info("done.\n")
-    return marker_gene_dict[marker]
+    return marker_gene_dict
 
 
-def hmm_pile(hmm_matches):
+def hmm_pile(hmm_matches: dict) -> None:
     """
     Function to inspect the placement of query sequences on the reference HMM
-    :param hmm_matches:
-    :return:
+
+    :param hmm_matches: A dictionary of HmmMatch instances indexed by the HMM profile name they mapped to
+    :return: None
     """
     hmm_bins = dict()
     window_size = 2
@@ -704,8 +603,8 @@ def hmm_pile(hmm_matches):
             low_cov_summary += "\t" + str(low_coverage_start) + "-end\n"
 
         if low_cov_summary:
-            logging.info("Low coverage HMM windows (start-stop):\n" + low_cov_summary)
-        logging.info("Maximum coverage = " + str(maximum_coverage) + " sequences\n")
+            logging.info("Low coverage " + marker + " profile windows (start-stop):\n" + low_cov_summary)
+        logging.info("Maximum coverage for " + marker + " = " + str(maximum_coverage) + " sequences\n")
     return
 
 
@@ -734,27 +633,6 @@ def reverse_complement(nuc_sequence: str):
     return complement_nucs(nuc_sequence[::-1])
 
 
-def fish_refpkg_from_build_params(bait: str, marker_build_dict: dict):
-    """
-    Using a marker gene name (first column in ref_build_parameters.tsv, e.g. RecA, McrA) as bait,
-    find and return the reference package for that marker gene name by matching the 'cog' elements.
-
-    :param bait: A marker gene name
-    :param marker_build_dict: A dictionary of refpkg name keys mapping to MarkerBuild instances
-    :return: MarkerBuild object
-    """
-    refpkg = None
-    for denominator in marker_build_dict:
-        if bait == marker_build_dict[denominator].cog:
-            refpkg = marker_build_dict[denominator]
-            break
-    if refpkg is None:
-        logging.error("Unable to find '" + bait + "' in marker_build_dict!\n")
-        sys.exit(13)
-    else:
-        return refpkg
-
-
 def find_msa_type(msa_files):
     file_types = set()
     for mc in msa_files:
@@ -780,26 +658,10 @@ def find_msa_type(msa_files):
         return file_types.pop()
 
 
-def swap_tree_names(tree_to_swap, final_mltree, code_name):
-    original_tree = open(tree_to_swap, 'r')
-    raxml_tree = open(final_mltree, 'w')
-
-    tree = original_tree.readlines()
-    original_tree.close()
-    if len(tree) > 1:
-        logging.error(">1 line contained in RAxML tree " + tree_to_swap + "\n")
-        sys.exit(13)
-
-    new_tree = re.sub('_' + re.escape(code_name), '', str(tree[0]))
-    raxml_tree.write(new_tree)
-
-    raxml_tree.close()
-    return
-
-
 def match_target_marker(refpkg_name: str, headers: list) -> list:
     """
     Returns the list of sequences with TreeSAPP classification tags matching the refpkg_name
+
     :param refpkg_name: The refpkg name (e.g. McrA) not code (e.g. M0701) for desired classified sequences
     :param headers: List of classified sequences
     :return: List of headers that match the refpkg_name
@@ -815,21 +677,24 @@ def match_target_marker(refpkg_name: str, headers: list) -> list:
 def get_hmm_length(hmm_file):
     """
     Function to open the ref_tree's hmm file and determine its length
+
     :param hmm_file: The HMM file produced by hmmbuild to parse for the HMM length
     :return: The length (int value) of the HMM
     """
     try:
-        hmm = open(hmm_file, 'r')
+        hmm_handler = open(hmm_file, 'r')
     except IOError:
         raise IOError("Unable to open " + hmm_file + " for reading! Exiting.")
 
-    line = hmm.readline()
+    line = hmm_handler.readline()
     length = 0
     while line:
         # LENG XXX
         if re.match(r"^LENG\s+([0-9]+)", line):
             length = int(line.split()[1])
-        line = hmm.readline()
+            break
+        line = hmm_handler.readline()
+    hmm_handler.close()
     if length > 0:
         return length
     else:
@@ -839,6 +704,7 @@ def get_hmm_length(hmm_file):
 def write_dict_to_table(data_dict: dict, output_file: str, sep="\t") -> None:
     """
     Function for writing a dictionary of key: value pairs separated to a file.
+
     :param data_dict: Dictionary containing keys (e.g. accessions) and values (e.g. lineages)
     :param output_file: Path to a file to write to
     :param sep: Separator to use between the keys and values. Default is tab.
@@ -863,3 +729,92 @@ def write_dict_to_table(data_dict: dict, output_file: str, sep="\t") -> None:
     handler.close()
 
     return
+
+
+def dict_diff(snap_one: dict, snap_two: dict) -> list:
+    """
+    Takes two dictionaries and based on the difference between the two keys,
+    a list is returned of values of keys that are only present in the first dictionary.
+
+    :param snap_one: A dictionary that is a superset of snap_two
+    :param snap_two: A dictionary that is a subset of snap_one
+    :return: A list of values that are only present in the first dictionary
+    """
+    one_keys = set(snap_one.keys())
+    two_keys = set(snap_two.keys())
+    diff_indexes = one_keys.difference(two_keys)
+
+    return [snap_one[index] for index in diff_indexes]
+
+
+def get_list_positions(ref_list: list, queries: list, all_queries=False) -> dict:
+    """
+    Used for finding the position of strings (queries) in a list (ref_list)
+
+    :param ref_list: A list of strings
+    :param queries: A list of strings
+    :param all_queries: If True, all queries will be returned in the dictionary even if they are not in ref_list
+    :return: Dictionary of strings in queries as keys and their position in ref_list as values
+    """
+    # Set the default value if all queries are to be returned
+    if all_queries:
+        positions = {query: None for query in queries}
+    else:
+        positions = {}
+
+    # Ensure the references and queries are both lowercase and can be compared
+    ref_list = [i.strip().lower() for i in ref_list]
+    for query in queries:  # type: str
+        try:
+            positions[query] = ref_list.index(query.lower())
+        except ValueError:
+            continue
+
+    return positions
+
+
+def get_field_delimiter(file_path: str, sniff_size=50) -> str:
+    with open(file_path, newline='') as csvfile:
+        sniffer = Sniffer()
+        sniffer.preferred = ["\t", ","]
+
+        # Ensure there are at least sniff_size lines in the file
+        x = 1
+        line = csvfile.readline()
+        sample = ""
+        while line and x <= sniff_size:
+            sample += line
+            x += 1
+            line = csvfile.readline()
+
+        # Return to the beginning
+        csvfile.seek(0)
+        if x < sniff_size:
+            logging.info("{} contains {} lines which were used to determine field delimiter.\n".format(file_path, x))
+
+        # Read the file to determine its delimiter
+        dialect = sniffer.sniff(sample, delimiters=',;\t')
+    return str(dialect.delimiter)
+
+
+def validate_new_dir(output_dir: str) -> str:
+    output_dir = os.path.abspath(output_dir)
+    # Check whether the output path exists
+    up, down = os.path.split(output_dir.rstrip(os.sep))
+    if output_dir[-1] != os.sep:
+        output_dir += os.sep
+    if not os.path.isdir(up):
+        logging.error("The directory above output ({}) does not exist.\n"
+                      "Please make these as TreeSAPP only creates a single new directory.".format(up))
+        sys.exit(3)
+    return output_dir
+
+
+def fetch_executable_path(exe_name, treesapp_dir):
+    if is_exe(os.path.join(treesapp_dir, "sub_binaries", exe_name)):
+        return str(os.path.join(treesapp_dir, "sub_binaries", exe_name))
+    elif which(exe_name):
+        return which(exe_name)
+    else:
+        logging.error("Could not find a valid executable for '{}'.\n".format(exe_name))
+        sys.exit(13)

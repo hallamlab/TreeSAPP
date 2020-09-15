@@ -5,12 +5,22 @@ import re
 import _tree_parser
 import os
 import logging
-from .utilities import Autovivify, mean
+
 from ete3 import Tree
 from scipy import log2
 
+from treesapp.utilities import Autovivify, mean
+from treesapp.phylo_seq import TreeLeafReference
 
-def get_node(tree, pos):
+
+def get_node(tree: str, pos: int) -> (int, int):
+    """
+    Retrieves an internal node name from a Newick tree string
+
+    :param tree: A string of an already read Newick tree file. Tree text exists on a single line.
+    :param pos: Position in the string to start parsing from
+    :return: Tuple of an integer representing the node and an integer for the new position in the string
+    """
     node = ""
     pos += 1
     c = tree[pos]
@@ -36,7 +46,7 @@ def get_tip_distances(parent_node):
     return distances
 
 
-def find_cluster(lost_node: Tree, intra_distances: list = []):
+def find_cluster(lost_node: Tree, intra_distances=None):
     """
     Recursively calculates whether a node in a tree is the root of a cluster,
     where a cluster is defined as a sub-tree (clade) whose members satisfy the condition:
@@ -49,6 +59,8 @@ def find_cluster(lost_node: Tree, intra_distances: list = []):
     :param intra_distances: A list with the current set of leaf-tip distances
     :return: Tree node, a list of float distances
     """
+    if intra_distances is None:
+        intra_distances = []
     parent = lost_node.up
     if lost_node.is_root() or parent.is_root():
         return lost_node, intra_distances
@@ -108,46 +120,47 @@ class TreeNode:
             info_string += "None\n"
         return info_string
 
-
-def create_tree_internal_node_map(jplace_tree_string):
-    """
-    Loads a mapping between all internal nodes to their internal parents
-    :return:
-    """
-    no_length_tree = re.sub(r"(\d+)?:[0-9.]+(\[\d+\])?{", ":{", jplace_tree_string)
-    node_map = dict()
-    parent_map = dict()
-    node_stack = list()
-
-    x = 0
-    while x < len(no_length_tree):
-        c = no_length_tree[x]
-        if c == ':':
-            # Append the most recent leaf
-            current_node, x = get_node(no_length_tree, x + 1)
-            tree_node = TreeNode(current_node)
-            # node_map[current_node] = tree_node.get_parents()
-            node_stack.append(tree_node)
-            node_map[tree_node.node_id] = tree_node
-        elif c == ')':
-            # Set the child leaves to the leaves of the current node's two children
-            while c == ')' and x < len(no_length_tree):
-                if no_length_tree[x + 1] == ';':
-                    break
-                current_node, x = get_node(no_length_tree, x + 2)
-                tree_node = TreeNode(current_node)
-                r_child = node_stack.pop()
-                r_child.parent = tree_node
-                l_child = node_stack.pop()
-                l_child.parent = tree_node
-                node_stack.append(tree_node)
-                node_map[tree_node.node_id] = tree_node
-                x += 1
-                c = no_length_tree[x]
-        x += 1
-    for node in sorted(node_map):
-        parent_map[node] = node_map[node].all_parents()
-    return node_map
+# Flagged for removal
+# def create_tree_internal_node_map(jplace_tree_string):
+#     """
+#     Loads a mapping between all internal nodes to their internal parents
+#
+#     :return:
+#     """
+#     no_length_tree = re.sub(r"(\d+)?:[0-9.]+(\[\d+\])?{", ":{", jplace_tree_string)
+#     node_map = dict()
+#     parent_map = dict()
+#     node_stack = list()
+#
+#     x = 0
+#     while x < len(no_length_tree):
+#         c = no_length_tree[x]
+#         if c == ':':
+#             # Append the most recent leaf
+#             current_node, x = get_node(no_length_tree, x + 1)
+#             tree_node = TreeNode(current_node)
+#             # node_map[current_node] = tree_node.get_parents()
+#             node_stack.append(tree_node)
+#             node_map[tree_node.node_id] = tree_node
+#         elif c == ')':
+#             # Set the child leaves to the leaves of the current node's two children
+#             while c == ')' and x < len(no_length_tree):
+#                 if no_length_tree[x + 1] == ';':
+#                     break
+#                 current_node, x = get_node(no_length_tree, x + 2)
+#                 tree_node = TreeNode(current_node)
+#                 r_child = node_stack.pop()
+#                 r_child.parent = tree_node
+#                 l_child = node_stack.pop()
+#                 l_child.parent = tree_node
+#                 node_stack.append(tree_node)
+#                 node_map[tree_node.node_id] = tree_node
+#                 x += 1
+#                 c = no_length_tree[x]
+#         x += 1
+#     for node in sorted(node_map):
+#         parent_map[node] = node_map[node].all_parents()
+#     return node_map
 
 
 def validate_internal_node_map(node_map):
@@ -165,10 +178,13 @@ def validate_internal_node_map(node_map):
     return
 
 
-def map_internal_nodes_leaves(tree):
+def map_internal_nodes_leaves(tree: str) -> dict:
     """
-    Loads a mapping between all internal nodes and their child leaves
-    :return:
+    Loads a Newick-formatted tree into a dictionary of all internal nodes (keys) and a list of child leaves (values).
+    NOTE: the Newick tree must already contain internal nodes in braces. These trees are returned by EPA-NG.
+
+    :param tree: A string of an already read Newick tree file. Tree text exists on a single line.
+    :return: Dictionary of all internal nodes (keys) and a list of child leaves (values)
     """
     no_length_tree = re.sub(r":[0-9.]+(\[\d+\])?{", ":{", tree)
     node_map = dict()
@@ -178,8 +194,8 @@ def map_internal_nodes_leaves(tree):
     num_buffer = ""
     while x < len(no_length_tree):
         c = no_length_tree[x]
-        if re.search(r"\d", c):
-            while re.search(r"\d", c):
+        if re.match(r"\d", c):
+            while c != ':':
                 num_buffer += c
                 x += 1
                 c = no_length_tree[x]
@@ -277,25 +293,27 @@ def read_and_understand_the_reference_tree(reference_tree_file, denominator):
         return denominator, terminal_children_of_reference
 
 
-def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
+def annotate_partition_tree(refpkg_name: str, leaf_nodes: list, bipart_tree: str):
     try:
-        tree_txt = open(bipart_tree, 'r')
+        tree_file = open(bipart_tree, 'r')
     except (FileNotFoundError, IOError):
         raise IOError("Unable to open RAxML bipartition tree " + bipart_tree + " for reading.")
 
-    tree = tree_txt.readline()
-    tree_txt.close()
-    for treesapp_id in fasta_replace_dict.keys():
-        if not re.search(r"[,(]{0}_{1}".format(treesapp_id, code_name), tree):
-            logging.warning("Unable to find '" + treesapp_id + '_' + code_name + "' in " + bipart_tree + ".\n" +
-                            "The bipartition tree will not be annotated (no effect on reference package).\n")
+    tree = tree_file.readline()
+    tree_file.close()
+    for leaf_node in leaf_nodes:  # type: TreeLeafReference
+        if not re.search(r"[,(]{0}_{1}".format(leaf_node.number, refpkg_name), tree):
+            logging.warning("Unable to find '{}' in {}.\n"
+                            "The bipartition tree will not be annotated"
+                            " (no effect on reference package).\n".format(leaf_node.number + '_' + refpkg_name,
+                                                                          bipart_tree))
             break
-        tree = re.sub(r"[,(]{0}_{1}".format(treesapp_id, code_name),
-                      '(' + fasta_replace_dict[treesapp_id].organism,
+        tree = re.sub(r"[,(]{0}_{1}".format(leaf_node.number, refpkg_name),
+                      '(' + leaf_node.description,
                       tree)
 
     tree_output_dir = os.path.dirname(bipart_tree)
-    annotated_tree_name = tree_output_dir + os.sep + "RAxML_bipartitions_annotated." + code_name
+    annotated_tree_name = tree_output_dir + os.sep + "RAxML_bipartitions_annotated." + refpkg_name
     try:
         annotated_tree = open(annotated_tree_name, 'w')
     except IOError:
@@ -307,25 +325,18 @@ def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
     return
 
 
-def tree_leaf_distances(tree: Tree):
-    # max_dist_threshold equals the maximum path length from root to tip in its clade
+def tree_leaf_distances(tree: Tree) -> (float, list):
+    """
+    Calculates the maximum branch length distance observed in the tree
+    Compiles a list of all distances from the root to the leaves
+
+    :param tree: An ete3 Tree instance
+    :return:
+    """
     leaf_distances = []
-    d = 0.0
-    max_dist = None
-    topology_only = False
-    for post, n in tree.iter_prepostorder(is_leaf_fn=None):
-        if n is tree:
-            continue
-        if post:
-            d -= n.dist
-        else:
-            if n.is_leaf():
-                total_d = d + n.dist if not topology_only else d
-                leaf_distances.append(total_d)
-                if max_dist is None or total_d > max_dist:
-                    max_dist = total_d
-            else:
-                d += n.dist if not topology_only else 1.0
+    for leaf in tree.get_leaves():
+        leaf_distances.append(tree.get_distance(leaf))
+    max_dist = max([n.dist for n in tree.traverse("postorder")])
     return max_dist, leaf_distances
 
 

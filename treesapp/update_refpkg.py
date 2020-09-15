@@ -1,14 +1,14 @@
-import os
 import sys
 import re
 import logging
+
 from pygtrie import StringTrie
-from .external_command_interface import launch_write_command
-from treesapp.utilities import clean_lineage_string, load_taxonomic_trie
-from . import wrapper
+
+from treesapp.utilities import load_taxonomic_trie
 from treesapp.classy import Cluster
 from treesapp.entrez_utils import EntrezRecord
 from treesapp.fasta import FASTA
+from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 
 
 def reformat_ref_seq_descriptions(original_header_map):
@@ -60,7 +60,8 @@ def map_classified_seqs(ref_pkg_name: str, assignments: dict, unmapped_seqs: lis
 
 def validate_mixed_lineages(mixed_seq_lineage_map: dict) -> None:
     """
-    Function to ensure all lineages begin at the same rank, typically either 'Root' or 'cellular organisms' if appropriate
+    Function to ensure all lineages begin at the same rank, typically either 'Root' or 'cellular organisms'
+
     :param mixed_seq_lineage_map: A dictionary mapping sequence names (keys) to taxonomic lineages (values)
     :return: None
     """
@@ -77,7 +78,6 @@ def validate_mixed_lineages(mixed_seq_lineage_map: dict) -> None:
             superfluous_prefixes.add(lineage_ranks[i])
             i += 1
 
-    # Don't want to use `clean_lineage_string` here to maintain auxiliary ranks - just remove prefixes
     prefix_re = re.compile("|".join([prefix + "; " for prefix in superfluous_prefixes]))
     for seq_name in sorted(mixed_seq_lineage_map, key=lambda x: mixed_seq_lineage_map[x]):
         mixed_seq_lineage_map[seq_name] = prefix_re.sub('', mixed_seq_lineage_map[seq_name])
@@ -96,14 +96,20 @@ def strip_assigment_pattern(seq_names: list, refpkg_name: str) -> dict:
 
 
 def filter_by_lwr(classified_lines: list, min_lwr: float) -> set:
+    """
+
+    :param classified_lines:
+    :param min_lwr: A float representing the minimum acceptable Likelihood Weight Ratio as calculated by EPA-NG
+    :return: A set of sequence names with corresponding placement likelihoods greater than min_lwr
+    """
     high_lwr_placements = set()
-    num_filtered = 0
-    target_field = 8
+    num_filtered = 0  # Number of placements with LWR less than min_lwr
+    target_field = 9  # The field index (from the classification table) storing LWR
     for classification in classified_lines:
         try:
             lwr = float(classification[target_field])
         except TypeError:
-            logging.error("Unable to convert all classifications from column " + str(target_field) + " to a float.\n")
+            logging.error("Unable to convert all classifications from column {} to a float.\n".format(target_field))
             sys.exit(17)
 
         assert 0.0 < lwr <= 1.0
@@ -116,25 +122,6 @@ def filter_by_lwr(classified_lines: list, min_lwr: float) -> set:
                   + str(min_lwr) + " for updating\n")
 
     return high_lwr_placements
-
-
-def filter_by_lineage_depth(classified_lines: list, min_lineage_depth: int) -> set:
-    resolved_placements = set()
-    num_filtered = 0
-    target_field = 5
-    for classification in classified_lines:
-        # Since we're dealing with classified sequences, the 'Root' prefix will also need to be removed
-        lineage = clean_lineage_string(str(classification[target_field]), ["Root"])
-
-        if lineage and len(lineage.split("; ")) >= min_lineage_depth:
-            resolved_placements.add(classification[1])
-        else:
-            num_filtered += 1
-
-    logging.debug(str(num_filtered) + " classified sequences did not meet lineage depth threshold of "
-                  + str(min_lineage_depth) + " for updating\n")
-
-    return resolved_placements
 
 
 def intersect_incomparable_lists(superset, subset, name_map: dict) -> list:
@@ -177,12 +164,12 @@ def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict
     :return: A dictionary of EntrezRecord instances indexed by their respective TreeSAPP numerical IDs
     """
     entrez_records = dict()
-    header_map = fasta_records.unversion_first_split_header_map()
-    for seq_name in sorted(seq_lineage_map):
-        er = EntrezRecord(seq_name, "")
-        er.lineage = seq_lineage_map[seq_name]
+    header_map = fasta_records.get_accession_header_map()
+    for seq_accession in sorted(seq_lineage_map):
+        er = EntrezRecord(seq_accession, "")
+        er.lineage = seq_lineage_map[seq_accession]
         er.organism = er.lineage.split("; ")[-1]
-        for header in header_map[seq_name]:
+        for header in header_map[seq_accession]:
             er.description = " ".join(header.original.split(" ")[1:])
             er.versioned = header.original.split(" ")[0]
             er.sequence = fasta_records.fasta_dict[str(header.treesapp_num_id)]
@@ -190,67 +177,105 @@ def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict
     return entrez_records
 
 
-def break_clusters(entrez_records: dict, guaranteed: list) -> None:
+def resolve_cluster_lineages(cluster_dict: dict, entrez_records: dict, taxa_trie: TaxonomicHierarchy) -> None:
     """
-    Sets the `cluster_rep` variable to True for each EntrezRecord with its num_id found in guaranteed.
+    Sets the 'cluster_rep' attribute to True for the EntrezRecord with the most resolved lineage out of the
+    cluster members and cluster representative. If the cluster representative has a less resolved lineage its
+    'cluster_rep' attribute is set to False and it is moved into the members list.
 
     :param entrez_records: Dictionary mapping unique TreeSAPP numerical IDs to Cluster instances
-    :param guaranteed: List of sequences to be set to cluster representatives to ensure they are retained downstream
+    :param cluster_dict: Dictionary mapping unique cluster IDs to Cluster instances
+    :param taxa_trie: A TaxonomicHierarchy instance of the ReferencePackage being updated
     :return: None
     """
-    for num_id in entrez_records:
-        if num_id in guaranteed:
-            er = entrez_records[num_id]  # type: EntrezRecord
-            er.cluster_rep = True
+    # A temporary dictionary for rapid mapping of sequence names to lineages
+    er_lookup = {er.rebuild_header(): er for (num_id, er) in entrez_records.items()}
+
+    for cluster_id in cluster_dict:
+        cluster = cluster_dict[cluster_id]  # type: Cluster
+        ref_er = er_lookup[cluster.representative]  # type: EntrezRecord
+        ref_depth = taxa_trie.accepted_ranks_depths[taxa_trie.resolved_to(ref_er.lineage)]
+        if len(cluster.members) >= 1:
+            validated_cluster_members = []
+            for member in cluster.members:
+                seq_name, seq_similarity = member
+                member_er = er_lookup[seq_name]  # type: EntrezRecord
+                member_depth = taxa_trie.accepted_ranks_depths[taxa_trie.resolved_to(member_er.lineage)]
+                if member_depth <= ref_depth:
+                    member_er.cluster_rep = False
+                    validated_cluster_members.append(member)
+                else:
+                    validated_cluster_members.append((cluster.representative, seq_similarity))
+                    ref_er.cluster_rep = False
+                    cluster.representative = seq_name
+                    ref_er = member_er
+                    ref_depth = member_depth
+            cluster.members = validated_cluster_members
     return
 
 
-def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list, lineage_collapse=True) -> list:
+def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list, lineage_collapse=True) -> None:
     """
     Switches the representative sequence of a Cluster instance based on a priority list.
-    Optionally, clusters can be set to have zero members if their all members (including the representative) have
-    identical taxonomic lineages.
+
+    Optionally, with the lineage_collapse flag, Cluster.members can be emptied if all members
+    (including the representative) have identical taxonomic lineages.
 
     :param cluster_dict: Dictionary mapping unique cluster IDs to Cluster instances
     :param entrez_records: Dictionary mapping numerical IDs to EntrezRecord instances
     :param priority: List of sequences that should be centroids, if not already
     :param lineage_collapse: Flag indicating whether clusters whose members have identical lineages are removed
-    :return: Sequence names in `priority` that were members of a cluster represented by another priority sequence
+    :return: Sequence names in `priority` that were members of a cluster represented by another priority sequence.
+    These can be used to identify which clusters should be broken such that all 'priority' sequences will be centroids
     """
     # A temporary dictionary for rapid mapping of sequence names to lineages
-    lineage_lookup = {er.versioned + ' ' + er.description: er.lineage for (num_id, er) in entrez_records.items()}
+    lineage_lookup = {er.rebuild_header(): er.lineage for (num_id, er) in entrez_records.items()}
     # cluster_ids list is used for iterating through dictionary keys and allowing dict to change size with 'pop's
     cluster_ids = list(cluster_dict.keys())
     # Track the number of priority sequences that remained members of clusters
-    guaranteed_redundant = list()
-    # Begin iterating over cluster_dict, improving the
+    guaranteed_redundant = []
+    cluster_num = len(cluster_dict)
+
     for cluster_id in sorted(cluster_ids, key=int):
-        cluster_info = cluster_dict[cluster_id]  # type: Cluster
-        if len(cluster_info.members) == 0:
+        cluster = cluster_dict[cluster_id]  # type: Cluster
+        if len(cluster.members) == 0:
             continue
-        # Insure the centroids/representatives are the original reference sequences
-        if cluster_info.representative in priority:
+        # Ensure the centroids/representatives are the original reference sequences
+        if cluster.representative in priority:
             rep_found = True
         else:
             rep_found = False
         i = 0
-        while i < len(cluster_info.members):
-            seq_name, seq_similarity = cluster_info.members[i]
+        while i < len(cluster.members):
+            seq_name, seq_similarity = cluster.members[i]
             if seq_name in priority:
                 if rep_found:
-                    guaranteed_redundant.append(seq_name)
+                    # Save the reference sequence from being absorbed into another reference sequence's cluster
+                    cluster_break = Cluster(seq_name)
+                    while str(cluster_num) in cluster_dict:
+                        cluster_num += 1
+                    guaranteed_redundant.append(cluster_break)
+                    cluster_dict[str(cluster_num)] = cluster_break
+                    cluster.members.pop(i)
+                    i -= 1
                 else:
-                    cluster_info.members[i] = [cluster_info.representative, seq_similarity]
-                    cluster_info.representative = seq_name
+                    cluster.members[i] = [cluster.representative, seq_similarity]
+                    cluster.representative = seq_name
                     rep_found = True
             i += 1
         # Remove the cluster members from the dictionary if the lineages are identical
         if lineage_collapse:
             identical = True
-            for member_seq in cluster_info.members:
+            for member_seq in cluster.members:
                 seq_name, seq_similarity = member_seq
-                if clean_lineage_string(lineage_lookup[seq_name]) != cluster_info.lca:
+                if lineage_lookup[seq_name] != cluster.lca:
                     identical = False
             if identical:
-                cluster_info.members = []
-    return guaranteed_redundant
+                cluster.members = []
+
+    if guaranteed_redundant:
+        logging.warning("{} original reference sequences saved from clustering:\n\t"
+                        "{}\n".format(len(guaranteed_redundant),
+                                      "\n\t".join(clust.representative for clust in guaranteed_redundant)))
+
+    return

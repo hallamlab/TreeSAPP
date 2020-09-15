@@ -9,8 +9,8 @@ from urllib import error
 from Bio import Entrez
 from tqdm import tqdm
 from treesapp.classy import prep_logging
-from treesapp.fasta import get_headers, get_header_format
-from treesapp.utilities import return_sequence_info_groups, complement_nucs
+from treesapp.fasta import get_headers, get_header_format, load_fasta_header_regexes, sequence_info_groups
+from treesapp.utilities import complement_nucs
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -457,15 +457,16 @@ def main():
     args = get_options()
     log_file_name = "Efetch_fasta_log.txt"
     prep_logging(log_file_name, args.verbose)
+    header_regexes = load_fasta_header_regexes()
     if args.format == "stockholm":
         accessions = read_stockholm(args)
     elif args.format == "fasta":
         accessions = set()
         input_headers = get_headers(args.input)
         for header in input_headers:
-            header_format_re, header_db, header_molecule = get_header_format(header)
+            header_format_re, header_db, header_molecule = get_header_format(header, header_regexes)
             sequence_info = header_format_re.match(header)
-            seq_info_tuple = return_sequence_info_groups(sequence_info, header_db, header)
+            seq_info_tuple = sequence_info_groups(sequence_info, header_db, header, header_regexes)
             accessions.add(seq_info_tuple.accession)
         logging.debug(str(len(input_headers) - len(accessions)) + " duplicate accessions found in " + args.input + "\n")
     elif args.format == "list":

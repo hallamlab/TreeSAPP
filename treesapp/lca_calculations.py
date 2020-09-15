@@ -4,54 +4,31 @@ __author__ = 'Connor Morgan-Lang'
 import sys
 import re
 import logging
+
 from pygtrie import StringTrie
-from .utilities import median, clean_lineage_string, load_taxonomic_trie
 
-
-def all_possible_assignments(tax_ids_file):
-    try:
-        cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
-    except IOError:
-        logging.error("Unable to open " + str(tax_ids_file) + " for reading.\n")
-        sys.exit(21)
-
-    lineage_list = list()
-    for line in cog_tax_ids:
-        line = line.strip()
-        try:
-            fields = line.split("\t")
-        except ValueError:
-            logging.error(" split(\'\\t\') on " + str(line) +
-                          " generated " + str(len(line.split("\t"))) + " fields.")
-            sys.exit(21)
-        if len(fields) == 3:
-            number, translation, lineage = fields
-            if lineage:
-                lineage = "Root; " + clean_lineage_string(lineage)
-        else:
-            logging.error("Unexpected number of fields in " + tax_ids_file +
-                          ".\nInvoked .split(\'\\t\') on line " + str(line))
-            sys.exit(21)
-        lineage_list.append(lineage)
-
-    cog_tax_ids.close()
-
-    return load_taxonomic_trie(lineage_list)
+from .utilities import median
 
 
 def grab_graftm_taxa(tax_ids_file):
     taxonomic_tree = StringTrie(separator='; ')
     with open(tax_ids_file) as tax_ids:
         header = tax_ids.readline().strip()
-        if header != "tax_id,parent_id,rank,tax_name,root,kingdom,phylum,class,order,family,genus,species":
+        last_rank = int(header[-1])
+        final_index = 6 - last_rank
+        if not re.search("parent_id,rank,tax_name,root,rank_0,rank_1,rank_2,rank_3,rank_4,rank_5,rank_6", header):
             logging.error("Unable to handle format of " + tax_ids_file + "!")
             sys.exit(21)
         line = tax_ids.readline().strip()
         while line:
+            fields = line.split(',')
+            if final_index < 0:
+                fields = line.split(',')[:final_index]
             try:
-                _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_ = line.split(',')
-            except IndexError:
-                logging.error("Unexpected format of line in " + tax_ids_file + ":\n" + line)
+                _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_, = fields
+            except (IndexError, ValueError):
+                logging.error("Unexpected format of line with %d fields in " % len(line.split(',')) +
+                              tax_ids_file + ":\n" + line)
                 sys.exit(21)
             ranks = ["Root", k_, p_, c_, o_, f_, g_, s_]
             lineage_list = []
@@ -60,9 +37,9 @@ def grab_graftm_taxa(tax_ids_file):
                 if rank:
                     # GraftM seems to append an 'e1' to taxa that are duplicated in the taxonomic lineage.
                     # For example: Bacteria; Aquificae; Aquificaee1; Aquificales
-                    lineage_list.append(re.sub(r'e\d+$', '', rank))
+                    lineage_list.append(re.sub(r'_graftm_\d+$', '', rank))
                     # lineage_list.append(rank)
-            lineage = re.sub('_', ' ', clean_lineage_string('; '.join(lineage_list)))
+            lineage = re.sub('_', ' ', '; '.join(lineage_list))
             i = 0
             ranks = len(lineage)
             while i < len(lineage):
@@ -73,7 +50,7 @@ def grab_graftm_taxa(tax_ids_file):
     return taxonomic_tree
 
 
-def optimal_taxonomic_assignment(trie, query_taxon):
+def optimal_taxonomic_assignment(trie: StringTrie, query_taxon: str):
     while not trie.__contains__(query_taxon) and len(query_taxon.split('; ')) > 1:
         query_taxon = "; ".join(query_taxon.split('; ')[:-1])
     if not trie.__contains__(query_taxon):
@@ -81,7 +58,7 @@ def optimal_taxonomic_assignment(trie, query_taxon):
     return query_taxon
 
 
-def identify_excluded_clade(assignment_dict, trie, marker):
+def identify_excluded_clade(assignment_dict: dict, trie: StringTrie, marker: str) -> dict:
     """
     Using the taxonomic information from the sequence headers and the lineages of the reference sequence,
     this function determines the rank at which each sequence's clade is excluded.
@@ -96,9 +73,9 @@ def identify_excluded_clade(assignment_dict, trie, marker):
       E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
     """
     rank_assigned_dict = dict()
-    _RANK_DEPTH_MAP = {0: "Cellular  organisms", 1: "Kingdom",
-                       2: "Phylum", 3: "Class", 4: "Order",
-                       5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
+    _RANK_DEPTH_MAP = {0: "root", 1: "domain",
+                       2: "phylum", 3: "class", 4: "order",
+                       5: "family", 6: "genus", 7: "species", 8: "strain"}
 
     if marker not in assignment_dict:
         logging.debug("No sequences assigned as " + marker + "\n")
@@ -112,8 +89,8 @@ def identify_excluded_clade(assignment_dict, trie, marker):
     for ref_lineage in assignment_dict[marker]:
         log_stats += "Assigned reference lineage: " + ref_lineage + "\n"
         for query_lineage in assignment_dict[marker][ref_lineage]:  # type: str
-            if query_lineage.split('; ')[0] != "Root":
-                query_lineage = "; ".join(["Root"] + query_lineage.split("; "))
+            if query_lineage.split('; ')[0] != "r__Root":
+                query_lineage = "; ".join(["r__Root"] + query_lineage.split("; "))
             # if query_lineage == ref_lineage:
             #     logging.debug("\tQuery lineage: " + query_lineage + ", " +
             #                   "Optimal lineage: " + ref_lineage + "\n")
@@ -128,8 +105,8 @@ def identify_excluded_clade(assignment_dict, trie, marker):
                     log_stats += "\t\tOptimal lineage: " + contained_taxonomy + "\n"
                 rank_assigned_dict[rank_excluded].append({ref_lineage: (contained_taxonomy, query_lineage)})
             else:
-                logging.warning("Number of ranks in lineage '" + contained_taxonomy + "' is ridiculous.\n" +
-                                "This sequence will be removed from clade exclusion calculations\n")
+                logging.warning("Number of ranks in lineage '{}' is ridiculous.\n"
+                                "This will not be used in clade exclusion calculations\n".format(contained_taxonomy))
     logging.debug(log_stats + "\n")
     return rank_assigned_dict
 
@@ -229,7 +206,6 @@ def lowest_common_taxonomy(children, base_lca, taxonomic_counts, algorithm="LCA*
     # (e.g. unclassified sequences; metagenomes; ecological metagenomes)
     max_ranks = 0
     for child in children:
-        # child = clean_lineage_string(child)
         ranks = child.split("; ")
         num_ranks = len(ranks)
         if num_ranks > 3:
@@ -367,13 +343,12 @@ def clean_lineage_list(lineage_list):
         If first rank == "unclassified sequences"
         If unclassified depth is < median unclassified depth
         cellular organisms; *; environmental samples
+
     :param lineage_list:
     :return: A list of lineages with mostly or entirely classified sequences, as long as they comprise the majority
     """
     if len(lineage_list) <= 1:
         return [lineage_list]
-
-    lineage_list = [clean_lineage_string(lineage) for lineage in lineage_list]
 
     classified_lineages = list()
     unclassified_depths = list()

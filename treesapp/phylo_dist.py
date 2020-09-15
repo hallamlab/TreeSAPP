@@ -4,11 +4,11 @@ import sys
 import re
 import logging
 from ete3 import Tree
-from .file_parsers import tax_ids_file_to_leaves
-from .utilities import clean_lineage_string, median
 
 import numpy as np
 import scipy.optimize as so
+
+from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 np.random.seed(0)
 
 __author__ = 'Connor Morgan-Lang'
@@ -37,7 +37,14 @@ def cull_outliers(data: list, dev=3):
     return list(noo_a)
 
 
-def regress_ranks(rank_distance_ranges, taxonomic_ranks):
+def regress_ranks(rank_distance_ranges: dict, taxonomic_ranks: dict) -> (float, float):
+    """
+    Uses linear regression to correlate phylogenetic distance with taxonomic rank
+
+    :param rank_distance_ranges: A dictionary with taxonomic ranks as keys and a list of distances (floats) as values
+    :param taxonomic_ranks: A dictionary mapping taxonomic ranks (keys) to their depth (int) in the taxonomic hierarchy
+    :return: A tuple with the slope and intercept estimated by a linear regression
+    """
 
     all_distances = list()
     for rank in rank_distance_ranges:
@@ -56,7 +63,7 @@ def regress_ranks(rank_distance_ranges, taxonomic_ranks):
             dist_list += rank_distances
 
     if len(depth_dist_dict.keys()) <= 1:
-        logging.error("Only " + str(len(depth_dist_dict.keys())) + " ranks available for modelling.\n")
+        logging.error("Only {} ranks available for modelling.\n".format(len(depth_dist_dict.keys())))
         sys.exit(33)
 
     dist_list.clear()
@@ -91,7 +98,7 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_pfit: list):
     # polyreg = np.poly1d(taxonomic_rank_pfit)
     # depth = int(round(polyreg(phylo_dist)))
 
-    slope, intercept = taxonomic_rank_pfit
+    slope, intercept = [float(i) for i in taxonomic_rank_pfit]
     depth = int(round(phylo_dist*slope + intercept))
 
     return depth
@@ -108,13 +115,13 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     """
     trimmed_lineage_map = dict()
     # ranks is offset by 1 (e.g. Kingdom is the first index and therefore should be 1) for the final trimming step
-    ranks = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
+    ranks = {"domain": 1, "phylum": 2, "class": 3, "order": 4, "family": 5, "genus": 6, "species": 7}
     unknowns_re = re.compile("unclassified|environmental sample", re.IGNORECASE)
     depth = ranks[rank]
     truncated = 0
     unclassified = 0
     for node_name in sorted(leaf_taxa_map):
-        c_lineage = clean_lineage_string(leaf_taxa_map[node_name])
+        c_lineage = leaf_taxa_map[node_name]
         c_lineage_s = c_lineage.split("; ")
 
         # Remove lineage from testing if the rank doesn't exist (unclassified at a high rank)
@@ -150,7 +157,7 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     return trimmed_lineage_map
 
 
-def prune_branches(tree, leaf_taxa_map: dict, rank="Genus"):
+def prune_branches(tree, t_hierarchy: TaxonomicHierarchy, leaf_taxa_map: dict, rank="Genus"):
     """
     Function for removing leaves of unclassified and polyphyletic lineages
 
@@ -170,7 +177,7 @@ def prune_branches(tree, leaf_taxa_map: dict, rank="Genus"):
             logging.error(str(leaf.name) + " not found in leaf_taxa_map.\n")
             raise AssertionError("Leaves in tree and tax_ids file are disparate sets.\n")
     # Raw lineages are too specific to test for monophyly, so try at a deeper rank by trimming the lineages
-    leaf_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)
+    leaf_taxa_map = t_hierarchy.trim_lineages_to_rank(leaf_taxa_map, rank)
 
     # Add the lineages to the Tree instance
     for leaf in tree:
@@ -224,95 +231,3 @@ def parent_to_tip_distances(parent: Tree, children: Tree, estimate=False):
             distal_length += parent.dist
         branch_distances.append(distal_length)
     return branch_distances
-
-
-def bound_taxonomic_branch_distances(tree, leaf_taxa_map):
-    # Seed the final dictionary to be used for bounding
-    taxonomic_rank_distances = dict()
-    lca_nodes = dict()
-    taxonomic_rank_intervals = dict()
-    ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
-    for depth in sorted(ranks, key=int, reverse=True):
-        rank = ranks[depth]
-        lca_nodes[depth] = list()
-        taxonomic_rank_distances[rank] = list()
-        # Remove the leaves belonging to "Unclassified" lineages and/or polyphyletic clades
-        monophyletic_clades = prune_branches(tree, leaf_taxa_map, rank)
-        for lineage in monophyletic_clades:
-            for para_group in monophyletic_clades[lineage]:
-                edge_lengths = []
-                clade = monophyletic_clades[lineage][para_group]
-                if len(clade) == 1:
-                    # Unable to calculate distance with a single leaf
-                    continue
-                lca = clade[0].get_common_ancestor(clade[1:])
-                lca_nodes[depth].append(lca)
-                if depth + 1 in lca_nodes:
-                    # Ensure this parent node wasn't already used to estimate the previous rank's bounds
-                    if lca not in lca_nodes[depth + 1]:
-                        edge_lengths = parent_to_tip_distances(lca, clade, True)
-                else:
-                    edge_lengths += parent_to_tip_distances(lca, clade, True)
-                taxonomic_rank_distances[rank] += edge_lengths
-        if len(taxonomic_rank_distances[rank]) >= 5:
-            noo_taxa_rank_dists = cull_outliers(taxonomic_rank_distances[rank])
-            taxonomic_rank_intervals[rank] = (round(np.percentile(noo_taxa_rank_dists, q=2.5), 4),
-                                              round(np.percentile(noo_taxa_rank_dists, q=97.5), 4))
-        else:
-            taxonomic_rank_intervals[rank] = ()
-    return taxonomic_rank_intervals
-
-
-def validate_rank_intervals(taxonomic_rank_intervals):
-    """
-    Placeholder, for now.
-        This idea has been abandoned but a similar function will be required soon.
-    :param taxonomic_rank_intervals:
-    :return:
-    """
-    validated_intervals = dict()
-    ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
-    ci_ranges = [max_ci-min_ci for min_ci, max_ci in taxonomic_rank_intervals.values()]
-    ci_maxes = [max_ci for min_ci, max_ci in taxonomic_rank_intervals.values()]
-    p_min = p_max = 1
-    for depth in sorted(ranks):
-        rank = ranks[depth]
-        if rank not in taxonomic_rank_intervals:
-            if depth == 1:
-                min_ci = max(ci_maxes)
-                max_ci = min_ci + median(ci_ranges)
-            else:
-                max_ci = p_min
-                min_ci = max_ci - median(ci_ranges)
-        else:
-            min_ci, max_ci = taxonomic_rank_intervals[rank]
-            # Fix the ranges with CIs that exceed the previous rank's CIs
-            if max_ci > p_min:
-                max_ci = p_min
-                min_ci = max_ci - median(ci_ranges)
-        p_min, p_max = min_ci, max_ci
-        validated_intervals[rank] = (min_ci, max_ci)
-        # Fill in those that are missing; estimate the length corresponding to a rank's range
-    return validated_intervals
-
-
-def main(args: list):
-    newick_tree_file, tax_ids_file = args[:]
-    taxa = tax_ids_file_to_leaves(tax_ids_file)
-    leaf_taxa_map = dict()
-    for taxa_leaf in taxa:
-        leaf_taxa_map[taxa_leaf.number] = taxa_leaf.lineage
-    # Read the NEWICK-formatted phylogenetic tree
-    tree = Tree(newick_tree_file)
-    taxonomic_rank_intervals = bound_taxonomic_branch_distances(tree, leaf_taxa_map)
-    # taxonomic_rank_intervals = validate_rank_intervals(taxonomic_rank_intervals)
-    sys.stdout.write("Rank\tMin.   - Max.\n")
-    ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
-    for depth in sorted(ranks, key=int, reverse=True):
-        rank = ranks[depth]
-        sys.stdout.write(rank + "\t" + ' - '.join([str(x) for x in taxonomic_rank_intervals[rank]]) + "\n")
-    sys.stdout.flush()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

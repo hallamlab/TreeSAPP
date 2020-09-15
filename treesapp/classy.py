@@ -6,25 +6,34 @@ import os
 import re
 import logging
 import time
+from datetime import datetime as dt
 from shutil import rmtree, copy
-from copy import deepcopy
-from multiprocessing import Process, JoinableQueue
+from multiprocessing import Process
 from glob import glob
-from json import loads, dumps
 from collections import namedtuple
-from .fasta import get_header_format, FASTA, get_headers, fastx_split
-from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, fish_refpkg_from_build_params
-from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
-from .lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
-from . import entrez_utils
-from .external_command_interface import launch_write_command
 from numpy import var
+
+from treesapp.phylo_seq import convert_entrez_to_tree_leaf_references, PQuery
+from treesapp.refpkg import ReferencePackage
+from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes, sequence_info_groups
+from treesapp.utilities import median, write_dict_to_table, validate_new_dir, fetch_executable_path
+from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
+from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
+from treesapp import entrez_utils
+from treesapp.wrapper import CommandLineFarmer
 
 import _tree_parser
 
 
 class ModuleFunction:
-    def __init__(self, name, order, func=None):
+    def __init__(self, name: str, order: int, func=None):
+        """
+        Create a new instance of the ModuleFunction class
+
+        :param name: Name of the function's module (e.g. clean, lineages, assign, build)
+        :param order: The order in which the module is supposed to be ran
+        :param func: An optional function to call when this module is reached
+        """
         self.order = order
         self.name = name
         self.function = func
@@ -35,768 +44,6 @@ class ModuleFunction:
         info_string += "\tOrder: " + str(self.order) + "\n"
         info_string += "\tRun: " + str(self.run) + "\n"
         return info_string
-
-
-class ReferencePackage:
-    def __init__(self):
-        self.prefix = ""
-        self.refpkg_code = ""
-        self.msa = ""
-        self.profile = ""
-        self.tree = ""
-        self.boot_tree = ""
-        self.lineage_ids = ""
-        self.taxa_trie = ""
-        self.sub_model = ""
-        self.core_ref_files = list()
-        self.num_seqs = 0
-
-    def validate(self, num_ref_seqs=0):
-        """
-        Function that ensures the number of sequences is equal across all files and that in the ref_build_parameters.tsv
-        :return: Boolean
-        """
-        # Check to ensure all files exist
-        for ref_file in self.core_ref_files:
-            if not os.path.isfile(ref_file):
-                logging.error("File '" + ref_file + "' does not exist for reference package: " + self.prefix + "\n")
-                sys.exit(17)
-        # TODO: Compare the number of sequences in the multiple sequence alignment
-        self.num_seqs = len(get_headers(self.msa))
-        if not num_ref_seqs:
-            num_ref_seqs = self.num_seqs
-        # TODO: Compare the number of sequences in the Hidden-Markov model
-        # TODO: Compare the number of sequences in the Tree files
-        # TODO: Compare the number of sequences in the tax_ids file
-        num_taxa = len(self.tax_ids_file_to_leaves())
-        if num_taxa != num_ref_seqs != self.num_seqs:
-            logging.error("Number of reference sequences for reference package '" +
-                          self.prefix + "' is inconsistent!\n")
-            sys.exit(3)
-        return True
-
-    def tax_ids_file_to_leaves(self):
-        tree_leaves = list()
-        unknown = 0
-        try:
-            tax_ids_handler = open(self.lineage_ids, 'r', encoding='utf-8')
-        except IOError:
-            logging.error("Unable to open " + self.lineage_ids + "\n")
-            sys.exit(5)
-
-        for line in tax_ids_handler:
-            line = line.strip()
-            try:
-                fields = line.split("\t")
-            except ValueError:
-                logging.error('ValueError: .split(\'\\t\') on ' + str(line) +
-                              " generated " + str(len(line.split("\t"))) + " fields.\n")
-                sys.exit(5)
-            try:
-                number, seq_name, lineage = fields
-            except (ValueError, IndexError):
-                logging.error("Unexpected number of fields in " + self.lineage_ids +
-                              ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
-                sys.exit(5)
-            leaf = TreeLeafReference(number, seq_name)
-            if lineage:
-                leaf.lineage = lineage
-                leaf.complete = True
-            else:
-                unknown += 1
-            tree_leaves.append(leaf)
-
-        if len(tree_leaves) == unknown:
-            logging.error("Lineage information was not properly loaded for " + self.lineage_ids + "\n")
-            sys.exit(5)
-
-        tax_ids_handler.close()
-        return tree_leaves
-
-    def gather_package_files(self, pkg_path: str, molecule="prot", layout=None):
-        """
-        Populates a ReferencePackage instances fields with files based on 'pkg_format' where hierarchical indicates
-         files are sorted into 'alignment_data', 'hmm_data' and 'tree_data' directories and flat indicates they are all
-         in the same directory.
-        :param pkg_path: Path to the reference package
-        :param molecule: A string indicating the molecule type of the reference package. If 'rRNA' profile is CM.
-        :param layout: An optional string indicating what layout to use (flat | hierarchical)
-        :return:
-        """
-        if not self.prefix:
-            logging.error("ReferencePackage.prefix not set - unable to gather package files.\n")
-            sys.exit(3)
-        if molecule == "rRNA":
-            profile_ext = ".cm"
-        else:
-            profile_ext = ".hmm"
-        if pkg_path[-1] != os.sep:
-            pkg_path += os.sep
-
-        flat = {"msa": pkg_path + self.prefix + ".fa",
-                "tree": pkg_path + self.prefix + "_tree.txt",
-                "profile": pkg_path + self.prefix + profile_ext,
-                "taxid": pkg_path + "tax_ids_" + self.prefix + ".txt"}
-        hierarchical = {"msa": pkg_path + "alignment_data" + os.sep + self.prefix + ".fa",
-                        "tree": pkg_path + "tree_data" + os.sep + self.prefix + "_tree.txt",
-                        "profile": pkg_path + "hmm_data" + os.sep + self.prefix + profile_ext,
-                        "taxid": pkg_path + "tree_data" + os.sep + "tax_ids_" + self.prefix + ".txt"}
-
-        if layout == "flat":
-            layout = flat
-        elif layout == "hierarchical":
-            layout = hierarchical
-        else:
-            # Exhaustively test whether all predicted files exist for each layout
-            layout = None
-            for option in [flat, hierarchical]:
-                acc = 0
-                for f_type in option:
-                    if os.path.exists(option[f_type]):
-                        acc += 1
-                    else:
-                        break
-                if acc == len(option):
-                    layout = option
-
-        if layout:
-            self.msa = layout["msa"]
-            self.tree = layout["tree"]
-            self.profile = layout["profile"]
-            self.lineage_ids = layout["taxid"]
-            self.boot_tree = os.path.dirname(layout["tree"]) + os.sep + self.prefix + "_bipartitions.txt"
-        else:
-            logging.error("Unable to gather reference package files from '" + pkg_path + "'\n")
-            sys.exit(17)
-
-        self.core_ref_files += [self.msa, self.profile, self.tree, self.lineage_ids]
-
-        return
-
-
-class MarkerBuild:
-    def __init__(self):
-        self.cog = ""
-        self.denominator = ""
-        self.molecule = ""
-        self.model = ""
-        self.lowest_confident_rank = ""
-        self.update = ""
-        self.kind = ""
-        self.tree_tool = ""
-        self.description = ""
-        self.pid = 1.0
-        self.num_reps = 0
-        self.pfit = []
-
-    def load_build_params(self, build_param_line, n_fields):
-        build_param_fields = build_param_line.split('\t')
-        if len(build_param_fields) != n_fields:
-            logging.error("Incorrect number of values (" + str(len(build_param_fields)) +
-                          ") in ref_build_parameters.tsv. Line:\n" + build_param_line)
-            sys.exit(17)
-
-        self.cog = build_param_fields[0]
-        self.denominator = build_param_fields[1]
-        self.molecule = build_param_fields[2]
-        self.model = build_param_fields[3]
-        self.kind = build_param_fields[4]
-        self.pid = float(build_param_fields[5])
-        self.num_reps = int(build_param_fields[6])
-        self.tree_tool = build_param_fields[7]
-        self.lowest_confident_rank = build_param_fields[9]
-        self.update = build_param_fields[10]
-        self.description = build_param_fields[-1].strip()
-
-    def load_pfit_params(self, build_param_line):
-        build_param_fields = build_param_line.split("\t")
-        if build_param_fields[8]:
-            self.pfit = [float(x) for x in build_param_fields[8].split(',')]
-        return
-
-    def check_rank(self):
-        taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]
-
-        if self.lowest_confident_rank not in list(taxonomies):
-            logging.error("Unable to find '" + self.lowest_confident_rank + "' in taxonomic map!\n")
-            sys.exit(17)
-
-        return
-
-
-class ItolJplace:
-    """
-    A class to hold all data relevant to a jplace file to be viewed in iTOL
-    """
-    fields = list()
-
-    def __init__(self):
-        self.contig_name = ""  # Sequence name (from FASTA header)
-        self.name = ""  # Code name of the tree it mapped to (e.g. mcrA)
-        self.abundance = None  # Either the number of occurences, or the FPKM of that sequence
-        self.node_map = dict()  # A dictionary mapping internal nodes (Jplace) to all leaf nodes
-        self.seq_len = 0
-        ##
-        # Taxonomic information:
-        ##
-        self.lineage_list = list()  # List containing each child's lineage
-        self.wtd = 0
-        self.lct = ""  # The LCA taxonomy derived from lineage_list
-        self.recommended_lineage = ""
-        ##
-        # Information derived from Jplace pqueries:
-        ##
-        self.placements = list()
-        self.lwr = 0  # Likelihood weight ratio of an individual placement
-        self.likelihood = 0
-        self.avg_evo_dist = 0.0
-        self.distances = ""
-        self.classified = True
-        self.inode = ""
-        self.tree = ""  # NEWICK tree
-        self.metadata = ""
-        self.version = ""  # Jplace version
-
-    def summarize(self):
-        """
-        Prints a summary of the ItolJplace object (equivalent to a single marker) to stderr
-        Summary include the number of marks found, the tree used, and the tree-placement of each sequence identified
-        Written solely for testing purposes
-
-        :return:
-        """
-        summary_string = ""
-        summary_string += "\nInformation for query sequence '" + str(self.contig_name) + "'\n"
-        summary_string += str(len(self.placements)) + " sequence(s) grafted onto the " + self.name + " tree.\n"
-        # summary_string += "Reference tree:\n")
-        # summary_string += self.tree + "\n")
-        summary_string += "JPlace fields:\n\t" + str(self.fields) + "\n"
-        summary_string += "Placement information:\n"
-        if not self.placements:
-            summary_string += "\tNone.\n"
-        elif self.placements[0] == '{}':
-            summary_string += "\tNone.\n"
-        else:
-            if self.likelihood and self.lwr and self.inode:
-                summary_string += "\tInternal node\t" + str(self.inode) + "\n"
-                summary_string += "\tLikelihood\t" + str(self.likelihood) + "\n"
-                summary_string += "\tL.W.R\t\t" + str(self.lwr) + "\n"
-            else:
-                for pquery in self.placements:
-                    placement = loads(str(pquery), encoding="utf-8")
-                    for k, v in placement.items():
-                        if k == 'p':
-                            summary_string += '\t' + str(v) + "\n"
-        summary_string += "Non-redundant lineages of child nodes:\n"
-        if len(self.lineage_list) > 0:
-            for lineage in sorted(set(self.lineage_list)):
-                summary_string += '\t' + str(lineage) + "\n"
-        else:
-            summary_string += "\tNone.\n"
-        summary_string += "Lowest common taxonomy:\n"
-        if self.lct:
-            summary_string += "\t" + str(self.lct) + "\n"
-        else:
-            summary_string += "\tNone.\n"
-        if self.abundance:
-            summary_string += "Abundance:\n\t" + str(self.abundance) + "\n"
-        if self.distances:
-            summary_string += "Distal, pendant and tip distances:\n\t" + self.distances + "\n"
-        summary_string += "\n"
-        return summary_string
-
-    def list_placements(self):
-        """
-        Returns a list of all the nodes contained in placements
-        :return:
-        """
-        nodes = list()
-        for d_place in self.placements:
-            if isinstance(d_place, str):
-                for k, v in loads(d_place).items():
-                    if k == 'p':
-                        for pquery in v:
-                            nodes.append(str(pquery[0]))
-            else:
-                logging.error("Unable to handle type " + type(d_place) + "\n")
-                sys.exit(17)
-        return nodes
-
-    def correct_decoding(self):
-        """
-        Since the JSON decoding is unable to decode recursively, this needs to be fixed for each placement
-        Formatting and string conversion are also performed here
-
-        :return:
-        """
-        new_placement_collection = []  # a list of dictionary-like strings
-        placement_string = ""  # e.g. {"p":[[226, -31067.028237, 0.999987, 0.012003, 2e-06]], "n":["query"]}
-        for d_place in self.placements:
-            if not isinstance(d_place, str):
-                dict_strings = list()  # e.g. "n":["query"]
-                for k, v in d_place.items():
-                    dict_strings.append(dumps(k) + ':' + dumps(v))
-                    placement_string = ', '.join(dict_strings)
-                new_placement_collection.append('{' + placement_string + '}')
-            else:
-                new_placement_collection.append(d_place)
-        self.placements = new_placement_collection
-
-        decoded_fields = list()
-        for field in self.fields:
-            if not re.match('".*"', field):
-                decoded_fields.append(dumps(field))
-            else:
-                decoded_fields.append(field)
-        self.fields = decoded_fields
-        return
-
-    def rename_placed_sequence(self, seq_name):
-        new_placement_collection = dict()
-        for d_place in self.placements:
-            for key, value in d_place.items():
-                if key == 'n':
-                    new_placement_collection['n'] = [seq_name]
-                else:
-                    new_placement_collection[key] = value
-        self.placements = [new_placement_collection]
-        return
-
-    def name_placed_sequence(self):
-        for d_place in self.placements:
-            for key, value in d_place.items():
-                if key == 'n':
-                    self.contig_name = value[0]
-        return
-
-    def get_field_position_from_jplace_fields(self, field_name):
-        """
-        Find the position in self.fields of 'like_weight_ratio'
-        :return: position in self.fields of 'like_weight_ratio'
-        """
-        x = 0
-        # Find the position of field_name in the placements from fields descriptor
-        quoted_field = '"' + field_name + '"'
-        for field in self.fields:
-            if str(field) == quoted_field:
-                break
-            else:
-                x += 1
-        if x == len(self.fields):
-            logging.warning("Unable to find '" + field_name + "' in the jplace \"field\" string!\n")
-            return None
-        return x
-
-    def get_jplace_element(self, element_name):
-        """
-        Determines the element value (e.g. likelihood, edge_num) for a single placement.
-        There may be multiple placements (or 'pquery's) in a single .jplace file.
-        Therefore, this function is usually looped over.
-        """
-        position = self.get_field_position_from_jplace_fields(element_name)
-        placement = loads(self.placements[0], encoding="utf-8")
-        element_value = None
-        for k, v in placement.items():
-            if k == 'p':
-                acc = 0
-                while acc < len(v):
-                    pquery_fields = v[acc]
-                    element_value = pquery_fields[position]
-                    acc += 1
-        return element_value
-
-    def filter_min_weight_threshold(self, threshold=0.1):
-        """
-        Remove all placements with likelihood weight ratios less than threshold
-        :param threshold: The threshold which all placements with LWRs less than this are removed
-        :return:
-        """
-        # Find the position of like_weight_ratio in the placements from fields descriptor
-        x = self.get_field_position_from_jplace_fields("like_weight_ratio")
-        if not x:
-            return
-        # Filter the placements
-        new_placement_collection = list()
-        placement_string = ""
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            dict_strings = list()
-            if len(placement["p"]) >= 1:
-                for k, v in placement.items():
-                    if k == 'p':
-                        tmp_placements = []
-                        for candidate in v:
-                            if float(candidate[x]) >= threshold:
-                                tmp_placements.append(candidate)
-
-                        # If no placements met the likelihood filter then the sequence cannot be classified
-                        # Alternatively: first two will be returned and used for LCA - can test...
-                        if len(tmp_placements) > 0:
-                            v = tmp_placements
-                            dict_strings.append(dumps(k) + ':' + dumps(v))
-                            placement_string = ', '.join(dict_strings)
-                        else:
-                            self.classified = False
-                # Add the filtered placements back to the object.placements
-                new_placement_collection.append('{' + placement_string + '}')
-            else:
-                # If there is only one placement, the LWR is 1.0 so no filtering required!
-                new_placement_collection.append(pquery)
-        if self.classified:
-            self.placements = new_placement_collection
-        return
-
-    def sum_rpkms_per_node(self, leaf_rpkm_sums):
-        """
-        Function that adds the RPKM value of a contig to the node it was placed.
-        For contigs mapping to internal nodes: the proportional RPKM assigned is summed for all children.
-        :param leaf_rpkm_sums: A dictionary mapping tree leaf numbers to abundances (RPKM sums)
-        :return: dict()
-        """
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            for k, v in placement.items():
-                if k == 'p':
-                    for locus in v:
-                        jplace_node = locus[0]
-                        tree_leaves = self.node_map[jplace_node]
-                        try:
-                            normalized_abundance = float(self.abundance/len(tree_leaves))
-                        except TypeError:
-                            logging.warning("Unable to find abundance for " + self.contig_name + "... setting to 0.\n")
-                            normalized_abundance = 0.0
-                        for tree_leaf in tree_leaves:
-                            if tree_leaf not in leaf_rpkm_sums.keys():
-                                leaf_rpkm_sums[tree_leaf] = 0.0
-                            leaf_rpkm_sums[tree_leaf] += normalized_abundance
-        return leaf_rpkm_sums
-
-    def filter_max_weight_placement(self):
-        """
-        Removes all secondary placements of each pquery,
-        leaving only the placement with maximum like_weight_ratio
-        :return:
-        """
-        # Find the position of like_weight_ratio in the placements from fields descriptor
-        x = self.get_field_position_from_jplace_fields("like_weight_ratio")
-        if not x:
-            return
-
-        # Filter the placements
-        new_placement_collection = list()
-        placement_string = ""
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            if placement:
-                dict_strings = list()
-                max_lwr = 0
-                if len(placement["p"]) > 1:
-                    for k, v in placement.items():
-                        if k == 'p':
-                            acc = 0
-                            tmp_placements = deepcopy(v)
-                            while acc < len(tmp_placements):
-                                candidate = tmp_placements[acc]
-                                if float(candidate[x]) > max_lwr:
-                                    v = [tmp_placements.pop(acc)]
-                                    max_lwr = candidate[x]
-                                else:
-                                    acc += 1
-                        dict_strings.append(dumps(k) + ':' + dumps(v))
-                        placement_string = ', '.join(dict_strings)
-                    # Add the filtered placements back to the object.placements
-                    new_placement_collection.append('{' + placement_string + '}')
-                else:
-                    new_placement_collection.append(pquery)
-        self.placements = new_placement_collection
-        return
-
-    def create_jplace_node_map(self):
-        """
-        Loads a mapping between all nodes (internal and leaves) and all leaves
-        :return:
-        """
-        no_length_tree = re.sub(":[0-9.]+{", ":{", self.tree)
-        self.node_map.clear()
-        node_stack = list()
-        leaf_stack = list()
-        x = 0
-        num_buffer = ""
-        while x < len(no_length_tree):
-            c = no_length_tree[x]
-            if re.search(r"[0-9]", c):
-                while re.search(r"[0-9]", c):
-                    num_buffer += c
-                    x += 1
-                    c = no_length_tree[x]
-                node_stack.append([str(num_buffer)])
-                num_buffer = ""
-                x -= 1
-            elif c == ':':
-                # Append the most recent leaf
-                current_node, x = get_node(no_length_tree, x + 1)
-                self.node_map[current_node] = node_stack.pop()
-                leaf_stack.append(current_node)
-            elif c == ')':
-                # Set the child leaves to the leaves of the current node's two children
-                while c == ')' and x < len(no_length_tree):
-                    if no_length_tree[x + 1] == ';':
-                        break
-                    current_node, x = get_node(no_length_tree, x + 2)
-                    self.node_map[current_node] = self.node_map[leaf_stack.pop()] + self.node_map[leaf_stack.pop()]
-                    leaf_stack.append(current_node)
-                    x += 1
-                    c = no_length_tree[x]
-            x += 1
-        return
-
-    def check_jplace(self, tree_index):
-        """
-        Currently validates a pquery's JPlace distal length, ensuring it is less than or equal to the edge length
-        This is necessary to handle a case found in RAxML v8.2.12 (and possibly older versions) where the distal length
-        of a placement is greater than the corresponding branch length in some rare cases.
-
-        :return: None
-        """
-        distal_pos = self.get_field_position_from_jplace_fields("distal_length")
-        edge_pos = self.get_field_position_from_jplace_fields("edge_num")
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            if placement:
-                if len(placement["p"]) > 1:
-                    for k, v in placement.items():
-                        if k == 'p':
-                            for edge_placement in v:
-                                place_len = float(edge_placement[distal_pos])
-                                edge = edge_placement[edge_pos]
-                                tree_len = tree_index[str(edge)]
-                                if place_len > tree_len:
-                                    logging.debug("Distal length adjusted to fit JPlace " +
-                                                  self.name + " tree for " + self.contig_name + ".\n")
-                                    edge_placement[distal_pos] = tree_len
-                else:
-                    pass
-
-        return
-
-    def harmonize_placements(self, tree_data_dir):
-        """
-        Often times, the placements field in a jplace file contains multiple possible tree locations.
-        In order to consolidate these into a single tree location, the LCA algorithm is utilized.
-        Since all placements are valid, there is no need to be uncertain about including all nodes during LCA compute
-        :return: The single internal node which is the parent node of all possible placements is returned.
-        """
-        if self.name == "nr":
-            self.name = "COGrRNA"
-        reference_tree_file = tree_data_dir + os.sep + self.name + "_tree.txt"
-        reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-        lwr_pos = self.get_field_position_from_jplace_fields("like_weight_ratio")
-        if not lwr_pos:
-            return
-        singular_placements = list()
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            dict_strings = list()
-            for k, v in placement.items():
-                if len(v) > 1:
-                    lwr_sum = 0
-                    loci = list()
-                    for locus in v:
-                        lwr_sum += float(locus[lwr_pos])
-                        loci.append(str(self.node_map[locus[0]][0]))
-                    ancestral_node = _tree_parser._lowest_common_ancestor(reference_tree_elements, ','.join(loci))
-                    # Create a placement from the ancestor, and the first locus in loci fields
-                    v = [[ancestral_node, v[0][1], round(lwr_sum, 2), 0, 0]]
-                dict_strings.append(dumps(k) + ':' + dumps(v))
-            singular_placements.append('{' + ','.join(dict_strings) + '}')
-
-        self.placements = singular_placements
-        return
-
-    def clear_object(self):
-        self.placements.clear()
-        self.fields.clear()
-        self.node_map.clear()
-        self.contig_name = ""
-        self.name = ""
-        self.tree = ""
-        self.metadata = ""
-        self.version = ""
-        self.lineage_list = list()
-        self.lct = ""
-        self.abundance = None
-
-    def lowest_confident_taxonomy(self, depth):
-        """
-        Truncates the initial taxonomic assignment to rank of depth.
-        Uses self.lct - a string for the taxonomic lineage ('; ' separated)
-
-        :param depth: The recommended depth to truncate the taxonomy
-        :return: String representing 'confident' taxonomic assignment for the sequence
-        """
-        # Sequence likely isn't a FP but is highly divergent from reference set
-        confident_assignment = "Root"
-        if depth < 1:
-            return confident_assignment
-
-        purified_lineage_list = clean_lineage_string(self.lct).split("; ")
-        confident_assignment = "; ".join(purified_lineage_list[:depth])
-
-        # For debugging
-        # rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order",
-        #               5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
-        # if clean_lineage_string(self.lct) == confident_assignment:
-        #     print("Unchanged: (" + rank_depth[depth] + ')', confident_assignment)
-        # else:
-        #     print("Adjusted: (" + rank_depth[depth] + ')', confident_assignment)
-
-        return confident_assignment
-
-
-class TreeProtein(ItolJplace):
-    """
-    A class for sequences that were properly mapped to its gene tree.
-    While it mostly contains RAxML outputs, functions are used to make 'biological' sense out of these outputs.
-    """
-    def transfer(self, itol_jplace_object):
-        self.placements = itol_jplace_object.placements
-        self.tree = itol_jplace_object.tree
-        self.fields = itol_jplace_object.fields
-        self.version = itol_jplace_object.version
-        self.metadata = itol_jplace_object.metadata
-
-    def megan_lca(self):
-        """
-        Using the lineages of all leaves to which this sequence was mapped (n >= 1),
-        A lowest common ancestor is found at the point which these lineages converge.
-        This emulates the LCA algorithm employed by the MEtaGenome ANalyzer (MEGAN).
-        :return:
-        """
-        # If there is only one child, return the joined string
-        if len(self.lineage_list) == 1:
-            return "; ".join(self.lineage_list[0])
-
-        listed_lineages = [lineage.strip().split("; ") for lineage in self.lineage_list]
-        max_depth = max([len(lineage) for lineage in listed_lineages])
-        lca_set = set()
-        lca_lineage_strings = list()
-        i = 0
-        while i < max_depth:
-            contributors = 0
-            for lineage in sorted(listed_lineages):
-                try:
-                    lca_set.add(lineage[i])
-                    contributors += 1
-                except IndexError:
-                    pass
-
-            if len(lca_set) == 1 and contributors == len(listed_lineages):
-                lca_lineage_strings.append(list(lca_set)[0])
-                i += 1
-                lca_set.clear()
-            else:
-                i = max_depth
-
-        return "; ".join(lca_lineage_strings)
-
-
-class TreeLeafReference:
-    """
-    Objects for each leaf in a tree
-    """
-    def __init__(self, number, description):
-        self.number = number
-        self.description = description
-        self.lineage = ""
-        self.accession = ""
-        self.complete = False
-
-    def summarize_tree_leaf(self):
-        summary_string = "Leaf ID:\n\t" + str(self.number) + "\n" +\
-                         "Description:\n\t" + str(self.description) + "\n"
-        summary_string += "Accession:\n\t'" + self.accession + "'\n"
-        if self.complete:
-            summary_string += "Lineage:\n\t" + str(self.lineage) + "\n"
-        return summary_string
-
-    class MarkerInfo:
-        """
-        Class serves to store information pertaining to each COG in data/tree_data/cog_list.tsv
-        """
-
-        def __init__(self, marker, denominator, description):
-            self.marker = marker
-            self.denominator = denominator  # alphanumeric unique ID, R0016 for example
-            self.marker_class = ""  # phylogenetic rRNA
-            self.num_reference_seqs = 0
-            self.description = description
-            self.analysis_type = ""
-
-
-class CommandLineWorker(Process):
-    def __init__(self, task_queue, commander):
-        Process.__init__(self)
-        self.task_queue = task_queue
-        self.master = commander
-
-    def run(self):
-        while True:
-            next_task = self.task_queue.get()
-            if next_task is None:
-                # Poison pill means shutdown
-                self.task_queue.task_done()
-                break
-            logging.debug("STAGE: " + self.master + "\n" +
-                          "\tCOMMAND:\n" + " ".join(next_task) + "\n")
-            launch_write_command(next_task)
-            self.task_queue.task_done()
-        return
-
-
-class CommandLineFarmer:
-    """
-    A worker that will launch command-line jobs using multiple processes in its queue
-    """
-
-    def __init__(self, command, num_threads):
-        """
-        Instantiate a CommandLineFarmer object to oversee multiprocessing of command-line jobs
-        :param command:
-        :param num_threads:
-        """
-        self.max_size = 32767  # The actual size limit of a JoinableQueue
-        self.task_queue = JoinableQueue(self.max_size)
-        self.num_threads = int(num_threads)
-
-        process_queues = [CommandLineWorker(self.task_queue, command) for i in range(int(self.num_threads))]
-        for process in process_queues:
-            process.start()
-
-    def add_tasks_to_queue(self, task_list):
-        """
-        Function for adding commands from task_list to task_queue while ensuring space in the JoinableQueue
-        :param task_list: List of commands
-        :return: Nothing
-        """
-        num_tasks = len(task_list)
-
-        task = task_list.pop()
-        while task:
-            if not self.task_queue.full():
-                self.task_queue.put(task)
-                if num_tasks > 1:
-                    task = task_list.pop()
-                    num_tasks -= 1
-                else:
-                    task = None
-
-        i = self.num_threads
-        while i:
-            if not self.task_queue.full():
-                self.task_queue.put(None)
-                i -= 1
-
-        return
 
 
 class NodeRetrieverWorker(Process):
@@ -823,22 +70,22 @@ class NodeRetrieverWorker(Process):
         return
 
 
-def get_header_info(header_registry, code_name=''):
+def get_header_info(header_registry: dict, code_name=''):
     """
 
     :param header_registry: A dictionary of Header instances, indexed by numerical treesapp_id
     :param code_name: [OPTIONAL] The code_name of the reference package (marker gene/domain/family/protein)
-    :return: Dictionary where keys are numerical treesapp_ids and values are ReferenceSequence instances
+    :return: Dictionary where keys are numerical treesapp_ids and values are EntrezRecord instances
     """
     logging.info("Extracting information from headers... ")
     ref_records = dict()
-
+    header_regexes = load_fasta_header_regexes(code_name)
     # TODO: Fix parsing of combined EggNOG and custom headers such that the taxid is parsed from the "accession"
-    for treesapp_id in sorted(header_registry.keys(), key=int):
+    for treesapp_id in sorted(header_registry.keys(), key=int):  # type: str
         original_header = header_registry[treesapp_id].original
-        header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
+        header_format_re, header_db, header_molecule = get_header_format(original_header, header_regexes)
         sequence_info = header_format_re.match(original_header)
-        seq_info_tuple = return_sequence_info_groups(sequence_info, header_db, original_header)
+        seq_info_tuple = sequence_info_groups(sequence_info, header_db, original_header, header_regexes)
 
         # Load the parsed sequences info into the EntrezRecord objects
         ref_seq = entrez_utils.EntrezRecord(seq_info_tuple.accession, seq_info_tuple.version)
@@ -855,69 +102,74 @@ def get_header_info(header_registry, code_name=''):
     return ref_records
 
 
-def dedup_records(ref_seqs: FASTA, ref_seq_records: dict):
+def dedup_records(ref_seqs: FASTA, ref_seq_records: dict) -> dict:
+    """
+    Entrez records with identical versioned accessions are grouped together and those grouped sequence records
+    are compared further. The Entrez records in ref_seq_records are deduplicated based on:
+ 1. Their full-length original headers
+ 2. Their EntrezRecord.bitflag values where the records with the most information attributed to them (e.g. NCBI tax_id,
+    lineage) at this stage are retained.
+
+    :param ref_seqs: A FASTA instance with populated fasta_dict and header_registry attributes
+    :param ref_seq_records: A dictionary mapping TreeSAPP numerical identifiers to their EntrezRecord instances
+    :return: ref_seq_records dictionary with duplicate records removed
+    """
+    duplicate_treesapp_ids = set()
+    all_accessions = dict()
+
     if ref_seqs.index_form != "num":
         ref_seqs.change_dict_keys("num")
 
-    deduped_accessions = list()
-    all_accessions = dict()
-    for treesapp_id in ref_seq_records:
-        record = ref_seq_records[treesapp_id]  # type: entrez_utils.EntrezRecord
-        if record.accession not in all_accessions:
-            all_accessions[record.accession] = []
-        all_accessions[record.accession].append(treesapp_id)
+    # Create a dictionary mapping versioned accessions to EntrezRecords for identifying duplicate accessions
+    for treesapp_id, record in ref_seq_records.items():  # type: (str, entrez_utils.EntrezRecord)
+        if record.versioned not in all_accessions:
+            all_accessions[record.versioned] = []
+        all_accessions[record.versioned].append(treesapp_id)
+
+    if len(all_accessions) != ref_seqs.n_seqs():
+        logging.debug("{}/{} unique versioned accessions were loaded for deduplication.\n"
+                      "".format(len(all_accessions), ref_seqs.n_seqs()))
 
     # If the sequences are identical across the records -> take record with greater bitflag
     # If the sequences are different -> keep
-    for accession in all_accessions:
-        dup_list = all_accessions[accession]
+    for accession, dup_list in all_accessions.items():  # type: (str, list)
+        # TODO: Deduplicate based on whether sequences or headers are substrings of others, using a Trie
         if len(dup_list) > 1:
-            dup_seqs_dict = dict()
-            # Load the occurrence of each duplicate record's sequence
-            for treesapp_id in dup_list:
-                # Could just pop from dup_list if the sequence isn't in dup_seqs_dict but bitflag filter is smarter
-                record_seq = ref_seqs.fasta_dict[treesapp_id]
-                try:
-                    dup_seqs_dict[record_seq] += 1
-                except KeyError:
-                    dup_seqs_dict[record_seq] = 1
-            x = 0
-            # Remove the sequences from dup_list if their sequence was found once
-            while x < len(dup_list):
-                treesapp_id = dup_list[x]
-                record_seq = ref_seqs.fasta_dict[treesapp_id]
-                if dup_seqs_dict[record_seq] == 1:
-                    dup_list.pop(x)
-                else:
-                    x += 1
-            # Move on to the next accession if dup_list is empty (because all duplicates have unique sequences)
-            if not dup_list:
-                continue
-
+            ##
             # Remove records with redundant accessions by removing those with the lower bitflag
+            ##
             max_bitflag = max([ref_seq_records[treesapp_id].bitflag for treesapp_id in dup_list])
             x = 0
             while x < len(dup_list):
                 treesapp_id = dup_list[x]
-                ref_seq = ref_seq_records[treesapp_id]
+                ref_seq = ref_seq_records[treesapp_id]  # type: entrez_utils.EntrezRecord
                 if ref_seq.bitflag < max_bitflag:
-                    ref_seq_records.pop(treesapp_id)
+                    duplicate_treesapp_ids.add(treesapp_id)
                     dup_list.pop(x)
-                    deduped_accessions.append(ref_seqs.header_registry[treesapp_id].original)
                 else:
                     x += 1
-            x = 1
             # Check for records with identical headers, keeping only one
-            while len(dup_list) > 1:
-                treesapp_id = dup_list[x]
-                ref_seq_records.pop(treesapp_id)
-                dup_list.pop(x)  # Don't increment
-                deduped_accessions.append(ref_seqs.header_registry[treesapp_id].original)
+            og_headers = dict()
+            for ts_id in dup_list:  # type: str
+                try:
+                    og_headers[ref_seqs.header_registry[ts_id].original].append(ts_id)
+                except KeyError:
+                    og_headers[ref_seqs.header_registry[ts_id].original] = [ts_id]
+            for seq_name, ts_ids in og_headers.items():
+                if len(ts_ids) > 1:
+                    for treesapp_id in ts_ids[1:]:
+                        duplicate_treesapp_ids.add(treesapp_id)
         else:
             pass
 
-    if deduped_accessions:
-        logging.warning("The following sequences were removed during deduplication of accession IDs:\n\t" +
+    # Actually remove the duplicates from the ref_seq_records dictionary
+    if duplicate_treesapp_ids:
+        deduped_accessions = []
+        for ts_id in duplicate_treesapp_ids:
+            ref_seq_records.pop(ts_id)
+            deduped_accessions.append(ref_seqs.header_registry[ts_id].original)
+
+        logging.warning("The following sequences were removed during deduplication of Entrez records:\n\t" +
                         "\n\t".join(deduped_accessions) + "\n")
 
     return ref_seq_records
@@ -975,13 +227,14 @@ class MyFormatter(logging.Formatter):
         return result
 
 
-def prep_logging(log_file_name=None, verbosity=False):
+def prep_logging(log_file_name=None, verbosity=False) -> None:
     """
     Allows for multiple file handlers to be added to the root logger, but only a single stream handler.
     The new file handlers must be removed outside of this function explicitly
+
     :param log_file_name:
     :param verbosity:
-    :return:
+    :return: None
     """
     if verbosity:
         logging_level = logging.DEBUG
@@ -1029,12 +282,9 @@ class TreeSAPP:
     def __init__(self, cmd):
         # Static values
         self.command = cmd
-        self.refpkg_code_re = re.compile(r'[A-Z][0-9]{4,5}')
+        # self.refpkg_code_re = re.compile(r'[A-Z][0-9]{4,5}')
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
         self.refpkg_dir = self.treesapp_dir + 'data' + os.sep
-        self.tree_dir = self.treesapp_dir + 'data' + os.sep + "tree_data" + os.sep
-        self.hmm_dir = self.treesapp_dir + 'data' + os.sep + "hmm_data" + os.sep
-        self.aln_dir = self.treesapp_dir + 'data' + os.sep + "alignment_data" + os.sep
         self.itol_dir = self.treesapp_dir + 'data' + os.sep + "iTOL_data" + os.sep
         # Necessary for Evaluator, Creator and PhyTrainer:
         self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
@@ -1050,10 +300,12 @@ class TreeSAPP:
         self.output_dir = ""
         self.final_output_dir = ""
         self.var_output_dir = ""
+        self.stage_output_dir = ""
         self.executables = dict()
         # Values that need to be entered later, in the command-specific class
         self.stages = dict()  # Used to track what progress stages need to be completed
         self.stage_file = ""  # The file to write progress updates to
+        self.current_stage = None
 
     def get_info(self):
         info_string = "Executables:\n\t" + "\n\t".join([k + ": " + v for k, v in self.executables.items()]) + "\n"
@@ -1067,17 +319,16 @@ class TreeSAPP:
                                     "Input molecule type = " + self.molecule_type])
         return info_string
 
-    def furnish_with_arguments(self, args):
+    def furnish_with_arguments(self, args) -> None:
         """
         Carries over the basic TreeSAPP arguments to the respective TreeSAPP-subclass.
-         All auxiliary arguments are pushed to the TreeSAPP classes in check_module_arguments
-        :param args:
-        :return:
+        All auxiliary arguments are pushed to the TreeSAPP classes in check_module_arguments
+
+        :param args: arguments from argparse.ParseArgs() with output, input and molecule attributes
+        :return: None
         """
         if self.command != "info":
-            self.output_dir = args.output
-            if self.output_dir[-1] != os.sep:
-                self.output_dir += os.sep
+            self.output_dir = validate_new_dir(args.output)
             self.final_output_dir = self.output_dir + "final_outputs" + os.sep
             self.var_output_dir = self.output_dir + "intermediates" + os.sep
             if set(vars(args)).issuperset({"molecule", "input"}):
@@ -1091,12 +342,20 @@ class TreeSAPP:
         self.executables = self.find_executables(args)
         return
 
-    def check_previous_output(self, args):
+    def validate_refpkg_dir(self, refpkg_dir: str):
+        if refpkg_dir:
+            if not os.path.isdir(refpkg_dir):
+                logging.error("Directory containing reference packages ({}) does not exist.\n".format(refpkg_dir))
+                sys.exit(5)
+            self.refpkg_dir = refpkg_dir
+        return
+
+    def check_previous_output(self, overwrite=True) -> None:
         """
         Prompts the user to determine how to deal with a pre-existing output directory.
         By the end of this function, all directories should exist and be in the correct state for a new analysis run
 
-        :param args: Command-line argument object from get_options and check_parser_arguments
+        :param overwrite: Boolean flag controlling whether output directories are removed or not
         :return None
         """
 
@@ -1105,13 +364,13 @@ class TreeSAPP:
         # Identify all the various reasons someone may not want to have their previous results overwritten
         if not os.path.isdir(self.output_dir):
             os.mkdir(self.output_dir)
-        elif not args.overwrite and glob(self.final_output_dir + "*"):
+        elif not overwrite and glob(self.final_output_dir + "*"):
             # reluctant_remove_replace(self.output_dir)
             pass
-        elif not args.overwrite and not glob(self.final_output_dir + "*"):
+        elif not overwrite and not glob(self.final_output_dir + "*"):
             # Last run didn't complete so use the intermediates if possible
             pass
-        elif args.overwrite:
+        elif overwrite:
             if os.path.isdir(self.output_dir):
                 rmtree(self.output_dir)
             os.mkdir(self.output_dir)
@@ -1124,6 +383,7 @@ class TreeSAPP:
     def log_progress(self):
         """
         Write the current stage's information (e.g. number of output files) to a JSON file
+
         :return: None
         """
         # TODO: Finish this to enable continuing part-way through an analysis
@@ -1135,23 +395,28 @@ class TreeSAPP:
                 logging.warning("Reclassify impossible as " + self.output_dir + " is missing input files.\n")
         return
 
-    def stage_lookup(self, name: str, tolerant=False):
+    def stage_lookup(self, name: str, tolerant=False) -> ModuleFunction:
         """
         Used for looking up a stage in self.stages by its stage.name
+
         :param name: Name of a stage
         :param tolerant: Boolean controlling whether the function exits if look-up failed (defualt) or returns None
         :return: ModuleFunction instance that matches the name, or None if failed and tolerant, exit otherwise
         """
-        fingerprint = False
-        for module_step in sorted(self.stages, key=int):
+        found = False
+        stage_order = 0
+        for module_step in sorted(self.stages, key=int):  # type: int
             stage = self.stages[module_step]  # type: ModuleFunction
+            stage_order = stage.order
             if stage.name == name:
                 return stage
 
-        if not fingerprint and not tolerant:
-            logging.error("Unable to find '" + name + "' in " + self.command + " stages.\n")
+        if not found and not tolerant:
+            logging.error("Unable to find '{}' in {} stages.\n".format(name, self.command))
             sys.exit(3)
-        return
+        else:
+            logging.warning("Unable to find '{}' stage. Returning a new one instead.\n".format(name))
+            return ModuleFunction(name=name, order=stage_order+1)
 
     def first_stage(self):
         for x in sorted(self.stages, key=int):  # type: int
@@ -1161,21 +426,58 @@ class TreeSAPP:
         logging.error("No stages are set to run!\n")
         sys.exit(3)
 
-    def read_progress_log(self):
+    # def read_progress_log(self):
+    #     """
+    #     Read the object's 'stage_file' and determine the completed stage
+    #
+    #     :return: An integer corresponding to the last completed stage's rank in 'stage_order'
+    #     """
+    #     completed_int = self.first_stage()
+    #     try:
+    #         progress_handler = open(self.stage_file)
+    #     except IOError:
+    #         logging.debug("Unable to open stage file '" + self.stage_file +
+    #                       "' for reading. Defaulting to stage " + str(completed_int) + ".\n")
+    #         return completed_int
+    #     # TODO: Finish this to enable continuing part-way through an analysis
+    #     progress_handler.close()
+    #     return completed_int
+
+    def find_stage_dirs(self) -> int:
         """
-        Read the object's 'stage_file' and determine the completed stage
-        :return: An integer corresponding to the last completed stage's rank in 'stage_order'
+        Selects the earliest checkpoint that the workflow can be started from.
+        Stages (ModuleFunction instances) are skipped by setting their 'run' attribute to False.
+        This is the stage preceding the first stage whose directory does not exist.
+
+        :return: None
         """
-        completed_int = self.first_stage()
-        try:
-            progress_handler = open(self.stage_file)
-        except IOError:
-            logging.debug("Unable to open stage file '" + self.stage_file +
-                          "' for reading. Defaulting to stage " + str(completed_int) + ".\n")
-            return completed_int
-        # TODO: Finish this to enable continuing part-way through an analysis
-        progress_handler.close()
-        return completed_int
+        for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
+            if not module.run:
+                continue
+            else:
+                return module.order
+        return 0
+
+    def set_stage_dir(self) -> None:
+        self.stage_output_dir = os.path.join(self.var_output_dir, self.current_stage.name) + os.sep
+        if not os.path.isdir(self.stage_output_dir):
+            os.mkdir(self.stage_output_dir)
+        return
+
+    def increment_stage_dir(self) -> None:
+        """
+        Updates self.stage_output_dir with the directory path of the next ModuleFunction.
+
+        :return: None
+        """
+        # Find the next stage
+        self.current_stage.run = False
+        while not self.current_stage.run and self.current_stage.order < max(self.stages.keys()):
+            self.current_stage = self.stages[self.current_stage.order+1]
+
+        # Update the output directory for this stage
+        self.set_stage_dir()
+        return
 
     def stage_status(self, name):
         return self.stage_lookup(name).run
@@ -1192,103 +494,53 @@ class TreeSAPP:
                 if x < start or x > end:
                     stage.run = False
             elif x < start:
-                    stage.run = False
+                stage.run = False
             else:
                 # These stages need to be ran
                 pass
 
         return
 
-    def validate_continue(self, args):
+    def validate_continue(self, args) -> None:
         """
         Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
 
         This function ensures all the required inputs are present for beginning at the desired first stage,
         otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
 
-        If a
+        If a directory exists with the name of a stage, that step is skipped.
         :return: None
         """
-        if self.command == "assign":
-            if args.rpkm:
-                if not args.reads:
-                    if args.reverse:
-                        logging.error("File containing reverse reads provided but forward mates file missing!\n")
-                        sys.exit(3)
-                    else:
-                        logging.error("At least one FASTQ file must be provided if -rpkm flag is active!\n")
-                        sys.exit(3)
-                elif args.reads and not os.path.isfile(args.reads):
-                    logging.error("Path to forward reads ('%s') doesn't exist.\n" % args.reads)
-                    sys.exit(3)
-                elif args.reverse and not os.path.isfile(args.reverse):
-                    logging.error("Path to reverse reads ('%s') doesn't exist.\n" % args.reverse)
-                    sys.exit(3)
-                else:
-                    self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
-        elif self.command == "create":
-            if not args.profile:
-                self.change_stage_status("search", False)
-            if args.pc:
-                self.edit_stages(self.stage_lookup("update").order)
-            # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
-            if args.acc_to_lin:
-                self.acc_to_lin = args.acc_to_lin
-                if os.path.isfile(self.acc_to_lin):
-                    self.change_stage_status("lineages", False)
-                else:
-                    logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
-                    sys.exit(3)
-            else:
-                self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-
-        elif self.command == "evaluate":
-            pass
-        elif self.command == "train":
-            if not args.profile:
-                self.change_stage_status("search", False)
-            # TODO: Remove duplicate code once the log-file parsing is implemented
-            if args.acc_to_lin:
-                self.acc_to_lin = args.acc_to_lin
-                if os.path.isfile(self.acc_to_lin):
-                    self.change_stage_status("lineages", False)
-                else:
-                    logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
-                    sys.exit(3)
-            else:
-                self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-        elif self.command == "update":
-            self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-        elif self.command == "purity":
-            pass
-        else:
-            logging.error("Unknown sub-command: " + str(self.command) + "\n")
-            sys.exit(3)
-
         # TODO: Summarise the steps to be taken and write to log
+        for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
+            if os.path.isdir(os.path.join(self.var_output_dir, module.name)):
+                module.run = False
+
         if args.overwrite:
             last_valid_stage = self.first_stage()
         else:
-            last_valid_stage = self.read_progress_log()
+            last_valid_stage = self.find_stage_dirs()
 
+        self.current_stage = self.stages[last_valid_stage]
+        self.set_stage_dir()
         if args.stage == "continue":
-            logging.debug("Continuing with stage '" + self.stages[last_valid_stage].name + "'\n")
+            logging.debug("Continuing with stage '{}'\n".format(self.current_stage.name))
             self.edit_stages(last_valid_stage)
             return
 
         # Update the stage status
         desired_stage = self.stage_lookup(args.stage).order
         if desired_stage > last_valid_stage:
-            logging.warning("Unable to run '" + args.stage + "' as it is ahead of the last completed stage.\n" +
-                            "Continuing with stage '" + self.stages[last_valid_stage].name + "'\n")
+            logging.warning("Unable to run '{}' as it is ahead of the last completed stage.\n"
+                            "Continuing with stage '{}'\n".format(args.stage, self.current_stage.name))
             self.edit_stages(last_valid_stage, desired_stage)
         elif desired_stage < last_valid_stage:
             logging.info("Wow - its your lucky day:\n"
-                         "All stages up to and including '" + args.stage + "' have already been completed!\n")
+                         "All stages up to and including '{}' have already been completed!\n".format(args.stage))
             self.edit_stages(desired_stage, desired_stage)
         else:
             # Proceed with running the desired stage
-            logging.debug("Proceeding with '" + args.stage + "'\n")
+            logging.debug("Proceeding with '{}'\n".format(args.stage))
             self.edit_stages(desired_stage, desired_stage)
 
         return
@@ -1296,67 +548,99 @@ class TreeSAPP:
     def find_executables(self, args):
         """
         Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
+
         :param args: The parsed command-line arguments
         :return: exec_paths beings the absolute path to each executable
         """
         exec_paths = dict()
-        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "BMGE.jar"]
+        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "epa-ng", "raxml-ng", "BMGE.jar"]
 
         # Extra executables necessary for certain modes of TreeSAPP
         if self.command == "abundance":
             dependencies += ["bwa"]
 
-        if self.command in ["create", "update", "train"]:
-            dependencies += ["usearch", "mafft", "OD-seq"]
+        if self.command in ["create", "update", "train", "evaluate"]:
+            dependencies += ["usearch", "mafft"]
             if hasattr(args, "fast") and args.fast:
                 dependencies.append("FastTree")
+
+            if hasattr(args, "od_seq") and args.od_seq:
+                dependencies.append("OD-seq")
 
         if self.molecule_type == "rrna":
             dependencies += ["cmalign", "cmsearch", "cmbuild"]
 
         for dep in dependencies:
-            # For rpkm and potentially other executables that are compiled ad hoc
-            if is_exe(self.treesapp_dir + "sub_binaries" + os.sep + dep):
-                exec_paths[dep] = str(self.treesapp_dir + "sub_binaries" + os.sep + dep)
-            elif which(dep):
-                exec_paths[dep] = which(dep)
-            else:
-                logging.error("Could not find a valid executable for " + dep + ".\n")
-                sys.exit(13)
+            exec_paths[dep] = fetch_executable_path(dep, self.treesapp_dir)
 
         return exec_paths
 
-    def fetch_entrez_lineages(self, ref_seqs: FASTA, molecule, acc_to_taxid=None):
-        # Get the lineage information for the training/query sequences
-        ref_seq_records = get_header_info(ref_seqs.header_registry, self.ref_pkg.prefix)
-        ref_seq_records = dedup_records(ref_seqs, ref_seq_records)
-        ref_seqs.change_dict_keys("formatted")
-        entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, ref_seq_records)
-        logging.debug("\tNumber of input sequences =\t" + str(len(ref_seq_records)) + "\n")
+    def fetch_entrez_lineages(self, ref_seqs: FASTA, molecule: str, acc_to_taxid=None, seqs_to_lineage=None) -> dict:
+        """
+        The root function orchestrating download of taxonomic lineage information using BioPython's Entrez API.
+        In addition to this, the function supports a couple different tables containing taxonomic lineage information
+        such as organism names, NCBI 'taxid's, and complete lineages associated with their respective sequence names.
 
+        :param ref_seqs: A populated FASTA instance. From this instance, the header_registry is parsed and the format
+        (i.e. database-specific header format) is assumed using a host of regular expressions to pull the relevant
+        information that can be used for downloading the whole taxonomic lineage using the Entrez API.
+        :param molecule: The molecule type of the sequences in ref_seqs. Either 'prot', 'dna', 'rrna', or 'ambig'.
+        :param acc_to_taxid: Path to a table mapping NCBI accessions to NCBI taxids
+        :param seqs_to_lineage: Path to a table mapping sequence names to their respective taxonomic lineage
+        :return: A dictionary mapping unique numerical TreeSAPP identifiers to EntrezRecord instances
+        """
+        # Get the lineage information for the training/query sequences
+        entrez_record_dict = get_header_info(ref_seqs.header_registry, self.ref_pkg.prefix)
+        entrez_record_dict = dedup_records(ref_seqs, entrez_record_dict)
+        ref_seqs.change_dict_keys("formatted")
+        entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, entrez_record_dict)
+        logging.debug("\tNumber of input sequences = {}\n".format(len(entrez_record_dict)))
+
+        # Seed the seq_lineage_map with any lineages that were parsed from the FASTA file
+        for ts_id in entrez_record_dict:
+            e_record = entrez_record_dict[ts_id]  # type: entrez_utils.EntrezRecord
+            if e_record.lineage:
+                self.seq_lineage_map[e_record.accession] = e_record.lineage
+                e_record.lineage = ""
+
+        if seqs_to_lineage:
+            lineage_map, refs_mapped = entrez_utils.map_orf_lineages(seqs_to_lineage, ref_seqs.header_registry)
+            # Add lineage information to entrez records for each reference sequence
+            entrez_utils.fill_ref_seq_lineages(entrez_record_dict, lineage_map,
+                                               complete=(len(refs_mapped) == ref_seqs.n_seqs()))
+            ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
+            self.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+            entrez_utils.sync_record_and_hierarchy_lineages(ref_leaf_nodes, entrez_record_dict)
+            self.ref_pkg.taxa_trie.validate_rank_prefixes()
+            self.ref_pkg.taxa_trie.build_multifurcating_trie()
         if self.stage_status("lineages"):
-            entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(ref_seq_records)
+            entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(entrez_record_dict)
             logging.debug("\tNumber of queries =\t" + str(len(entrez_query_list)) + "\n")
-            entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list, molecule, acc_to_taxid)
-            self.seq_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
-            # Download lineages separately for those accessions that failed
+            if len(entrez_query_list) == 0:
+                return entrez_record_dict
+            entrez_utils.map_accessions_to_lineages(entrez_query_list, self.ref_pkg.taxa_trie, molecule, acc_to_taxid)
+            # Repair entrez_record instances either lacking lineages or whose lineages do not contain rank-prefixes
+            entrez_utils.repair_lineages(entrez_record_dict, self.ref_pkg.taxa_trie)
+            self.seq_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_query_list)
             # Map proper accession to lineage from the tuple keys (accession, accession.version)
             #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
-            ref_seq_records, self.seq_lineage_map = entrez_utils.verify_lineage_information(self.seq_lineage_map,
-                                                                                            ref_seq_records,
-                                                                                            num_lineages_provided)
+            entrez_utils.verify_lineage_information(self.seq_lineage_map, entrez_record_dict,
+                                                    self.ref_pkg.taxa_trie, num_lineages_provided)
+
+            self.seq_lineage_map = entrez_utils.accession_lineage_map_from_entrez_records(entrez_record_dict)
             # Ensure the accession IDs are stripped of '>'s
             for accession in sorted(self.seq_lineage_map):
                 if accession[0] == '>':
                     self.seq_lineage_map[accession[1:]] = self.seq_lineage_map.pop(accession)
             write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
-            # Add lineage information to the ReferenceSequence() objects in ref_seq_records if not contained
+            self.increment_stage_dir()
         else:
-            logging.info("Reading cached lineages in '" + self.acc_to_lin + "'... ")
+            logging.info("Reading cached lineages in '{}'... ".format(self.acc_to_lin))
             self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
             logging.info("done.\n")
+
         ref_seqs.change_dict_keys()
-        return ref_seq_records
+        return entrez_record_dict
 
 
 class Updater(TreeSAPP):
@@ -1370,14 +654,29 @@ class Updater(TreeSAPP):
         self.old_ref_fasta = ""  # Contains only the original reference sequences
         self.cluster_input = ""  # Used only if resolve is True
         self.uclust_prefix = ""  # Used only if resolve is True
-        self.target_marker = None
+        self.updated_refpkg_path = ""
         self.rank_depth_map = None
         self.prop_sim = 1.0
         self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the refpkg
+        self.updated_refpkg = ReferencePackage()
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("lineages", 0),
                        1: ModuleFunction("rebuild", 1)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Updater instance summary:\n"
@@ -1390,45 +689,34 @@ class Updater(TreeSAPP):
 
         return info_string
 
-    def map_orf_lineages(self, seq_lineage_map: dict, header_registry: dict) -> (dict, list):
+    def update_refpkg_fields(self) -> None:
         """
-        The classified sequences have a signature at the end (|RefPkg_name|start_stop) that needs to be removed
-        Iterates over the dictionary of sequence names and attempts to match those with headers in the registry.
-        If a match is found the header is assigned the corresponding lineage in seq_lineage_map.
+        Using the original ReferencePackage as a template modify the following updated ReferencePackage attributes:
+1. original creation date
+2. update date
+3. code name
+4. description
+        :return: None
+        """
+        # Change the creation and update dates, code name and description
+        self.updated_refpkg.date = self.ref_pkg.date
+        self.updated_refpkg.update = dt.now().strftime("%Y-%m-%d")
+        self.updated_refpkg.refpkg_code = self.ref_pkg.refpkg_code
+        self.updated_refpkg.description = self.ref_pkg.description
+        self.updated_refpkg.pickle_package()
 
-        :param seq_lineage_map: A dictionary mapping contig sequence names to taxonomic lineages
-        :param header_registry: A dictionary mapping numerical TreeSAPP identifiers to Header instances
-        :return: A dictionary mapping each classified sequence to a lineage and list of TreeSAPP IDs that were mapped
-        """
-        logging.info("Mapping assigned sequences to provided taxonomic lineages... ")
-        classified_seq_lineage_map = dict()
-        treesapp_nums = list(header_registry.keys())
-        mapped_treesapp_nums = []
-        for seq_name in seq_lineage_map:
-            # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
-            # we can't use hash-based data structures to bring it to O(N)
-            parent_re = re.compile(seq_name)
-            x = 0
-            while x < len(treesapp_nums):
-                header = header_registry[treesapp_nums[x]].original
-                assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(self.ref_pkg.prefix), '', header)
-                if parent_re.search(assigned_seq_name):
-                    classified_seq_lineage_map[header] = clean_lineage_string(seq_lineage_map[seq_name])
-                    mapped_treesapp_nums.append(treesapp_nums.pop(x))
-                else:
-                    x += 1
-            if len(treesapp_nums) == 0:
-                logging.info("done.\n")
-                return classified_seq_lineage_map, mapped_treesapp_nums
-        logging.debug("Unable to find parent for " + str(len(treesapp_nums)) + " ORFs in sequence-lineage map:\n" +
-                      "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n")
-        return classified_seq_lineage_map, mapped_treesapp_nums
+        logging.info("Summary of the updated reference package:\n" + self.updated_refpkg.get_info() + "\n")
+
+        logging.debug("\tNew sequences  = " + str(self.updated_refpkg.num_seqs - self.ref_pkg.num_seqs) + "\n" +
+                      "\tOld HMM length = " + str(self.ref_pkg.hmm_length()) + "\n" +
+                      "\tNew HMM length = " + str(self.updated_refpkg.hmm_length()) + "\n")
+
+        return
 
 
 class Creator(TreeSAPP):
     def __init__(self):
         super(Creator, self).__init__("create")
-        self.prop_sim = 1.0
         self.candidates = dict()  # Dictionary tracking all candidate ReferenceSequences
         self.phy_dir = ""  # Directory for intermediate or unnecessary files created during phylogeny inference
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
@@ -1440,6 +728,8 @@ class Creator(TreeSAPP):
         self.unaln_ref_fasta = ""  # FASTA file of unaligned reference sequences
         self.phylip_file = ""  # Used for building the phylogenetic tree with RAxML
         self.min_tax_rank = "Kingdom"  # Minimum taxonomic rank
+        self.metadata_file = ""
+        self.training_dir = ""
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("search", 0),
@@ -1447,15 +737,49 @@ class Creator(TreeSAPP):
                        2: ModuleFunction("clean", 2),
                        3: ModuleFunction("cluster", 3),
                        4: ModuleFunction("build", 4),
-                       5: ModuleFunction("train", 5),
-                       6: ModuleFunction("update", 6)}
+                       5: ModuleFunction("evaluate", 5),
+                       6: ModuleFunction("support", 6),
+                       7: ModuleFunction("train", 7),
+                       8: ModuleFunction("update", 8)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        if not args.profile:
+            self.change_stage_status("search", False)
+        if args.pc:
+            self.edit_stages(self.stage_lookup("update").order)
+        # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
+        if args.acc_to_lin:
+            self.acc_to_lin = args.acc_to_lin
+            if os.path.isfile(self.acc_to_lin):
+                self.change_stage_status("lineages", False)
+            else:
+                logging.error("Unable to find accession-lineage mapping file '{}'\n".format(self.acc_to_lin))
+                sys.exit(3)
+        else:
+            self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+
+        if args.bootstraps == 0:
+            self.change_stage_status("support", False)
+        if not args.fast:
+            self.change_stage_status("evaluate", False)
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Creator instance summary:\n"
         info_string += super(Creator, self).get_info() + "\n\t"
         return info_string
 
-    def remove_intermediates(self):
+    def remove_intermediates(self, detonate=False) -> None:
         if os.path.exists(self.unaln_ref_fasta):
             os.remove(self.unaln_ref_fasta)
         if os.path.exists(self.phylip_file + ".reduced"):
@@ -1465,6 +789,9 @@ class Creator(TreeSAPP):
         if os.path.exists(self.phylip_file):
             copy(self.phylip_file, self.phy_dir)
             os.remove(self.phylip_file)
+
+        if detonate and os.path.isdir(self.var_output_dir):
+            rmtree(self.var_output_dir)
         return
 
     def determine_model(self, fast):
@@ -1498,13 +825,13 @@ class Creator(TreeSAPP):
         return model
 
     def print_terminal_commands(self):
-        param_file = self.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
-        logging.info("\nTo integrate this package for use in TreeSAPP the following steps must be performed:\n" +
-                     "1. Write a properly formatted reference package 'code' in " + param_file + "\n" +
-                     "2. $ cp " + self.ref_pkg.lineage_ids + ' ' + self.tree_dir + "\n" +
-                     "3. $ cp " + self.ref_pkg.tree + ' ' + self.tree_dir + "\n" +
-                     "4. $ cp " + self.ref_pkg.profile + ' ' + self.hmm_dir + "\n" +
-                     "5. $ cp " + self.ref_pkg.msa + ' ' + self.aln_dir + "\n")
+        logging.info("\nTo integrate this package for use in TreeSAPP the following steps must be performed:\n"
+                     "1. Replace the current refpkg_code 'Z1111' with:\n"
+                     "`treesapp package edit refpkg_code $code --overwrite --refpkg_path {0}`"
+                     " where $code is a unique identifier.\n"
+                     "2. Copy {0} to a directory containing other reference packages you want to analyse. "
+                     "This may be in {1}/data/ or elsewhere\n"
+                     "".format(self.ref_pkg.f__json, self.treesapp_dir))
         return
 
 
@@ -1516,13 +843,25 @@ class Purity(TreeSAPP):
         self.summarize_dir = ""
         self.metadata_file = ""
         self.assignments = None
-        self.refpkg_build = MarkerBuild()
         self.stages = {0: ModuleFunction("assign", 0),
                        1: ModuleFunction("summarize", 1)}
 
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        self.validate_continue(args)
+        return
+
     def summarize_groups_assigned(self, ortholog_map: dict, metadata=None):
         unique_orthologs = dict()
-        tree_leaves = self.ref_pkg.tax_ids_file_to_leaves()
+        tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
         for refpkg, info in self.assignments.items():
             for lineage in info:
                 for seq_name in info[lineage]:
@@ -1549,7 +888,7 @@ class Purity(TreeSAPP):
 
     def load_metadata(self) -> dict:
         metadat_dict = dict()
-        xtra_dat = namedtuple("xtra_dat", ["id", "ac", "de"])
+        xtra_dat = namedtuple("xtra_dat", ["db_id", "ac", "de"])
         if not os.path.isfile(self.metadata_file):
             logging.error("Extra information file '" + self.metadata_file + "' doesn't exist!\n")
             sys.exit(3)
@@ -1560,31 +899,32 @@ class Purity(TreeSAPP):
             sys.exit(3)
         for line in metadata_handler:
             try:
-                id, accession, desc = line.strip().split("\t")
+                db_id, accession, desc = line.strip().split("\t")
             except ValueError:
                 logging.error("Bad format for '" + self.metadata_file + "'. Three tab-separated fields expected.\n" +
                               "Example line:\n" +
                               str(line) + "\n")
                 sys.exit(7)
-            metadat_dict[accession] = xtra_dat(id, accession, desc)
+            metadat_dict[accession] = xtra_dat(db_id, accession, desc)
         metadata_handler.close()
         return metadat_dict
 
     def assign_leaves_to_orthologs(self, p_queries: list, internal_node_map: dict) -> dict:
         ortholog_map = dict()
         leaf_map = dict()
-        tree_leaves = self.ref_pkg.tax_ids_file_to_leaves()
+        tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
         for leaf in tree_leaves:
-            leaf_map[leaf.number] = leaf.description
-        for p_query in p_queries:  # type: TreeProtein
-            if type(p_query.contig_name) is list and len(p_query.contig_name):
-                p_query.contig_name = p_query.contig_name[0]
-            seq_info = re.match(r"(.*)\|" + re.escape(p_query.name) + r"\|(\\d+)_(\\d+)$", p_query.contig_name)
+            leaf_map[leaf.number + "_" + self.ref_pkg.prefix] = leaf.description
+        for p_query in p_queries:  # type: PQuery
+            p_query.ref_name = self.ref_pkg.prefix
+            if type(p_query.place_name) is list and len(p_query.place_name):
+                p_query.place_name = p_query.place_name[0]
+            seq_info = re.match(r"(.*)\|" + re.escape(p_query.ref_name) + r"\|(\\d+)_(\\d+)$", p_query.place_name)
             if seq_info:
-                p_query.contig_name = seq_info.group(1)
+                p_query.place_name = seq_info.group(1)
             p_query.inode = int(p_query.get_jplace_element("edge_num"))
             leaves = internal_node_map[p_query.inode]
-            ortholog_name = p_query.contig_name.split('_')[0]
+            ortholog_name = p_query.place_name.split('_')[0]
             if ortholog_name not in ortholog_map:
                 ortholog_map[ortholog_name] = []
             for descendent in leaves:
@@ -1593,11 +933,71 @@ class Purity(TreeSAPP):
         return ortholog_map
 
 
+class TaxonTest:
+    def __init__(self, name):
+        self.lineage = name
+        self.taxon = name.split('; ')[-1]
+        self.queries = list()
+        self.classifieds = list()
+        self.distances = dict()
+        self.assignments = dict()
+        self.taxonomic_tree = None
+        self.intermediates_dir = ""
+        self.temp_files_prefix = ""
+        self.test_query_fasta = ""
+        self.test_tax_ids_file = ""
+        self.classifier_output = ""
+
+    def get_optimal_assignment(self):
+        if self.lineage.split('; ')[0] != "Root":
+            self.lineage = "; ".join(["Root"] + self.lineage.split("; "))
+        return optimal_taxonomic_assignment(self.taxonomic_tree, self.lineage)
+
+    def summarise_taxon_test(self):
+        summary_string = "Test for taxonomic lineage '" + self.lineage + "':\n" + \
+                         "\tNumber of query sequences = " + str(len(self.queries)) + "\n" + \
+                         "\tNumber of classified queries = " + str(len(self.classifieds)) + "\n"
+        if self.assignments:
+            for marker in self.assignments:
+                summary_string += "Sequences classified as marker '" + marker + "':\n"
+                for lineage in self.assignments[marker]:
+                    summary_string += str(len(self.assignments[marker][lineage])) + "\t'" + lineage + "'\n"
+        if self.taxonomic_tree:
+            summary_string += "Optimal taxonomic assignment: '" + self.get_optimal_assignment() + "'\n"
+        return summary_string
+
+    def filter_assignments(self, target_marker: str):
+        """
+        Filters the assignments from TreeSAPP for the target marker.
+        Off-target classifications are accounted for and reported.
+        TaxonTest.classifieds only include the headers of the correctly annotated sequences
+
+        :param target_marker:
+        :return: None
+        """
+        off_targets = dict()
+        num_classified = 0
+        for marker in self.assignments:
+            for lineage in self.assignments[marker]:
+                classifieds = self.assignments[marker][lineage]
+                num_classified += len(classifieds)
+                if marker == target_marker:
+                    self.classifieds += classifieds
+                else:
+                    if marker not in off_targets:
+                        off_targets[marker] = list()
+                    off_targets[marker] += classifieds
+        if off_targets:
+            for marker in off_targets:
+                logging.warning(str(len(off_targets[marker])) + '/' + str(num_classified) +
+                                " sequences were classified as " + marker + ":\n" +
+                                "\t\n".join(off_targets[marker]) + "\n")
+        return
+
+
 class Evaluator(TreeSAPP):
     def __init__(self):
         super(Evaluator, self).__init__("evaluate")
-        self.targets = []  # Left empty to appease parse_ref_build_parameters()
-        self.target_marker = None  # A MarkerBuild object
         self.rank_depth_map = None
         self.ranks = list()
         self.markers = set()
@@ -1618,16 +1018,41 @@ class Evaluator(TreeSAPP):
                        1: ModuleFunction("classify", 1),
                        2: ModuleFunction("calculate", 2)}
 
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        self.validate_continue(args)
+        return
+
     def get_info(self):
         info_string = "Evaluator instance summary:\n"
         info_string += super(Evaluator, self).get_info() + "\n\t"
         info_string += "\n\t".join(["Accession-to-lineage map = " + self.acc_to_lin,
                                     "Clade-exclusion table = " + self.performance_table,
-                                    "Target marker(s) = " + str(self.targets)]) + "\n"
+                                    "Target marker = " + str(self.ref_pkg.prefix)]) + "\n"
 
         return info_string
 
-    def new_taxa_test(self, rank, lineage):
+    def new_taxa_test(self, lineage) -> TaxonTest:
+        """
+        Creates a new TaxonTest instance for clade exclusion analysis
+
+        :param lineage: The lineage being tested
+        :return: A TaxonTest instance specific to lineage
+        """
+        # Determine the rank
+        rank = self.ref_pkg.taxa_trie.resolved_to(lineage)
+        if not rank:
+            logging.error("Unable to find the rank the '{}' was resolved to.\n".format(lineage))
+            sys.exit(5)
+
         if rank not in self.taxa_tests:
             self.taxa_tests[rank] = list()
         taxa_test_inst = TaxonTest(lineage)
@@ -1780,7 +1205,7 @@ class Evaluator(TreeSAPP):
         clade_exclusion_strings = list()
         rank_assigned_dict = self.classifications
 
-        sys.stdout.write("Rank-level performance of " + self.target_marker.cog + ":\n")
+        sys.stdout.write("Rank-level performance of " + self.ref_pkg.prefix + ":\n")
         sys.stdout.write("\tRank\tQueries\tClassified\tCorrect\tD=1\tD=2\tD=3\tD=4\tD=5\tD=6\tD=7\n")
 
         for depth in sorted(self.rank_depth_map):
@@ -1790,7 +1215,7 @@ class Evaluator(TreeSAPP):
             taxonomic_distance = dict()
             n_queries, n_classified, sensitivity = self.get_sensitivity(rank)
             for dist in range(0, 8):
-                taxonomic_distance[dist] = EvaluateStats(self.target_marker.cog, rank, dist)
+                taxonomic_distance[dist] = EvaluateStats(self.ref_pkg.prefix, rank, dist)
                 taxonomic_distance[dist].n_qs = n_queries
             std_out_report_string += "\t" + rank + "\t"
             if rank not in rank_assigned_dict or len(rank_assigned_dict[rank]) == 0:
@@ -1875,7 +1300,7 @@ class Evaluator(TreeSAPP):
         trial_name = os.path.basename(self.output_dir)
         for line in containment_strings:
             # Line has a "\t" prefix already
-            line = trial_name + "\t" + self.target_marker.cog + "\t" + tool + line + "\n"
+            line = trial_name + "\t" + self.ref_pkg.prefix + "\t" + tool + line + "\n"
             output_handler.write(line)
 
         output_handler.close()
@@ -1902,6 +1327,31 @@ class Evaluator(TreeSAPP):
         output_handler.close()
         return
 
+    def clade_exclusion_outputs(self, lineage, rank, refpkg_name) -> TaxonTest:
+        """
+        Creates a TaxonTest instance that stores file paths and settings relevant to a clade exclusion analysis
+
+        :param lineage: Taxonomic lineage which is going to be used in this clade exclusion analysis
+        :param rank: The taxonomic rank (to which `lineage` belongs to) that is being excluded
+        :param refpkg_name: Name (not code) of the ReferencePackage object that is to be used for clade exclusion
+        :return: TaxonTest instance
+        """
+        # Refpkg input files in ts_evaluate.var_output_dir/refpkg_name/rank_tax/
+        # Refpkg built in ts_evaluate.var_output_dir/refpkg_name/rank_tax/{refpkg_name}_{rank_tax}.gpkg/
+        taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
+        rank_tax = rank[0] + '_' + taxon
+
+        test_obj = self.new_taxa_test(lineage)
+        test_obj.intermediates_dir = self.var_output_dir + refpkg_name + os.sep + rank_tax + os.sep
+        if not os.path.isdir(test_obj.intermediates_dir):
+            os.makedirs(test_obj.intermediates_dir)
+
+        logging.info("Classifications for the " + rank + " '" + taxon + "' put " + test_obj.intermediates_dir + "\n")
+        test_obj.test_query_fasta = test_obj.intermediates_dir + rank_tax + ".fa"
+        test_obj.test_tax_ids_file = test_obj.intermediates_dir + "tax_ids_" + refpkg_name + ".txt"
+        test_obj.classifier_output = test_obj.intermediates_dir + "TreeSAPP_output" + os.sep
+        return test_obj
+
 
 class Layerer(TreeSAPP):
     def __init__(self):
@@ -1922,12 +1372,15 @@ class Abundance(TreeSAPP):
         self.target_refpkgs = list()
         self.classified_nuc_seqs = ""
         self.classifications = ""
-        self.fq_suffix_re = re.compile(r"([._-])+[pe|fq|fastq|fwd|R1]+$")
+        self.fq_suffix_re = re.compile(r"([._-])+(pe|fq|fastq|fwd|R1)$")
 
     def check_arguments(self, args):
         ##
         # Define locations of files TreeSAPP outputs
         ##
+        if len(glob(self.final_output_dir + "*_classified.fna")) < 1:
+            logging.error("Unable to find classified ORF nucleotide sequences in '{}'.\n".format(self.final_output_dir))
+            sys.exit(5)
         self.classified_nuc_seqs = glob(self.final_output_dir + "*_classified.fna")[0]
         if not os.path.isfile(self.classified_nuc_seqs):
             logging.error("Unable to find classified sequences FASTA file in %s.\n" % self.final_output_dir)
@@ -1935,31 +1388,9 @@ class Abundance(TreeSAPP):
 
         if not os.path.isdir(self.var_output_dir):
             os.makedirs(self.var_output_dir)
+        self.validate_refpkg_dir(args.refpkg_dir)
 
         return
-
-    def assignments_to_treesaps(self, classified_lines: list, marker_build_dict: dict) -> dict:
-        """
-
-        :param classified_lines:
-        :param marker_build_dict:
-        :return: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
-        """
-        pqueries = dict()
-        for fields in classified_lines:
-            tree_sap = ItolJplace()
-            try:
-                _, tree_sap.contig_name, tree_sap.name, tree_sap.seq_len, tree_sap.lct, tree_sap.recommended_lineage,\
-                _, tree_sap.inode, tree_sap.lwr, tree_sap.avg_evo_dist, tree_sap.distances = fields
-            except ValueError:
-                logging.error("Bad line in classification table:\n" + '\t'.join(fields) + "\n")
-                sys.exit(21)
-            refpkg = fish_refpkg_from_build_params(tree_sap.name, marker_build_dict).denominator
-            try:
-                pqueries[refpkg].append(tree_sap)
-            except KeyError:
-                pqueries[refpkg] = [tree_sap]
-        return pqueries
 
 
 class Assigner(TreeSAPP):
@@ -1969,6 +1400,7 @@ class Assigner(TreeSAPP):
         """
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
+        self.svc_filter = False
         self.aa_orfs_file = ""
         self.nuc_orfs_file = ""
         self.classified_aa_seqs = ""
@@ -1983,6 +1415,36 @@ class Assigner(TreeSAPP):
                        3: ModuleFunction("align", 3, self.align),
                        4: ModuleFunction("place", 4, self.place),
                        5: ModuleFunction("classify", 5, self.classify)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
+        :return: None
+        """
+        if args.rpkm:
+            if not args.reads:
+                if args.reverse:
+                    logging.error("File containing reverse reads provided but forward mates file missing!\n")
+                    sys.exit(3)
+                else:
+                    logging.error("At least one FASTQ file must be provided if -rpkm flag is active!\n")
+                    sys.exit(3)
+            elif args.reads and not os.path.isfile(args.reads):
+                logging.error("Path to forward reads ('%s') doesn't exist.\n" % args.reads)
+                sys.exit(3)
+            elif args.reverse and not os.path.isfile(args.reverse):
+                logging.error("Path to reverse reads ('%s') doesn't exist.\n" % args.reverse)
+                sys.exit(3)
+            else:
+                self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
+
+        self.validate_continue(args)
+        return
 
     def get_info(self):
         info_string = "Assigner instance summary:\n"
@@ -2080,15 +1542,58 @@ class PhyTrainer(TreeSAPP):
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
         self.placement_table = ""
         self.placement_summary = ""
-
-        # Limit this to just Class, Family, and Species - other ranks are inferred through regression
-        self.training_ranks = {"Class": 3, "Species": 7}
+        self.clade_ex_pquery_pkl = ""
+        self.plain_pquery_pkl = ""
+        self.feature_vector_file = ""
+        self.conditions_file = ""
+        self.tsne_plot = ""
+        self.pkg_dbname_dict = dict()
+        self.target_refpkgs = list()
+        self.training_ranks = {}
+        self.pqueries = {}
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("search", 0),
-                       1: ModuleFunction("lineages", 1),
-                       2: ModuleFunction("place", 2),
-                       3: ModuleFunction("regress", 3)}
+        self.stages = {0: ModuleFunction("clean", 0),
+                       1: ModuleFunction("search", 1),
+                       2: ModuleFunction("lineages", 2),
+                       3: ModuleFunction("place", 3),
+                       4: ModuleFunction("train", 4),
+                       5: ModuleFunction("update", 5)}
+
+    def decide_stage(self, args):
+        if not args.profile:
+            self.change_stage_status("search", False)
+
+        if args.acc_to_lin:
+            self.acc_to_lin = args.acc_to_lin
+            if os.path.isfile(self.acc_to_lin):
+                self.change_stage_status("lineages", False)
+            else:
+                logging.error("Unable to find accession-lineage mapping file '{}'\n".format(self.acc_to_lin))
+                sys.exit(3)
+
+        if os.path.isfile(self.clade_ex_pquery_pkl) and os.path.isfile(self.plain_pquery_pkl):
+            self.change_stage_status("place", False)
+
+        self.validate_continue(args)
+        return
+    
+    def set_file_paths(self) -> None:
+        """
+        Define the file path locations of treesapp train outputs
+
+        :return: None
+        """
+        self.placement_table = os.path.join(self.final_output_dir, "placement_info.tsv")
+        self.placement_summary = os.path.join(self.final_output_dir, "placement_trainer_results.txt")
+        self.clade_ex_pquery_pkl = os.path.join(self.final_output_dir, "clade_exclusion_pqueries.pkl")
+        self.plain_pquery_pkl = os.path.join(self.final_output_dir, "raw_refpkg_pqueries.pkl")
+        self.formatted_input = os.path.join(self.var_output_dir, "clean", self.ref_pkg.prefix + "_formatted.fa")
+        self.hmm_purified_seqs = os.path.join(self.var_output_dir, "search", self.ref_pkg.prefix + "_hmm_purified.fa")
+        self.acc_to_lin = os.path.join(self.var_output_dir, "lineages", "accession_id_lineage_map.tsv")
+        self.conditions_file = os.path.join(self.var_output_dir, "train", "conditions.npy")
+        self.feature_vector_file = os.path.join(self.var_output_dir, "train", "examples.npy")
+        return
 
     def get_info(self):
         info_string = "PhyTrainer instance summary:\n"
@@ -2133,60 +1638,3 @@ class EvaluateStats:
 
     def precision(self):
         return self.correct/sum([self.correct, self.over_p, self.under_p])
-
-
-class TaxonTest:
-    def __init__(self, name):
-        self.lineage = name
-        self.taxon = name.split('; ')[-1]
-        self.queries = list()
-        self.classifieds = list()
-        self.distances = dict()
-        self.assignments = dict()
-        self.taxonomic_tree = None
-
-    def get_optimal_assignment(self):
-        if self.lineage.split('; ')[0] != "Root":
-            self.lineage = "; ".join(["Root"] + self.lineage.split("; "))
-        return optimal_taxonomic_assignment(self.taxonomic_tree, self.lineage)
-
-    def summarise_taxon_test(self):
-        summary_string = "Test for taxonomic lineage '" + self.lineage + "':\n" + \
-                         "\tNumber of query sequences = " + str(len(self.queries)) + "\n" + \
-                         "\tNumber of classified queries = " + str(len(self.classifieds)) + "\n"
-        if self.assignments:
-            for marker in self.assignments:
-                summary_string += "Sequences classified as marker '" + marker + "':\n"
-                for lineage in self.assignments[marker]:
-                    summary_string += str(len(self.assignments[marker][lineage])) + "\t'" + lineage + "'\n"
-        if self.taxonomic_tree:
-            summary_string += "Optimal taxonomic assignment: '" + self.get_optimal_assignment() + "'\n"
-        return summary_string
-
-    def filter_assignments(self, target_marker: str):
-        """
-        Filters the assignments from TreeSAPP for the target marker.
-        Off-target classifications are accounted for and reported.
-        TaxonTest.classifieds only include the headers of the correctly annotated sequences
-
-        :param target_marker:
-        :return:
-        """
-        off_targets = dict()
-        num_classified = 0
-        for marker in self.assignments:
-            for lineage in self.assignments[marker]:
-                classifieds = self.assignments[marker][lineage]
-                num_classified += len(classifieds)
-                if marker == target_marker:
-                    self.classifieds += classifieds
-                else:
-                    if marker not in off_targets:
-                        off_targets[marker] = list()
-                    off_targets[marker] += classifieds
-        if off_targets:
-            for marker in off_targets:
-                logging.warning(str(len(off_targets[marker])) + '/' + str(num_classified) +
-                                " sequences were classified as " + marker + ":\n" +
-                                "\t\n".join(off_targets[marker]) + "\n")
-        return
