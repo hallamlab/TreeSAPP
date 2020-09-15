@@ -6,7 +6,7 @@ Stage: build
     /usr/local/bin/usearch
 
 %post
-    export TS_VERSION="0.8.9"
+    export TS_VERSION="0.9.0"
 
 	##
     # Install the linux package dependencies, this is currently including Python 3.6.5
@@ -22,16 +22,12 @@ Stage: build
     ##
     # Pull TreeSAPP
     ##
-    git clone https://github.com/cmorganl/pyfastx.git
-    cd pyfastx; git checkout cml_dev; git pull
-    python setup.py install
-    cd -
     git clone https://github.com/hallamlab/TreeSAPP.git
-    cd TreeSAPP; git checkout ng-update; git pull
+    cd TreeSAPP # git checkout dev; git pull
     pip install -r requirements.txt
     cd -
 
-	##
+    ##
     # Install TreeSAPP dependencies
     ##
 
@@ -78,25 +74,25 @@ Stage: build
     rm -r raxml-ng_v1.0.0.zip raxml-ng_v1.0.0
 
     # EPA-NG
-    curl -LJ0 --output epa-ng.tar.gz https://github.com/Pbdas/epa-ng/archive/v0.3.7.tar.gz
-    tar -xzf epa-ng.tar.gz; cd epa-ng-0.3.7/
+    curl -LJ0 --output epa-ng.tar.gz https://github.com/Pbdas/epa-ng/archive/v0.3.8.tar.gz
+    tar -xzf epa-ng.tar.gz; cd epa-ng-0.3.8/
     make; cp bin/epa-ng /usr/bin/; cd -
     rm epa-ng.tar.gz
 
-	##
+    ##
     # Install TreeSAPP
     ##
-    # pip install treesapp==$TS_VERSION
-    cd TreeSAPP; python setup.py sdist; cd -
-    python3 -m pip install TreeSAPP/dist/treesapp-${TS_VERSION}.tar.gz
+    pip install treesapp==$TS_VERSION
+    # cd TreeSAPP; python setup.py sdist; cd -
+    # python3 -m pip install TreeSAPP/dist/treesapp-${TS_VERSION}.tar.gz
     rm -rf TreeSAPP/
 
 
 %labels
     Author Connor Morgan-Lang
-    Version v0.8.9
+    Version v0.9.0
 
 %help
     This container installs the latest TreeSAPP release from PyPI at https://pypi.org/project/treesapp/
     and installs all dependencies:
-    RaxML-NG v1.0.0; EPA-NG v0.3.7; MAFFT v7.450-1; Prodigal v2.6.3; BWA v0.7.17; HMMER v3.3; OD-Seq v1.0 and FastTree v2.1.11
+    RaxML-NG v1.0.0; EPA-NG v0.3.8; MAFFT v7.450-1; Prodigal v2.6.3; BWA v0.7.17; HMMER v3.3; OD-Seq v1.0 and FastTree v2.1.11
