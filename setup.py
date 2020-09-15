@@ -12,7 +12,6 @@ CLASSIFIERS = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
     "Programming Language :: C++",
-    "Programming Language :: Python :: 3.5",
     "Programming Language :: Python :: 3.6",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
@@ -22,7 +21,7 @@ CLASSIFIERS = [
 SETUP_METADATA = \
     {
         "name": "treesapp",
-        "version": "0.8.9",
+        "version": "0.9.0",
         "description": "TreeSAPP is a functional and taxonomic annotation tool for genomes and metagenomes.",
         "long_description": LONG_DESCRIPTION,
         "long_description_content_type": "text/markdown",
