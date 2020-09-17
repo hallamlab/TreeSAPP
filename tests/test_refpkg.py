@@ -49,9 +49,9 @@ class RefPkgTester(unittest.TestCase):
     def test_remove_taxon_from_lineage_ids(self):
         self.db.remove_taxon_from_lineage_ids("d__Archaea; p__Euryarchaeota; c__Methanobacteria; o__Methanobacteriales;"
                                               " f__Methanobacteriaceae; g__Methanosphaera")
-        self.assertEqual(173, self.db.num_seqs)
+        self.assertEqual(190, self.db.num_seqs)
         self.db.remove_taxon_from_lineage_ids("d__Archaea; p__Euryarchaeota; c__Methanobacteria")
-        self.assertEqual(126, len(self.db.lineage_ids))
+        self.assertEqual(143, len(self.db.lineage_ids))
 
         self.db.remove_taxon_from_lineage_ids("d__Archaea")
         self.assertEqual(0, len(self.db.lineage_ids))
