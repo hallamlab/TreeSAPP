@@ -15,6 +15,7 @@ class MyTestCase(unittest.TestCase):
         self.test_fa.load_fasta()
 
         self.create_inst = Creator()
+        self.create_inst.current_stage = self.create_inst.stages[1]
         self.create_inst.acc_to_lin = "./test_create_acc_to_lin.tsv"
         return
 
@@ -23,10 +24,14 @@ class MyTestCase(unittest.TestCase):
             os.remove(self.create_inst.acc_to_lin)
 
     def test_repair_lineages(self):
-        self.assertEqual(True, False)
+        # TODO: provide EntrezRecord instances in ref_seq_dict
+        from treesapp.entrez_utils import repair_lineages
+        repair_lineages(ref_seq_dict={}, t_hierarchy=self.create_inst.ref_pkg.taxa_trie)
+        return
 
     def test_fetch_entrez_lineages(self):
         self.create_inst.fetch_entrez_lineages(self.test_fa, 'prot')
+        return
 
     def test_prep_for_entrez_query(self):
         from treesapp.entrez_utils import prep_for_entrez_query

@@ -60,10 +60,10 @@ If you are working with a particularly complex reference package, from an orthol
 
 ## Citation
 
-If you found TreeSAPP useful in your work, please cite the following [paper](https://doi.org/10.1093/bioinformatics/btaa588):
+If you found TreeSAPP useful in your work, please cite the following paper:
 
 Morgan-Lang, C., McLaughlin, R., Armstrong, Z., Zhang, G., Chan, K., & Hallam, S. J. (2020). 
-TreeSAPP: The Tree-based Sensitive and Accurate Phylogenetic Profiler. 
+[TreeSAPP: The Tree-based Sensitive and Accurate Phylogenetic Profiler](https://doi.org/10.1093/bioinformatics/btaa588). 
 Bioinformatics, 1–8.
 
 This was brought to you by the team:

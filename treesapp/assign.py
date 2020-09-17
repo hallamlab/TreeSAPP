@@ -1539,6 +1539,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
                     call = 1
                 else:
                     call = refpkg.svc.predict(preprocessing.normalize(np_array([len(leaf_children),
+                                                                                tree_sap.evalue,
                                                                                 round(tree_sap.lwr, 2),
                                                                                 distal_length,
                                                                                 pendant_length,

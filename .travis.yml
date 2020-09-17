@@ -58,9 +58,12 @@ install:
 
 script:
     # build the wheels, put them into './wheelhouse'
+    - if [ "$TRAVIS_OS_NAME" != "osx" ]; then
+        tox -a;
+        tox -v;
+        fi
     - python3 -m cibuildwheel --output-dir wheelhouse
     - python3 setup.py sdist --dist-dir wheelhouse
-    # - pytest
 
 notifications:
   email:

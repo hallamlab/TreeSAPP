@@ -9,4 +9,9 @@ class EntishTester(unittest.TestCase):
         with open(placement_tree) as tree:
             tree_text = tree.readline()
             node_map = map_internal_nodes_leaves(tree_text)
-        self.assertEqual(48, len(node_map))
+        self.assertEqual(489, len(node_map))
+        return
+
+
+if __name__ == "__main__":
+    unittest.main()

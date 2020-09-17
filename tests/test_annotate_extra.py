@@ -28,8 +28,8 @@ class MyTestCase(unittest.TestCase):
     @pytest.mark.usefixtures("mcra_refpkg_class")
     def test_names_for_nodes_range(self):
         from .testing_utils import get_test_data
-        from annotate_extra import names_for_nodes
-        from file_parsers import read_colours_file
+        from treesapp.annotate_extra import names_for_nodes
+        from treesapp.file_parsers import read_colours_file
         range_annot_file = get_test_data("McrA_Metabolism.txt")
         groups_dict = read_colours_file(range_annot_file, "McrA")
         clusters = names_for_nodes(groups_dict, self.db.get_internal_node_leaf_map(),
@@ -39,7 +39,7 @@ class MyTestCase(unittest.TestCase):
 
     @pytest.mark.usefixtures("xmoa_refpkg_class")
     def test_convert_outer_to_inner_nodes(self):
-        from utilities import convert_outer_to_inner_nodes
+        from treesapp.utilities import convert_outer_to_inner_nodes
         group_dict = {'AmoA_AOB': [('40', '40'), ('96', '96')],
                       'PxmA': [('109', '109')],
                       'BmoA': [('148', '148')],
@@ -70,8 +70,8 @@ class MyTestCase(unittest.TestCase):
     @pytest.mark.usefixtures("xmoa_refpkg_class")
     def test_names_for_nodes_inodes(self):
         from .testing_utils import get_test_data
-        from annotate_extra import names_for_nodes
-        from file_parsers import read_colours_file
+        from treesapp.annotate_extra import names_for_nodes
+        from treesapp.file_parsers import read_colours_file
         inode_annot_file = get_test_data("XmoA_Function.txt")
         groups_dict = read_colours_file(inode_annot_file, "XmoA")
         clusters = names_for_nodes(groups_dict, self.db.get_internal_node_leaf_map(),
@@ -79,7 +79,7 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(6, len(clusters))
 
     def test_read_colours_file(self):
-        from file_parsers import read_colours_file
+        from treesapp.file_parsers import read_colours_file
         from .testing_utils import get_test_data
         cols_dict = read_colours_file(annotation_file=get_test_data("colours_file.txt"), refpkg_name="McrA")
         self.assertEqual(6, len(cols_dict))

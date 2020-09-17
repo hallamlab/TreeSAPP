@@ -1,6 +1,7 @@
 import unittest
 import pytest
 import os
+from shutil import rmtree
 
 
 @pytest.fixture(scope="class")
@@ -15,6 +16,21 @@ def refpkg_class(request):
 
 @pytest.mark.usefixtures("refpkg_class")
 class RefPkgTester(unittest.TestCase):
+    def setUp(self) -> None:
+        self.new_pkl_path = "./test_write_json" + self.db.refpkg_suffix
+        self.disband_path = "_".join([self.db.prefix, self.db.refpkg_code, self.db.date])
+        if os.path.isdir(self.disband_path):
+            rmtree(self.disband_path)
+
+        return
+
+    def tearDown(self) -> None:
+        if os.path.isdir(self.disband_path):
+            rmtree(self.disband_path)
+        if os.path.isfile(self.new_pkl_path):
+            os.remove(self.new_pkl_path)
+        return
+
     def test_band(self):
         self.db.band()
         return
@@ -28,7 +44,7 @@ class RefPkgTester(unittest.TestCase):
 
     def test_disband(self):
         self.db.disband("./")
-        self.assertTrue(os.path.isfile("./McrA_Z1111_2020-06-15/McrA.fa"))
+        self.assertTrue(os.path.isfile(os.path.join(self.disband_path, "McrA.fa")))
 
     def test_remove_taxon_from_lineage_ids(self):
         self.db.remove_taxon_from_lineage_ids("d__Archaea; p__Euryarchaeota; c__Methanobacteria; o__Methanobacteriales;"
@@ -57,7 +73,7 @@ class RefPkgTester(unittest.TestCase):
         self.assertEqual(self.db.num_seqs, len(node_map[max(node_map.keys())]))
 
     def test_pickle_package(self):
-        self.db.f__json = "./test_write_json" + self.db.refpkg_suffix
+        self.db.f__json = self.new_pkl_path
         self.db.pickle_package()
         self.db.slurp()
         self.assertTrue("McrA" == self.db.prefix)
