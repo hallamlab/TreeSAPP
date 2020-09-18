@@ -11,23 +11,43 @@ from treesapp.external_command_interface import launch_write_command, CommandLin
 from treesapp.fasta import read_fasta_to_dict
 
 
-def select_model(molecule: str, raxml_model=None) -> str:
+def estimate_ml_model(modeltest_exe: str, msa: str, output_prefix: str, molecule: str, threads=1) -> str:
     """
     Eventually this function will be a wrapper for ModelTest-ng or IQTree's ModelFinder.
 
-    :param raxml_model: An optional string with the RAxML-NG model used
+    :param modeltest_exe: Path to the executable for ModelTest-NG
+    :param msa: Path to a Multiple Sequence Alignment file
+    :param output_prefix: The prefix for the output files (includes directory paths)
     :param molecule: A string indicating the molecule-type of the reference package: 'rrna', 'prot' or 'dna'
+    :param threads: Number of threads for ModelTest-NG to use
     :return: A RAxML-ng and EPA-ng compatible string representing the substitution model
     """
-    if raxml_model:
-        evo_model = raxml_model
-    elif molecule == "prot":
-        evo_model = "LG+G4"
-    elif molecule == "rrna" or molecule == "dna":
-        evo_model = "GTR+G"
+    if molecule == "prot":
+        dt = "aa"
+        model_candidates = "JTT,LG,WAG"
     else:
-        logging.error("A substitution model could not be specified from the molecule argument '{}'.\n".format(molecule))
+        dt = "nt"
+        model_candidates = "GTR"
+
+    model_find_cmd = [modeltest_exe]
+    model_find_cmd += ["--input", msa]
+    model_find_cmd += ["--output", output_prefix]
+    model_find_cmd += ["--processes", threads]
+    model_find_cmd += ["--topology", "fixed-mp"]
+    model_find_cmd += ["--datatype", dt]
+    model_find_cmd += ["--template", "raxml"]
+    model_find_cmd += ["--frequencies", "f"]
+    model_find_cmd += ["--models", model_candidates]
+
+    stdout, returncode = launch_write_command(model_find_cmd)
+    if returncode != 0:
+        logging.error("{} could not determine a substitution model for your sequences in '{}'.\n".format(modeltest_exe,
+                                                                                                         molecule))
         sys.exit(13)
+
+    # TODO: Parse the optimal model determined by ModelTest-NG and return it
+    evo_model = ""
+
     return evo_model
 
 

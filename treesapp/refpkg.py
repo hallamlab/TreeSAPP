@@ -513,8 +513,7 @@ class ReferencePackage:
 
         return
 
-    def infer_phylogeny(self, input_msa: str, executables: dict, phylogeny_dir: str,
-                        num_threads=2, sub_model=None) -> str:
+    def infer_phylogeny(self, input_msa: str, executables: dict, phylogeny_dir: str, num_threads=2) -> str:
         """
         Selects the substitution model and parameters for the phylogenetic inference tools then
         builds a phylogeny using the software specified by the ReferencePackage's tree_tool
@@ -523,10 +522,8 @@ class ReferencePackage:
         :param executables: A dictionary of executable names mapped to the
         :param phylogeny_dir: A directory for writing the outputs of this workflow
         :param num_threads: Number of threads to use while building the tree and bootstrapping
-        :param sub_model: The substitution model to use
         :return: Path to the final phylogeny with greatest likelihood
         """
-        self.sub_model = wrapper.select_model(self.molecule, sub_model)
         best_tree = wrapper.construct_tree(self.tree_tool, executables, self.sub_model, input_msa,
                                            phylogeny_dir, self.prefix, num_threads)
 

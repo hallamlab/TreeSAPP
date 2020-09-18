@@ -20,7 +20,7 @@ from treesapp.utilities import median, write_dict_to_table, validate_new_dir, fe
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
-from treesapp.wrapper import CommandLineFarmer
+from treesapp.wrapper import CommandLineFarmer, estimate_ml_model
 
 import _tree_parser
 
@@ -794,35 +794,36 @@ class Creator(TreeSAPP):
             rmtree(self.var_output_dir)
         return
 
-    def determine_model(self, fast):
-        model = ""
-        if fast:
-            if self.molecule_type == "prot":
-                model = "LG"
+    def determine_model(self, refpkg: ReferencePackage, estimate=False) -> None:
+        if refpkg.tree_tool == "FastTree":
+            if refpkg.molecule == "prot":
+                evo_model = "LG+G4"
+            elif refpkg.molecule == "rrna" or refpkg.molecule == "dna":
+                evo_model = "GTR+G"
             else:
-                model = "GTRGAMMA"
-        else:
-            raxml_info_file = self.phy_dir + "RAxML_info." + self.ref_pkg.prefix
-            model_statement_re = re.compile(r".* model: ([A-Z]+) likelihood.*")
-            command_line = ""
-            with open(raxml_info_file) as raxml_info:
-                for line in raxml_info:
-                    if model_statement_re.search(line):
-                        model = model_statement_re.search(line).group(1)
-                        break
-                    elif re.match('^.*/raxml.*-m ([A-Z]+)$', line):
-                        command_line = line
-                    else:
-                        pass
-            if model == "":
-                if command_line == "":
-                    logging.warning("Unable to parse model used from " + raxml_info_file + "!\n")
+                logging.error("Unrecognized reference package molecule type: '{}'.\n".format(refpkg.molecule))
+                sys.exit(3)
+            if refpkg.sub_model:
+                logging.warning("Model provided '{}' will be ignored when FastTree is used to infer phylogeny.\n"
+                                "".format(refpkg.sub_model))
+        elif refpkg.tree_tool == "RAxML-NG":
+            if estimate:
+                evo_model = estimate_ml_model(modeltest_exe=self.executables["ModelTest-NG"],
+                                              msa=refpkg.f__msa, output_prefix=self.phy_dir, molecule=refpkg.molecule)
+            elif not refpkg.sub_model:
+                if refpkg.molecule == "prot":
+                    evo_model = "LG+G4"
                 else:
-                    model = re.match('^.*/raxml.*-m ([A-Z]+)$', command_line).group(1)
-        if self.molecule_type == "prot":
-            model = "PROTGAMMA" + model
-        self.ref_pkg.sub_model = model
-        return model
+                    evo_model = "GTR+G"
+            else:
+                logging.debug("Using specified RAxML-NG-compatible model: '{}'.\n".format(refpkg.sub_model))
+                evo_model = refpkg.sub_model
+        else:
+            logging.error("Unexpected phylogenetic inference tool: '{}'.\n".format(refpkg.tree_tool))
+            sys.exit(3)
+
+        refpkg.sub_model = evo_model
+        return
 
     def print_terminal_commands(self):
         logging.info("\nTo integrate this package for use in TreeSAPP the following steps must be performed:\n"

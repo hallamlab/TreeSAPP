@@ -83,7 +83,8 @@ class TreesappTester(unittest.TestCase):
                                 "--profile", get_test_data("PuhA_search.hmm"),
                                 "--molecule", "prot",
                                 "--screen", "Bacteria,Archaea",
-                                "--num_proc", str(2),
+                                "--num_proc", str(4),
+                                "--raxml_model", "LG+F+R4",
                                 "--min_taxonomic_rank", 'p',
                                 "--stage", "support",
                                 "--trim_align", "--outdet_align", "--cluster", "--headless",
@@ -94,6 +95,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.slurp()
         test_refpkg.validate()
         self.assertEqual(39, test_refpkg.num_seqs)
+        self.assertEqual("LG+F+R4", test_refpkg.sub_model)
         return
 
     def test_create_accession2lin(self):
@@ -205,7 +207,6 @@ class TreesappTester(unittest.TestCase):
                                "--output", "./TreeSAPP_update",
                                "--num_proc", str(4),
                                "--molecule", "prot",
-                               "-b", str(0),
                                "--trim_align", "--cluster", "--fast", "--headless",
                                "--overwrite", "--delete", "--skip_assign", "--resolve"]
         update(update_command_list)

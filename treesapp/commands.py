@@ -639,8 +639,9 @@ def create(sys_args):
         ##
         # Build the tree using either RAxML-NG or FastTree
         ##
+        ts_create.determine_model(ts_create.ref_pkg)
         best_tree = ts_create.ref_pkg.infer_phylogeny(ts_create.phylip_file, ts_create.executables, ts_create.phy_dir,
-                                                      args.num_threads, args.raxml_model)
+                                                      args.num_threads)
 
     if ts_create.stage_status("evaluate"):
         # Evaluate the model parameters with RAxML-NG. Output is required by EPA-NG
@@ -922,6 +923,8 @@ def update(sys_args):
         create_cmd.append("--trim_align")
     if args.od_seq:
         create_cmd.append("--outdet_align")
+    if args.raxml_model:
+        create_cmd += ["--raxml_model", args.raxml_model]
     if args.fast:
         create_cmd.append("--fast")
     if args.taxa_lca:
