@@ -254,6 +254,9 @@ class ReferencePackage:
             refpkg_handler = open(self.f__json, 'r')
             refpkg_data = json.load(refpkg_handler)
             refpkg_handler.close()
+        except EOFError:
+            logging.error("Joblib was unable to load reference package pickle '{}'.\n".format(self.f__json))
+            sys.exit(17)
 
         for a, v in refpkg_data.items():
             self.__dict__[a] = v

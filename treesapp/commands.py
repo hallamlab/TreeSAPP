@@ -24,6 +24,7 @@ from treesapp import update_refpkg
 from treesapp import annotate_extra
 from treesapp import treesapp_args
 from treesapp import classy
+from treesapp import phylogeny_painting as paint
 from treesapp.phylo_seq import assignments_to_treesaps, PQuery, convert_entrez_to_tree_leaf_references
 from treesapp.refpkg import ReferencePackage, view, edit
 from treesapp.training_utils import train_classification_filter, vectorize_placement_data, generate_train_test_data,\
@@ -947,6 +948,43 @@ def update(sys_args):
     ts_updater.updated_refpkg.f__json = ts_updater.updated_refpkg_path
     ts_updater.updated_refpkg.slurp()
     ts_updater.update_refpkg_fields()
+
+    return
+
+
+def colour(sys_args):
+    parser = treesapp_args.TreeSAPPArgumentParser(description="Colours a reference package's phylogeny based on"
+                                                              " taxonomic or phenotypic data.")
+    treesapp_args.add_colour_arguments(parser)
+    args = parser.parse_args(sys_args)
+
+    ts_painter = paint.PhyPainter()
+
+    log_file_name = os.path.join(args.output, "TreeSAPP_colour_log.txt")
+    classy.prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\tPainting a phylogeny\t\t\t##\n")
+    treesapp_args.check_parser_arguments(args, sys_args)
+    ts_painter.primer(args)
+    ts_painter.check_rank_depth()
+
+    ts_painter.get_clades()
+    if args.taxa_filter:
+        ts_painter.filter_unwanted_taxa(args.taxa_filter)
+    if args.no_poly:
+        # Optionally not colour polyphyletic clades based on args.no_poly
+        ts_painter.filter_polyphyletic_groups()
+    if args.min_prop:
+        ts_painter.filter_rare_groups(args.min_prop)
+    leaf_order = paint.linearize_tree_leaves(ts_painter.ref_pkg.f__tree)
+    colours = paint.get_colours(ts_painter)
+    # Sort the nodes by their internal node order
+    taxa_order = paint.order_taxa(ts_painter.taxon_leaf_map, leaf_order)
+    palette_taxa_map = paint.map_colours_to_taxa(taxa_order, colours)
+    paint.write_colours_styles(ts_painter, palette_taxa_map)
+    # Find the minimum set of monophyletic internal nodes for each taxon
+    taxa_clades = ts_painter.find_mono_clades()
+    taxa_ranges = paint.convert_clades_to_ranges(taxa_clades, leaf_order)
+    paint.write_colour_strip(taxa_ranges, palette_taxa_map, ts_painter.strip_output)
 
     return
 

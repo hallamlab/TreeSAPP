@@ -210,6 +210,28 @@ def add_package_arguments(parser: TreeSAPPArgumentParser, attributes: list):
     return
 
 
+def add_colour_arguments(colour_parser: TreeSAPPArgumentParser) -> None:
+    colour_parser.add_refpkg_file_param()
+
+    colour_parser.optopt.add_argument('-l', "--rank_level", dest="rank", default="order", required=False,
+                                      help="The rank to generate unique colours for [ DEFAULT = 'order' ]")
+    colour_parser.optopt.add_argument("-o", "--output", default=None, required=False,
+                                      help="Path to the output directory to write the output files. [ DEFAULT = ./ ]")
+    colour_parser.optopt.add_argument('-p', "--palette", default="BrBG", required=False,
+                                      help="The Seaborn colour palette to use [ DEFAULT = BrBG ]")
+    colour_parser.optopt.add_argument('-m', '--min_proportion', dest="min_prop",
+                                      default=0.0, required=False, type=float,
+                                      help="Minimum proportion of sequences a group contains to assign colour"
+                                           " [ DEFAULT = 0 ]")
+    colour_parser.optopt.add_argument("--no_polyphyletic", dest="no_poly",
+                                      default=False, action="store_true", required=False,
+                                      help="Flag forcing the omission of all polyphyletic taxa from the colours file.")
+    colour_parser.optopt.add_argument("-f", "--filter", dest="taxa_filter", default="", required=False,
+                                      help="Keywords for excluding specific taxa from the colour palette.\n"
+                                           "[ DEFAULT is no filter ]")
+    return
+
+
 def add_layer_arguments(parser: TreeSAPPArgumentParser):
     parser.add_refpkg_opt()
     parser.reqs.add_argument("-o", "--treesapp_output", dest="output", required=True,
@@ -460,7 +482,7 @@ def check_parser_arguments(args, sys_args):
         logging.error("Python 2 is not supported by TreeSAPP.\n")
         sys.exit(3)
 
-    if args.num_threads > available_cpu_count():
+    if "num_threads" in vars(args) and args.num_threads > available_cpu_count():
         logging.warning("Number of threads specified is greater than those available! "
                         "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
         args.num_threads = available_cpu_count()

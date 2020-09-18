@@ -4,10 +4,26 @@ from shutil import rmtree
 
 
 class TreesappTester(unittest.TestCase):
+    def setUp(self) -> None:
+        from .testing_utils import get_test_data
+        # FASTA files
+        self.aa_test_fa = get_test_data("marker_test_suite.faa")
+        self.nt_test_fa = get_test_data("marker_test_suite.fna")
+
+        # Reference package pickles
+        self.refpkg_dir = get_test_data(os.path.join("refpkgs"))
+        self.mcra_pkl = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        self.puha_pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+
+        # Output examples
+        self.ts_assign_output = get_test_data("test_output_TarA/")
+
+        return
+
     def tearDown(self) -> None:
         # Clean up output directories
         output_prefix = os.path.join(os.path.abspath("./"), "TreeSAPP_")
-        for test_name in ["assign", "train", "update", "evaluate", "create", "package", "purity", "MCC"]:
+        for test_name in ["assign", "train", "update", "evaluate", "create", "package", "purity", "MCC", "colour"]:
             output_dir = output_prefix + test_name
             if os.path.isdir(output_dir):
                 rmtree(output_dir)
@@ -17,10 +33,9 @@ class TreesappTester(unittest.TestCase):
         ref_pkgs = ["McrA", "M0702", "S0001"]
         from treesapp.commands import assign
         from treesapp.file_parsers import read_classification_table
-        from .testing_utils import get_test_data
-        assign_commands_list = ["--fastx_input", get_test_data("marker_test_suite.faa"),
+        assign_commands_list = ["--fastx_input", self.aa_test_fa,
                                 "--targets", ','.join(ref_pkgs),
-                                "--refpkg_dir", get_test_data(os.path.join("refpkgs")),
+                                "--refpkg_dir", self.refpkg_dir,
                                 "--num_procs", str(2),
                                 "-m", "prot",
                                 "--output", "./TreeSAPP_assign/",
@@ -35,8 +50,7 @@ class TreesappTester(unittest.TestCase):
         ref_pkgs = ["M0701", "M0702"]
         from treesapp.commands import assign
         from treesapp.file_parsers import read_classification_table
-        from .testing_utils import get_test_data
-        assign_commands_list = ["--fastx_input", get_test_data("marker_test_suite.fna"),
+        assign_commands_list = ["--fastx_input", self.nt_test_fa,
                                 "--targets", ','.join(ref_pkgs),
                                 "--num_procs", str(2),
                                 "-m", "dna",
@@ -46,6 +60,16 @@ class TreesappTester(unittest.TestCase):
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(6, len(lines))
+
+    def test_colour(self):
+        from treesapp.commands import colour
+        colour_commands = ["-r", self.puha_pkl,
+                           "-l", "family",
+                           "-o", "./TreeSAPP_colour",
+                           "--filter", "Gammaproteobacteria",
+                           "--no_polyphyletic"]
+        colour(colour_commands)
+        self.assertEqual(True, False)
 
     def test_create(self):
         from treesapp.commands import create
@@ -126,7 +150,7 @@ class TreesappTester(unittest.TestCase):
         from treesapp.commands import evaluate
         from .testing_utils import get_test_data
         evaluate_command_list = ["--fastx_input", get_test_data("McrA_eval.faa"),
-                                 "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
+                                 "--refpkg_path", self.mcra_pkl,
                                  "--accession2lin", get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
                                  "-o", "./TreeSAPP_evaluate",
                                  "-m", "prot",
@@ -141,10 +165,9 @@ class TreesappTester(unittest.TestCase):
         from treesapp.commands import abundance
         from treesapp.file_parsers import read_classification_table
         from .testing_utils import get_test_data
-        classification_table = os.path.join(get_test_data("test_output_TarA/"),
-                                            "final_outputs", "marker_contig_map.tsv")
+        classification_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
         pre_lines = read_classification_table(get_test_data(classification_table))
-        abundance_command_list = ["--treesapp_output", get_test_data("test_output_TarA/"),
+        abundance_command_list = ["--treesapp_output", self.ts_assign_output,
                                   "--reads", get_test_data("test_TarA.1.fq"),
                                   "--reverse", get_test_data("test_TarA.2.fq"),
                                   "--pairing", "pe",
@@ -157,11 +180,11 @@ class TreesappTester(unittest.TestCase):
 
     def test_purity(self):
         from treesapp.commands import purity
-        from .testing_utils import get_treesapp_file, get_test_data
+        from .testing_utils import get_treesapp_file
         purity_command_list = ["--fastx_input", get_treesapp_file("dev_utils/TIGRFAM_seed_named.faa"),
                                "--extra_info", get_treesapp_file("dev_utils/TIGRFAM_info.tsv"),
                                "--output", "./TreeSAPP_purity",
-                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
+                               "--refpkg_path", self.mcra_pkl,
                                "--trim_align", "--molecule", "prot", "-n", str(2)]
         purity(purity_command_list)
         self.assertEqual(True, True)
@@ -171,12 +194,12 @@ class TreesappTester(unittest.TestCase):
         from treesapp.commands import layer
         from .testing_utils import get_test_data
         from treesapp.file_parsers import read_classification_table
-        original_table = os.path.join(get_test_data("test_output_TarA/"), "final_outputs", "marker_contig_map.tsv")
-        layered_table = os.path.join(get_test_data("test_output_TarA/"), "final_outputs",
+        original_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
+        layered_table = os.path.join(self.ts_assign_output, "final_outputs",
                                      "extra_annotated_marker_contig_map.tsv")
         pre_lines = read_classification_table(get_test_data(original_table))
-        layer_command_list = ["--treesapp_output", get_test_data("test_output_TarA/")]
-        layer_command_list += ["--refpkg_dir", get_test_data("refpkgs/")]
+        layer_command_list = ["--treesapp_output", self.ts_assign_output]
+        layer_command_list += ["--refpkg_dir", self.refpkg_dir]
         layer(layer_command_list)
         post_lines = read_classification_table(get_test_data(layered_table))
         self.assertEqual(len(pre_lines), len(post_lines))
@@ -191,7 +214,7 @@ class TreesappTester(unittest.TestCase):
         pre_lines = read_classification_table(get_test_data(classification_table))
         layer_command_list = ["--colours_style", get_test_data("XmoA_Function.txt"),
                               "--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
-                              "--refpkg_dir", get_test_data("refpkgs/")]
+                              "--refpkg_dir", self.refpkg_dir]
         layer(layer_command_list)
         post_lines = read_classification_table(get_test_data(classification_table))
         self.assertEqual(len(pre_lines), len(post_lines))
@@ -202,7 +225,7 @@ class TreesappTester(unittest.TestCase):
         from treesapp.refpkg import ReferencePackage
         from .testing_utils import get_test_data
         update_command_list = ["--fastx_input", get_test_data("Photosynthesis/PuhA/ENOG4111FIN_PF03967_seed.faa"),
-                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
+                               "--refpkg_path", self.puha_pkl,
                                "--treesapp_output", get_test_data("assign_SwissProt_PuhA/"),
                                "--output", "./TreeSAPP_update",
                                "--num_proc", str(4),
@@ -222,7 +245,7 @@ class TreesappTester(unittest.TestCase):
         from treesapp.refpkg import ReferencePackage
         from .testing_utils import get_test_data
         update_command_list = ["--fastx_input", get_test_data("Photosynthesis/PuhA/ENOG4111FIN_PF03967_seed.faa"),
-                               "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
+                               "--refpkg_path", self.puha_pkl,
                                "--treesapp_output", get_test_data("assign_SwissProt_PuhA/"),
                                "--seqs2lineage", get_test_data("SwissProt_PuhA_seqs2lineage.txt"),
                                "--output", "./TreeSAPP_update",
@@ -247,7 +270,7 @@ class TreesappTester(unittest.TestCase):
         train_command_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
                               "--annot_map", get_test_data("ENOG4111FIN_annot_map.tsv"),
                               "--output", output_dir_path,
-                              "--refpkg_path", get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")),
+                              "--refpkg_path", self.puha_pkl,
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
                               "--num_proc", str(4),
                               "--molecule", "prot",
@@ -268,10 +291,9 @@ class TreesappTester(unittest.TestCase):
 
     def test_package(self):
         from treesapp.commands import package
-        from .testing_utils import get_test_data
         command_list = ["view",
                         "lineage_ids",
-                        "--refpkg_path", get_test_data(os.path.join("refpkgs", "McrA_build.pkl")),
+                        "--refpkg_path", self.mcra_pkl,
                         "--output", "./TreeSAPP_package"]
         package(command_list)
         self.assertEqual(True, True)
@@ -283,7 +305,7 @@ class TreesappTester(unittest.TestCase):
         cmd = ["--fastx_input", get_test_data("EggNOG_McrA.faa"),
                "--annot_map", get_test_data("EggNOG_McrA_annot_map.tsv"),
                "--output", "./TreeSAPP_MCC",
-               "--refpkg_dir", get_test_data(os.path.join("refpkgs")),
+               "--refpkg_dir", self.refpkg_dir,
                "--targets", "McrA",
                "--molecule", "prot",
                "--tool", "treesapp",

@@ -3,21 +3,16 @@
 __author__ = 'Connor Morgan-Lang'
 
 import sys
-import os
 import re
-import argparse
+import os
 import logging
+
 import ete3
 from collections import namedtuple
 from seaborn import color_palette
-from treesapp.classy import prep_logging
-from treesapp.phylo_seq import TreeLeafReference
-from treesapp.entish import map_internal_nodes_leaves
 
-rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
-                  2: "Phylum", 3: "Class", 4: "Order",
-                  5: "Family", 6: "Genus", 7: "Species",
-                  8: "Strain"}
+from treesapp.phylo_seq import TreeLeafReference
+from treesapp.classy import TreeSAPP
 
 
 class Clade:
@@ -29,51 +24,108 @@ class Clade:
         return
 
 
-class TaxaColours:
-    def __init__(self, tax_ids_table):
-        self.marker = re.match("tax_ids_(.*).txt$", os.path.basename(tax_ids_table)).group(1)
+class PhyPainter(TreeSAPP):
+    def __init__(self):
+        super(PhyPainter, self).__init__("colour")
         self.style_output = ""
         self.strip_output = ""
-        self.tax_ids_file = tax_ids_table
         self.num_seqs = 0
         self.num_taxa = 0
         self.tree_leaves = list()  # List of 'TreeLeafReference's
         self.taxon_leaf_map = dict()  # taxon -> list(TreeLeafReference.number)
         self.unique_clades = dict()  # Unique numeric ID -> taxon
         self.internal_node_map = dict()  # Internal node -> child leaf names
+        self.rank = ""
+        self.palette = ""
+        self.rank_depth = 0
 
-    def get_clades(self, target_depth: int) -> None:
+    def primer(self, args) -> None:
+        self.ref_pkg.f__json = args.pkg_path
+        self.ref_pkg.slurp()
+        self.ref_pkg.validate()
+
+        logging.debug("\tGenerating colour palette for " + self.ref_pkg.prefix + ".\n")
+
+        self.output_dir = args.output
+        if not os.path.isdir(self.output_dir):
+            try:
+                os.makedirs(self.output_dir)
+            except IOError:
+                logging.error("Unable to create output directory '{}'.\n".format(self.output_dir))
+                sys.exit(1)
+
+        self.style_output = self.output_dir + self.ref_pkg.prefix + "_colours_style.txt"
+        self.strip_output = self.output_dir + self.ref_pkg.prefix + "_colour_strip.txt"
+
+        rank_map = self.ref_pkg.taxa_trie.accepted_ranks_depths
+        if args.rank not in rank_map:
+            logging.error("Rank '{}' not accepted! Please choose one of the following:\n"
+                          "{}\n".format(args.rank, ", ".join(rank_map.keys())))
+            sys.exit(1)
+        else:
+            self.rank = args.rank
+            self.rank_depth = rank_map[self.rank]
+        self.palette = args.palette
+
+        self.internal_node_map = self.ref_pkg.get_internal_node_leaf_map()
+        self.tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
+
+        return
+
+    def check_rank_depth(self) -> None:
+        """
+        Depending on the lineages parsed by `treesapp create` and users, there may be some discrepancies between a rank
+        and its depth (distance from the root) in a TaxonomicHierarhcy (ref_pkg.taxa_trie.accepted_ranks_depths)
+
+        This function is meant to check whether all of the lineages begin at the same rank and therefore all lineages
+        can be sliced consistently, e.g. the third position in a lineage will always represent the taxon's class
+
+        :return: None
+        """
+        offsets = set()
+        domain_reps = self.ref_pkg.taxa_trie.rank_representatives("domain", with_prefix=True)
+        luca_reps = self.ref_pkg.taxa_trie.rank_representatives("root", with_prefix=True)
+        for leaf in sorted(self.tree_leaves, key=lambda x: x.lineage):  # type: TreeLeafReference
+            if not leaf.lineage:
+                continue
+            lineage_path = leaf.lineage.split(self.ref_pkg.taxa_trie.lin_sep)
+            if lineage_path[0] in domain_reps:
+                offsets.add(self.rank_depth - 1)
+            elif lineage_path[0] in luca_reps:
+                offsets.add(self.rank_depth)
+            else:
+                logging.debug("Unable to find root or domain name for '%s'. Skipping.\n" % leaf.lineage)
+                continue
+
+        if len(offsets) > 1:
+            logging.error("Inconsistent rank positions encountered across lineages.\n")
+            sys.exit(13)
+        self.rank_depth = offsets.pop()
+
+        return
+
+    def get_clades(self) -> None:
         """
         Loads unique taxa found in the tree into a dictionary where the values are all leaves of a taxon.
         num_taxa is incremented here and represents the number of unique taxa.
         The number of keys in taxon_leaf_map represents the number of
 
-        :param target_depth: A numeric value representing the taxonomic rank threshold, i.e., 0 is Kingdom, 7 is species
         :return: None
         """
         clades = dict()
         truncated_lineages = dict()
         self.num_taxa = 0
-        potential_domains = ["Archaea", "Bacteria", "Eukaryota"]
-        potential_luca = ["Root", "cellular organisms"]
 
         for leaf in sorted(self.tree_leaves, key=lambda x: x.lineage):  # type: TreeLeafReference
             if not leaf.lineage:
                 continue
-            lineage_path = leaf.lineage.split('; ')
-            if lineage_path[0] in potential_domains:
-                depth = target_depth - 1
-            elif lineage_path[0] in potential_luca:
-                depth = target_depth
-            else:
-                logging.debug("Unable to find root or domain name for '%s'. Skipping.\n" % leaf.lineage)
-                continue
-            if len(lineage_path) > depth:
-                taxon = lineage_path[depth]
+            lineage_path = leaf.lineage.split(self.ref_pkg.taxa_trie.lin_sep)
+            if len(lineage_path) > self.rank_depth:
+                taxon = lineage_path[self.rank_depth]
                 try:
-                    self.taxon_leaf_map[taxon].append(leaf.number)
+                    self.taxon_leaf_map[taxon].append(leaf.number + '_' + self.ref_pkg.prefix)
                 except KeyError:
-                    self.taxon_leaf_map[taxon] = [leaf.number]
+                    self.taxon_leaf_map[taxon] = [leaf.number + '_' + self.ref_pkg.prefix]
                 if len(clades) == 0 and self.num_taxa == 0:
                     clades[self.num_taxa] = taxon
                 elif clades[self.num_taxa] != taxon:
@@ -86,45 +138,61 @@ class TaxaColours:
                     truncated_lineages[leaf.lineage] = 1
         self.num_taxa += 1
         self.unique_clades = clades
-        logging.info(self.marker + ": " + str(self.num_taxa) + " unique clades.\n" +
-                     str(len(truncated_lineages)) + " truncated lineages (" +
-                     str(sum(truncated_lineages.values())) + " sequences) that will not be coloured.\n")
+        logging.info("{}: {} unique clades.\n"
+                     "{} truncated lineages ({} sequences) will not be coloured.\n"
+                     "".format(self.ref_pkg.prefix, self.num_taxa,
+                               len(truncated_lineages), sum(truncated_lineages.values())))
         return
 
-    def remove_taxon_from_colours(self, taxon):
-        for n in self.unique_clades:
-            if self.unique_clades[n] == taxon:
+    def remove_taxon_from_colours(self, taxon: str) -> None:
+        """
+        At various stages during the `treesapp colour` workflow, some taxa are removed/filtered from collections
+        with names of taxa that should be annotated on the phylogeny. They may be removed for multiple reasons,
+        such as too few members or being a polyphyletic group.
+
+        This function ensures that these taxa are removed from _all_ collections that list taxa so they are
+        guaranteed to not be included in any annotation (i.e. iTOL-compatible colour) files.
+
+        :param taxon: Name of a taxon to remove from the various collections
+        :return: None
+        """
+        for n, name in self.unique_clades.items():  # type: (int, str)
+            if name == taxon:
                 self.unique_clades.pop(n)
                 break
         self.taxon_leaf_map.pop(taxon)
         return
 
-    def filter_unwanted_taxa(self, taxa_filter, target_depth):
+    def filter_unwanted_taxa(self, taxa_filter: str) -> None:
         """
         A lineage-based string filter for excluding taxa from the output colour palette.
         Even though the palette is for taxa, and not complete lineages,
         we may want to filter out a very large group of organisms, such as Eukaryota.
         This facilitates that operation so not all taxa from that larger group need to be individually named
-        :param taxa_filter:
-        :param target_depth:
-        :return:
+
+        :param taxa_filter: A comma-separated list of taxa to remove from those that should be coloured
+        :return: None
         """
         filter_str = str(taxa_filter) + " taxa that won't be coloured:\n\t"
         filtered_taxa = set()
         filtered_seqs = 0
         filter_terms = taxa_filter.split(',')
         for leaf in self.tree_leaves:  # type: TreeLeafReference
+            if not leaf.lineage:
+                continue
             if len(filter_terms) > 0:
                 for term in filter_terms:
                     if re.search(term, leaf.lineage):
-                        lineage_path = leaf.lineage.split('; ')
-                        taxon = lineage_path[target_depth]
+                        lineage_path = leaf.lineage.split(self.ref_pkg.taxa_trie.lin_sep)
+                        taxon = lineage_path[self.rank_depth]
                         filtered_taxa.add(taxon)
+
         for taxon in filtered_taxa:
             self.num_taxa -= 1
             filtered_seqs += len(self.taxon_leaf_map[taxon])
             self.num_seqs -= len(self.taxon_leaf_map[taxon])
             self.remove_taxon_from_colours(taxon)
+
         filter_str += ", ".join(filtered_taxa) + "\n"
         filter_str += "Sequences from unwanted taxa removed\t" + str(filtered_seqs) + "\n"
         filter_str += "Unwanted taxa removed\t" + str(len(filtered_taxa)) + "\n"
@@ -155,7 +223,8 @@ class TaxaColours:
         logging.info(filter_str)
         return
 
-    def filter_polyphyletic_groups(self):
+    def filter_polyphyletic_groups(self) -> None:
+        bad_taxa = []
         for taxon in self.taxon_leaf_map:
             ancestral_node = None
             leaf_nodes = set(self.taxon_leaf_map[taxon])
@@ -171,11 +240,14 @@ class TaxaColours:
                     pass
             if not ancestral_node:
                 logging.warning("Unable to find internal node ancestral to all children of " + taxon + ".\n")
-                self.remove_taxon_from_colours(taxon)
+                bad_taxa.append(taxon)
                 continue
             if len(self.internal_node_map[ancestral_node]) > len(leaf_nodes):
                 logging.warning(taxon + " clade was found to be polyphyletic.\n")
-                self.remove_taxon_from_colours(taxon)
+                bad_taxa.append(taxon)
+
+        for taxon in bad_taxa:
+            self.remove_taxon_from_colours(taxon)
 
         return
 
@@ -188,8 +260,6 @@ class TaxaColours:
             # Sorting in descending order of number of child nodes
             for i_node in sorted(self.internal_node_map, key=lambda n: len(self.internal_node_map[n]), reverse=True):
                 i_node_leaves = set(self.internal_node_map[i_node])
-                # if "39" in i_node_leaves:
-                #     print(i_node_leaves)
                 if len(i_node_leaves) > len(taxon_leaves):
                     continue
                 # taxon_leaves can either be a superset or match
@@ -211,10 +281,11 @@ class TaxaColours:
         return taxa_internal_node_map
 
 
-def linearize_tree_leaves(tree_string):
+def linearize_tree_leaves(tree_string) -> list:
     """
     Parses a tree by depth-first search and returns the list
-    :return:
+
+    :return: A list of internal node identifiers sorted by post-order traversal
     """
     tree_root = ete3.Tree(tree_string)
     leaf_order = []
@@ -237,65 +308,12 @@ def convert_clades_to_ranges(taxa_clades: dict, leaf_order: list) -> dict:
     return taxa_ranges
 
 
-def get_arguments():
-    parser = argparse.ArgumentParser(add_help=False)
-    required_args = parser.add_argument_group("Required arguments")
-    required_args.add_argument("-t", "--tree", required=True,
-                               help="The tree for the reference package in NEWICK format.")
-    required_args.add_argument("-l", "--tax_ids_table", required=True,
-                               help="tax_ids table for the TreeSAPP marker under investigation. "
-                                    "Found in data/tree_data/tax_ids*.txt.")
-
-    optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument('-r', "--rank", default="Order", required=False,
-                        help="The rank to generate unique colours for [ DEFAULT = 'Order' ]")
-    optopt.add_argument("-o", "--output", default=None, required=False,
-                        help="Path to the output directory to write the output files. [ DEFAULT = ./ ]")
-    optopt.add_argument('-p', "--palette", default="BrBG", required=False,
-                        help="The Seaborn colour palette to use [ DEFAULT = BrBG ]")
-    optopt.add_argument('-m', '--min_proportion', dest="min_prop", default=0.0, required=False, type=float,
-                        help="Minimum proportion of sequences a group contains to assign colour [ DEFAULT = 0 ]")
-    optopt.add_argument("--no_polyphyletic", dest="no_poly", default=False, action="store_true", required=False,
-                        help="Flag forcing the omission of all polyphyletic taxa from the colours file.")
-    optopt.add_argument("-f", "--filter", dest="taxa_filter", default="", required=False,
-                        help="Keywords for excluding specific taxa from the colour palette.\n"
-                             "[ DEFAULT is no filter ]")
-
-    miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
-    miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
-                                    help='Prints a more verbose runtime log')
-    miscellaneous_opts.add_argument("-h", "--help",
-                                    action="help",
-                                    help="Show this help message and exit")
-
-    args = parser.parse_args()
-
-    if not args.output:
-        args.output = os.path.abspath(os.path.curdir)
-    if args.output[-1] != os.sep:
-        args.output += os.sep
-
-    return args
-
-
-def validate_command(args):
-    if sys.version_info < (2, 9):
-        logging.error("Python version '" + sys.version_info + "' not supported.\n")
-        sys.exit(3)
-
-    if args.rank not in rank_depth_map.values():
-        logging.error("Rank '" + args.rank + "' not accepted! Please choose one of the following:\n" +
-                      ", ".join([rank_depth_map[depth] for depth in rank_depth_map]) + "\n")
-        sys.exit(1)
-    return
-
-
 def create_write_file(file_name: str, text: str) -> None:
     # Open the output file
     try:
         file_handler = open(file_name, 'w')
     except IOError:
-        logging.error("Unable to open file '" + file_name + "' for writing!\n")
+        logging.error("Unable to open file '{}' for writing!\n".format(file_name))
         raise IOError
 
     # Write the iTOL-formatted header and node, colour and taxon fields
@@ -304,66 +322,22 @@ def create_write_file(file_name: str, text: str) -> None:
     return
 
 
-def read_tax_ids_file(taxa_colours: TaxaColours) -> None:
-    """
-
-    :param taxa_colours: A TaxaColours instance
-    :return: None
-    """
-    try:
-        cog_tax_ids = open(taxa_colours.tax_ids_file, 'r', encoding='utf-8')
-    except IOError:
-        logging.error('Can\'t open ' + str(taxa_colours.tax_ids_file) + '!\n')
-        sys.exit(3)
-    leaves = list()
-    for line in cog_tax_ids:
-        line = line.strip()
-        try:
-            fields = line.split("\t")
-        except ValueError:
-            logging.error('.split(\'\\t\') on ' + str(line) +
-                          " generated " + str(len(line.split("\t"))) + " fields.")
-            sys.exit(9)
-        if len(fields) == 2:
-            number, translation = fields
-            lineage = ""
-        elif len(fields) == 3:
-            number, translation, lineage = fields
-        else:
-            logging.error("Unexpected number of fields in " + taxa_colours.tax_ids_file +
-                          ".\nInvoked .split(\'\\t\') on line " + str(line))
-            raise ValueError
-        leaf_node = number + "_" + taxa_colours.marker
-        leaf = TreeLeafReference(leaf_node, translation)
-        if lineage:
-            leaf.lineage = lineage
-            leaf.complete = True
-        leaves.append(leaf)
-        taxa_colours.num_seqs += 1
-
-    taxa_colours.tree_leaves = leaves
-    cog_tax_ids.close()
-            
-    return
-
-
-def get_colours(args, taxa_colours, palette):
+def get_colours(painter: PhyPainter):
     clades = set()
-    for num in taxa_colours.unique_clades:
-        clades.add(taxa_colours.unique_clades[num])
+    for num in painter.unique_clades:
+        clades.add(painter.unique_clades[num])
 
     if len(clades) <= 1:
-        logging.error(str(len(clades)) + " unique clade(s) identified at rank '" + args.rank + "'\n" +
-                      "Consider changing rank to something more specific.\n"
-                      "It may also be worth glancing at " + args.tax_ids_table + " to see if its okay.\n")
+        logging.error("{} unique clade(s) identified at rank '{}'."
+                      " Consider changing rank to something more specific.\n".format(len(clades), painter.rank))
         sys.exit(4)
     else:
-        logging.debug("Identified " + str(len(clades)) + " unique clades at " + args.rank + " rank.\n")
+        logging.debug("Identified {} unique clades at {} rank.\n".format(len(clades), painter.rank))
 
     n_clade = len(clades)
     try:
-        colours = color_palette(palette, n_clade).as_hex()
-        logging.info("Using palette '" + args.palette + "' for styling.\n")
+        colours = color_palette(painter.palette, n_clade).as_hex()
+        logging.info("Using palette '{}' for styling.\n".format(painter.palette))
     except ValueError as e:
         logging.error(str(e) + "\n")
         sys.exit(4)
@@ -397,7 +371,7 @@ def map_colours_to_taxa(taxa_order, colours):
     return palette_taxa_map
 
 
-def write_colours_styles(taxa_colours: TaxaColours, palette_taxa_map: dict) -> None:
+def write_colours_styles(taxa_colours: PhyPainter, palette_taxa_map: dict) -> None:
     colourless = set()
 
     colours_style_string = "TREE_COLORS\nSEPARATOR TAB\nDATA\n"
@@ -410,8 +384,7 @@ def write_colours_styles(taxa_colours: TaxaColours, palette_taxa_map: dict) -> N
     # TODO: Find new way to track the uncoloured leaves
 
     logging.info("Output is available in " + taxa_colours.style_output + ".\n")
-    logging.debug(str(len(colourless)) + " lineages were not assigned to a colour:\n\t" +
-                  "\n\t".join(colourless) + "\n")
+    logging.debug("{} lineages were not assigned to a colour:\n\t{}\n".format(len(colourless), "\n\t".join(colourless)))
 
     create_write_file(taxa_colours.style_output, colours_style_string)
 
@@ -419,8 +392,6 @@ def write_colours_styles(taxa_colours: TaxaColours, palette_taxa_map: dict) -> N
 
 
 def write_colour_strip(taxa_nodes: dict, palette_taxa_map: dict, colour_strip_file: str) -> None:
-    colourless = set()
-
     colour_strip_text = "DATASET_COLORSTRIP\nSEPARATOR SPACE\nDATASET_LABEL clade_colours\n" +\
                         "STRIP_WIDTH 75\nMARGIN 0\nSHOW_INTERNAL 1\nDATA\n"
     for taxon in palette_taxa_map:
@@ -431,62 +402,9 @@ def write_colour_strip(taxa_nodes: dict, palette_taxa_map: dict, colour_strip_fi
                 colour_strip_text += " ".join(colours_style_line) + "\n"
 
     logging.info("Output is available in " + colour_strip_file + ".\n")
-    logging.debug(str(len(colourless)) + " lineages were not assigned to a colour:\n\t" +
-                  "\n\t".join(colourless) + "\n")
 
     create_write_file(colour_strip_file, colour_strip_text)
     return
-
-
-def init_taxa_colours(args):
-    if re.match(".*tax_ids_(.*).txt$", args.tax_ids_table):
-        taxa_colours = TaxaColours(args.tax_ids_table)
-        logging.debug("\tGenerating colour palette for " + taxa_colours.marker + ".\n")
-    else:
-        logging.error("Name of tax_ids file is formatted oddly.\n")
-        sys.exit(2)
-
-    if not os.path.isdir(args.output):
-        os.makedirs(args.output)
-
-    taxa_colours.style_output = args.output + taxa_colours.marker + "_colours_style.txt"
-    taxa_colours.strip_output = args.output + taxa_colours.marker + "_colour_strip.txt"
-
-    # Create the internal-node to leaf-node map
-    if not os.path.isfile(args.tree):
-        logging.error("Unable to find tree file '" + args.tree + "'\n")
-    tree_string = ""
-    with open(args.tree) as tree_handler:
-        for line in tree_handler:
-            tree_string += line.strip()
-
-    # add_internal_node function:
-    annotated_tree = ""
-    x = 0
-    i_node = 0
-    while x < len(tree_string):
-        c = tree_string[x]
-        if c in [',', ')', ';']:
-            annotated_tree += '{' + str(i_node) + '}'
-            i_node += 1
-        annotated_tree += c
-        x += 1
-    annotated_tree = re.sub(r"\)[0-9.]+:", "):", annotated_tree)
-    taxa_colours.internal_node_map = map_internal_nodes_leaves(annotated_tree)
-
-    return taxa_colours
-
-
-def find_rank_depth(args):
-    target_depth = 0
-    for depth in rank_depth_map:
-        if rank_depth_map[depth] == args.rank:
-            target_depth = depth
-            break
-    if target_depth == 0:
-        logging.error("Rank '" + args.rank + "' not accepted!\n")
-        sys.exit(3)
-    return target_depth
 
 
 def clade_leaf_sides(clade_leaves, leaf_order: list) -> namedtuple:
@@ -516,38 +434,3 @@ def order_taxa(taxon_leaf_map: dict, leaf_order: list):
         taxon_order[i] = leftmost_taxon[index]
         i += 1
     return taxon_order
-
-
-def main():
-    args = get_arguments()
-
-    log_file_name = os.path.abspath("./TreeSAPP_auto-colour_log.txt")
-    prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\tGenerating colour-style file for iTOL\t\t\t##\n")
-    validate_command(args)
-
-    taxa_colours = init_taxa_colours(args)  # type: TaxaColours
-    read_tax_ids_file(taxa_colours)
-    target_depth = find_rank_depth(args)
-    taxa_colours.get_clades(target_depth)
-    if args.taxa_filter:
-        taxa_colours.filter_unwanted_taxa(args.taxa_filter, target_depth)
-    if args.no_poly:
-        # Optionally not colour polyphyletic clades based on args.no_poly
-        taxa_colours.filter_polyphyletic_groups()
-    if args.min_prop:
-        taxa_colours.filter_rare_groups(args.min_prop)
-    leaf_order = linearize_tree_leaves(args.tree)
-    colours = get_colours(args, taxa_colours, args.palette)
-    # Sort the nodes by their internal node order
-    taxa_order = order_taxa(taxa_colours.taxon_leaf_map, leaf_order)
-    palette_taxa_map = map_colours_to_taxa(taxa_order, colours)
-    write_colours_styles(taxa_colours, palette_taxa_map)
-    # Find the minimum set of monophyletic internal nodes for each taxon
-    taxa_clades = taxa_colours.find_mono_clades()
-    taxa_ranges = convert_clades_to_ranges(taxa_clades, leaf_order)
-    write_colour_strip(taxa_ranges, palette_taxa_map, taxa_colours.strip_output)
-
-
-if __name__ == "__main__":
-    main()
