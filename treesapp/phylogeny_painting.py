@@ -89,6 +89,8 @@ class PhyPainter(TreeSAPP):
             if not leaf.lineage:
                 continue
             lineage_path = leaf.lineage.split(self.ref_pkg.taxa_trie.lin_sep)
+            if len(lineage_path) < self.rank_depth-1:
+                continue
             if lineage_path[0] in domain_reps:
                 offsets.add(self.rank_depth - 1)
             elif lineage_path[0] in luca_reps:

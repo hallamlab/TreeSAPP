@@ -63,7 +63,7 @@ class TreesappTester(unittest.TestCase):
 
     def test_colour(self):
         from treesapp.commands import colour
-        colour_commands = ["-r", self.puha_pkl,
+        colour_commands = ["-r", self.mcra_pkl,
                            "-l", "family",
                            "-o", "./TreeSAPP_colour",
                            "--filter", "Gammaproteobacteria",
