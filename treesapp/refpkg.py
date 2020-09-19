@@ -438,6 +438,50 @@ class ReferencePackage:
                 children.append(leaf_node)
         return children
 
+    def get_leaf_nodes_for_taxon(self, taxon_name: str) -> list:
+        """
+        Find all of the leaf nodes (TreeLeafReference objects) in a reference package that represent a taxon
+
+        :param taxon_name: A rank-prefixed taxon name, such as 'd__Bacteria'
+        :return: A list of TreeLeafReference instances with taxon_name in their lineages
+        """
+        taxon_leaf_nodes = []
+        tree_leaves = sorted(self.generate_tree_leaf_references_from_refpkg(), key=lambda x: x.lineage)
+        for leaf in tree_leaves:  # type: TreeLeafReference
+            if not leaf.lineage:
+                continue
+            if taxon_name in leaf.lineage.split(self.taxa_trie.lin_sep):
+                taxon_leaf_nodes.append(leaf)
+        return taxon_leaf_nodes
+
+    def map_rank_representatives_to_leaves(self, rank_name: str) -> (dict, dict):
+        """
+        Loads unique taxa found in the tree into a dictionary where the values are all leaves of a taxon.
+
+        :param rank_name: Name of the rank to search for taxa
+        :return: A dictionary mapping unique taxa of rank 'rank_name' mapped to lists of
+        """
+        # Check rank name to see if its present in the hierarchy
+        if rank_name not in self.taxa_trie.accepted_ranks_depths:
+            self.taxa_trie.so_long_and_thanks_for_all_the_fish("Rank '{}' "
+                                                               "is not in hierarchy's accepted names.\n".format(rank_name))
+
+        taxon_leaf_map = {}
+        unique_taxa = {}
+
+        rank_representatives = self.taxa_trie.rank_representatives(rank_name, with_prefix=True)
+
+        for taxon_name in rank_representatives:
+            taxon_leaf_nodes = self.get_leaf_nodes_for_taxon(taxon_name)
+            taxon_leaf_map[taxon_name] = [leaf.number + '_' + self.prefix for leaf in taxon_leaf_nodes]
+
+            for leaf in taxon_leaf_nodes:  # type: TreeLeafReference
+                unique_taxa[leaf.number] = self.taxa_trie.hierarchy[taxon_name]
+
+        logging.info("{}: {} unique taxa.\n".format(self.prefix, len(taxon_leaf_map)))
+
+        return taxon_leaf_map, unique_taxa
+
     @staticmethod
     def get_unrelated_taxa(ref_leaf_nodes: dict, target_lineage: str, lin_sep="; ") -> set:
         """
@@ -481,6 +525,38 @@ class ReferencePackage:
                                  "Too shallow\t" + str(n_shallow),
                                  "Remaining\t" + str(len(off_target_ref_leaves))]) + "\n")
         return off_target_ref_leaves
+
+    def get_monophyletic_clades(self, taxon_name: str, leaf_nodes=None) -> list:
+        taxa_internal_node_map = []
+        if not leaf_nodes:
+            # Find all leaf nodes that represent taxon_name (i.e. p__Proteobacteria)
+            leaf_nodes = set([leaf.number + '_' + self.prefix for leaf in self.get_leaf_nodes_for_taxon(taxon_name)])
+
+        # Determine the deepest internal node that contains a monophyletic set of leaf_nodes
+        # Sorting in descending order of number of child nodes
+        internal_node_map = self.get_internal_node_leaf_map()
+        for i_node in sorted(internal_node_map, key=lambda n: len(internal_node_map[n]), reverse=True):
+            i_node_leaves = set(internal_node_map[i_node])
+            if len(i_node_leaves) > len(leaf_nodes):
+                continue
+            # taxon_leaves can either be a superset or match
+            # Detect whether the internal node contains a set of only the leaves belonging to the taxon
+            if leaf_nodes.issuperset(i_node_leaves):
+                taxa_internal_node_map.append(i_node_leaves)
+                # Pop from the list of all taxon leaves
+                for leaf in i_node_leaves:
+                    leaf_nodes.remove(leaf)
+            else:
+                pass
+            if len(leaf_nodes) == 0:
+                break
+
+        if leaf_nodes:
+            logging.error("Unable to find an internal node containing the leaf nodes {} in reference package '{}'.\n"
+                          "".format(', '.join(leaf_nodes), self.prefix))
+            sys.exit(13)
+
+        return taxa_internal_node_map
 
     def remove_taxon_from_lineage_ids(self, taxon) -> None:
         """

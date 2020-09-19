@@ -13,6 +13,7 @@ class TreesappTester(unittest.TestCase):
         # Reference package pickles
         self.refpkg_dir = get_test_data(os.path.join("refpkgs"))
         self.mcra_pkl = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        self.mcrb_pkl = get_test_data(os.path.join("refpkgs", "McrB_build.pkl"))
         self.puha_pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
 
         # Output examples
@@ -63,10 +64,11 @@ class TreesappTester(unittest.TestCase):
 
     def test_colour(self):
         from treesapp.commands import colour
-        colour_commands = ["-r", self.mcra_pkl,
+        colour_commands = ["-r", self.mcra_pkl, self.mcrb_pkl,
                            "-l", "family",
                            "-o", "./TreeSAPP_colour",
-                           "--filter", "Gammaproteobacteria",
+                           "--filter", "Methanococcales",
+                           "--min_proportion", str(0.01),
                            "--no_polyphyletic"]
         colour(colour_commands)
         self.assertEqual(True, False)

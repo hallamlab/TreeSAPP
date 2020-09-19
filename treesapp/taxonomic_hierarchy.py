@@ -703,7 +703,7 @@ class TaxonomicHierarchy:
 
         :param rank_name: Name of the rank to search for taxa
         :param with_prefix: Flag indicating whether the taxa names should include the rank prefix (True) or not
-        :return: Set containing all taxa in the hierarchy that represent a specific rank
+        :return: Set containing all taxa names (not Taxon instances) in the hierarchy that represent a specific rank
         """
         # Check rank name to see if its present in the hierarchy
         if rank_name not in self.accepted_ranks_depths:

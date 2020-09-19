@@ -339,6 +339,13 @@ class TreeSAPP:
                     file_name, suffix2 = os.path.splitext(file_name)
                 self.sample_prefix = file_name
                 self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
+
+        if self.command != "colour" and "pkg_path" in vars(args):
+            args.pkg_path = args.pkg_path.pop(0)
+            if len(args.pkg_path) > 1:
+                logging.warning("Multiple reference packages cannot be used by treesapp {}.\n"
+                                "Only the first one ({}) will be used.\n".format(self.command, args.pkg_path))
+
         self.executables = self.find_executables(args)
         return
 

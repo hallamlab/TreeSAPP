@@ -958,33 +958,62 @@ def colour(sys_args):
     treesapp_args.add_colour_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_painter = paint.PhyPainter()
-
     log_file_name = os.path.join(args.output, "TreeSAPP_colour_log.txt")
     classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tPainting a phylogeny\t\t\t##\n")
-    treesapp_args.check_parser_arguments(args, sys_args)
-    ts_painter.primer(args)
-    ts_painter.check_rank_depth()
 
-    ts_painter.get_clades()
-    if args.taxa_filter:
-        ts_painter.filter_unwanted_taxa(args.taxa_filter)
-    if args.no_poly:
-        # Optionally not colour polyphyletic clades based on args.no_poly
-        ts_painter.filter_polyphyletic_groups()
-    if args.min_prop:
-        ts_painter.filter_rare_groups(args.min_prop)
-    leaf_order = paint.linearize_tree_leaves(ts_painter.ref_pkg.f__tree)
-    colours = paint.get_colours(ts_painter)
+    treesapp_args.check_parser_arguments(args, sys_args)
+
+    ts_painter = paint.PhyPainter()
+    ts_painter.primer(args)
+
+    # Find the taxa that should be coloured for each reference package
+    for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ReferencePackage)
+        ts_painter.find_rank_depth(ref_pkg, ref_pkg.taxa_trie.accepted_ranks_depths[ts_painter.rank])
+
+        taxon_leaf_map, unique_taxa = ref_pkg.map_rank_representatives_to_leaves(rank_name=ts_painter.rank)
+        internal_node_map = ref_pkg.get_internal_node_leaf_map()
+        ts_painter.num_taxa = len(taxon_leaf_map)
+        ts_painter.num_seqs = len(unique_taxa)
+
+        # Begin filtering leaf nodes
+        if args.taxa_filter:
+            taxa = ts_painter.filter_unwanted_taxa(taxon_leaf_map, unique_taxa, args.taxa_filter)
+            ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
+        if args.no_poly:
+            taxa = ts_painter.filter_polyphyletic_groups(taxon_leaf_map=taxon_leaf_map,
+                                                         internal_node_map=internal_node_map)
+            ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
+        if args.min_prop:
+            taxa = ts_painter.filter_rare_groups(taxon_leaf_map, ref_pkg.num_seqs, args.min_prop)
+            ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
+
+        ts_painter.refpkg_leaf_nodes_to_colour[refpkg_name] = taxon_leaf_map
+        # Find the intersection or union between reference packages analyzed so far
+        ts_painter.harmonize_taxa_colours(taxon_leaf_map, args.set_op)
+
     # Sort the nodes by their internal node order
-    taxa_order = paint.order_taxa(ts_painter.taxon_leaf_map, leaf_order)
+    taxa_order = paint.order_taxa(taxa_to_colour=ts_painter.taxa_to_colour,
+                                  taxon_leaf_map=ts_painter.refpkg_leaf_nodes_to_colour[ref_pkg.prefix],
+                                  leaf_order=paint.linearize_tree_leaves(ref_pkg.f__tree))
+
+    # Determine the palette to use for taxa across all reference packages
+    colours = paint.get_colours(ts_painter.taxa_to_colour, ts_painter.palette, ts_painter.rank)
     palette_taxa_map = paint.map_colours_to_taxa(taxa_order, colours)
-    paint.write_colours_styles(ts_painter, palette_taxa_map)
-    # Find the minimum set of monophyletic internal nodes for each taxon
-    taxa_clades = ts_painter.find_mono_clades()
-    taxa_ranges = paint.convert_clades_to_ranges(taxa_clades, leaf_order)
-    paint.write_colour_strip(taxa_ranges, palette_taxa_map, ts_painter.strip_output)
+
+    # Create the iTOL colour files
+    for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ReferencePackage)
+        taxon_leaf_map = ts_painter.refpkg_leaf_nodes_to_colour[refpkg_name]
+        style_file = ts_painter.output_dir + ref_pkg.prefix + "_colours_style.txt"
+        strip_file = ts_painter.output_dir + ref_pkg.prefix + "_colour_strip.txt"
+
+        # Find the minimum set of monophyletic internal nodes for each taxon
+        taxa_clades = ts_painter.find_mono_clades(taxon_leaf_map, ref_pkg)
+        taxa_ranges = paint.convert_clades_to_ranges(taxa_clades, paint.linearize_tree_leaves(ref_pkg.f__tree))
+
+        paint.write_colours_styles(taxon_leaf_map, palette_taxa_map, style_output=style_file)
+
+        paint.write_colour_strip(taxa_ranges, palette_taxa_map, colour_strip_file=strip_file)
 
     return
 

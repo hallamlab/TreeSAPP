@@ -76,7 +76,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       " is the query sequence name.")
 
     def add_refpkg_file_param(self):
-        self.reqs.add_argument("-r", "--refpkg_path", dest="pkg_path", required=True,
+        self.reqs.add_argument("-r", "--refpkg_path", dest="pkg_path", required=True, nargs='+',
                                help="Path to the reference package pickle (.pkl) file.\n")
 
     def add_seq_params(self):
@@ -196,17 +196,18 @@ def add_info_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_package_arguments(parser: TreeSAPPArgumentParser, attributes: list):
-    parser.add_refpkg_file_param()
+def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
+    pkg_parser.add_refpkg_file_param()
 
-    parser.reqs.add_argument("attributes", nargs="+",
-                             help="One or more reference package attributes to view. "
-                                  "Note: edit will only modify a single attribute at a time. "
-                                  "Choices include: {}\n".format(', '.join(attributes)))
-    parser.optopt.add_argument('-o', '--output', default=None, required=False,
-                               help='Path to an output directory. Default is the same directory as reference package.')
-    parser.optopt.add_argument("--overwrite", default=False, required=False, action="store_true",
-                               help="When editing a reference package, should the current file be overwritten?")
+    pkg_parser.reqs.add_argument("attributes", nargs="+",
+                                 help="One or more reference package attributes to view. "
+                                      "Note: edit will only modify a single attribute at a time. "
+                                      "Choices include: {}\n".format(', '.join(attributes)))
+    pkg_parser.optopt.add_argument('-o', '--output', default=None, required=False,
+                                   help='Path to an output directory. '
+                                        'Default is the same directory as reference package.')
+    pkg_parser.optopt.add_argument("--overwrite", default=False, required=False, action="store_true",
+                                   help="When editing a reference package, should the current file be overwritten?")
     return
 
 
@@ -229,6 +230,11 @@ def add_colour_arguments(colour_parser: TreeSAPPArgumentParser) -> None:
     colour_parser.optopt.add_argument("-f", "--filter", dest="taxa_filter", default="", required=False,
                                       help="Keywords for excluding specific taxa from the colour palette.\n"
                                            "[ DEFAULT is no filter ]")
+    colour_parser.optopt.add_argument("-s", "--taxa_set_operation", dest="set_op", required=False,
+                                      choices=['u', 'i'], default='u',
+                                      help="When multiple reference packages are provided, should the union (u) or"
+                                           " intersection (i) of all labelled taxa (post-filtering) be coloured?"
+                                           " [ DEFAULT = 'u' ]")
     return
 
 
@@ -696,7 +702,8 @@ def check_create_arguments(creator: Creator, args) -> None:
 def check_updater_arguments(updater: Updater, args):
     updater.ref_pkg.f__json = args.pkg_path
     updater.ref_pkg.slurp()
-    updater.updated_refpkg_path = os.path.join(updater.output_dir, "final_outputs", os.path.basename(args.pkg_path))
+    updater.updated_refpkg_path = os.path.join(updater.output_dir, "final_outputs",
+                                               os.path.basename(updater.ref_pkg.f__json))
     updater.ref_pkg.disband(os.path.join(updater.output_dir, "intermediates"))
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
