@@ -203,9 +203,9 @@ def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
                                  help="One or more reference package attributes to view. "
                                       "Note: edit will only modify a single attribute at a time. "
                                       "Choices include: {}\n".format(', '.join(attributes)))
-    pkg_parser.optopt.add_argument('-o', '--output', default=None, required=False,
+    pkg_parser.optopt.add_argument('-o', '--output', default="./", required=False,
                                    help='Path to an output directory. '
-                                        'Default is the same directory as reference package.')
+                                        'Default is the current working directory.')
     pkg_parser.optopt.add_argument("--overwrite", default=False, required=False, action="store_true",
                                    help="When editing a reference package, should the current file be overwritten?")
     return

@@ -127,23 +127,22 @@ Use '-h' to get subcommand-specific help, e.g.
     treesapp_args.add_package_arguments(parser, refpkg.get_public_attributes())
     args = parser.parse_args(sys_args)
 
-    if not args.output:
-        args.output = os.path.dirname(args.pkg_path)
     if not os.path.isdir(args.output):
         os.mkdir(args.output)
 
     classy.prep_logging(os.path.join(args.output, 'TreeSAPP_package_log.txt'))
 
-    refpkg.f__json = args.pkg_path
-    refpkg.slurp()
+    for refpkg_pkl in args.pkg_path:
+        refpkg.f__json = refpkg_pkl
+        refpkg.slurp()
 
-    if args.subcommand == "view":
-        view(refpkg, args.attributes)
-    elif args.subcommand == "edit":
-        edit(refpkg, args.attributes, args.output, args.overwrite)
-    else:
-        logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
-        sys.exit(1)
+        if args.subcommand == "view":
+            view(refpkg, args.attributes)
+        elif args.subcommand == "edit":
+            edit(refpkg, args.attributes, args.output, args.overwrite)
+        else:
+            logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
+            sys.exit(1)
 
     return
 

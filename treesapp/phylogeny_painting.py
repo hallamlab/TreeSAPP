@@ -90,7 +90,8 @@ class PhyPainter(TreeSAPP):
         domain_reps = ref_pkg.taxa_trie.rank_representatives("domain", with_prefix=True)
         luca_reps = ref_pkg.taxa_trie.rank_representatives("root", with_prefix=True)
 
-        for leaf in sorted(ref_pkg.generate_tree_leaf_references_from_refpkg(), key=lambda x: x.lineage):  # type: TreeLeafReference
+        ref_leaf_nodes = sorted(ref_pkg.generate_tree_leaf_references_from_refpkg(), key=lambda x: x.lineage)
+        for leaf in ref_leaf_nodes:  # type: TreeLeafReference
             if not leaf.lineage:
                 continue
             lineage_path = leaf.lineage.split(ref_pkg.taxa_trie.lin_sep)
@@ -216,7 +217,8 @@ class PhyPainter(TreeSAPP):
 
         return bad_taxa
 
-    def find_mono_clades(self, taxon_leaf_map: dict, ref_pkg: ReferencePackage) -> dict:
+    @staticmethod
+    def find_mono_clades(taxon_leaf_map: dict, ref_pkg: ReferencePackage) -> dict:
         """
 
         :param taxon_leaf_map: A dictionary with rank-prefixed taxon names as keys mapping to all leaf nodes
