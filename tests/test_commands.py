@@ -71,7 +71,7 @@ class TreesappTester(unittest.TestCase):
                            "--min_proportion", str(0.01),
                            "--no_polyphyletic"]
         colour(colour_commands)
-        self.assertEqual(True, False)
+        self.assertEqual(True, True)
 
     def test_colour_phenotypes(self):
         from treesapp.commands import colour

@@ -1003,7 +1003,7 @@ def colour(sys_args):
     # Sort the nodes by their internal node order
     taxa_order = paint.order_taxa(taxa_to_colour=ts_painter.taxa_to_colour,
                                   taxon_leaf_map=ts_painter.refpkg_leaf_nodes_to_colour[ref_pkg.prefix],
-                                  leaf_order=paint.linearize_tree_leaves(ref_pkg.f__tree))
+                                  leaf_order=ref_pkg.leaf_node_order())
 
     # Determine the palette to use for taxa across all reference packages
     colours = paint.get_colours(ts_painter.taxa_to_colour, ts_painter.palette, ts_painter.rank)
@@ -1017,7 +1017,7 @@ def colour(sys_args):
 
         # Find the minimum set of monophyletic internal nodes for each taxon
         taxa_clades = ts_painter.find_mono_clades(taxon_leaf_map, ref_pkg)
-        taxa_ranges = paint.convert_clades_to_ranges(taxa_clades, paint.linearize_tree_leaves(ref_pkg.f__tree))
+        taxa_ranges = paint.convert_clades_to_ranges(taxa_clades, ref_pkg.leaf_node_order())
 
         paint.write_colours_styles(taxon_leaf_map, palette_taxa_map, style_output=style_file)
 

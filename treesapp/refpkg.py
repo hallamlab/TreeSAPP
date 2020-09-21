@@ -365,6 +365,19 @@ class ReferencePackage:
         node_map[i] = leaf_stack.pop() + leaf_stack.pop()
         return node_map
 
+    def leaf_node_order(self) -> list:
+        """
+        Parses a tree by depth-first search and returns the list
+
+        :return: A list of internal node identifiers sorted by post-order traversal
+        """
+        tree_root = Tree(self.tree)
+        leaf_order = []
+        for node in tree_root.traverse(strategy="postorder"):
+            if node.name:
+                leaf_order.append(node.name)
+        return leaf_order
+
     def generate_tree_leaf_references_from_refpkg(self) -> list:
         """
         From the dictionary containing lineage and organism information of reference sequences (self.lineage_ids)

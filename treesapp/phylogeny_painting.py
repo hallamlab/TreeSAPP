@@ -7,7 +7,6 @@ import re
 import os
 import logging
 
-import ete3
 from collections import namedtuple
 from seaborn import color_palette
 
@@ -251,20 +250,6 @@ class PhyPainter(TreeSAPP):
             sys.exit(17)
 
         return
-
-
-def linearize_tree_leaves(tree_string) -> list:
-    """
-    Parses a tree by depth-first search and returns the list
-
-    :return: A list of internal node identifiers sorted by post-order traversal
-    """
-    tree_root = ete3.Tree(tree_string)
-    leaf_order = []
-    for node in tree_root.traverse(strategy="postorder"):
-        if node.name:
-            leaf_order.append(node.name)
-    return leaf_order
 
 
 def convert_clades_to_ranges(taxa_clades: dict, leaf_order: list) -> dict:
