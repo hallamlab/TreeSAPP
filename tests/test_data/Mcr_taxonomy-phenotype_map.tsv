@@ -1,0 +1,18 @@
+g__Methanothrix	Aceticlastic
+g__Methanosarcina	Aceticlastic
+o__Methanomicrobiales	CO2-dependent hydrogenotrophy
+o__Methanocellales	CO2-dependent hydrogenotrophy
+o__Methanobacteriales	CO2-dependent hydrogenotrophy
+p__Candidatus Verstraetearchaeota	CH3-dependent hydrogenotrophy
+o__Methanomassiliicoccales	CH3-dependent hydrogenotrophy
+c__Methanonatronarchaeia	CH3-dependent hydrogenotrophy
+s__Methanosarcinales stadtmanae	CH3-dependent hydrogenotrophy
+g__Methanococcoides	Methylotrophic
+g__Methanolobus	Methylotrophic
+g__Methanohalophilus	Methylotrophic
+# ANME 1a-b	Methanotrophic
+# ANME 2a-d	Methanotrophic
+# ANME 3	Methanotrophic
+Candidatus Syntrophoarchaeum caldarius	Short-chain alkane oxidation
+Candidatus Syntrophoarchaeum butanivorans	Short-chain alkane oxidation
+p__Candidatus Bathyarchaeota	Short-chain alkane oxidation

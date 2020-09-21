@@ -216,7 +216,7 @@ def add_colour_arguments(colour_parser: TreeSAPPArgumentParser) -> None:
 
     colour_parser.optopt.add_argument('-l', "--rank_level", dest="rank", default="order", required=False,
                                       help="The rank to generate unique colours for [ DEFAULT = 'order' ]")
-    colour_parser.optopt.add_argument("-o", "--output", default=None, required=False,
+    colour_parser.optopt.add_argument("-o", "--output", default="./", required=False,
                                       help="Path to the output directory to write the output files. [ DEFAULT = ./ ]")
     colour_parser.optopt.add_argument('-p', "--palette", default="BrBG", required=False,
                                       help="The Seaborn colour palette to use [ DEFAULT = BrBG ]")
@@ -235,6 +235,9 @@ def add_colour_arguments(colour_parser: TreeSAPPArgumentParser) -> None:
                                       help="When multiple reference packages are provided, should the union (u) or"
                                            " intersection (i) of all labelled taxa (post-filtering) be coloured?"
                                            " [ DEFAULT = 'u' ]")
+    colour_parser.optopt.add_argument("-t", "--taxa_map", dest="phenotypes", required=False, default=None,
+                                      help="A file mapping unique taxonomic labels to non-unique features "
+                                           "(e.g. activity, pathway, or other phenotype)")
     return
 
 

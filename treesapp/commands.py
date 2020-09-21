@@ -966,26 +966,35 @@ def colour(sys_args):
     ts_painter = paint.PhyPainter()
     ts_painter.primer(args)
 
+    if ts_painter.phenotypes:
+        ts_painter.taxa_phenotype_map = paint.read_phenotypes(args.phenotypes)
+
     # Find the taxa that should be coloured for each reference package
     for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ReferencePackage)
-        ts_painter.find_rank_depth(ref_pkg, ref_pkg.taxa_trie.accepted_ranks_depths[ts_painter.rank])
+        if ts_painter.phenotypes:
+            target_taxa = list(ts_painter.taxa_phenotype_map.keys())
+            taxon_leaf_map = paint.convert_taxa_to_phenotypes(taxon_leaf_map=paint.map_taxa_to_leaf_nodes(target_taxa,
+                                                                                                          ref_pkg),
+                                                              phenotypes_map=ts_painter.taxa_phenotype_map)
+        else:
+            ts_painter.find_rank_depth(ref_pkg, ref_pkg.taxa_trie.accepted_ranks_depths[ts_painter.rank])
 
-        taxon_leaf_map, unique_taxa = ref_pkg.map_rank_representatives_to_leaves(rank_name=ts_painter.rank)
-        internal_node_map = ref_pkg.get_internal_node_leaf_map()
-        ts_painter.num_taxa = len(taxon_leaf_map)
-        ts_painter.num_seqs = len(unique_taxa)
+            taxon_leaf_map, unique_taxa = ref_pkg.map_rank_representatives_to_leaves(rank_name=ts_painter.rank)
+            internal_node_map = ref_pkg.get_internal_node_leaf_map()
+            ts_painter.num_taxa = len(taxon_leaf_map)
+            ts_painter.num_seqs = len(unique_taxa)
 
-        # Begin filtering leaf nodes
-        if args.taxa_filter:
-            taxa = ts_painter.filter_unwanted_taxa(taxon_leaf_map, unique_taxa, args.taxa_filter)
-            ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
-        if args.no_poly:
-            taxa = ts_painter.filter_polyphyletic_groups(taxon_leaf_map=taxon_leaf_map,
-                                                         internal_node_map=internal_node_map)
-            ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
-        if args.min_prop:
-            taxa = ts_painter.filter_rare_groups(taxon_leaf_map, ref_pkg.num_seqs, args.min_prop)
-            ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
+            # Begin filtering leaf nodes
+            if args.taxa_filter:
+                taxa = ts_painter.filter_unwanted_taxa(taxon_leaf_map, unique_taxa, args.taxa_filter)
+                ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
+            if args.no_poly:
+                taxa = ts_painter.filter_polyphyletic_groups(taxon_leaf_map=taxon_leaf_map,
+                                                             internal_node_map=internal_node_map)
+                ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
+            if args.min_prop:
+                taxa = ts_painter.filter_rare_groups(taxon_leaf_map, ref_pkg.num_seqs, args.min_prop)
+                ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
 
         ts_painter.refpkg_leaf_nodes_to_colour[refpkg_name] = taxon_leaf_map
         # Find the intersection or union between reference packages analyzed so far

@@ -454,6 +454,20 @@ class ReferencePackage:
                 taxon_leaf_nodes.append(leaf)
         return taxon_leaf_nodes
 
+    def get_leaf_node_by_name(self, leaf_name: str) -> list:
+        leaves = []
+        for leaf_node in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
+            if leaf_name == leaf_node.description:
+                leaves.append(leaf_node)
+            desc, acc = leaf_node.description.split(" | ")
+            if leaf_name == desc or leaf_name == acc:
+                leaves.append(leaf_node)
+
+        if len(leaves) == 0:
+            logging.warning("Unable to find leaf '{}' in {} reference package leaves.\n".format(leaf_name, self.prefix))
+
+        return leaves
+
     def map_rank_representatives_to_leaves(self, rank_name: str) -> (dict, dict):
         """
         Loads unique taxa found in the tree into a dictionary where the values are all leaves of a taxon.

@@ -73,6 +73,16 @@ class TreesappTester(unittest.TestCase):
         colour(colour_commands)
         self.assertEqual(True, False)
 
+    def test_colour_phenotypes(self):
+        from treesapp.commands import colour
+        from .testing_utils import get_test_data
+        colour_commands = ["-r", self.mcra_pkl,
+                           "-o", "./TreeSAPP_colour",
+                           "--palette", "viridis",
+                           "--taxa_map", get_test_data("Mcr_taxonomy-phenotype_map.tsv")]
+        colour(colour_commands)
+        self.assertTrue(True)
+
     def test_create(self):
         from treesapp.commands import create
         from treesapp.refpkg import ReferencePackage

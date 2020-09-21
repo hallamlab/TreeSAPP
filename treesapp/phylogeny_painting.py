@@ -31,7 +31,9 @@ class PhyPainter(TreeSAPP):
         super(PhyPainter, self).__init__("colour")
         self.refpkg_dict = {}
         self.refpkg_leaf_nodes_to_colour = {}
+        self.taxa_phenotype_map = {}
         self.taxa_to_colour = set()
+        self.phenotypes = False
         self.rank = ""
         self.palette = ""
         self.set_op = ""
@@ -71,6 +73,9 @@ class PhyPainter(TreeSAPP):
         else:
             self.rank = args.rank
         self.palette = args.palette
+
+        if args.phenotypes:
+            self.phenotypes = True
 
         return
 
@@ -412,3 +417,61 @@ def order_taxa(taxa_to_colour: set, taxon_leaf_map: dict, leaf_order: list):
         taxon_order[i] = taxon
         i += 1
     return taxon_order
+
+
+def read_phenotypes(phenotypes_file: str) -> dict:
+    taxa_phenotype_map = {}
+    try:
+        file_handler = open(phenotypes_file, 'r')
+    except IOError:
+        logging.error("Unable to open taxa-phenotype table '{}' for reading.\n".format(phenotypes_file))
+        sys.exit(7)
+
+    for line in file_handler:
+        if not line or line[0] == '#':
+            continue
+        try:
+            taxon_name, phenotype = line.rstrip().split("\t")
+        except ValueError:
+            logging.error("Unable to parse line in {}:\n{}\n".format(phenotypes_file, line))
+            sys.exit(9)
+        if taxon_name in taxa_phenotype_map:
+            logging.warning("Taxon '{}' found in {} multiple times and will be overwritten.\n"
+                            "".format(taxon_name, phenotypes_file))
+        taxa_phenotype_map[taxon_name.strip()] = phenotype.strip()
+
+    file_handler.close()
+
+    return taxa_phenotype_map
+
+
+def map_taxa_to_leaf_nodes(leaf_names: list, refpkg: ReferencePackage) -> dict:
+    taxon_leaf_map = {}
+    i = 0
+    # Collect the leaf names for taxa names
+    while i < len(leaf_names):
+        taxon_name = leaf_names[i]  # type: str
+        if taxon_name not in refpkg.taxa_trie.hierarchy:
+            i += 1
+        else:
+            taxon_leaf_nodes = refpkg.get_leaf_nodes_for_taxon(taxon_name)
+            taxon_leaf_map[taxon_name] = [leaf.number + '_' + refpkg.prefix for leaf in taxon_leaf_nodes]
+            leaf_names.pop(i)
+    # The remaining names in leaf_names refer to individual leaf nodes, not higher-level taxa
+    for leaf_name in leaf_names:
+        leaves = refpkg.get_leaf_node_by_name(leaf_name)
+        if leaves:
+            taxon_leaf_map[leaf_name] = [leaf.number + '_' + refpkg.prefix for leaf in leaves]
+    return taxon_leaf_map
+
+
+def convert_taxa_to_phenotypes(taxon_leaf_map: dict, phenotypes_map: dict) -> dict:
+    phenotype_leaf_map = {}
+    while taxon_leaf_map:
+        taxon, leaves = taxon_leaf_map.popitem()  # type: (str, list)
+        phenotype = phenotypes_map[taxon]  # type: str
+        try:
+            phenotype_leaf_map[phenotype].extend(leaves)
+        except KeyError:
+            phenotype_leaf_map[phenotype] = leaves
+    return phenotype_leaf_map
