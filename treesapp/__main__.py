@@ -5,13 +5,14 @@ import sys
 import argparse
 import logging
 
-from .commands import (create, evaluate, abundance, assign, update, info, train, layer, purity, package)
+from .commands import (create, evaluate, abundance, assign, update, info, train, colour, layer, purity, package)
 
 usage = """
 treesapp <command> [<args>]
 ** Commands include:
 abundance      Calculate abundance measures for classified sequences 
 assign         Classify query [protein|genomic] sequences using reference packages
+colour         Colours a reference package's phylogeny based on taxonomic or phenotypic data
 create         Create a reference package for a new gene, domain or orthologous group
 evaluate       Evaluate the classification performance using clade exclusion analysis
 layer          Layer extra annotation information on classifications with iTOL colours-style file(s)
@@ -33,6 +34,7 @@ def main():
                 "update": update,
                 "info": info,
                 "train": train,
+                "colour": colour,
                 "layer": layer,
                 "purity": purity,
                 "package": package}

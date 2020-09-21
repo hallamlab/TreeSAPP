@@ -24,6 +24,7 @@ from treesapp import update_refpkg
 from treesapp import annotate_extra
 from treesapp import treesapp_args
 from treesapp import classy
+from treesapp import phylogeny_painting as paint
 from treesapp.phylo_seq import assignments_to_treesaps, PQuery, convert_entrez_to_tree_leaf_references
 from treesapp.refpkg import ReferencePackage, view, edit
 from treesapp.training_utils import train_classification_filter, vectorize_placement_data, generate_train_test_data,\
@@ -126,23 +127,22 @@ Use '-h' to get subcommand-specific help, e.g.
     treesapp_args.add_package_arguments(parser, refpkg.get_public_attributes())
     args = parser.parse_args(sys_args)
 
-    if not args.output:
-        args.output = os.path.dirname(args.pkg_path)
     if not os.path.isdir(args.output):
         os.mkdir(args.output)
 
     classy.prep_logging(os.path.join(args.output, 'TreeSAPP_package_log.txt'))
 
-    refpkg.f__json = args.pkg_path
-    refpkg.slurp()
+    for refpkg_pkl in args.pkg_path:
+        refpkg.f__json = refpkg_pkl
+        refpkg.slurp()
 
-    if args.subcommand == "view":
-        view(refpkg, args.attributes)
-    elif args.subcommand == "edit":
-        edit(refpkg, args.attributes, args.output, args.overwrite)
-    else:
-        logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
-        sys.exit(1)
+        if args.subcommand == "view":
+            view(refpkg, args.attributes)
+        elif args.subcommand == "edit":
+            edit(refpkg, args.attributes, args.output, args.overwrite)
+        else:
+            logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
+            sys.exit(1)
 
     return
 
@@ -947,6 +947,81 @@ def update(sys_args):
     ts_updater.updated_refpkg.f__json = ts_updater.updated_refpkg_path
     ts_updater.updated_refpkg.slurp()
     ts_updater.update_refpkg_fields()
+
+    return
+
+
+def colour(sys_args):
+    parser = treesapp_args.TreeSAPPArgumentParser(description="Colours a reference package's phylogeny based on"
+                                                              " taxonomic or phenotypic data.")
+    treesapp_args.add_colour_arguments(parser)
+    args = parser.parse_args(sys_args)
+
+    log_file_name = os.path.join(args.output, "TreeSAPP_colour_log.txt")
+    classy.prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\tPainting a phylogeny\t\t\t##\n")
+
+    treesapp_args.check_parser_arguments(args, sys_args)
+
+    ts_painter = paint.PhyPainter()
+    ts_painter.primer(args)
+
+    if ts_painter.phenotypes:
+        ts_painter.taxa_phenotype_map = paint.read_phenotypes(args.phenotypes)
+
+    # Find the taxa that should be coloured for each reference package
+    for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ReferencePackage)
+        if ts_painter.phenotypes:
+            target_taxa = list(ts_painter.taxa_phenotype_map.keys())
+            taxon_leaf_map = paint.convert_taxa_to_phenotypes(taxon_leaf_map=paint.map_taxa_to_leaf_nodes(target_taxa,
+                                                                                                          ref_pkg),
+                                                              phenotypes_map=ts_painter.taxa_phenotype_map)
+        else:
+            ts_painter.find_rank_depth(ref_pkg, ref_pkg.taxa_trie.accepted_ranks_depths[ts_painter.rank])
+
+            taxon_leaf_map, unique_taxa = ref_pkg.map_rank_representatives_to_leaves(rank_name=ts_painter.rank)
+            internal_node_map = ref_pkg.get_internal_node_leaf_map()
+            ts_painter.num_taxa = len(taxon_leaf_map)
+            ts_painter.num_seqs = len(unique_taxa)
+
+            # Begin filtering leaf nodes
+            if args.taxa_filter:
+                taxa = ts_painter.filter_unwanted_taxa(taxon_leaf_map, unique_taxa, args.taxa_filter)
+                ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
+            if args.no_poly:
+                taxa = ts_painter.filter_polyphyletic_groups(taxon_leaf_map=taxon_leaf_map,
+                                                             internal_node_map=internal_node_map)
+                ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
+            if args.min_prop:
+                taxa = ts_painter.filter_rare_groups(taxon_leaf_map, ref_pkg.num_seqs, args.min_prop)
+                ts_painter.remove_taxa_from_colours(taxon_leaf_map, unique_taxa, taxa)
+
+        ts_painter.refpkg_leaf_nodes_to_colour[refpkg_name] = taxon_leaf_map
+        # Find the intersection or union between reference packages analyzed so far
+        ts_painter.harmonize_taxa_colours(taxon_leaf_map, args.set_op)
+
+    # Sort the nodes by their internal node order
+    taxa_order = paint.order_taxa(taxa_to_colour=ts_painter.taxa_to_colour,
+                                  taxon_leaf_map=ts_painter.refpkg_leaf_nodes_to_colour[ref_pkg.prefix],
+                                  leaf_order=paint.linearize_tree_leaves(ref_pkg.f__tree))
+
+    # Determine the palette to use for taxa across all reference packages
+    colours = paint.get_colours(ts_painter.taxa_to_colour, ts_painter.palette, ts_painter.rank)
+    palette_taxa_map = paint.map_colours_to_taxa(taxa_order, colours)
+
+    # Create the iTOL colour files
+    for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ReferencePackage)
+        taxon_leaf_map = ts_painter.refpkg_leaf_nodes_to_colour[refpkg_name]
+        style_file = ts_painter.output_dir + ref_pkg.prefix + "_colours_style.txt"
+        strip_file = ts_painter.output_dir + ref_pkg.prefix + "_colour_strip.txt"
+
+        # Find the minimum set of monophyletic internal nodes for each taxon
+        taxa_clades = ts_painter.find_mono_clades(taxon_leaf_map, ref_pkg)
+        taxa_ranges = paint.convert_clades_to_ranges(taxa_clades, paint.linearize_tree_leaves(ref_pkg.f__tree))
+
+        paint.write_colours_styles(taxon_leaf_map, palette_taxa_map, style_output=style_file)
+
+        paint.write_colour_strip(taxa_ranges, palette_taxa_map, colour_strip_file=strip_file)
 
     return
 

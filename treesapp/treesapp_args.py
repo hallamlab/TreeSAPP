@@ -76,7 +76,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       " is the query sequence name.")
 
     def add_refpkg_file_param(self):
-        self.reqs.add_argument("-r", "--refpkg_path", dest="pkg_path", required=True,
+        self.reqs.add_argument("-r", "--refpkg_path", dest="pkg_path", required=True, nargs='+',
                                help="Path to the reference package pickle (.pkl) file.\n")
 
     def add_seq_params(self):
@@ -196,17 +196,48 @@ def add_info_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_package_arguments(parser: TreeSAPPArgumentParser, attributes: list):
-    parser.add_refpkg_file_param()
+def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
+    pkg_parser.add_refpkg_file_param()
 
-    parser.reqs.add_argument("attributes", nargs="+",
-                             help="One or more reference package attributes to view. "
-                                  "Note: edit will only modify a single attribute at a time. "
-                                  "Choices include: {}\n".format(', '.join(attributes)))
-    parser.optopt.add_argument('-o', '--output', default=None, required=False,
-                               help='Path to an output directory. Default is the same directory as reference package.')
-    parser.optopt.add_argument("--overwrite", default=False, required=False, action="store_true",
-                               help="When editing a reference package, should the current file be overwritten?")
+    pkg_parser.reqs.add_argument("attributes", nargs="+",
+                                 help="One or more reference package attributes to view. "
+                                      "Note: edit will only modify a single attribute at a time. "
+                                      "Choices include: {}\n".format(', '.join(attributes)))
+    pkg_parser.optopt.add_argument('-o', '--output', default="./", required=False,
+                                   help='Path to an output directory. '
+                                        'Default is the current working directory.')
+    pkg_parser.optopt.add_argument("--overwrite", default=False, required=False, action="store_true",
+                                   help="When editing a reference package, should the current file be overwritten?")
+    return
+
+
+def add_colour_arguments(colour_parser: TreeSAPPArgumentParser) -> None:
+    colour_parser.add_refpkg_file_param()
+
+    colour_parser.optopt.add_argument('-l', "--rank_level", dest="rank", default="order", required=False,
+                                      help="The rank to generate unique colours for [ DEFAULT = 'order' ]")
+    colour_parser.optopt.add_argument("-o", "--output", default="./", required=False,
+                                      help="Path to the output directory to write the output files. [ DEFAULT = ./ ]")
+    colour_parser.optopt.add_argument('-p', "--palette", default="BrBG", required=False,
+                                      help="The Seaborn colour palette to use [ DEFAULT = BrBG ]")
+    colour_parser.optopt.add_argument('-m', '--min_proportion', dest="min_prop",
+                                      default=0.0, required=False, type=float,
+                                      help="Minimum proportion of sequences a group contains to assign colour"
+                                           " [ DEFAULT = 0 ]")
+    colour_parser.optopt.add_argument("--no_polyphyletic", dest="no_poly",
+                                      default=False, action="store_true", required=False,
+                                      help="Flag forcing the omission of all polyphyletic taxa from the colours file.")
+    colour_parser.optopt.add_argument("-f", "--filter", dest="taxa_filter", default="", required=False,
+                                      help="Keywords for excluding specific taxa from the colour palette.\n"
+                                           "[ DEFAULT is no filter ]")
+    colour_parser.optopt.add_argument("-s", "--taxa_set_operation", dest="set_op", required=False,
+                                      choices=['u', 'i'], default='u',
+                                      help="When multiple reference packages are provided, should the union (u) or"
+                                           " intersection (i) of all labelled taxa (post-filtering) be coloured?"
+                                           " [ DEFAULT = 'u' ]")
+    colour_parser.optopt.add_argument("-t", "--taxa_map", dest="phenotypes", required=False, default=None,
+                                      help="A file mapping unique taxonomic labels to non-unique features "
+                                           "(e.g. activity, pathway, or other phenotype)")
     return
 
 
@@ -460,7 +491,7 @@ def check_parser_arguments(args, sys_args):
         logging.error("Python 2 is not supported by TreeSAPP.\n")
         sys.exit(3)
 
-    if args.num_threads > available_cpu_count():
+    if "num_threads" in vars(args) and args.num_threads > available_cpu_count():
         logging.warning("Number of threads specified is greater than those available! "
                         "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
         args.num_threads = available_cpu_count()
@@ -674,7 +705,8 @@ def check_create_arguments(creator: Creator, args) -> None:
 def check_updater_arguments(updater: Updater, args):
     updater.ref_pkg.f__json = args.pkg_path
     updater.ref_pkg.slurp()
-    updater.updated_refpkg_path = os.path.join(updater.output_dir, "final_outputs", os.path.basename(args.pkg_path))
+    updater.updated_refpkg_path = os.path.join(updater.output_dir, "final_outputs",
+                                               os.path.basename(updater.ref_pkg.f__json))
     updater.ref_pkg.disband(os.path.join(updater.output_dir, "intermediates"))
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
