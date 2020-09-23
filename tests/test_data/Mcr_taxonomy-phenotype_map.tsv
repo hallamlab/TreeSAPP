@@ -9,7 +9,7 @@ c__Methanonatronarchaeia	CH3-dependent hydrogenotrophy
 s__Methanosarcinales stadtmanae	CH3-dependent hydrogenotrophy
 g__Methanococcoides	Methylotrophic
 g__Methanolobus	Methylotrophic
-g__Methanohalophilus	Methylotrophic
+g__Methanohalophilus	Methylotrophic  # testing
 # ANME 1a-b	Methanotrophic
 # ANME 2a-d	Methanotrophic
 # ANME 3	Methanotrophic

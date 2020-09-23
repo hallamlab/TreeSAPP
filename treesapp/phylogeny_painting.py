@@ -412,7 +412,7 @@ def order_taxa(taxa_to_colour: set, taxon_leaf_map: dict, leaf_order: list):
     return taxon_order
 
 
-def read_phenotypes(phenotypes_file: str) -> dict:
+def read_phenotypes(phenotypes_file: str, comment_char='#') -> dict:
     taxa_phenotype_map = {}
     try:
         file_handler = open(phenotypes_file, 'r')
@@ -421,8 +421,10 @@ def read_phenotypes(phenotypes_file: str) -> dict:
         sys.exit(7)
 
     for line in file_handler:
-        if not line or line[0] == '#':
+        if not line or line[0] == comment_char:
             continue
+        if line.find(comment_char) >= 0:
+            line = line[:line.find(comment_char)]
         try:
             taxon_name, phenotype = line.rstrip().split("\t")
         except ValueError:
