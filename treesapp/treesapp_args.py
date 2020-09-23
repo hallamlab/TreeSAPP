@@ -29,6 +29,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.reqs = self.add_argument_group("Required parameters")
         self.seqops = self.add_argument_group("Sequence operation arguments")
         self.rpkm_opts = self.add_argument_group("RPKM options")
+        self.io = self.add_argument_group("Inputs and Outputs")
+        self.aes = self.add_argument_group("Aesthetic options")
         self.optopt = self.add_argument_group("Optional options")
         self.taxa_args = self.add_argument_group("Taxonomic-lineage arguments")
         self.miscellany = self.add_argument_group("Miscellaneous options")
@@ -214,19 +216,24 @@ def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
 def add_colour_arguments(colour_parser: TreeSAPPArgumentParser) -> None:
     colour_parser.add_refpkg_file_param()
 
-    colour_parser.optopt.add_argument('-l', "--rank_level", dest="rank", default="order", required=False,
-                                      help="The rank to generate unique colours for [ DEFAULT = 'order' ]")
-    colour_parser.optopt.add_argument("-o", "--output", default="./", required=False,
-                                      help="Path to the output directory to write the output files. [ DEFAULT = ./ ]")
-    colour_parser.optopt.add_argument('-p', "--palette", default="BrBG", required=False,
-                                      help="The Seaborn colour palette to use [ DEFAULT = BrBG ]")
+    colour_parser.io.add_argument("-n", "--name", required=False, default=None,
+                                  help="The prefix name to use when creating iTOL-compatible output files. "
+                                       "By default the taxonomic rank is used or file name of taxa_map if provided.")
+    colour_parser.io.add_argument("-o", "--output_dir", dest="output", default="./", required=False,
+                                  help="Path to the output directory to write the output files. [ DEFAULT = ./ ]")
+    colour_parser.io.add_argument("-t", "--taxa_map", dest="phenotypes", required=False, default=None,
+                                  help="A file mapping unique taxonomic labels to non-unique features "
+                                       "(e.g. activity, pathway, or other phenotype)")
+
+    colour_parser.aes.add_argument('-l', "--rank_level", dest="rank", default="order", required=False,
+                                   help="The rank to generate unique colours for [ DEFAULT = 'order' ]")
+    colour_parser.aes.add_argument('-p', "--palette", default="BrBG", required=False,
+                                   help="The Seaborn colour palette to use [ DEFAULT = BrBG ]")
+
     colour_parser.optopt.add_argument('-m', '--min_proportion', dest="min_prop",
                                       default=0.0, required=False, type=float,
                                       help="Minimum proportion of sequences a group contains to assign colour"
                                            " [ DEFAULT = 0 ]")
-    colour_parser.optopt.add_argument("--no_polyphyletic", dest="no_poly",
-                                      default=False, action="store_true", required=False,
-                                      help="Flag forcing the omission of all polyphyletic taxa from the colours file.")
     colour_parser.optopt.add_argument("-f", "--filter", dest="taxa_filter", default="", required=False,
                                       help="Keywords for excluding specific taxa from the colour palette.\n"
                                            "[ DEFAULT is no filter ]")
@@ -235,9 +242,9 @@ def add_colour_arguments(colour_parser: TreeSAPPArgumentParser) -> None:
                                       help="When multiple reference packages are provided, should the union (u) or"
                                            " intersection (i) of all labelled taxa (post-filtering) be coloured?"
                                            " [ DEFAULT = 'u' ]")
-    colour_parser.optopt.add_argument("-t", "--taxa_map", dest="phenotypes", required=False, default=None,
-                                      help="A file mapping unique taxonomic labels to non-unique features "
-                                           "(e.g. activity, pathway, or other phenotype)")
+    colour_parser.optopt.add_argument("--no_polyphyletic", dest="no_poly",
+                                      default=False, action="store_true", required=False,
+                                      help="Flag forcing the omission of all polyphyletic taxa from the colours file.")
     return
 
 

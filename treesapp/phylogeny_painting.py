@@ -36,6 +36,7 @@ class PhyPainter(TreeSAPP):
         self.rank = ""
         self.palette = ""
         self.set_op = ""
+        self.output_prefix = ""
         self.num_taxa = 0
         self.num_seqs = 0
         self.rank_depth = -1
@@ -75,6 +76,13 @@ class PhyPainter(TreeSAPP):
 
         if args.phenotypes:
             self.phenotypes = True
+
+        if args.name:
+            self.output_prefix = args.name
+        elif self.phenotypes:
+            self.output_prefix, _ = os.path.splitext(os.path.basename(args.phenotypes))
+        else:
+            self.output_prefix = self.rank
 
         return
 

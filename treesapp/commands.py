@@ -1012,8 +1012,10 @@ def colour(sys_args):
     # Create the iTOL colour files
     for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ReferencePackage)
         taxon_leaf_map = ts_painter.refpkg_leaf_nodes_to_colour[refpkg_name]
-        style_file = ts_painter.output_dir + ref_pkg.prefix + "_colours_style.txt"
-        strip_file = ts_painter.output_dir + ref_pkg.prefix + "_colour_strip.txt"
+        style_file = os.path.join(ts_painter.output_dir,
+                                  "{}_{}_colours_style.txt".format(ref_pkg.prefix, ts_painter.output_prefix))
+        strip_file = os.path.join(ts_painter.output_dir,
+                                  "{}_{}_colour_strip.txt".format(ref_pkg.prefix, ts_painter.output_prefix))
 
         # Find the minimum set of monophyletic internal nodes for each taxon
         taxa_clades = ts_painter.find_mono_clades(taxon_leaf_map, ref_pkg)
