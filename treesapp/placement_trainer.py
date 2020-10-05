@@ -428,12 +428,18 @@ def evo_dists_from_pqueries(pqueries: dict, training_ranks=None) -> dict:
                             "No phylogenetic placement data was generated for training.\n".format(rank))
             continue
 
-        stats_string = "RANK: " + rank + "\n"
-        stats_string += "\tSamples = " + str(len(taxonomic_placement_distances[rank])) + "\n"
-        stats_string += "\tMedian = " + str(round(utilities.median(taxonomic_placement_distances[rank]), 4)) + "\n"
-        stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
-                                                len(taxonomic_placement_distances[rank]), 4)) + "\n"
-        logging.debug(stats_string)
+        if len(taxonomic_placement_distances[rank]) == 0:
+            logging.error("No PQuery distances were transferred for rank {}.\n".format(rank))
+            sys.exit(17)
+
+        median_dist = round(utilities.median(taxonomic_placement_distances[rank]), 4)
+        mean_dist = round(utilities.mean(taxonomic_placement_distances[rank]), 4)
+
+        logging.debug("RANK: {}\n"
+                      "\tSamples = {}\n"
+                      "\tMedian = {}\n"
+                      "\tMean = {}\n"
+                      "".format(rank, len(taxonomic_placement_distances[rank]), median_dist, mean_dist))
     return taxonomic_placement_distances
 
 

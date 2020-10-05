@@ -849,7 +849,7 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_len
     fa_out_handle.write(fasta_string)
 
     end = time()
-    logging.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, end-start))
+    logging.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, round(end-start, 2)))
 
     if len(headers) == 0:
         logging.error("No sequences in FASTA {0} were saved.\n"

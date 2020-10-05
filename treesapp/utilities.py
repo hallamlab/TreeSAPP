@@ -374,7 +374,9 @@ def median(num_list: list):
     n = len(num_list)
     if n < 1:
         return None
-    if n % 2 == 1:
+    elif n == 1:
+        return num_list[0]
+    elif n % 2 == 1:
         return sorted(num_list)[n//2]
     else:
         return sum(sorted(num_list)[n//2-1:n//2+1])/2.0
