@@ -1070,7 +1070,7 @@ def layer(sys_args):
         # Determine the marker being annotated
         data_type, refpkg_prefix = "", ""
         for refpkg_name in refpkg_dict:  # type: str
-            annot_marker_re = re.compile(r"^{0}_(\w+).txt$".format(refpkg_name))
+            annot_marker_re = re.compile(r"^{0}_(\w+)_colours_style.txt$".format(refpkg_name))
             if annot_marker_re.match(os.path.basename(annot_f)):
                 data_type = annot_marker_re.match(os.path.basename(annot_f)).group(1)
                 refpkg_prefix = refpkg_name
