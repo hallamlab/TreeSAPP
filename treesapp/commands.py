@@ -247,7 +247,9 @@ def train(sys_args):
         if len(set(ts_trainer.training_ranks).difference(set(taxa_evo_dists))) > 0 or len(clade_ex_pqueries) == 0:
             clade_ex_pqueries = placement_trainer.gen_cladex_data(train_seqs.file, ts_trainer.executables,
                                                                   ts_trainer.ref_pkg, ts_trainer.seq_lineage_map,
-                                                                  ts_trainer.stage_output_dir, args.num_threads)
+                                                                  ts_trainer.stage_output_dir,
+                                                                  max_examples=args.max_examples,
+                                                                  num_threads=args.num_threads)
             jdump(value=clade_ex_pqueries, filename=os.path.join(ts_trainer.clade_ex_pquery_pkl))
 
         # Write the tab-delimited file with metadata included for each placement

@@ -179,6 +179,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                  choices=["domain", "phylum", "class", "order", "family", "genus", "species"])
 
     def add_classifier_model_params(self):
+        self.optopt.add_argument("--max_examples", required=False, default=1E3, type=int,
+                                 help="Limits the number of examples used for training models. [ DEFAULT = 1E3 ]")
         self.optopt.add_argument("-k", "--svm_kernel", required=False, default="lin",
                                  choices=["lin", "rbf", "poly"], dest="kernel",
                                  help="Specifies the kernel type to be used in the SVM algorithm. "

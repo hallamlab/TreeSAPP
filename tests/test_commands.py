@@ -279,11 +279,13 @@ class TreesappTester(unittest.TestCase):
         from treesapp.commands import train
         from .testing_utils import get_test_data
         output_dir_path = "./TreeSAPP_train"
+        max_ex = 50
         train_command_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
                               "--annot_map", get_test_data("ENOG4111FIN_annot_map.tsv"),
                               "--output", output_dir_path,
                               "--refpkg_path", self.puha_pkl,
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
+                              "--max_examples", str(max_ex),
                               "--num_proc", str(4),
                               "--molecule", "prot",
                               "--svm_kernel", "rbf",
@@ -298,7 +300,7 @@ class TreesappTester(unittest.TestCase):
                 rank_list.append(fields[1])
 
         self.assertEqual(0, len({"class", "order", "family", "genus", "species"}.difference(set(rank_list))))
-        self.assertEqual(120, len(rank_list))
+        self.assertEqual(max_ex, len(rank_list))
         return
 
     def test_package(self):

@@ -5,6 +5,7 @@ import sys
 import argparse
 import logging
 import re
+import random
 
 from tqdm import tqdm
 
@@ -443,9 +444,65 @@ def evo_dists_from_pqueries(pqueries: dict, training_ranks=None) -> dict:
     return taxonomic_placement_distances
 
 
+def reduce_examples(candidate_seqs: dict, max_examples: int) -> dict:
+    """
+    When building reference packages for large, diverse protein families users may encounter many thousands of sequences
+    that could be used for training the various models TreeSAPP uses to improve classifications.
+
+    This function is used to equitably sample sequence names (i.e. examples for training) across
+    taxa and taxonomic ranks.
+
+    :param candidate_seqs: A dictionary containing the names of sequences to be used for training.
+     The taxonomic rank indexes a sub-dictionary with taxa names as keys and a list of sequence names for values.
+    :param max_examples: The maximum number of sequence names (to sample from candidate_seqs)
+    :return: A dictionary following the same format as candidate_seqs but containing the number of examples desired
+    """
+    random.seed(987)
+    rank_training_seqs = {}
+    r_i = 0  # The index for iterating over the ranks
+    n = 0  # The number of candidate sequences added to rank_training_seqs
+
+    # Evenly sample the sequences from the rank_training_seqs dict across ranks and taxa
+    ranks = list(candidate_seqs.keys())
+    while n < max_examples:
+        # Loop back to the beginning if the rank index has exceeded the number of ranks
+        if r_i >= len(ranks):
+            r_i = 0
+        # Quite iterating if there are no more ranks
+        if len(ranks) == 0:
+            break
+        rank = ranks[r_i]  # type: str
+        if rank not in rank_training_seqs:
+            rank_training_seqs[rank] = {}
+        if len(candidate_seqs[rank]) == 0:
+            candidate_seqs.pop(rank)
+            ranks = list(candidate_seqs.keys())
+            continue
+        taxa_seqs = list(candidate_seqs[rank].keys())
+        try:
+            taxon = taxa_seqs[random.randint(a=0, b=len(taxa_seqs)-1)]  # type: str
+        except ValueError:
+            taxon = taxa_seqs[0]
+        try:
+            rank_training_seqs[rank][taxon].append(candidate_seqs[rank][taxon].pop())
+        except KeyError:
+            rank_training_seqs[rank][taxon] = [candidate_seqs[rank][taxon].pop()]
+
+        # Clean up the empty lists and dictionaries following popping
+        if len(candidate_seqs[rank][taxon]) == 0:
+            candidate_seqs[rank].pop(taxon)
+        if len(candidate_seqs[rank]) == 0:
+            candidate_seqs.pop(rank)
+            ranks = list(candidate_seqs.keys())
+        r_i += 1
+        n += 1
+
+    return rank_training_seqs
+
+
 def gen_cladex_data(fasta_input: str, executables: dict, ref_pkg: ReferencePackage,
                     accession_lineage_map: dict, output_dir: str,
-                    num_threads=2) -> dict:
+                    max_examples=0, num_threads=2) -> dict:
     """
     Generate pquery instances resulting from phylogenetic placement using clade-excluded reference packages.
     These instances represent phylogenetic placements onto phylogenies lacking close relatives,
@@ -456,6 +513,7 @@ def gen_cladex_data(fasta_input: str, executables: dict, ref_pkg: ReferencePacka
     :param ref_pkg: A ReferencePackage instance
     :param accession_lineage_map: Path to a file mapping query sequence accessions to their taxonomic lineage
     :param output_dir: Path the a directory to write the temporary files
+    :param max_examples: The maximum number of examples to use for training the reference package's models
     :param num_threads: The number of threads to be used by the various dependencies during phylogenetic placement
     :return:
     """
@@ -472,6 +530,9 @@ def gen_cladex_data(fasta_input: str, executables: dict, ref_pkg: ReferencePacka
     # Find non-redundant set of diverse sequences to train for all taxonomic ranks
     rank_training_seqs = prepare_training_data(test_seqs, output_dir, executables, leaf_taxa_map,
                                                ref_pkg.taxa_trie, accession_lineage_map)
+    if max_examples > 0:
+        rank_training_seqs = reduce_examples(rank_training_seqs, max_examples)
+
     if len(rank_training_seqs) == 0:
         return {}
 
