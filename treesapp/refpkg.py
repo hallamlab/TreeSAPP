@@ -265,7 +265,12 @@ class ReferencePackage:
         self.f__json = new_path
 
         if type(self.tree) is list:
-            self.tree = self.tree[0]
+            if len(self.tree) > 0:
+                self.tree = self.tree[0]
+            else:
+                logging.error("Unable to load the phylogenetic tree for reference package '{}' ({})\n."
+                              "".format(self.prefix, self.f__json))
+                return
 
         self.load_taxonomic_hierarchy()
 
