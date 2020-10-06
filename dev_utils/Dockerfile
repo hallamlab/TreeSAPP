@@ -6,7 +6,8 @@ ENV TREESAPP_VERSION="0.9.1"\
   PRODIGAL_VERSION="2.6.3"\
   HMMER_VERSION="3.3"\
   RAXML_VERSION="1.0.1"\
-  EPA_VERSION="0.3.8"
+  EPA_VERSION="0.3.8"\
+  VSEARCH_VERSION="2.15.0"
 
 LABEL base.image="ubuntu:bionic"
 LABEL container.version="0.1"
@@ -50,6 +51,11 @@ RUN curl -LJ0 --output /usr/local/bin/BMGE.jar https://github.com/hallamlab/Tree
 RUN curl -LJ0 --output mafft.deb https://mafft.cbrc.jp/alignment/software/mafft_${MAFFT_VERSION}_amd64.deb && \
  dpkg -i mafft.deb && \
  rm mafft.deb
+
+RUN wget https://github.com/torognes/vsearch/archive/v${VSEARCH_VERSION}.tar.gz && \
+ tar xzf v${VSEARCH_VERSION}.tar.gz && \
+ cd vsearch-${VSEARCH_VERSION} && \
+ ./autogen.sh && ./configure && make && make install
 
 RUN curl -LJ0 --output /usr/bin/prodigal https://github.com/hyattpd/Prodigal/releases/download/v${PRODIGAL_VERSION}/prodigal.linux && \
  chmod +x /usr/bin/prodigal

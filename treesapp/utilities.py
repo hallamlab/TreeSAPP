@@ -263,7 +263,7 @@ def executable_dependency_versions(exe_dict: dict) -> str:
 
     simple_v = ["prodigal", "raxmlHPC", "epa-ng"]
     version_param = ["trimal", "mafft", "raxml-ng"]
-    no_params = ["usearch", "papara"]
+    no_params = ["vsearch", "papara"]
     help_param = ["hmmbuild", "hmmalign", "hmmsearch", "OD-seq"]
     version_re = re.compile(r"[Vv]\d+.\d|version \d+.\d|\d\.\d\.\d|HMMER")
 

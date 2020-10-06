@@ -135,7 +135,7 @@ def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
 def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
     """
     Function to regenerate the swappers dictionary with the original headers as keys and
-    the new header (swapped in the previous attempt based on USEARCH's uc file) as a value
+    the new header (swapped in the previous attempt based on VSEARCH's uc file) as a value
 
     :param args: command-line arguments objects
     :param cluster_dict: Dictionary where keys are centroid headers and values are headers of identical sequences
@@ -636,7 +636,7 @@ def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:
 def cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_registry: dict) -> None:
     """
     Populates the cluster_lca attribute for Cluster instances by calculating the lowest common ancestor (LCA)
-    across all lineages of sequences in a cluster (inferred using a sequence clustering tool such as USEARCH)
+    across all lineages of sequences in a cluster (inferred using a sequence clustering tool such as VSEARCH)
 
     :param cluster_dict: A dictionary of Cluster instanced indexed by their numerical cluster IDs
     :param fasta_record_objects: A dictionary of EntrezRecord instances indexed by TreeSAPP numerical IDs
