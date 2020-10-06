@@ -67,7 +67,7 @@ before_install:
 
         wget https://github.com/torognes/vsearch/archive/v${VSEARCH_VERSION}.tar.gz;
         tar xzf v${VSEARCH_VERSION}.tar.gz && cd vsearch-${VSEARCH_VERSION};
-        ./autogen.sh && ./configure && make && sudo make install;
+        ./autogen.sh && ./configure && make && sudo make install && cd -;
 
         wget -O prodigal https://github.com/hyattpd/Prodigal/releases/download/v${PRODIGAL_VERSION}/prodigal.linux;
         sudo mv prodigal /usr/local/bin/ && chmod +x /usr/local/bin/prodigal;

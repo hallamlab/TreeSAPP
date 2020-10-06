@@ -55,7 +55,7 @@ RUN curl -LJ0 --output mafft.deb https://mafft.cbrc.jp/alignment/software/mafft_
 RUN wget https://github.com/torognes/vsearch/archive/v${VSEARCH_VERSION}.tar.gz && \
  tar xzf v${VSEARCH_VERSION}.tar.gz && \
  cd vsearch-${VSEARCH_VERSION} && \
- ./autogen.sh && ./configure && make && make install
+ ./autogen.sh && ./configure && make && make install && cd -
 
 RUN curl -LJ0 --output /usr/bin/prodigal https://github.com/hyattpd/Prodigal/releases/download/v${PRODIGAL_VERSION}/prodigal.linux && \
  chmod +x /usr/bin/prodigal
