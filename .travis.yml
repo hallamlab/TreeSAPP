@@ -27,6 +27,7 @@ env:
       - EPA_VERSION="0.3.8"
       - BWA_VERSION="0.7.17"
       - HMMER_VERSION="3.3"
+      - PRODIGAL_VERSION="2.6.3"
 
 jobs:
     include:
@@ -59,6 +60,8 @@ before_install:
         tar -xzf hmmer-${HMMER_VERSION}.tar.gz; cd hmmer-${HMMER_VERSION}/; ./configure; make -f Makefile;
         sudo cp src/hmmsearch src/hmmbuild src/hmmalign /usr/bin/;
         cd -; rm hmmer-${HMMER_VERSION}.tar.gz;
+        curl -LJ0 --output /usr/local/bin/prodigal https://github.com/hyattpd/Prodigal/releases/download/v${PRODIGAL_VERSION}/prodigal.linux && \
+        chmod +x /usr/local/bin/prodigal
       	curl -LJ0 --output od-seq.tar.gz http://www.bioinf.ucd.ie/download/od-seq.tar.gz; tar -xzf od-seq.tar.gz;
       	ODSEQ_SOURCES="OD-Seq/AliReader.cpp OD-Seq/Bootstrap.cpp OD-Seq/DistCalc.cpp OD-Seq/DistMatReader.cpp \
       	OD-Seq/DistWriter.cpp OD-Seq/FastaWriter.cpp OD-Seq/IQR.cpp OD-Seq/ODseq.cpp OD-Seq/PairwiseAl.cpp \
