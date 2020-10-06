@@ -28,6 +28,7 @@ env:
       - BWA_VERSION="0.7.17"
       - HMMER_VERSION="3.3"
       - PRODIGAL_VERSION="2.6.3"
+      - VSEARCH_VERSION="2.15.0"
 
 jobs:
     include:
@@ -66,14 +67,14 @@ before_install:
 
         wget https://github.com/torognes/vsearch/archive/v${VSEARCH_VERSION}.tar.gz;
         tar xzf v${VSEARCH_VERSION}.tar.gz && cd vsearch-${VSEARCH_VERSION};
-        ./autogen.sh && ./configure && make && make install;
+        ./autogen.sh && ./configure && make && sudo make install;
 
         wget -O prodigal https://github.com/hyattpd/Prodigal/releases/download/v${PRODIGAL_VERSION}/prodigal.linux;
         sudo mv prodigal /usr/local/bin/ && chmod +x /usr/local/bin/prodigal;
 
         wget -O v${BWA_VERSION}.tar.gz https://github.com/lh3/bwa/archive/v${BWA_VERSION}.tar.gz;
         tar -xzf v${BWA_VERSION}.tar.gz && cd bwa-${BWA_VERSION}/ && make && rm *.o && cd -;
-        cp bwa-${BWA_VERSION}/bwa /usr/local/bin/bwa && rm v${BWA_VERSION}.tar.gz;
+        sudo cp bwa-${BWA_VERSION}/bwa /usr/local/bin/bwa && rm v${BWA_VERSION}.tar.gz;
 
       	wget -O od-seq.tar.gz http://www.bioinf.ucd.ie/download/od-seq.tar.gz; tar -xzf od-seq.tar.gz;
       	ODSEQ_SOURCES="OD-Seq/AliReader.cpp OD-Seq/Bootstrap.cpp OD-Seq/DistCalc.cpp OD-Seq/DistMatReader.cpp
