@@ -80,10 +80,10 @@ before_install:
         sudo cp raxml-ng_v${RAXML_VERSION}/raxml-ng /usr/local/bin/;
         rm -r raxml-ng_v${RAXML_VERSION}.zip raxml-ng_v${RAXML_VERSION};
         # Install EPA-NG
-        curl -LJ0 --output epa-ng.tar.gz https://github.com/Pbdas/epa-ng/archive/v${EPA_VERSION}.tar.gz
-        tar -xzf epa-ng.tar.gz; cd epa-ng-${EPA_VERSION}/
-        make; sudo cp bin/epa-ng /usr/local/bin/; cd -
-        rm epa-ng.tar.gz
+        curl -LJ0 --output epa-ng.tar.gz https://github.com/Pbdas/epa-ng/archive/v${EPA_VERSION}.tar.gz;
+        tar -xzf epa-ng.tar.gz; cd epa-ng-${EPA_VERSION}/;
+        make; sudo cp bin/epa-ng /usr/local/bin/; cd -;
+        rm epa-ng.tar.gz;
       fi
 
 install:
