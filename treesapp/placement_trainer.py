@@ -294,7 +294,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
 
     test_seqs.change_dict_keys("num")
     fasta.write_new_fasta(test_seqs.fasta_dict, uclust_input)
-    wrapper.cluster_sequences(executables["usearch"], uclust_input, uclust_prefix, similarity)
+    wrapper.cluster_sequences(executables["vsearch"], uclust_input, uclust_prefix, similarity)
     cluster_dict = file_parsers.read_uc(uclust_prefix + ".uc")
     test_seqs.keep_only([cluster_dict[clust_id].representative for clust_id in cluster_dict.keys()])
     logging.debug("\t" + str(len(test_seqs.fasta_dict.keys())) + " sequence clusters\n")

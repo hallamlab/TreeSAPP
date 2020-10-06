@@ -567,7 +567,7 @@ class TreeSAPP:
             dependencies += ["bwa"]
 
         if self.command in ["create", "update", "train", "evaluate"]:
-            dependencies += ["usearch", "mafft"]
+            dependencies += ["vsearch", "mafft"]
             if hasattr(args, "fast") and args.fast:
                 dependencies.append("FastTree")
 
