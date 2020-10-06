@@ -103,7 +103,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(69, test_refpkg.num_seqs)
+        self.assertEqual(70, test_refpkg.num_seqs)
         self.assertEqual(2, len(test_refpkg.pfit))
         self.assertTrue(test_refpkg.pfit[0] < 0)
         return
@@ -155,7 +155,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/PF01280_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(52, test_refpkg.num_seqs)
+        self.assertEqual(54, test_refpkg.num_seqs)
         return
 
     def test_evaluate(self):
@@ -249,7 +249,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(49, test_refpkg.num_seqs)
+        self.assertEqual(50, test_refpkg.num_seqs)
         return
 
     def test_update_seqs2lineage(self):
@@ -271,7 +271,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         test_refpkg.validate()
-        self.assertEqual(49, test_refpkg.num_seqs)
+        self.assertEqual(50, test_refpkg.num_seqs)
         return
 
     def test_train(self):
