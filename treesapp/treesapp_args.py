@@ -665,14 +665,14 @@ def check_create_arguments(creator: Creator, args) -> None:
         if not 0.5 <= float(args.similarity) <= 1.0:
             if 0.5 < float(args.similarity)/100 < 1.0:
                 args.similarity = str(float(args.similarity)/100)
-                logging.warning("--similarity  set to {} for compatibility with USEARCH.\n".format(args.similarity))
+                logging.warning("--similarity  set to {} for compatibility with VSEARCH.\n".format(args.similarity))
             else:
                 logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
 
     if args.taxa_lca and not args.cluster:
         logging.error("Unable to perform LCA for representatives without clustering information: " +
-                      "either with a provided UCLUST file or by clustering within the pipeline.\n")
+                      "either with a provided VSEARCH file or by clustering within the pipeline.\n")
         sys.exit(13)
 
     if args.guarantee and not args.cluster:
@@ -729,7 +729,7 @@ def check_updater_arguments(updater: Updater, args):
         if not 0.5 <= float(args.similarity) <= 1.0:
             if 0.5 < float(args.similarity) / 100 < 1.0:
                 args.similarity = str(float(args.similarity) / 100)
-                logging.warning("--similarity  set to {} for compatibility with USEARCH.\n".format(args.similarity))
+                logging.warning("--similarity  set to {} for compatibility with VSEARCH.\n".format(args.similarity))
             else:
                 logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)

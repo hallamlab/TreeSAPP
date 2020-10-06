@@ -485,7 +485,7 @@ def create(sys_args):
     fasta.write_new_fasta(fasta_dict=ref_seqs.fasta_dict, fasta_name=ref_seqs.file, headers=filtered_headers)
 
     ##
-    # Optionally cluster the input sequences using USEARCH at the specified identity
+    # Optionally cluster the input sequences using VSEARCH at the specified identity
     ##
     if ts_create.stage_status("cluster"):
         ref_seqs.change_dict_keys("num")
@@ -495,7 +495,7 @@ def create(sys_args):
                               fasta_name=ts_create.cluster_input,
                               headers=list(fasta_records.keys()))
         if args.cluster:
-            wrapper.cluster_sequences(ts_create.executables["usearch"], ts_create.cluster_input,
+            wrapper.cluster_sequences(ts_create.executables["vsearch"], ts_create.cluster_input,
                                       ts_create.uclust_prefix, ts_create.ref_pkg.pid)
             ts_create.uc = ts_create.uclust_prefix + ".uc"
         # Read the uc file if present
@@ -847,7 +847,7 @@ def update(sys_args):
         # not all clustering tools + versions keep whole header - spaces are replaced with underscores
         fasta.write_new_fasta(fasta_dict=combined_fasta.fasta_dict,
                               fasta_name=ts_updater.cluster_input)
-        wrapper.cluster_sequences(ts_updater.executables["usearch"], ts_updater.cluster_input,
+        wrapper.cluster_sequences(ts_updater.executables["vsearch"], ts_updater.cluster_input,
                                   ts_updater.uclust_prefix, ts_updater.prop_sim)
         ts_updater.uc = ts_updater.uclust_prefix + ".uc"
 

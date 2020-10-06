@@ -573,9 +573,9 @@ def read_stockholm_to_dict(sto_file):
 
 def read_uc(uc_file):
     """
-    Function to read a USEARCH cluster (.uc) file
+    Function to read a VSEARCH cluster (.uc) file
 
-    :param uc_file: Path to a .uc file produced by USEARCH
+    :param uc_file: Path to a .uc file produced by VSEARCH
     :return: Dictionary where keys are numerical identifiers and values are Cluster objects
         The Cluster object
     """
@@ -584,10 +584,10 @@ def read_uc(uc_file):
     try:
         uc = open(uc_file, 'r')
     except IOError:
-        logging.error("Unable to open USEARCH cluster file " + uc_file + " for reading!\n")
+        logging.error("Unable to open VSEARCH cluster file " + uc_file + " for reading!\n")
         sys.exit(13)
 
-    logging.debug("Reading usearch cluster file... ")
+    logging.debug("Reading VSEARCH cluster file... ")
 
     # Find all clusters with multiple identical sequences
     for line in uc:

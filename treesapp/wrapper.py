@@ -401,60 +401,27 @@ def run_papara(executable, tree_file, ref_alignment_phy, query_fasta, molecule):
     return stdout
 
 
-def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
-    logging.info("Clustering sequences at %s percent identity with USEARCH... " % str(update_tree.cluster_id))
-
-    usearch_command = [args.executables["usearch"]]
-    usearch_command += ["-sortbylength", new_ref_seqs_fasta]
-    usearch_command += ["-fastaout", update_tree.Output + "usearch_sorted.fasta"]
-    usearch_command += ["--log", update_tree.Output + os.sep + "usearch_sort.log"]
-    # usearch_command += ["1>", "/dev/null", "2>", "/dev/null"]
-
-    launch_write_command(usearch_command)
-
-    uclust_id = "0." + str(int(update_tree.cluster_id))
-    try:
-        float(uclust_id)
-    except ValueError:
-        logging.error("Weird formatting of cluster_id: " + uclust_id + "\n")
-
-    uclust_command = [args.executables["usearch"]]
-    uclust_command += ["-cluster_fast", update_tree.Output + "usearch_sorted.fasta"]
-    uclust_command += ["--id", uclust_id]
-    uclust_command += ["--centroids", update_tree.Output + "uclust_" + update_tree.COG + ".fasta"]
-    uclust_command += ["--uc", update_tree.Output + "uclust_" + update_tree.COG + ".uc"]
-    uclust_command += ["--log", update_tree.Output + os.sep + "usearch_cluster.log"]
-    # uclust_command += ["1>", "/dev/null", "2>", "/dev/null"]
-
-    launch_write_command(uclust_command)
-
-    logging.info("done.\n")
-
-    return
-
-
 def cluster_sequences(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
     """
-    Wrapper function for clustering a FASTA file at some similarity using usearch's cluster_fast algorithm
+    Wrapper function for clustering a FASTA file at some similarity using vsearch's cluster_fast algorithm
 
-    :param uclust_exe: Path to the usearch executable
+    :param uclust_exe: Path to the vsearch executable
     :param fasta_input: FASTA file for which contained sequences will be clustered
     :param uclust_prefix: Prefix for the output files
     :param similarity: The proportional similarity to cluster input sequences
     :return: None
     """
-    logging.info("Clustering sequences with UCLUST... ")
+    logging.info("Clustering sequences with VSEARCH's cluster_fast algorithm... ")
     uclust_cmd = [uclust_exe]
-    uclust_cmd += ["-cluster_fast", fasta_input]
-    uclust_cmd += ["-id", str(similarity)]
-    uclust_cmd += ["-sort", "length"]
-    uclust_cmd += ["-centroids", uclust_prefix + ".fa"]
+    uclust_cmd += ["--cluster_fast", fasta_input]
+    uclust_cmd += ["--id", str(similarity)]
+    uclust_cmd += ["--centroids", uclust_prefix + ".fa"]
     uclust_cmd += ["--uc", uclust_prefix + ".uc"]
     logging.info("done.\n")
     stdout, returncode = launch_write_command(uclust_cmd)
 
     if returncode != 0:
-        logging.error("UCLUST did not complete successfully! Command used:\n" +
+        logging.error("VSEARCH did not complete successfully! Command used:\n" +
                       ' '.join(uclust_cmd) + "\n")
         sys.exit(13)
 

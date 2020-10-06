@@ -2,9 +2,6 @@ BootStrap: library
 From: ubuntu:18.04
 Stage: build
 
-%files
-    /usr/local/bin/usearch
-
 %post
     export TS_VERSION="0.9.1"
     export RAXML_VERSION="1.0.1"
