@@ -1,6 +1,6 @@
 FROM ubuntu:bionic
 
-ENV TREESAPP_VERSION="0.9.1"\
+ENV TREESAPP_VERSION="0.9.2"\
   MAFFT_VERSION="7.450-1"\
   BWA_VERSION="0.7.17"\
   PRODIGAL_VERSION="2.6.3"\
@@ -24,6 +24,7 @@ RUN apt-get update && \
  gcc \
  dpkg-dev \
  curl \
+ wget \
  zip \
  git \
  libz-dev \

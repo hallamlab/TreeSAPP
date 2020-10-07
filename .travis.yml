@@ -29,6 +29,7 @@ env:
       - HMMER_VERSION="3.3"
       - PRODIGAL_VERSION="2.6.3"
       - VSEARCH_VERSION="2.15.0"
+      - MAFFT_VERSION="7.471-1"
 
 jobs:
     include:
@@ -54,8 +55,8 @@ before_install:
           python3-distutils python3-dev;
         sudo apt install python-six -y;
 
-        wget https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb;
-        sudo dpkg -i mafft_7.450-1_amd64.deb;
+        wget https://mafft.cbrc.jp/alignment/software/mafft_${MAFFT_VERSION}_amd64.deb;
+        sudo dpkg -i mafft_${MAFFT_VERSION}_amd64.deb;
 
         wget https://github.com/hallamlab/TreeSAPP/raw/master/treesapp/sub_binaries/BMGE.jar;
         sudo mv BMGE.jar /usr/local/bin/;
