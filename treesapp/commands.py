@@ -54,6 +54,8 @@ def info(sys_args):
     import treesapp
     import Bio
     import numpy
+    import packaging
+    import pygtrie
     import scipy
     import ete3
     import sklearn
@@ -61,6 +63,7 @@ def info(sys_args):
     import seaborn
     import samsum
     import pyfastx
+    import tqdm
     logging.info("TreeSAPP version " + treesapp.__version__ + ".\n")
 
     # Write the version of all python deps
@@ -68,11 +71,14 @@ def info(sys_args):
                "ete3": ete3.__version__,
                "joblib": joblib.__version__,
                "numpy": numpy.__version__,
-               "scipy": scipy.__version__,
-               "scikit-learn": sklearn.__version__,
-               "seaborn": seaborn.__version__,
+               "packaging": packaging.__version__,
+               "pyfastx": pyfastx.version(),
+               "pygtrie": pygtrie.__version__,
                "samsum": samsum.__version__,
-               "pyfastx": pyfastx.version()}
+               "scikit-learn": sklearn.__version__,
+               "scipy": scipy.__version__,
+               "seaborn": seaborn.__version__,
+               "tqdm": tqdm.__version__}
 
     logging.info("Python package dependency versions:\n\t" +
                  "\n\t".join([k + ": " + v for k, v in py_deps.items()]) + "\n")
