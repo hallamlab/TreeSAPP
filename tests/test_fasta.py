@@ -10,6 +10,7 @@ class MyTestCase(unittest.TestCase):
 
         self.test_fa = get_test_data("McrA_eval.faa")
         self.test_fq = get_test_data("test_TarA.1.fq")
+        self.troublesome_fa = get_test_data("fasta_parser_test.fasta")
         return
 
     def tearDown(self) -> None:
@@ -96,6 +97,12 @@ class MyTestCase(unittest.TestCase):
         from treesapp.fasta import fq2fa
         split_files = fq2fa(fastx=self.test_fq, outdir="./", max_seq_count=6)
         self.assertEqual(2, len(split_files))
+
+    def test_format_read_fasta(self):
+        from treesapp.fasta import format_read_fasta
+        fasta_dict = format_read_fasta(fasta_input=self.troublesome_fa, molecule="prot", min_seq_length=50)
+        self.assertEqual(5, len(fasta_dict))
+        return
 
 
 if __name__ == '__main__':

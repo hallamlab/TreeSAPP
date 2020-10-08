@@ -813,9 +813,9 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_len
 
     # Select the alphabet to use when determining whether there are any bad characters
     if molecule == "prot":
-        bad_chars = re.compile(r"[OU]")
+        bad_chars = re.compile(r"[OUou\d]")
     else:
-        bad_chars = re.compile(r"[EFIJLOPQZ]")
+        bad_chars = re.compile(r"[EFIJLOPQZefijlopqz\d]")
     bad_seqs = set()
 
     # Open the output FASTA for writing
@@ -884,9 +884,9 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
     start = time()
 
     if molecule == "prot":
-        bad_chars = re.compile(r"[OU]")
+        bad_chars = re.compile(r"[OUou\d]")
     else:
-        bad_chars = re.compile(r"[EFIJLOPQZ]")
+        bad_chars = re.compile(r"[EFIJLOPQZefijlopqz\d]")
     bad_seqs = set()
 
     if subset and type(subset) is not set:
@@ -904,7 +904,7 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
             if bad_chars.search(seq):
                 bad_seqs.add(name)
                 continue
-            formatted_fasta_dict[name] = seq
+            formatted_fasta_dict[name.rstrip()] = seq
     end = time()
     logging.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, end-start))
 
