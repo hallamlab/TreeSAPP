@@ -731,7 +731,7 @@ def get_hmm_value(profile_hmm, attribute_name: str) -> str:
 
     # Gather the lines that match the attribute name
     attribute_lines = []
-    if type(profile_hmm) is str:
+    if isinstance(profile_hmm, str):
         attribute_lines = get_file_lines(profile_hmm, re_pattern=attr_re, max_matches=1)
     else:
         for line in profile_hmm:
@@ -765,12 +765,12 @@ def write_dict_to_table(data_dict: dict, output_file: str, sep="\t") -> None:
     data_strings = []
     for key in data_dict:
         values = data_dict[key]
-        if type(values) is str:
+        if isinstance(values, str):
             data_strings.append(sep.join([key, values]))
-        elif type(values) is list:
+        elif isinstance(values, list):
             data_strings.append(sep.join([key, sep.join(values)]))
         else:
-            logging.error("Unable to tabularize values of type '" + str(type(values)) + "'\n")
+            logging.error("Unable to tabularize values of type '{}'\n".format(type(values)))
             sys.exit(5)
     try:
         handler = open(output_file, 'w')
