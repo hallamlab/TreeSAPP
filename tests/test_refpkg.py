@@ -61,6 +61,23 @@ class RefPkgTester(unittest.TestCase):
         refpkg_fa = self.db.get_fasta()
         self.assertEqual(246, len(refpkg_fa.fasta_dict))
 
+    def test_get_ete_tree(self):
+        from treesapp.refpkg import ReferencePackage
+        rt = self.db.get_ete_tree()
+        self.assertEqual(246, len(rt))
+        blank = ReferencePackage()
+        with pytest.raises(SystemExit):
+            blank.get_ete_tree()
+        return
+
+    def test_hmm_length(self):
+        from treesapp.refpkg import ReferencePackage
+        blank = ReferencePackage()
+        self.assertEqual(blank.profile, [])
+        with pytest.raises(ValueError):
+            blank.hmm_length()
+        return
+
     def test_bail(self):
         self.db.bail()
 

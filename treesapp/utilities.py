@@ -676,31 +676,81 @@ def match_target_marker(refpkg_name: str, headers: list) -> list:
     return matches
 
 
-def get_hmm_length(hmm_file):
+def get_file_lines(file_path: str, re_pattern=None, max_matches=0) -> list:
     """
-    Function to open the ref_tree's hmm file and determine its length
+    Opens a file and returns it's contents as a list using readlines().
+    Optionally a pattern can be provided and used for filtering the lines of the file.
+     Only lines matching this pattern will be returned
 
-    :param hmm_file: The HMM file produced by hmmbuild to parse for the HMM length
-    :return: The length (int value) of the HMM
+    :param file_path: Path to a file
+    :param re_pattern: An optional compiled re pattern to filter the lines by
+    :param max_matches: An optional limit to the number of lines that match the re_pattern
+    :return: The lines of a file as a list
     """
     try:
-        hmm_handler = open(hmm_file, 'r')
+        file_handler = open(file_path, 'r')
     except IOError:
-        raise IOError("Unable to open " + hmm_file + " for reading! Exiting.")
+        raise IOError("Unable to open file '{}' for reading! Exiting.".format(file_path))
 
-    line = hmm_handler.readline()
-    length = 0
-    while line:
-        # LENG XXX
-        if re.match(r"^LENG\s+([0-9]+)", line):
-            length = int(line.split()[1])
-            break
-        line = hmm_handler.readline()
-    hmm_handler.close()
-    if length > 0:
-        return length
+    lines = []
+    n_matches = 0
+    if not re_pattern:
+        lines += file_handler.readlines()
     else:
-        raise AssertionError("Unable to parse the HMM length from " + hmm_file + ". Exiting.")
+        line = file_handler.readline()
+        while line:
+            if re_pattern.match(line):
+                lines.append(line)
+                n_matches += 1
+            if 0 < max_matches < n_matches:
+                break
+            line = file_handler.readline()
+    file_handler.close()
+
+    return lines
+
+
+def get_hmm_value(profile_hmm, attribute_name: str) -> str:
+    """
+    Function to parse an attribute from a profile HMM file made by HMMER
+
+    :param profile_hmm: Either a list of strings from the profile HMM file or the path to the file produced by hmmbuild
+    :param attribute_name: The name of the attribute to parse from the profile HMM file.
+     Examples are 'length', 'name', 'alphabet', and 'num_seq'.
+    :return: The profile HMM's value for the requested attribute
+    """
+    attribute_name_map = {"length": "LENG", "name": "NAME", "alphabet": "ALPH", "num_seqs": "NSEQ"}
+    try:
+        hmm_attr_name = attribute_name_map.get(attribute_name)
+    except KeyError:
+        logging.error("Unsupported profile HMM feature '{}'".format(attribute_name))
+        raise KeyError()
+
+    # Compiled regular expression for the requested attribute
+    attr_re = re.compile(r"^" + re.escape(hmm_attr_name) + r"\s+(\w+)")
+
+    # Gather the lines that match the attribute name
+    attribute_lines = []
+    if type(profile_hmm) is str:
+        attribute_lines = get_file_lines(profile_hmm, re_pattern=attr_re, max_matches=1)
+    else:
+        for line in profile_hmm:
+            if attr_re.match(line):
+                attribute_lines.append(line)
+
+    if not attribute_lines:
+        logging.error("Unable to parse '{}' from the profile HMM.\n".format(attribute_name))
+        raise AssertionError()
+    elif len(attribute_lines) > 1:
+        logging.error("More than one profile HMM included in file.\n")
+        raise AssertionError()
+    else:
+        attr_line = attribute_lines.pop()
+        return ' '.join(attr_line.split()[1:])
+
+
+def get_hmm_length(hmm_file: str) -> int:
+    return int(get_hmm_value(hmm_file, "length"))
 
 
 def write_dict_to_table(data_dict: dict, output_file: str, sep="\t") -> None:

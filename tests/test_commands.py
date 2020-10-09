@@ -102,7 +102,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
         test_refpkg.slurp()
-        test_refpkg.validate()
+        self.assertTrue(test_refpkg.validate())
         self.assertEqual(70, test_refpkg.num_seqs)
         self.assertEqual(2, len(test_refpkg.pfit))
         self.assertTrue(test_refpkg.pfit[0] < 0)
@@ -129,7 +129,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
-        test_refpkg.validate()
+        self.assertTrue(test_refpkg.validate())
         self.assertEqual(39, test_refpkg.num_seqs)
         self.assertEqual("LG+F+R4", test_refpkg.sub_model)
         return
@@ -154,7 +154,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/PF01280_build.pkl"
         test_refpkg.slurp()
-        test_refpkg.validate()
+        self.assertTrue(test_refpkg.validate())
         self.assertEqual(54, test_refpkg.num_seqs)
         return
 
@@ -248,7 +248,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
-        test_refpkg.validate()
+        self.assertTrue(test_refpkg.validate())
         self.assertEqual(50, test_refpkg.num_seqs)
         return
 
@@ -270,7 +270,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
-        test_refpkg.validate()
+        self.assertTrue(test_refpkg.validate())
         self.assertEqual(50, test_refpkg.num_seqs)
         return
 
@@ -305,12 +305,20 @@ class TreesappTester(unittest.TestCase):
 
     def test_package(self):
         from treesapp.commands import package
-        command_list = ["view",
-                        "lineage_ids",
-                        "--refpkg_path", self.mcra_pkl,
-                        "--output", "./TreeSAPP_package"]
-        package(command_list)
-        self.assertEqual(True, True)
+        from treesapp.refpkg import ReferencePackage
+        view_command_list = ["view", "lineage_ids",
+                             "--refpkg_path", self.mcra_pkl,
+                             "--output", "./TreeSAPP_package"]
+        package(view_command_list)
+        edit_command_list = ["edit",
+                             "f__msa", self.aa_test_fa,
+                             "--refpkg_path", self.mcra_pkl,
+                             "--output", "./TreeSAPP_package"]
+        package(edit_command_list)
+        test_refpkg = ReferencePackage()
+        test_refpkg.f__json = "./TreeSAPP_package/McrA_build.pkl"
+        test_refpkg.slurp()
+        self.assertFalse(test_refpkg.validate())
         return
 
     def test_mcc_calculator(self):

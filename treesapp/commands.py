@@ -602,9 +602,9 @@ def create(sys_args):
             wrapper.build_hmm_profile(ts_create.executables["hmmbuild"],
                                       ts_create.ref_pkg.f__msa,
                                       ts_create.ref_pkg.f__profile)
-            ts_create.ref_pkg.hmm_length()
 
         ts_create.ref_pkg.band()
+        ts_create.ref_pkg.hmm_length()
         ts_create.ref_pkg.dereplicate_hmm(dereplication_rank="genus",
                                           hmmbuild_exe=ts_create.executables["hmmbuild"],
                                           mafft_exe=ts_create.executables["mafft"],

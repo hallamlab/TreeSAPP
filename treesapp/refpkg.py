@@ -15,7 +15,7 @@ from treesapp.entish import annotate_partition_tree
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
-from treesapp.utilities import get_hmm_length, base_file_prefix, load_taxonomic_trie, match_file
+from treesapp.utilities import base_file_prefix, load_taxonomic_trie, match_file, get_hmm_value
 from treesapp import wrapper
 from treesapp import __version__ as ts_version
 
@@ -297,8 +297,8 @@ class ReferencePackage:
             return False
 
         # Compare the number of sequences in the multiple sequence alignment
-        refpkg_fa = self.get_fasta()
-        if not refpkg_fa:
+        refpkg_fa = self.get_fasta()  # type: FASTA
+        if refpkg_fa.n_seqs() == 0:
             return False
         if self.num_seqs != refpkg_fa.n_seqs():
             self.bail("Number of sequences in {} "
@@ -307,8 +307,23 @@ class ReferencePackage:
                                                                                      refpkg_fa.n_seqs()))
             return False
 
-        # TODO: Compare the number of sequences in the Hidden-Markov model
-        # TODO: Compare the number of sequences in the Tree files
+        # Compare the number of sequences in the Hidden-Markov model
+        hmm_nseq = self.num_hmm_seqs()
+        if hmm_nseq != self.num_seqs:
+            self.bail("Number of sequences in {} "
+                      "ReferencePackage.num_seqs ({}) and HMM ({}) differ.\n".format(self.prefix,
+                                                                                     self.num_seqs,
+                                                                                     hmm_nseq))
+            return False
+
+        # Compare the number of sequences in the Tree files
+        rt = self.get_ete_tree()
+        if len(rt) != self.num_seqs:
+            self.bail("Number of sequences in {} "
+                      "ReferencePackage.num_seqs ({}) and tree ({}) differ.\n".format(self.prefix,
+                                                                                      self.num_seqs,
+                                                                                      len(rt)))
+            return False
         # Compare the number of sequences in lineage IDs
         n_leaf_nodes = len(self.generate_tree_leaf_references_from_refpkg())
         if n_leaf_nodes != self.num_seqs:
@@ -330,14 +345,16 @@ class ReferencePackage:
 
         :return: A FASTA instance populated by the reference package's msa attribute
         """
+        refpkg_fa = FASTA(self.f__msa)
         if not self.msa:
             logging.debug("ReferencePackage MSA hasn't been slurped, unable to read FASTA.\n")
-            return
+            return refpkg_fa
 
-        refpkg_fa = FASTA(self.f__msa)
         name, seq = "", ""
         for line in self.msa:
-            line = line[:-1]  # Strip the newline character
+            line = line.rstrip()  # Strip the newline character
+            if not line:
+                continue
             if line[0] == '>':
                 if name:  # This is the first sequence
                     refpkg_fa.fasta_dict[name] = seq
@@ -354,11 +371,20 @@ class ReferencePackage:
 
         return refpkg_fa
 
+    def get_ete_tree(self):
+        if not self.tree:
+            logging.error("Unable to load tree - '{}' reference package hasn't been slurped yet.\n".format(self.prefix))
+            sys.exit(5)
+        if type(self.tree) is list:
+            if len(self.tree) > 0:
+                self.tree = self.tree.pop(0)
+        return Tree(self.tree)
+
     def get_internal_node_leaf_map(self):
         node_map = dict()
         leaf_stack = list()
         i = 0
-        rt = Tree(self.tree)
+        rt = self.get_ete_tree()
         for inode in rt.traverse(strategy="postorder"):
             if inode.name:
                 node_map[i] = [inode.name]
@@ -376,7 +402,7 @@ class ReferencePackage:
 
         :return: A list of internal node identifiers sorted by post-order traversal
         """
-        tree_root = Tree(self.tree)
+        tree_root = self.get_ete_tree()
         leaf_order = []
         for node in tree_root.traverse(strategy="postorder"):
             if node.name:
@@ -436,8 +462,15 @@ class ReferencePackage:
 
         return
 
-    def hmm_length(self) -> None:
-        self.profile_length = get_hmm_length(self.f__profile)
+    def hmm_length(self) -> int:
+        if not self.profile:
+            self.bail("ReferencePackage attribute 'profile' was not set when trying to find profile HMM length.\n")
+            raise ValueError
+        self.profile_length = int(get_hmm_value(self.profile, "length"))
+        return self.profile_length
+
+    def num_hmm_seqs(self) -> int:
+        return int(get_hmm_value(self.profile, "num_seqs"))
 
     def alignment_dims(self):
         return multiple_alignment_dimensions(self.f__msa)
@@ -731,7 +764,7 @@ class ReferencePackage:
                 fast_info.write(stdout + "\n")
             logging.info("done.\n")
         else:
-            ref_tree = Tree(self.f__tree)
+            ref_tree = self.get_ete_tree()
             ref_tree.prune(off_target_ref_headers, preserve_branch_length=True)
             logging.debug("\t" + str(len(ref_tree.get_leaves())) + " leaves in pruned tree.\n")
             ref_tree.write(outfile=self.f__tree, format=5)
@@ -872,7 +905,7 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool
         logging.error("`treesapp package edit` requires a value to change.\n")
         sys.exit(3)
     else:
-        k, v = attributes
+        k, v = attributes  # type: (str, str)
 
     try:
         current_v = refpkg.__dict__[k]
@@ -882,6 +915,19 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool
 
     logging.info("Replacing attribute '{}' (currently '{}')\n".format(k, current_v))
 
+    if k.startswith("f__"):  # This is a file that is being modified and the contents need to be read
+        k_content = re.sub(r"^f__", '', k)
+        if not os.path.isfile(v):
+            logging.error("Unable to find path to new file '{}'. "
+                          "Exiting and the reference package '{}' will remain unchanged.\n".format(v, refpkg.f__json))
+            sys.exit(5)
+        with open(v) as content_handler:
+            v_content = content_handler.readlines()
+        try:
+            refpkg.__dict__[k_content] = v_content
+        except KeyError:
+            logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, refpkg.f__json))
+            sys.exit(7)
     refpkg.__dict__[k] = v
     if not overwrite:
         refpkg.f__json = os.path.join(output_dir, os.path.basename(refpkg.f__json))
