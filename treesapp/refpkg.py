@@ -88,6 +88,8 @@ class ReferencePackage:
     def get_info(self):
         return "\n\t".join(["ReferencePackage instance of {} ({}):".format(self.prefix, self.refpkg_code),
                             "Molecule type:                                      '{}'".format(self.molecule),
+                            "TreeSAPP version:                                   '{}'".format(self.ts_version),
+                            "Profile HMM length:                                 '{}'".format(self.hmm_length()),
                             "Substitution model used for phylogenetic inference: '{}'".format(self.sub_model),
                             "Number of reference sequences (leaf nodes):          {}".format(self.num_seqs),
                             "Software used to infer phylogeny:                   '{}'".format(self.tree_tool),
@@ -475,7 +477,7 @@ class ReferencePackage:
     def alignment_dims(self):
         return multiple_alignment_dimensions(self.f__msa)
 
-    def filter_refs_by_lineage(self, target_lineage: str) -> list:
+    def screen_refs_by_lineage(self, target_lineage: str) -> list:
         """
         Returns the TreeLeafReference instances from the reference package that match or are children of target_lineage
 
@@ -524,12 +526,15 @@ class ReferencePackage:
         Loads unique taxa found in the tree into a dictionary where the values are all leaves of a taxon.
 
         :param rank_name: Name of the rank to search for taxa
-        :return: A dictionary mapping unique taxa of rank 'rank_name' mapped to lists of
+        :return:
+          1. A dictionary mapping unique taxa of rank 'rank_name' mapped to lists of leaf node names
+           (format = leaf.number_self.prefix)
+          2. A dictionary mapping leaf.numbers to Taxon instances
         """
         # Check rank name to see if its present in the hierarchy
         if rank_name not in self.taxa_trie.accepted_ranks_depths:
-            self.taxa_trie.so_long_and_thanks_for_all_the_fish("Rank '{}' "
-                                                               "is not in hierarchy's accepted names.\n".format(rank_name))
+            self.taxa_trie.so_long_and_thanks_for_all_the_fish("Rank '{}' is not in hierarchy's accepted names.\n"
+                                                               "".format(rank_name))
 
         taxon_leaf_map = {}
         unique_taxa = {}
@@ -875,6 +880,30 @@ class ReferencePackage:
             lineage_list.append(lineage)
 
         return load_taxonomic_trie(lineage_list)
+
+    def taxonomically_label_tree(self) -> Tree:
+        # Generate an instance of the ETE3 Master Tree class
+        rt = self.get_ete_tree()
+
+        # Propagate all of the accepted ranks as features - empty strings by default - to all TreeNodes
+        for n in rt.traverse():  # type: Tree
+            for rank in self.taxa_trie.accepted_ranks_depths:
+                n.add_feature(pr_name=rank, pr_value="")
+
+        # Add the taxonomic lineages as features to each of the leaf nodes
+        for leaf_node in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
+            lineage = self.taxa_trie.reroot_lineage(leaf_node.lineage)
+            tree_node = rt.get_leaves_by_name(name="{}_{}".format(leaf_node.number, self.prefix)).pop()
+
+            # Add the rank (keys) and taxon (values) as new features
+            for prefixed_taxon in lineage.split(self.taxa_trie.lin_sep):  # type: str
+                rank_prefix, taxon = prefixed_taxon.split(self.taxa_trie.taxon_sep)
+                rank_name = self.taxa_trie.rank_prefix_map[rank_prefix]
+                tree_node.add_feature(pr_name=rank_name, pr_value=prefixed_taxon)
+
+        # Label the internal nodes based on the LCA of the leaf nodes
+
+        return rt
 
 
 def view(refpkg: ReferencePackage, attributes: list) -> None:

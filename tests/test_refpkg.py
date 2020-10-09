@@ -95,6 +95,12 @@ class RefPkgTester(unittest.TestCase):
         self.db.slurp()
         self.assertTrue("McrA" == self.db.prefix)
 
+    def test_taxonomically_label_tree(self):
+        labelled_rt = self.db.taxonomically_label_tree()
+        self.assertEqual(246, len(labelled_rt))
+        self.assertTrue('species' in labelled_rt.features)
+        return
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -115,6 +115,7 @@ class TaxonomicHierarchy:
         self.no_rank_name = "no rank"  # Name of rank for non-canonical taxonomic ranks
         self.lin_sep = sep
         self.taxon_sep = "__"  # Separator between the rank prefix and the taxon name
+        self.root_taxon = "r" + self.taxon_sep + "Root"
         self.bad_taxa = ["cellular organisms", "unclassified"]  # Optional list that can be used to remove some taxa
         self.canonical_prefix = re.compile(r"^[nrdpcofgs]" + re.escape(self.taxon_sep))
         self.proper_species_re = re.compile("^(s__)?[A-Z][a-z]+ [a-z]+$")
@@ -209,6 +210,21 @@ class TaxonomicHierarchy:
             return self.rank_prefix_map[taxon[0]]
         except IndexError:
             self.so_long_and_thanks_for_all_the_fish("Empty taxon in lineage '{}'\n".format(lineage))
+
+    def reroot_lineage(self, lineage: str) -> str:
+        """
+        Ensure the taxonomic lineage's most basal rank is Root (self.root_taxon)
+
+        :param lineage: A taxonomic lineage string
+        :return: A taxonomic lineage string with the
+        """
+        deep_rank = lineage.split(self.lin_sep)[0]
+        if not self.canonical_prefix.search(deep_rank):
+            self.so_long_and_thanks_for_all_the_fish("Prefixed taxon expected when re-rooting lineage.\n")
+            raise AssertionError
+        if deep_rank[0] != 'r':
+            lineage = self.root_taxon + self.lin_sep + lineage
+        return lineage
 
     def rm_taxon_from_hierarchy(self, taxon: Taxon, decrement=1) -> None:
         # Decrease Taxon.coverage for every Taxon instance in the lineage
@@ -616,7 +632,7 @@ class TaxonomicHierarchy:
         :param value_prefix: Flag indicating whether the taxon (node values) have their rank-prefix
         :return: None
         """
-        lineages = {"r__Root"}
+        lineages = {self.root_taxon}
 
         if key_prefix != self.trie_key_prefix:
             self.trie_key_prefix = key_prefix
@@ -892,7 +908,7 @@ class TaxonomicHierarchy:
                 break
             i += 1
         if len(lineage_list) == 0:
-            lineage_list = ["r__Root"]
+            lineage_list = [self.root_taxon]
 
         return self.lin_sep.join(lineage_list)
 
