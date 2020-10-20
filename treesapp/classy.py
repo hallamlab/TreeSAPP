@@ -8,7 +8,6 @@ import logging
 import time
 from datetime import datetime as dt
 from shutil import rmtree, copy
-from multiprocessing import Process
 from glob import glob
 from collections import namedtuple
 from numpy import var
@@ -17,12 +16,9 @@ from treesapp.phylo_seq import convert_entrez_to_tree_leaf_references, PQuery
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes, sequence_info_groups
 from treesapp.utilities import median, write_dict_to_table, validate_new_dir, fetch_executable_path
-from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
 from treesapp.wrapper import CommandLineFarmer, estimate_ml_model
-
-import _tree_parser
 
 
 class ModuleFunction:
@@ -46,28 +42,28 @@ class ModuleFunction:
         return info_string
 
 
-class NodeRetrieverWorker(Process):
-    """
-    Doug Hellman's Consumer class for handling processes via queues
-    """
-
-    def __init__(self, task_queue, result_queue):
-        Process.__init__(self)
-        self.task_queue = task_queue
-        self.result_queue = result_queue
-
-    def run(self):
-        while True:
-            next_task = self.task_queue.get()
-            if next_task is None:
-                # Poison pill means shutdown
-                self.task_queue.task_done()
-                break
-            result = _tree_parser._build_subtrees_newick(next_task)
-            subtrees = subtrees_to_dictionary(result, create_tree_info_hash())
-            self.task_queue.task_done()
-            self.result_queue.put(subtrees)
-        return
+# class NodeRetrieverWorker(Process):
+#     """
+#     Doug Hellman's Consumer class for handling processes via queues
+#     """
+#
+#     def __init__(self, task_queue, result_queue):
+#         Process.__init__(self)
+#         self.task_queue = task_queue
+#         self.result_queue = result_queue
+#
+#     def run(self):
+#         while True:
+#             next_task = self.task_queue.get()
+#             if next_task is None:
+#                 # Poison pill means shutdown
+#                 self.task_queue.task_done()
+#                 break
+#             result = _tree_parser._build_subtrees_newick(next_task)
+#             subtrees = subtrees_to_dictionary(result, create_tree_info_hash())
+#             self.task_queue.task_done()
+#             self.result_queue.put(subtrees)
+#         return
 
 
 def get_header_info(header_registry: dict, code_name=''):

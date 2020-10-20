@@ -933,7 +933,14 @@ def get_headers(fasta_file: str) -> list:
         logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
 
     n_headers = 0
-    for name, seq in Fasta(fasta_file, build_index=False, full_name=True):  # type: (str, str)
+    try:
+        fa = Fasta(file_name=fasta_file, build_index=False, full_name=True)
+    except RuntimeError:
+        logging.warning("Pyfastx is unable to open '{}' to read headers. "
+                        "There is a chance this is an empty file and will be skipped.\n".format(fasta_file))
+        return original_headers
+
+    for name, seq in fa:  # type: (str, str)
         n_headers += 1
         original_headers.append('>' + str(name))
 

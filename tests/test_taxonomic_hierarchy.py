@@ -195,6 +195,20 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.assertTrue(len(test_leaf_nodes) == max(coverage_values))
         return
 
+    def test_root_domains(self):
+        from treesapp.taxonomic_hierarchy import Taxon
+        with pytest.raises(AttributeError):
+            self.db.root_domains("Root")
+        root_taxon = Taxon(name="Root", rank="root")
+        self.db.root_domains(root_taxon)
+        self.assertEqual(root_taxon, self.db.hierarchy["d__Bacteria"].parent)
+        # Remove the Taxon 'r__Root' so other tests are not affected
+        self.db.redirect_hierarchy_paths(root_taxon)
+        return
+
+    def test_redirect_hierarchy_paths(self):
+        return
+
     # def test_rm_absent_taxa_from_lineage(self):
     #     return
     #

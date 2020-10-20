@@ -329,18 +329,6 @@ def reformat_string(string):
     return string
 
 
-class Autovivify(dict):
-    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables)
-    without explicitly declaring those variables beforehand."""
-
-    def __getitem__(self, item):
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            value = self[item] = type(self)()
-            return value
-
-
 def remove_dashes_from_msa(fasta_in, fasta_out):
     """
     fasta_out is the new FASTA file written with no dashes (unaligned)

@@ -2,14 +2,11 @@ __author__ = 'Connor Morgan-Lang'
 
 import sys
 import re
-import _tree_parser
 import os
 import logging
 
 from ete3 import Tree
-from scipy import log2
 
-from treesapp.utilities import Autovivify, mean
 from treesapp.phylo_seq import TreeLeafReference
 
 
@@ -46,136 +43,42 @@ def get_tip_distances(parent_node):
     return distances
 
 
-def find_cluster(lost_node: Tree, intra_distances=None):
-    """
-    Recursively calculates whether a node in a tree is the root of a cluster,
-    where a cluster is defined as a sub-tree (clade) whose members satisfy the condition:
-     the distance to the parent of the current subtree's root multiplied by the logarithm base 2 of the number of
-     cousins is greater than the mean(intra-cluster root-to-tip distances).
-    Adding a large number of members to the clade is penalized, as well as large distances from the existing subtree to
-    a new parent.
-
-    :param lost_node: A node within a tree, for which we want to orient
-    :param intra_distances: A list with the current set of leaf-tip distances
-    :return: Tree node, a list of float distances
-    """
-    if intra_distances is None:
-        intra_distances = []
-    parent = lost_node.up
-    if lost_node.is_root() or parent.is_root():
-        return lost_node, intra_distances
-
-    if not intra_distances:
-        # If this is the initial attempt at finding lost_node's cluster, find the intra-cluster leaf distances
-        intra_distances = get_tip_distances(lost_node)
-
-    # Penalty for increasing the size of the clade is log-base 2
-    cousins = lost_node.get_sisters()[0].get_leaf_names()
-    parent_dist = parent.get_distance(lost_node)
-    cost = parent_dist * log2(len(cousins) + 1)
-
-    if mean(intra_distances) > cost:
-        return lost_node, intra_distances
-
-    # Add the distance from the parent to the
-    intra_distances = [dist+parent_dist for dist in intra_distances]
-    for cousin in cousins:
-        intra_distances.append(parent.get_distance(cousin))
-    return find_cluster(parent, intra_distances)
-
-
-def subtrees_to_dictionary(subtrees_string, tree_info):
-    subtree_list = subtrees_string.split(';')
-    for subtree in subtree_list:
-        node = subtree.split(')')[-1]
-        tree_info['subtree_of_node'][node] = subtree
-    return tree_info
-
-
-def create_tree_info_hash():
-    tree_info = Autovivify()
-    return tree_info
-
-
-class TreeNode:
-    def __init__(self, num: int):
-        self.node_id = num
-        self.parent = None
-
-    def all_parents(self):
-        if not self.parent:
-            return list()
-        parents = self.parent.all_parents()
-        if not parents:
-            parents = [self.parent.node_id]
-        else:
-            parents.append(self.parent.node_id)
-        return parents
-
-    def get_node_info(self):
-        info_string = "Node ID: " + str(self.node_id) + "\nParent: "
-        if self.parent:
-            info_string += str(self.parent.node_id) + "\n"
-        else:
-            info_string += "None\n"
-        return info_string
-
-# Flagged for removal
-# def create_tree_internal_node_map(jplace_tree_string):
+# def find_cluster(lost_node: Tree, intra_distances=None):
 #     """
-#     Loads a mapping between all internal nodes to their internal parents
+#     Recursively calculates whether a node in a tree is the root of a cluster,
+#     where a cluster is defined as a sub-tree (clade) whose members satisfy the condition:
+#      the distance to the parent of the current subtree's root multiplied by the logarithm base 2 of the number of
+#      cousins is greater than the mean(intra-cluster root-to-tip distances).
+#     Adding a large number of members to the clade is penalized, as well as large distances from the existing subtree to
+#     a new parent.
 #
-#     :return:
+#     :param lost_node: A node within a tree, for which we want to orient
+#     :param intra_distances: A list with the current set of leaf-tip distances
+#     :return: Tree node, a list of float distances
 #     """
-#     no_length_tree = re.sub(r"(\d+)?:[0-9.]+(\[\d+\])?{", ":{", jplace_tree_string)
-#     node_map = dict()
-#     parent_map = dict()
-#     node_stack = list()
+#     if intra_distances is None:
+#         intra_distances = []
+#     parent = lost_node.up
+#     if lost_node.is_root() or parent.is_root():
+#         return lost_node, intra_distances
 #
-#     x = 0
-#     while x < len(no_length_tree):
-#         c = no_length_tree[x]
-#         if c == ':':
-#             # Append the most recent leaf
-#             current_node, x = get_node(no_length_tree, x + 1)
-#             tree_node = TreeNode(current_node)
-#             # node_map[current_node] = tree_node.get_parents()
-#             node_stack.append(tree_node)
-#             node_map[tree_node.node_id] = tree_node
-#         elif c == ')':
-#             # Set the child leaves to the leaves of the current node's two children
-#             while c == ')' and x < len(no_length_tree):
-#                 if no_length_tree[x + 1] == ';':
-#                     break
-#                 current_node, x = get_node(no_length_tree, x + 2)
-#                 tree_node = TreeNode(current_node)
-#                 r_child = node_stack.pop()
-#                 r_child.parent = tree_node
-#                 l_child = node_stack.pop()
-#                 l_child.parent = tree_node
-#                 node_stack.append(tree_node)
-#                 node_map[tree_node.node_id] = tree_node
-#                 x += 1
-#                 c = no_length_tree[x]
-#         x += 1
-#     for node in sorted(node_map):
-#         parent_map[node] = node_map[node].all_parents()
-#     return node_map
-
-
-def validate_internal_node_map(node_map):
-    leaves_captured = set()
-    single_map = set()
-    for i_node in node_map:
-        for leaf in node_map[i_node]:
-            leaves_captured.add(leaf)
-            if len(node_map[i_node]) == 1:
-                single_map.add(leaf)
-    if len(leaves_captured) != len(single_map):
-        logging.error("Not all leaves were mapped to internal nodes:\n\t" +
-                      str(leaves_captured.difference(single_map)) + "\n")
-        sys.exit(11)
-    return
+#     if not intra_distances:
+#         # If this is the initial attempt at finding lost_node's cluster, find the intra-cluster leaf distances
+#         intra_distances = get_tip_distances(lost_node)
+#
+#     # Penalty for increasing the size of the clade is log-base 2
+#     cousins = lost_node.get_sisters()[0].get_leaf_names()
+#     parent_dist = parent.get_distance(lost_node)
+#     cost = parent_dist * log2(len(cousins) + 1)
+#
+#     if mean(intra_distances) > cost:
+#         return lost_node, intra_distances
+#
+#     # Add the distance from the parent to the
+#     intra_distances = [dist+parent_dist for dist in intra_distances]
+#     for cousin in cousins:
+#         intra_distances.append(parent.get_distance(cousin))
+#     return find_cluster(parent, intra_distances)
 
 
 def map_internal_nodes_leaves(tree: str) -> dict:
@@ -234,63 +137,6 @@ def map_internal_nodes_leaves(tree: str) -> dict:
 
     # validate_internal_node_map(node_map)
     return node_map
-
-
-def format_children_assignments(children_assignments, tree_info):
-    children_of_nodes = children_assignments.split(';')
-    for family_string in children_of_nodes:
-        parent, children = family_string.split('=')
-        for node in children.split(','):
-            tree_info['children_of_node'][parent][node] = 1
-    return tree_info
-
-
-def format_parent_assignments(parent_assignments, tree_info):
-    parents_of_nodes = parent_assignments.split(',')
-    for pair in parents_of_nodes:
-        node, parent = pair.split(':')
-        tree_info['parent_of_node'][node] = parent
-    return tree_info
-
-
-def format_subtrees(subtrees):
-    terminal_children_of_reference = Autovivify()
-    subtree_list = subtrees.split(',')
-    for subtree in subtree_list:
-        nodes = subtree.split(' ')
-        node_ints = [int(x) for x in nodes]
-        sorted_node_strings = [str(i) for i in sorted(node_ints)]
-        terminal_children_of_reference[' '.join(sorted_node_strings) + ' '] = 1
-    return terminal_children_of_reference
-
-
-def deconvolute_assignments(reference_tree_assignments):
-    tree_info = create_tree_info_hash()
-    children_assignments, parent_assignments, subtrees = reference_tree_assignments.strip().split('\n')
-    tree_info = format_children_assignments(children_assignments, tree_info)
-    tree_info = format_parent_assignments(parent_assignments, tree_info)
-    terminal_children_of_reference = format_subtrees(subtrees)
-    return tree_info, terminal_children_of_reference
-
-
-def read_and_map_internal_nodes_from_newick_tree(reference_tree_file, denominator):
-    # Using the C++ _tree_parser extension:
-    reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-    internal_node_map = map_internal_nodes_leaves(reference_tree_elements)
-    return internal_node_map
-
-
-def read_and_understand_the_reference_tree(reference_tree_file, denominator):
-    # Using the C++ _tree_parser extension:
-    reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-    reference_tree_assignments = _tree_parser._get_parents_and_children(reference_tree_elements)
-    if reference_tree_assignments == "$":
-        sys.stderr.write("Poison pill received from " + denominator + "\n")
-        sys.stderr.flush()
-        return denominator, None
-    else:
-        reference_tree_info, terminal_children_of_reference = deconvolute_assignments(reference_tree_assignments)
-        return denominator, terminal_children_of_reference
 
 
 def annotate_partition_tree(refpkg_name: str, leaf_nodes: list, bipart_tree: str):

@@ -14,7 +14,7 @@ from treesapp.phylo_seq import TreeLeafReference
 from treesapp.entish import annotate_partition_tree
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
-from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
 from treesapp.utilities import base_file_prefix, load_taxonomic_trie, match_file, get_hmm_value
 from treesapp import wrapper
 from treesapp import __version__ as ts_version
@@ -89,7 +89,7 @@ class ReferencePackage:
         return "\n\t".join(["ReferencePackage instance of {} ({}):".format(self.prefix, self.refpkg_code),
                             "Molecule type:                                      '{}'".format(self.molecule),
                             "TreeSAPP version:                                   '{}'".format(self.ts_version),
-                            "Profile HMM length:                                 '{}'".format(self.hmm_length()),
+                            "Profile HMM length:                                 '{}'".format(self.profile_length),
                             "Substitution model used for phylogenetic inference: '{}'".format(self.sub_model),
                             "Number of reference sequences (leaf nodes):          {}".format(self.num_seqs),
                             "Software used to infer phylogeny:                   '{}'".format(self.tree_tool),
@@ -104,6 +104,7 @@ class ReferencePackage:
         :return: None
         """
         logging.error(msg + "\n" + self.get_info())
+        return
 
     def clone(self, clone_path: str):
         refpkg_clone = ReferencePackage()
@@ -490,6 +491,12 @@ class ReferencePackage:
             if lineage_re.search(leaf_node.lineage):
                 children.append(leaf_node)
         return children
+
+    def get_hierarchy_taxon_for_leaf(self, leaf: TreeLeafReference):
+        if not leaf.lineage:
+            return None
+        else:
+            return self.taxa_trie.get_taxon(leaf.lineage.split(self.taxa_trie.lin_sep)[-1])
 
     def get_leaf_nodes_for_taxon(self, taxon_name: str) -> list:
         """
@@ -885,23 +892,35 @@ class ReferencePackage:
         # Generate an instance of the ETE3 Master Tree class
         rt = self.get_ete_tree()
 
-        # Propagate all of the accepted ranks as features - empty strings by default - to all TreeNodes
+        root_name = self.taxa_trie.rank_representatives("root", with_prefix=True).pop()
+        self.taxa_trie.root_domains(self.taxa_trie.get_taxon(root_name))
+
+        # Propagate a 'taxon' feature - None by default - to all TreeNodes for holding Taxon instances
         for n in rt.traverse():  # type: Tree
-            for rank in self.taxa_trie.accepted_ranks_depths:
-                n.add_feature(pr_name=rank, pr_value="")
+            n.add_feature(pr_name="taxon", pr_value=None)
 
         # Add the taxonomic lineages as features to each of the leaf nodes
         for leaf_node in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
-            lineage = self.taxa_trie.reroot_lineage(leaf_node.lineage)
+            taxon = self.get_hierarchy_taxon_for_leaf(leaf_node)
             tree_node = rt.get_leaves_by_name(name="{}_{}".format(leaf_node.number, self.prefix)).pop()
-
-            # Add the rank (keys) and taxon (values) as new features
-            for prefixed_taxon in lineage.split(self.taxa_trie.lin_sep):  # type: str
-                rank_prefix, taxon = prefixed_taxon.split(self.taxa_trie.taxon_sep)
-                rank_name = self.taxa_trie.rank_prefix_map[rank_prefix]
-                tree_node.add_feature(pr_name=rank_name, pr_value=prefixed_taxon)
+            tree_node.add_feature(pr_name="taxon", pr_value=taxon)
 
         # Label the internal nodes based on the LCA of the leaf nodes
+        for n in rt.traverse(strategy="postorder"):
+            if len(n.children) == 0:  # this is a leaf node
+                continue
+            elif len(n.children) == 1:
+                self.bail("Unexpected number of children (1) for Tree.Node {}.\n".format(n.name))
+                raise AssertionError
+            elif len(n.children) > 2:
+                n.resolve_polytomy(recursive=False)
+                for c in n.children:
+                    if not hasattr(c, "taxon"):
+                        c.add_feature(pr_name="taxon", pr_value=None)
+                        c.taxon = Taxon.lca(c.children[0].taxon, c.children[1].taxon)
+            l_node, r_node = n.get_children()
+            lca = Taxon.lca(l_node.taxon, r_node.taxon)
+            n.taxon = lca
 
         return rt
 

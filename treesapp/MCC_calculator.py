@@ -803,4 +803,4 @@ def mcc_calculator(sys_args):
 
 
 if __name__ == '__main__':
-    mcc_calculator(sys.argv)
+    mcc_calculator(sys.argv[1:])

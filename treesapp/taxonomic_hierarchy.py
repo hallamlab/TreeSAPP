@@ -27,6 +27,12 @@ class Taxon:
         self.coverage = 1
 
     def prefix_taxon(self, taxon_sep="__"):
+        if not self.prefix:
+            if not self.rank:
+                logging.error("Unable to return Taxon '{}' with its rank-prefix as its rank attribute is not set.\n"
+                              "".format(self.name))
+            else:
+                self.prefix = self.rank[0]
         return self.prefix + taxon_sep + self.name
 
     def lineage(self) -> list:
@@ -71,8 +77,11 @@ class Taxon:
 
     @staticmethod
     def lca(left_taxon, right_taxon):
-        l1 = left_taxon.lineage()
-        l2 = right_taxon.lineage()
+        try:
+            l1 = left_taxon.lineage()
+            l2 = right_taxon.lineage()
+        except AttributeError:
+            return
 
         while len(l1) > len(l2):
             l1.pop()
@@ -211,6 +220,18 @@ class TaxonomicHierarchy:
         except IndexError:
             self.so_long_and_thanks_for_all_the_fish("Empty taxon in lineage '{}'\n".format(lineage))
 
+    def root_domains(self, root: Taxon) -> None:
+        if root.prefix_taxon() not in self.hierarchy:
+            self.digest_taxon(taxon=root.name, previous=None, rank=root.rank, rank_prefix='r')
+        if not isinstance(root, Taxon):
+            logging.error("Root taxon must be of type taxonomic_hierarchy.Taxon, not {}.\n".format(type(root)))
+            raise TypeError
+        for domain_name in self.rank_representatives("domain", with_prefix=True):
+            domain_taxon = self.get_taxon(domain_name)
+            if domain_taxon.parent is None:
+                domain_taxon.parent = root
+        return
+
     def reroot_lineage(self, lineage: str) -> str:
         """
         Ensure the taxonomic lineage's most basal rank is Root (self.root_taxon)
@@ -226,7 +247,7 @@ class TaxonomicHierarchy:
             lineage = self.root_taxon + self.lin_sep + lineage
         return lineage
 
-    def rm_taxon_from_hierarchy(self, taxon: Taxon, decrement=1) -> None:
+    def scrub_taxon_from_hierarchy(self, taxon: Taxon, decrement=1) -> None:
         # Decrease Taxon.coverage for every Taxon instance in the lineage
         taxon.coverage -= decrement
         # Remove a Taxon from self.hierarchy dictionary if its coverage equals zero
@@ -239,20 +260,21 @@ class TaxonomicHierarchy:
                 # raise KeyError
         return
 
-    def redirect_hierarchy_paths(self, rep: Taxon, old: Taxon):
-        # Do not add values to rep since old is likely in its lineage so double counting
-        if rep not in old.lineage():  # Just to make sure though...
-            rep.absorb(old)
+    def redirect_hierarchy_paths(self, old: Taxon, rep=None):
         for taxon in self.hierarchy.values():  # type: Taxon
             if taxon.parent == old:
                 if taxon == rep:
                     pass
                 else:
                     taxon.parent = rep
-        # Remove all taxa between the old taxon and the LCA(rep, old)
-        lca = Taxon.lca(old, rep)
-        for taxon in Taxon.lineage_slice(old, lca):
-            self.rm_taxon_from_hierarchy(taxon)
+        if rep is not None:
+            # Do not add values to rep since old is likely in its lineage so double counting
+            if rep not in old.lineage():  # Just to make sure though...
+                rep.absorb(old)
+            # Remove all taxa between the old taxon and the LCA(rep, old)
+            lca = Taxon.lca(old, rep)
+            for taxon in Taxon.lineage_slice(old, lca):
+                self.scrub_taxon_from_hierarchy(taxon)
         return
 
     @staticmethod
@@ -265,6 +287,12 @@ class TaxonomicHierarchy:
 
     def resolve_conflicts(self) -> dict:
         """
+        Parses the tuples of Taxon instances (Taxon, Taxon) in self.conflicts and determines which instance is going to
+         be retained in the TaxonomicHierarchy.
+        The decision function is based on each Taxon's 'coverage' attribute and their taxonomic ranks.
+        If the ranks are the same, resolve_conflicts will retain the Taxon instance with greater coverage.
+        If one of the Taxon instance's rank is 'no_rank', the other will be used as the representative.
+        The last possibility is both have valid (and different) ranks, in which case both Taxon instances are retained.
 
         :return: A dictionary mapping the obsolete Taxon instance to the new representative Taxon instance
         """
@@ -792,24 +820,27 @@ class TaxonomicHierarchy:
         """
         reconstructed_lineage = []
         self.validate_rank_prefixes()
-        for rank in lineage.split(self.lin_sep):  # type: str
+        for taxon in lineage.split(self.lin_sep):  # type: str
             try:
-                prefix, name = rank.split(self.taxon_sep)
+                prefix, name = taxon.split(self.taxon_sep)
             except ValueError:
-                rank = re.sub(r'(?<!^[a-z])' + re.escape(self.taxon_sep), '_', rank)
+                taxon = re.sub(r'(?<!^[a-z])' + re.escape(self.taxon_sep), '_', taxon)
                 try:
-                    prefix, name = rank.split(self.taxon_sep)
+                    prefix, name = taxon.split(self.taxon_sep)
                 except ValueError:
                     self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for clean_lineage_string().\n"
                                                              "None was provided for taxon '{}' in lineage {}\n"
-                                                             "".format(rank, lineage))
+                                                             "".format(taxon, lineage))
                     raise ValueError()
 
-            if not self.no_rank_re.match(rank) and self.rank_prefix_map[prefix] in self.accepted_ranks_depths:
-                if with_prefix is False:
-                    rank = self.canonical_prefix.sub('', rank)
-                if name:
-                    reconstructed_lineage.append(str(rank))
+            try:
+                if not self.no_rank_re.match(taxon) and self.rank_prefix_map[prefix] in self.accepted_ranks_depths:
+                    if with_prefix is False:
+                        taxon = self.canonical_prefix.sub('', taxon)
+                    if name:
+                        reconstructed_lineage.append(str(taxon))
+            except KeyError:
+                raise KeyError
         return self.lin_sep.join(reconstructed_lineage)
 
     def check_lineage(self, lineage: str, organism: str, verbosity=0) -> str:
@@ -893,7 +924,7 @@ class TaxonomicHierarchy:
                                                                              self.lin_sep.join(lineage_list[0:i])))
                 for prefix_taxon_name in lineage_list[i:]:
                     if self.get_taxon(prefix_taxon=prefix_taxon_name):
-                        self.rm_taxon_from_hierarchy(self.get_taxon(prefix_taxon=prefix_taxon_name))  # type: Taxon
+                        self.scrub_taxon_from_hierarchy(self.get_taxon(prefix_taxon=prefix_taxon_name))  # type: Taxon
                 lineage_list = lineage_list[0:i]
                 break
 
@@ -903,7 +934,7 @@ class TaxonomicHierarchy:
                                                                              self.lin_sep.join(lineage_list[0:i])))
                 for prefix_taxon_name in lineage_list[i:]:
                     if self.get_taxon(prefix_taxon=prefix_taxon_name):
-                        self.rm_taxon_from_hierarchy(self.get_taxon(prefix_taxon=prefix_taxon_name))  # type: Taxon
+                        self.scrub_taxon_from_hierarchy(self.get_taxon(prefix_taxon=prefix_taxon_name))  # type: Taxon
                 lineage_list = lineage_list[0:i]
                 break
             i += 1
@@ -924,11 +955,11 @@ class TaxonomicHierarchy:
         """
         if type(taxa) is str:
             taxa = [taxa]
-        for prefix_taxon_name in sorted(taxa):
+        for prefix_taxon_name in sorted(taxa):  # type: str
             leaf_taxon = self.get_taxon(prefix_taxon=prefix_taxon_name)  # type: Taxon
             if leaf_taxon:
                 for taxon in leaf_taxon.lineage():
-                    self.rm_taxon_from_hierarchy(taxon)
+                    self.scrub_taxon_from_hierarchy(taxon)
                 # Update self.lineages_fed
                 self.lineages_fed -= 1
 

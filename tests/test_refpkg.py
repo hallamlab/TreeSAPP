@@ -96,9 +96,13 @@ class RefPkgTester(unittest.TestCase):
         self.assertTrue("McrA" == self.db.prefix)
 
     def test_taxonomically_label_tree(self):
+        from treesapp.taxonomic_hierarchy import Taxon
         labelled_rt = self.db.taxonomically_label_tree()
         self.assertEqual(246, len(labelled_rt))
-        self.assertTrue('species' in labelled_rt.features)
+        self.assertTrue('taxon' in labelled_rt.features)
+        self.assertEqual('Root', labelled_rt.taxon.name)
+        self.assertEqual('root', labelled_rt.taxon.rank)
+        self.assertTrue(isinstance(labelled_rt.taxon, Taxon))
         return
 
 
