@@ -1,8 +1,62 @@
 import logging
-import re
 import sys
 from copy import deepcopy
 from json import loads, dumps
+
+
+class PhyloPlace:
+    def __init__(self, placement: dict, field_positions=None):
+        self.name = ""
+        self.edge_num = 0
+        self.like_weight_ratio = 0
+        self.likelihood = 0
+        self.distal_length = 0
+        self.pendant_length = 0
+        self.mean_tip_length = 0
+        n_key = 'n'
+        p_key = 'p'
+        # Load the placed sequence name
+        try:
+            if len(placement[n_key]) != 1:
+                logging.error("Multiple sequence names found in PQuery name:\n{}".format("\t{}\n".join(placement['n'])))
+                sys.exit(11)
+            self.name = placement[n_key][0]
+        except KeyError:
+            logging.error("Unable to find name key ('{}') in placement: {}\n".format(n_key, placement))
+            sys.exit(13)
+
+        # Load the placement's PQuery information
+        try:
+            fields = placement[p_key][0]
+        except KeyError:
+            logging.error("Unable to find placement info key ('{}') in placement: {}\n".format(p_key, placement))
+            sys.exit(15)
+
+        # Load the placement information fields
+        if not field_positions:
+            field_positions = ['edge_num', 'likelihood', 'like_weight_ratio', 'distal_length', 'pendant_length']
+        x = 0
+        while x < len(field_positions):
+            try:
+                self.__dict__[field_positions[x]] = fields[x]
+            except KeyError:
+                logging.error("Field '{}' doesn't exist in PhyloPlace class attributes.\n".format(field_positions[x]))
+                sys.exit(17)
+            x += 1
+
+        return
+
+    def total_distance(self) -> int:
+        return round(sum([self.pendant_length, self.mean_tip_length, self.distal_length]), 5)
+
+    def summary(self) -> str:
+        # TODO: Finish implementing this
+        summary_string = "Summary for placement '{}' on edge {}\n".format(self.name, self.edge_num)
+        if self.likelihood and self.like_weight_ratio and self.edge_num:
+            summary_string += "\tLikelihood\t" + str(self.likelihood) + "\n"
+            summary_string += "\tL.W.R.\t\t" + str(self.like_weight_ratio) + "\n"
+            summary_string += ""
+        return summary_string
 
 
 class JPlace:
@@ -28,9 +82,6 @@ class JPlace:
         # Information derived from Jplace pqueries:
         ##
         self.placements = list()
-        self.lwr = 0  # Likelihood weight ratio of an individual placement
-        self.likelihood = 0
-        self.avg_evo_dist = 0.0
         self.distances = ""
         self.classified = True
         self.inode = ""
@@ -58,16 +109,8 @@ class JPlace:
         elif self.placements[0] == '{}':
             summary_string += "\tNone.\n"
         else:
-            if self.likelihood and self.lwr and self.inode:
-                summary_string += "\tInternal node\t" + str(self.inode) + "\n"
-                summary_string += "\tLikelihood\t" + str(self.likelihood) + "\n"
-                summary_string += "\tL.W.R\t\t" + str(self.lwr) + "\n"
-            else:
-                for pquery in self.placements:
-                    placement = loads(str(pquery), encoding="utf-8")
-                    for k, v in placement.items():
-                        if k == 'p':
-                            summary_string += '\t' + str(v) + "\n"
+            for placement in self.placements:  # type: PhyloPlace
+                summary_string += placement.summary()
         summary_string += "Non-redundant lineages of child nodes:\n"
         if len(self.lineage_list) > 0:
             for lineage in sorted(set(self.lineage_list)):
@@ -86,97 +129,45 @@ class JPlace:
         summary_string += "\n"
         return summary_string
 
-    def list_placements(self):
-        """
-        Returns a list of all the nodes contained in placements
-        :return:
-        """
-        nodes = list()
-        for d_place in self.placements:
-            if isinstance(d_place, str):
-                for k, v in loads(d_place).items():
-                    if k == 'p':
-                        for pquery in v:
-                            nodes.append(str(pquery[0]))
-            else:
-                logging.error("Unable to handle type " + type(d_place) + "\n")
-                sys.exit(17)
-        return nodes
+    # def correct_decoding(self) -> None:
+    #     """
+    #     Since the JSON decoding is unable to decode recursively, this needs to be fixed for each placement
+    #     Formatting and string conversion are also performed here
+    #
+    #     :return: None
+    #     """
+    #     new_placement_collection = []  # a list of dictionary-like strings
+    #     placement_string = ""  # e.g. {"p":[[226, -31067.028237, 0.999987, 0.012003, 2e-06]], "n":["query"]}
+    #     for d_place in self.placements:
+    #         if not isinstance(d_place, str):
+    #             dict_strings = list()  # e.g. "n":["query"]
+    #             for k, v in d_place.items():
+    #                 dict_strings.append(dumps(k) + ':' + dumps(v))
+    #                 placement_string = ', '.join(dict_strings)
+    #             new_placement_collection.append('{' + placement_string + '}')
+    #         else:
+    #             new_placement_collection.append(d_place)
+    #     self.placements = new_placement_collection
+    #
+    #     decoded_fields = list()
+    #     for field in self.fields:
+    #         if not re.match('".*"', field):
+    #             decoded_fields.append(dumps(field))
+    #         else:
+    #             decoded_fields.append(field)
+    #     self.fields = decoded_fields
+    #     return
 
-    def correct_decoding(self) -> None:
-        """
-        Since the JSON decoding is unable to decode recursively, this needs to be fixed for each placement
-        Formatting and string conversion are also performed here
+    def name_placed_sequence(self) -> None:
+        names = set()
+        for pplace in self.placements:  # type: PhyloPlace
+            names.add(pplace.name)
 
-        :return: None
-        """
-        new_placement_collection = []  # a list of dictionary-like strings
-        placement_string = ""  # e.g. {"p":[[226, -31067.028237, 0.999987, 0.012003, 2e-06]], "n":["query"]}
-        for d_place in self.placements:
-            if not isinstance(d_place, str):
-                dict_strings = list()  # e.g. "n":["query"]
-                for k, v in d_place.items():
-                    dict_strings.append(dumps(k) + ':' + dumps(v))
-                    placement_string = ', '.join(dict_strings)
-                new_placement_collection.append('{' + placement_string + '}')
-            else:
-                new_placement_collection.append(d_place)
-        self.placements = new_placement_collection
-
-        decoded_fields = list()
-        for field in self.fields:
-            if not re.match('".*"', field):
-                decoded_fields.append(dumps(field))
-            else:
-                decoded_fields.append(field)
-        self.fields = decoded_fields
+        if len(names) > 1:
+            logging.error("Multiple names encountered for a single PQuery:\n{}\n".format(','.join(names)))
+            raise AssertionError
+        self.place_name = names.pop()
         return
-
-    def name_placed_sequence(self):
-        for d_place in self.placements:
-            for key, value in d_place.items():
-                if key == 'n':
-                    self.place_name = value[0]
-        return
-
-    def get_field_position_from_jplace_fields(self, field_name) -> int:
-        """
-        Find the position of a specific field in self.fields
-
-        :return: The integer position of a field name (string)
-        """
-        x = 0
-        # Find the position of field_name in the placements from fields descriptor
-        quoted_field = '"' + field_name + '"'
-        for field in self.fields:
-            if str(field) == quoted_field:
-                break
-            else:
-                x += 1
-        if x == len(self.fields):
-            logging.warning("Unable to find '" + field_name + "' in the jplace \"field\" string!\n")
-            return None
-        return x
-
-    def get_jplace_element(self, element_name) -> str:
-        """
-        Determines the element value (e.g. likelihood, edge_num) for a single placement.
-        There may be multiple placements (or 'pquery's) in a single .jplace file, therefore, this function is usually looped over.
-
-        :param element_name:
-        :return:
-        """
-        position = self.get_field_position_from_jplace_fields(element_name)
-        placement = loads(self.placements[0], encoding="utf-8")
-        element_value = None
-        for k, v in placement.items():
-            if k == 'p':
-                acc = 0
-                while acc < len(v):
-                    pquery_fields = v[acc]
-                    element_value = pquery_fields[position]
-                    acc += 1
-        return element_value
 
     def filter_min_weight_threshold(self, threshold=0.1) -> None:
         """
@@ -221,47 +212,7 @@ class JPlace:
                             leaf_rpkm_sums[tree_leaf] += normalized_abundance
         return leaf_rpkm_sums
 
-    def filter_max_weight_placement(self) -> None:
-        """
-        Removes all secondary placements of each pquery, leaving only the placement with the maximum like_weight_ratio
-
-        :return: None
-        """
-        # Find the position of like_weight_ratio in the placements from fields descriptor
-        x = self.get_field_position_from_jplace_fields("like_weight_ratio")
-        if not x:
-            return
-
-        # Filter the placements
-        new_placement_collection = list()
-        placement_string = ""
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            if placement:
-                dict_strings = list()
-                max_lwr = 0
-                if len(placement["p"]) > 1:
-                    for k, v in placement.items():
-                        if k == 'p':
-                            acc = 0
-                            tmp_placements = deepcopy(v)
-                            while acc < len(tmp_placements):
-                                candidate = tmp_placements[acc]
-                                if float(candidate[x]) > max_lwr:
-                                    v = [tmp_placements.pop(acc)]
-                                    max_lwr = candidate[x]
-                                else:
-                                    acc += 1
-                        dict_strings.append(dumps(k) + ':' + dumps(v))
-                        placement_string = ', '.join(dict_strings)
-                    # Add the filtered placements back to the object.placements
-                    new_placement_collection.append('{' + placement_string + '}')
-                else:
-                    new_placement_collection.append(pquery)
-        self.placements = new_placement_collection
-        return
-
-    def check_jplace(self, tree_index) -> None:
+    def check_jplace_edge_lengths(self, tree_index) -> None:
         """
         Currently validates a pquery's JPlace distal length, ensuring it is less than or equal to the edge length
         This is necessary to handle a case found in RAxML v8.2.12 (and possibly older versions) where the distal length
@@ -269,24 +220,13 @@ class JPlace:
 
         :return: None
         """
-        distal_pos = self.get_field_position_from_jplace_fields("distal_length")
-        edge_pos = self.get_field_position_from_jplace_fields("edge_num")
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            if placement:
-                if len(placement["p"]) > 1:
-                    for k, v in placement.items():
-                        if k == 'p':
-                            for edge_placement in v:
-                                place_len = float(edge_placement[distal_pos])
-                                edge = edge_placement[edge_pos]
-                                tree_len = tree_index[str(edge)]
-                                if place_len > tree_len:
-                                    logging.debug("Distal length adjusted to fit JPlace " +
-                                                  self.ref_name + " tree for " + self.place_name + ".\n")
-                                    edge_placement[distal_pos] = tree_len
-                else:
-                    pass
+        for pquery in self.placements:  # type: PhyloPlace
+            place_len = float(pquery.distal_length)
+            tree_len = tree_index[str(pquery.edge_num)]
+            if place_len > tree_len:
+                logging.debug("Distal length adjusted to fit JPlace {} tree for {}.\n"
+                              "".format(self.ref_name, self.place_name))
+                pquery.distal_length = tree_len
 
         return
 
@@ -330,9 +270,7 @@ class PQuery(JPlace):
         super(PQuery, self).__init__()
         self.seq_name = ""  # Full sequence name (from FASTA header)
         # Sourced from phylogenetic placement (JPlace file)
-        self.pendant = 0.0
-        self.mean_tip = 0.0
-        self.distal = 0.0
+        self.consensus_placement = None
         self.parent_node = ""
 
         # Known from outer scope
@@ -345,22 +283,6 @@ class PQuery(JPlace):
         self.evalue = 0.0
         self.start = 0
         self.end = 0
-
-    def total_distance(self):
-        return round(sum([self.pendant, self.mean_tip, self.distal]), 5)
-
-    def summarize_placement(self):
-        summary_string = "Placement of " + self.ref_name + " at rank " + self.rank + \
-                         ":\nLineage = " + self.lineage + \
-                         "\nInternal node = " + str(self.inode) + \
-                         "\nDistances:" + \
-                         "\n\tDistal = " + str(self.distal) +\
-                         "\n\tPendant = " + str(self.pendant) +\
-                         "\n\tTip = " + str(self.mean_tip) +\
-                         "\nLikelihood = " + str(self.likelihood) +\
-                         "\nL.W.R. = " + str(self.lwr) +\
-                         "\n"
-        return summary_string
 
     def transfer_metadata(self, itol_jplace_object):
         self.tree = itol_jplace_object.tree
@@ -433,6 +355,48 @@ class PQuery(JPlace):
                     logging.warning("No lineage information available for " + leaf_node + ".\n")
 
         return children
+
+    def calculate_consensus_placement(self) -> None:
+        for pplace in self.placements:  # type: PhyloPlace
+            pass
+        self.
+        return
+
+    def filter_max_weight_placement(self) -> None:
+        """
+        Removes all secondary placements of each pquery, leaving only the placement with the maximum like_weight_ratio
+
+        :return: None
+        """
+        # Filter the placements
+        new_placement_collection = list()
+        placement_string = ""
+        for pquery in self.placements:
+            placement = loads(pquery, encoding="utf-8")
+            if placement:
+                dict_strings = list()
+                max_lwr = 0
+                if len(placement["p"]) > 1:
+                    for k, v in placement.items():
+                        if k == 'p':
+                            acc = 0
+                            tmp_placements = deepcopy(v)
+                            while acc < len(tmp_placements):
+                                candidate = tmp_placements[acc]
+                                if float(candidate[x]) > max_lwr:
+                                    v = [tmp_placements.pop(acc)]
+                                    max_lwr = candidate[x]
+                                else:
+                                    acc += 1
+                        dict_strings.append(dumps(k) + ':' + dumps(v))
+                        placement_string = ', '.join(dict_strings)
+                    # Add the filtered placements back to the object.placements
+                    new_placement_collection.append('{' + placement_string + '}')
+                else:
+                    new_placement_collection.append(pquery)
+        self.placements = new_placement_collection
+        self.consensus_placement = self.placements[0]
+        return
 
 
 def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:

@@ -42,8 +42,6 @@ try:
     from treesapp import wrapper
     from treesapp.HMMER_domainTblParser import HmmMatch
 
-    import _tree_parser
-    import _fasta_reader
 except ImportWarning:
     sys.stderr.write("Could not load some user defined module functions")
     sys.stderr.write(traceback.print_exc(10))
@@ -1082,13 +1080,11 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
     return
 
 
-def select_query_placements(tree_saps: dict):
+def select_query_placements(pquery_dict: dict, mode="max"):
     """
 
 
-    :return:
-        1. Dictionary of PQuery instances indexed by denominator (refpkg code e.g. M0701)
-        2. Dictionary of an JPlace instance (values) mapped to marker name
+    :return: Dictionary of PQuery instances indexed by denominator (refpkg code e.g. M0701)
     """
 
     logging.info('Selecting the optimal query placements... ')
@@ -1096,9 +1092,16 @@ def select_query_placements(tree_saps: dict):
     function_start_time = time.time()
     classified_seqs = 0
 
-    for refpkg_code in tree_saps:
-        for pquery in tree_saps[refpkg_code]:  # type: PQuery
-            pquery.filter_max_weight_placement()
+    for refpkg_code in pquery_dict:
+        for pquery in pquery_dict[refpkg_code]:  # type: PQuery
+            if mode == "max":
+                pquery.filter_max_weight_placement()
+            elif mode == "aelw":
+                pquery.calculate_consensus_placement()
+            else:
+                logging.error("Unknown PQuery consensus algorithm provided: '{}'.\n".format(mode))
+                raise ValueError
+
             if pquery.classified and len(pquery.placements) != 1:
                 logging.error("Number of JPlace pqueries is {} when only 1 is expected at this point.\n"
                               "".format(len(pquery.placements)) + pquery.summarize())
@@ -1121,7 +1124,7 @@ def select_query_placements(tree_saps: dict):
                   ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
     logging.debug("\t" + str(classified_seqs) + " sequences placed into trees by EPA-NG.\n")
 
-    return tree_saps
+    return pquery_dict
 
 
 def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
@@ -1170,7 +1173,7 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
                     pquery.seq_name, pquery.start, pquery.end = seq_info.groups()
                 pquery.seq_len = int(pquery.end) - int(pquery.start)
                 pquery.node_map = internal_node_leaf_map
-                pquery.check_jplace(edge_dist_index)
+                pquery.check_jplace_edge_lengths(edge_dist_index)
                 tree_saps[refpkg.prefix].append(pquery)
 
             if refpkg.prefix not in itol_data:

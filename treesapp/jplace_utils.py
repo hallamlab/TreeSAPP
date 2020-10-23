@@ -7,28 +7,28 @@ import os
 import logging
 from json import load, loads, dumps
 
-from treesapp.phylo_seq import JPlace, PQuery
+from treesapp.phylo_seq import JPlace, PQuery, PhyloPlace
 
 
-def pquery_likelihood_weight_ratio(pquery, position):
-    """
-    Determines the likelihood weight ratio (LWR) for a single placement. There may be multiple placements
-    (or 'pquery's) in a single .jplace file. Therefore, this function is usually looped over.
-
-    :param pquery:
-    :param position: The position of "like_weight_ration" in the pquery fields
-    :return: The float(LWR) of a single placement
-    """
-    lwr = 0.0
-    placement = loads(str(pquery), encoding="utf-8")
-    for k, v in placement.items():
-        if k == 'p':
-            acc = 0
-            while acc < len(v):
-                pquery_fields = v[acc]
-                lwr = float(pquery_fields[position])
-                acc += 1
-    return lwr
+# def pquery_likelihood_weight_ratio(pquery, position):
+#     """
+#     Determines the likelihood weight ratio (LWR) for a single placement. There may be multiple placements
+#     (or 'pquery's) in a single .jplace file. Therefore, this function is usually looped over.
+#
+#     :param pquery:
+#     :param position: The position of "like_weight_ration" in the pquery fields
+#     :return: The float(LWR) of a single placement
+#     """
+#     lwr = 0.0
+#     placement = loads(str(pquery), encoding="utf-8")
+#     for k, v in placement.items():
+#         if k == 'p':
+#             acc = 0
+#             while acc < len(v):
+#                 pquery_fields = v[acc]
+#                 lwr = float(pquery_fields[position])
+#                 acc += 1
+#     return lwr
 
 
 def jplace_parser(filename: str) -> JPlace:
@@ -38,23 +38,23 @@ def jplace_parser(filename: str) -> JPlace:
     :param filename: jplace file output by RAxML
     :return: JPlace object
     """
-    itol_datum = JPlace()
+    jplace_data = JPlace()
     with open(filename) as jplace:
-        jplace_dat = load(jplace, encoding="utf-8")
-        itol_datum.tree = jplace_dat["tree"]
+        jplace_json = load(jplace, encoding="utf-8")
+        jplace_data.tree = jplace_json["tree"]
         # A list of strings
         if sys.version_info > (2, 9):
-            itol_datum.fields = jplace_dat["fields"]
+            jplace_data.fields = jplace_json["fields"]
         else:
-            itol_datum.fields = [x.decode("utf-8") for x in jplace_dat["fields"]]
-        itol_datum.version = jplace_dat["version"]
-        itol_datum.metadata = jplace_dat["metadata"]
+            jplace_data.fields = [x.decode("utf-8") for x in jplace_json["fields"]]
+        jplace_data.version = jplace_json["version"]
+        jplace_data.metadata = jplace_json["metadata"]
         # A list of dictionaries of where the key is a string and the value is a list of lists
-        itol_datum.placements = jplace_dat["placements"]
+        jplace_data.placements = jplace_json["placements"]
 
-    jplace_dat.clear()
+    jplace_json.clear()
 
-    return itol_datum
+    return jplace_data
 
 
 def demultiplex_pqueries(jplace_data: JPlace, pquery_map=None) -> list:
@@ -70,20 +70,30 @@ def demultiplex_pqueries(jplace_data: JPlace, pquery_map=None) -> list:
     for pquery in jplace_data.placements:
         pquery_obj = PQuery()
         # Copy the essential information to the PQuery instance
-        pquery_obj.placements = [pquery]
+        pquery_obj.placements = split_placements(pquery)
         pquery_obj.name_placed_sequence()
 
         if pquery_map:
-            pquery_obj = pquery_map[pquery_obj.place_name]
-            pquery_obj.placements = [pquery]
             # Placed sequence has already been named
+            mapped_pquery = pquery_map[pquery_obj.place_name]
+            # Prevent rerunning split_placements
+            mapped_pquery.placements = pquery_obj.placements
+            pquery_obj = mapped_pquery
 
         pquery_obj.transfer_metadata(jplace_data)
-        pquery_obj.correct_decoding()
 
         tree_placement_queries.append(pquery_obj)
 
     return tree_placement_queries
+
+
+def split_placements(placements: dict) -> list:
+    # Reformat the dictionary so each one is a unique placement
+    phylo_places = []
+    for pplace in placements['p']:
+        phylo_places.append(PhyloPlace({'p': [pplace],
+                                        'n': placements['n']}))
+    return phylo_places
 
 
 def filter_jplace_data(jplace_data: JPlace, tree_saps: list):
@@ -94,7 +104,6 @@ def filter_jplace_data(jplace_data: JPlace, tree_saps: list):
     :param tree_saps: List of TreeProtein objects
     :return:
     """
-    jplace_data.correct_decoding()
     jplace_data.filter_max_weight_placement()
     new_placement_collection = list()
     sapling_map = {sapling.place_name: sapling for sapling in tree_saps}
@@ -124,17 +133,17 @@ def filter_jplace_data(jplace_data: JPlace, tree_saps: list):
     return jplace_data
 
 
-def write_jplace(itol_datum: JPlace, jplace_file: str):
+def write_jplace(jplace_data: JPlace, jplace_file: str):
     """
     A hacky function for writing jplace files with concatenated placements
      which are also compatible with iTOL's jplace parser
 
-    :param itol_datum: A JPlace class object
+    :param jplace_data: A JPlace class object
     :param jplace_file: A JPlace file path to write to
     :return:
     """
 
-    if len(itol_datum.placements) == 0:
+    if len(jplace_data.placements) == 0:
         return
 
     try:
@@ -143,15 +152,15 @@ def write_jplace(itol_datum: JPlace, jplace_file: str):
         logging.error("Unable to open " + jplace_file + " for writing.\n")
         sys.exit(9)
 
-    itol_datum.correct_decoding()
+    jplace_data.correct_decoding()
 
     # Begin writing elements to the jplace file
     jplace_out.write('{\n\t"tree": "')
-    jplace_out.write(itol_datum.tree + "\", \n")
+    jplace_out.write(jplace_data.tree + "\", \n")
     jplace_out.write("\t\"placements\": [\n\t")
     # The [] is lost from 'n': ["query"] during loads
     new_placement_collection = list()
-    for d_place in itol_datum.placements:
+    for d_place in jplace_data.placements:
         dict_strings = list()
         for k, v in loads(d_place).items():
             if k == 'n':
@@ -164,10 +173,10 @@ def write_jplace(itol_datum: JPlace, jplace_file: str):
         new_placement_collection.append('{' + ', '.join(dict_strings) + '}')
     jplace_out.write(",\n\t".join(new_placement_collection))
     jplace_out.write("\n\t],\n")
-    jplace_out.write("\t\"metadata\": " + re.sub('\'', '"', str(itol_datum.metadata)) + ",\n")
-    jplace_out.write("\t\"version\": " + str(itol_datum.version) + ",\n")
+    jplace_out.write("\t\"metadata\": " + re.sub('\'', '"', str(jplace_data.metadata)) + ",\n")
+    jplace_out.write("\t\"version\": " + str(jplace_data.version) + ",\n")
     jplace_out.write("\t\"fields\": [\n\t")
-    jplace_out.write(", ".join(itol_datum.fields) + "\n\t]\n}\n")
+    jplace_out.write(", ".join(jplace_data.fields) + "\n\t]\n}\n")
 
     jplace_out.close()
     return
@@ -224,12 +233,12 @@ def sub_indices_for_seq_names_jplace(jplace_dir, numeric_contig_index, refpkg_di
     return
 
 
-def add_bipartitions(itol_datum, bipartition_file):
+def add_bipartitions(jplace_data, bipartition_file):
     """
     Adds bootstrap values read from a NEWICK tree-file where they are indicated by values is square-brackets
     and inserts them into a JPlace-formatted NEWICK tree (Internal nodes in curly braces are required)
 
-    :param itol_datum: An JPlace object
+    :param jplace_data: An JPlace object
     :param bipartition_file: Path to file containing the bootstrapped tree
     :return: Updated ItolJPlace object
     """
@@ -268,15 +277,15 @@ def add_bipartitions(itol_datum, bipartition_file):
     x = 0
     bootstrapped_jplace_tree = ''
     num_buffer = ''
-    while x < len(itol_datum.tree):
-        c = itol_datum.tree[x]
+    while x < len(jplace_data.tree):
+        c = jplace_data.tree[x]
         if c == '{':
             x += 1
-            c = itol_datum.tree[x]
+            c = jplace_data.tree[x]
             while re.search(r"[0-9]", c):
                 num_buffer += c
                 x += 1
-                c = itol_datum.tree[x]
+                c = jplace_data.tree[x]
             if num_buffer in internal_node_bipart_map.keys():
                 bootstrapped_jplace_tree += '[' + internal_node_bipart_map[num_buffer] + ']'
             bootstrapped_jplace_tree += '{' + num_buffer
@@ -285,8 +294,8 @@ def add_bipartitions(itol_datum, bipartition_file):
         else:
             bootstrapped_jplace_tree += c
         x += 1
-    itol_datum.tree = bootstrapped_jplace_tree
-    return itol_datum
+    jplace_data.tree = bootstrapped_jplace_tree
+    return jplace_data
 
 
 def find_edge_length(jplace_tree: str, node: str):
