@@ -746,58 +746,6 @@ def merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index):
     return merged_extracted_seq_dict
 
 
-def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fasta_file: str) -> None:
-    """
-    Function to write the nucleotide sequences representing the full-length ORF for each classified sequence
-    Sequence names are from JPlace.contig_name values so output format is:
-
-     >contig_name|RefPkg|StartCoord_StopCoord
-
-    :param tree_saps: A dictionary of gene_codes as keys and TreeSap objects as values
-    :param formatted_fasta_dict: A dictionary with headers/sequence names as keys and sequences as values
-    :param fasta_file: Path to a file to write the sequences to in FASTA format
-    :return: None
-    """
-    output_fasta_dict = dict()
-    len_parsing_problem = False
-    prefix = ''  # For adding a '>' if the formatted_fasta_dict sequences have them
-    for seq_name in formatted_fasta_dict:
-        if seq_name[0] == '>':
-            prefix = '>'
-        break
-
-    for denominator in tree_saps:
-        for placed_sequence in tree_saps[denominator]:  # type JPlace
-            if placed_sequence.classified:
-                output_fasta_dict[placed_sequence.place_name] = ""
-                try:
-                    output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix +
-                                                                                         placed_sequence.place_name]
-                except KeyError:
-                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.ref_name),
-                                      '',
-                                      placed_sequence.place_name)
-                    try:
-                        output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix + seq_name]
-                    except KeyError:
-                        logging.error("Unable to find '" + prefix + placed_sequence.place_name +
-                                      "' in predicted ORFs file!\nExample headers in the predicted ORFs file:\n\t" +
-                                      '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
-                        sys.exit(3)
-
-                if not placed_sequence.seq_len:
-                    placed_sequence.seq_len = len(output_fasta_dict[placed_sequence.place_name])
-                    len_parsing_problem = True
-
-    if output_fasta_dict:
-        write_new_fasta(output_fasta_dict, fasta_file)
-
-    if len_parsing_problem:
-        logging.warning("Problem parsing homologous subsequence lengths from headers of classified sequences.\n")
-
-    return
-
-
 def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_length=10) -> dict:
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid, and writes the valid sequence to a new FASTA.

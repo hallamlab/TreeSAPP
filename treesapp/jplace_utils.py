@@ -7,7 +7,7 @@ import os
 import logging
 from json import load, loads, dumps
 
-from treesapp.phylo_seq import JPlace, PQuery, PhyloPlace
+from treesapp.phylo_seq import PQuery, PhyloPlace, split_placements
 
 
 # def pquery_likelihood_weight_ratio(pquery, position):
@@ -30,6 +30,93 @@ from treesapp.phylo_seq import JPlace, PQuery, PhyloPlace
 #                 acc += 1
 #     return lwr
 
+class JPlace:
+    """
+    A class to hold all data relevant to a jplace file to be viewed in iTOL
+    """
+    ##
+    # Information derived from Jplace pqueries:
+    ##
+    fields = list()
+    pqueries = list()
+    ref_name = ""
+    file_name = ""
+    tree = ""  # NEWICK tree
+    metadata = ""
+    version = ""  # Jplace version
+
+    def __init__(self):
+        return
+
+    def summarize(self):
+        """
+        Prints a summary of the JPlace object (equivalent to a single marker) to stderr
+        Summary include the number of marks found, the tree used, and the tree-placement of each sequence identified
+        Written solely for testing purposes
+
+        :return:
+        """
+        summary_string = "\nInformation for JPlace file '{}'\n" \
+                         "{} sequence(s) grafted onto the {} tree.\n" \
+                         "JPlace fields:\n\t{}\n" \
+                         "Placement information:\n" \
+                         "".format(self.file_name, len(self.pqueries), self.ref_name, self.fields)
+        if not self.pqueries:
+            summary_string += "\tNone.\n"
+        elif self.pqueries[0] == '{}':
+            summary_string += "\tNone.\n"
+        else:
+            for placement in self.pqueries:  # type: PhyloPlace
+                summary_string += placement.summary()
+        summary_string += "\n"
+        return summary_string
+
+    def clear_object(self):
+        self.pqueries.clear()
+        self.fields.clear()
+        self.tree = ""
+        self.metadata = ""
+        self.version = ""
+
+    def write_jplace(self, jplace_file: str) -> None:
+        """
+        Writes A JPlace file with concatenated placements that is compatible with iTOL's JPlace viewer
+
+        :param jplace_file: A JPlace file path to write to
+        :return: None
+        """
+
+        if len(self.pqueries) == 0:
+            return
+
+        try:
+            jplace_out = open(jplace_file, 'w')
+        except IOError:
+            logging.error("Unable to open " + jplace_file + " for writing.\n")
+            sys.exit(9)
+
+        jplace_str = ""
+        # Begin writing elements to the jplace file
+        jplace_str += '{\n\t"tree": "'
+        jplace_str += self.tree + "\", \n"
+
+        # Format the placements as JSON
+        jplace_str += "\t\"placements\": [\n\t"
+        new_placement_collection = []
+        for pquery in self.pqueries:  # type: PQuery
+            new_placement_collection.append(dumps(PhyloPlace.format_pplace_to_jplace(pquery.placements)))
+        jplace_str += ",\n\t".join(new_placement_collection)
+        jplace_str += "\n\t],\n"
+
+        jplace_str += "\t\"metadata\": " + re.sub('\'', '"', str(self.metadata)) + ",\n"
+        jplace_str += "\t\"version\": " + str(self.version) + ",\n"
+        jplace_str += "\t\"fields\": [\n\t"
+        jplace_str += ", ".join(['"' + x + '"' for x in self.fields]) + "\n\t]\n}\n"
+
+        jplace_out.write(jplace_str)
+        jplace_out.close()
+        return
+
 
 def jplace_parser(filename: str) -> JPlace:
     """
@@ -50,7 +137,7 @@ def jplace_parser(filename: str) -> JPlace:
         jplace_data.version = jplace_json["version"]
         jplace_data.metadata = jplace_json["metadata"]
         # A list of dictionaries of where the key is a string and the value is a list of lists
-        jplace_data.placements = jplace_json["placements"]
+        jplace_data.pqueries = jplace_json["placements"]
 
     jplace_json.clear()
 
@@ -60,14 +147,15 @@ def jplace_parser(filename: str) -> JPlace:
 def demultiplex_pqueries(jplace_data: JPlace, pquery_map=None) -> list:
     """
     Demultiplexes each placed query sequence (PQuery) into its own PQuery instance,
-    copying over all JPlace information and the set of possible placements.
+     copying over all JPlace information and the set of possible placements.
+    The format of the PQuery's placements is modified from a list of dictionaries to a list of PhyloPlace instances.
 
     :param jplace_data: A JPlace instance
     :param pquery_map: A dictionary mapping placed query sequence names to their respective PQuery instances
     :return: List of PQuery instances
     """
     tree_placement_queries = list()
-    for pquery in jplace_data.placements:
+    for pquery in jplace_data.pqueries:
         pquery_obj = PQuery()
         # Copy the essential information to the PQuery instance
         pquery_obj.placements = split_placements(pquery)
@@ -80,106 +168,11 @@ def demultiplex_pqueries(jplace_data: JPlace, pquery_map=None) -> list:
             mapped_pquery.placements = pquery_obj.placements
             pquery_obj = mapped_pquery
 
-        pquery_obj.transfer_metadata(jplace_data)
+        # pquery_obj.transfer_metadata(jplace_data)
 
         tree_placement_queries.append(pquery_obj)
 
     return tree_placement_queries
-
-
-def split_placements(placements: dict) -> list:
-    # Reformat the dictionary so each one is a unique placement
-    phylo_places = []
-    for pplace in placements['p']:
-        phylo_places.append(PhyloPlace({'p': [pplace],
-                                        'n': placements['n']}))
-    return phylo_places
-
-
-def filter_jplace_data(jplace_data: JPlace, tree_saps: list):
-    """
-    Removes unclassified pqueries from the placements element in jplace_data
-
-    :param jplace_data:
-    :param tree_saps: List of TreeProtein objects
-    :return:
-    """
-    jplace_data.filter_max_weight_placement()
-    new_placement_collection = list()
-    sapling_map = {sapling.place_name: sapling for sapling in tree_saps}
-
-    for d_place in jplace_data.placements:
-        dict_strings = list()
-        classified = False
-        for k, v in loads(d_place).items():
-            if k == 'n':
-                # Find the TreeProtein that matches the placement (same contig name)
-                try:
-                    sapling = sapling_map[v[0]]
-                except KeyError:
-                    logging.error("Unable to find sequence '" + str(v[0]) + "' in sapling-map keys.\n")
-                    sys.exit(5)
-                # If the TreeProtein is classified, flag to append
-                classified = sapling.classified
-                dict_strings.append(dumps(k) + ":" + dumps(v))
-            elif k == 'p':
-                dict_strings.append(dumps(k) + ":" + dumps(v))
-            else:
-                logging.error("Unrecognized key '" + str(k) + "' in Jplace \"placements\".")
-                sys.exit(9)
-        if classified:
-            new_placement_collection.append('{' + ', '.join(dict_strings) + '}')
-    jplace_data.placements = new_placement_collection
-    return jplace_data
-
-
-def write_jplace(jplace_data: JPlace, jplace_file: str):
-    """
-    A hacky function for writing jplace files with concatenated placements
-     which are also compatible with iTOL's jplace parser
-
-    :param jplace_data: A JPlace class object
-    :param jplace_file: A JPlace file path to write to
-    :return:
-    """
-
-    if len(jplace_data.placements) == 0:
-        return
-
-    try:
-        jplace_out = open(jplace_file, 'w')
-    except IOError:
-        logging.error("Unable to open " + jplace_file + " for writing.\n")
-        sys.exit(9)
-
-    jplace_data.correct_decoding()
-
-    # Begin writing elements to the jplace file
-    jplace_out.write('{\n\t"tree": "')
-    jplace_out.write(jplace_data.tree + "\", \n")
-    jplace_out.write("\t\"placements\": [\n\t")
-    # The [] is lost from 'n': ["query"] during loads
-    new_placement_collection = list()
-    for d_place in jplace_data.placements:
-        dict_strings = list()
-        for k, v in loads(d_place).items():
-            if k == 'n':
-                dict_strings.append(dumps(k) + ":[" + dumps(v) + "]")
-            elif k == 'p':
-                dict_strings.append(dumps(k) + ":" + dumps(v))
-            else:
-                logging.error("Unrecognized key '" + str(k) + "' in Jplace \"placements\".")
-                sys.exit(9)
-        new_placement_collection.append('{' + ', '.join(dict_strings) + '}')
-    jplace_out.write(",\n\t".join(new_placement_collection))
-    jplace_out.write("\n\t],\n")
-    jplace_out.write("\t\"metadata\": " + re.sub('\'', '"', str(jplace_data.metadata)) + ",\n")
-    jplace_out.write("\t\"version\": " + str(jplace_data.version) + ",\n")
-    jplace_out.write("\t\"fields\": [\n\t")
-    jplace_out.write(", ".join(jplace_data.fields) + "\n\t]\n}\n")
-
-    jplace_out.close()
-    return
 
 
 def organize_jplace_files(jplace_files: list) -> dict:
@@ -206,14 +199,14 @@ def organize_jplace_files(jplace_files: list) -> dict:
     return jplace_collection
 
 
-def sub_indices_for_seq_names_jplace(jplace_dir, numeric_contig_index, refpkg_dict):
+def sub_indices_for_seq_names_jplace(jplace_dir, numeric_contig_index, refpkg_dict) -> None:
     """
-    Ugly script for running re.sub on a set of jplace files
+    Replaces the numerical identifier for each query sequence with their true names for all JPlace files in a directory
 
-    :param jplace_dir:
-    :param numeric_contig_index:
+    :param jplace_dir: A directory containing JPlace files (extension is .jplace)
+    :param numeric_contig_index: A dictionary mapping numerical identifiers to sequence name strings
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
-    :return:
+    :return: None
     """
     jplace_files = glob.glob(jplace_dir + '*.jplace')
     jplace_collection = organize_jplace_files(jplace_files)
@@ -226,9 +219,10 @@ def sub_indices_for_seq_names_jplace(jplace_dir, numeric_contig_index, refpkg_di
             continue
         for jplace_path in jplace_files:
             jplace_data = jplace_parser(jplace_path)
-            for pquery in jplace_data.placements:
+            for pquery in jplace_data.pqueries:
                 pquery["n"] = numeric_contig_index[refpkg.prefix][int(pquery["n"][0])]
-            write_jplace(jplace_data, jplace_dir + os.sep + "tmp.jplace")
+            jplace_data.pqueries = demultiplex_pqueries(jplace_data)
+            jplace_data.write_jplace(jplace_dir + os.sep + "tmp.jplace")
             os.rename(jplace_dir + os.sep + "tmp.jplace", jplace_path)
     return
 

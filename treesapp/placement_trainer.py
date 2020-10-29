@@ -13,7 +13,8 @@ from treesapp import file_parsers
 from treesapp import utilities
 from treesapp import wrapper
 from treesapp import fasta
-from treesapp.phylo_seq import JPlace, PQuery
+from treesapp.phylo_seq import PQuery
+from treesapp.jplace_utils import JPlace
 from treesapp.phylo_dist import cull_outliers, regress_ranks
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.refpkg import ReferencePackage

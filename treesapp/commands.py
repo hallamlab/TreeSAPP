@@ -34,7 +34,7 @@ from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_pac
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs, select_query_placements,\
     summarize_placements_rpkm, write_classification_table, produce_itol_inputs, replace_contig_names,\
-    read_refpkg_tax_ids, load_homologs, load_pqueries
+    read_refpkg_tax_ids, load_homologs, load_pqueries, write_classified_sequences
 from treesapp.jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from treesapp.clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
@@ -1256,10 +1256,11 @@ def assign(sys_args):
         sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, refpkg_dict)
 
     if ts_assign.stage_status("classify"):
+        itol_out_dir = ts_assign.output_dir + 'iTOL_output' + os.sep
         tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, refpkg_dict, pqueries)
-        select_query_placements(tree_saps)
+        select_query_placements(tree_saps)  # Set the consensus_placement attribute for each PQuery
         filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_likelihood)
-        fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
+        write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         for refpkg_code in tree_saps:
             for placed_seq in tree_saps[refpkg_code]:  # type: PQuery
@@ -1272,7 +1273,7 @@ def assign(sys_args):
                 if not os.path.isfile(ts_assign.classified_nuc_seqs):
                     logging.info("Creating nucleotide FASTA file of classified sequences '" +
                                  ts_assign.classified_nuc_seqs + "'... ")
-                    fasta.write_classified_sequences(tree_saps, nuc_orfs.fasta_dict, ts_assign.classified_nuc_seqs)
+                    write_classified_sequences(tree_saps, nuc_orfs.fasta_dict, ts_assign.classified_nuc_seqs)
                     logging.info("done.\n")
             else:
                 logging.warning("Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
@@ -1291,7 +1292,8 @@ def assign(sys_args):
         assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
         determine_confident_lineage(tree_saps, tree_numbers_translation, refpkg_dict)
         write_classification_table(tree_saps, ts_assign.sample_prefix, assign_out)
-        produce_itol_inputs(tree_saps, refpkg_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
+
+        produce_itol_inputs(tree_saps, refpkg_dict, itol_data, itol_out_dir, ts_assign.refpkg_dir)
         delete_files(args.delete, ts_assign.var_output_dir, 4)
 
     delete_files(args.delete, ts_assign.var_output_dir, 5)

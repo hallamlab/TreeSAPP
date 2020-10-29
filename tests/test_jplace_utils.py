@@ -1,8 +1,18 @@
 import unittest
+import pytest
 from .testing_utils import get_test_data
-from treesapp.phylo_seq import PhyloPlace
 
 
+@pytest.fixture(scope="class")
+def jp_dat(request):
+    from treesapp.jplace_utils import jplace_parser, demultiplex_pqueries
+    request.cls.db = jplace_parser(get_test_data("epa_result.jplace"))
+    pqueries = demultiplex_pqueries(request.cls.db)
+    request.cls.db.pqueries = pqueries
+    return
+
+
+@pytest.mark.usefixtures("jp_dat")
 class JPlaceTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.test_jplace = get_test_data("epa_result.jplace")
@@ -13,18 +23,27 @@ class JPlaceTestCase(unittest.TestCase):
     def test_jplace_parser(self):
         from treesapp.jplace_utils import jplace_parser
         jplace_dat = jplace_parser(self.test_jplace)
-        self.assertEqual(3, len(jplace_dat.placements))
-        self.assertIsInstance(jplace_dat.placements, list)
+        self.assertEqual(3, len(jplace_dat.pqueries))
+        self.assertIsInstance(jplace_dat.pqueries, list)
         return
 
     def test_demultiplex_pqueries(self):
         from treesapp.jplace_utils import demultiplex_pqueries, jplace_parser
+        from treesapp.phylo_seq import PQuery
         jplace_dat = jplace_parser(self.test_jplace)
         pqueries = demultiplex_pqueries(jplace_dat)
         for pquery in pqueries:
             self.assertIsInstance(pquery.placements, list)
-        self.assertEqual(['edge_num', 'likelihood', 'like_weight_ratio', 'distal_length', 'pendant_length'],
-                         pqueries[0].fields)
+        self.assertEqual(3, len(pqueries))
+        self.assertIsInstance(pqueries[0], PQuery)
+        return
+
+    def test_write_jplace(self):
+        from os import path, remove
+        output_jplace = "./tmp.jplace"
+        self.db.write_jplace(output_jplace)
+        self.assertTrue(path.isfile(output_jplace))
+        remove(output_jplace)
         return
 
 

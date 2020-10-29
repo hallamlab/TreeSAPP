@@ -27,7 +27,7 @@ try:
     from sklearn import preprocessing
 
     from treesapp.classy import CommandLineFarmer
-    from treesapp.phylo_seq import JPlace, PQuery, TreeLeafReference
+    from treesapp.phylo_seq import PhyloPlace, PQuery, TreeLeafReference
     from treesapp.refpkg import ReferencePackage
     from treesapp.treesapp_args import TreeSAPPArgumentParser
     from treesapp.fasta import get_headers, write_new_fasta, read_fasta_to_dict, FASTA,\
@@ -834,23 +834,23 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, refpkg_dict
 
     # Identify the internal node each sequence was placed, used for iTOL outputs
     for denominator in tree_saps:
-        for placed_sequence in tree_saps[denominator]:  # type JPlace
-            if not placed_sequence.classified:
+        for pquery in tree_saps[denominator]:  # type: PQuery
+            if not pquery.classified:
                 continue
-            seq_name = re.sub(r"\|{0}\|\d+_\d+$".format(placed_sequence.ref_name), '', placed_sequence.place_name)
+            seq_name = re.sub(r"\|{0}\|\d+_\d+$".format(pquery.ref_name), '', pquery.place_name)
             try:
-                placed_sequence.abundance = abundance_dict.pop(seq_name)
-                orf_rpkms[seq_name] = placed_sequence.abundance
+                pquery.abundance = abundance_dict.pop(seq_name)
+                orf_rpkms[seq_name] = pquery.abundance
             except KeyError:
                 if seq_name in orf_rpkms:
-                    placed_sequence.abundance = orf_rpkms[seq_name]
+                    pquery.abundance = orf_rpkms[seq_name]
                 else:
                     logging.error("Unable to find sequence '" + seq_name +
                                   "' in RPKM abundance dictionary keys. Examples:\n" +
                                   "\n".join("'" + f + "'" for f in list(abundance_dict.keys())[0:6]) + "\n")
                     sys.exit(3)
-            if placed_sequence.inode not in placement_rpkm_map:
-                placement_rpkm_map[placed_sequence.inode] = 0
+            if pquery.consensus_placement.edge_num not in placement_rpkm_map:
+                placement_rpkm_map[pquery.consensus_placement.edge_num] = 0
 
     if len(abundance_dict) > 0:
         logging.warning(str(len(abundance_dict)) + " sequence names remain in the RPKM abundance dictionary.\n")
@@ -861,12 +861,12 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, refpkg_dict
     for refpkg_name in tree_saps:
         marker_rpkm_total = 0
         marker_rpkm_map[refpkg_name] = dict()
-        for placed_sequence in tree_saps[refpkg_name]:
-            if not placed_sequence.classified:
+        for pquery in tree_saps[refpkg_name]:
+            if not pquery.classified:
                 continue
-            placement_rpkm_map[placed_sequence.inode] += float(placed_sequence.abundance)
-            marker_rpkm_total += float(placed_sequence.abundance)
-            marker_rpkm_map[refpkg_name][placed_sequence.inode] = 0
+            placement_rpkm_map[pquery.consensus_placement.edge_num] += float(pquery.abundance)
+            marker_rpkm_total += float(pquery.abundance)
+            marker_rpkm_map[refpkg_name][pquery.consensus_placement.edge_num] = 0
         for placement in marker_rpkm_map[refpkg_name]:
             try:
                 percentage = (placement_rpkm_map[placement]*100)/marker_rpkm_total
@@ -911,15 +911,15 @@ def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
     :return: None
     """
     abundance_mapped_acc = 0
-    for refpkg_code in tree_saps:
-        for placed_seq in tree_saps[refpkg_code]:  # type: PQuery
-            if not placed_seq.abundance:
+    for placed_seqs in tree_saps.values():  # type: list
+        for pquery in placed_seqs:  # type: PQuery
+            if not pquery.abundance:
                 # Filter out RPKMs for contigs not associated with the target marker
                 try:
-                    placed_seq.abundance = abundance_dict[placed_seq.place_name]
+                    pquery.abundance = abundance_dict[pquery.place_name]
                     abundance_mapped_acc += 1
                 except KeyError:
-                    placed_seq.abundance = 0.0
+                    pquery.abundance = 0.0
             else:
                 abundance_mapped_acc += 1
 
@@ -980,7 +980,7 @@ def enumerate_taxonomic_lineages(lineage_list):
     return taxonomic_counts
 
 
-def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelihood: float) -> None:
+def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: float) -> None:
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
@@ -988,7 +988,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
     :param tree_saps: A dictionary containing PQuery objects
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :param svc: A boolean indicating whether placements should be filtered using ReferencePackage.svc
-    :param min_likelihood: Likelihood-weight-ratio (LWR) threshold for filtering pqueries
+    :param min_lwr: Likelihood-weight-ratio (LWR) threshold for filtering pqueries
     :return: None
     """
 
@@ -1007,39 +1007,36 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
         tree = Tree(refpkg.f__tree)
 
         for tree_sap in tree_saps[refpkg.prefix]:  # type: PQuery
-            tree_sap.filter_min_weight_threshold(min_likelihood)
+            tree_sap.filter_min_weight_threshold(min_lwr)
             if not tree_sap.classified:
                 unclassified_seqs[refpkg.prefix]["low_lwr"].append(tree_sap)
                 continue
             if not tree_sap.placements:
                 unclassified_seqs[tree_sap.ref_name]["np"].append(tree_sap)
                 continue
-            elif len(tree_sap.placements) > 1:
-                logging.warning("More than one placement for a single contig:\n" +
-                                tree_sap.summarize())
-                tree_sap.classified = False
-                continue
             elif tree_sap.placements[0] == '{}':
                 unclassified_seqs[refpkg.prefix]["np"].append(tree_sap)
                 tree_sap.classified = False
                 continue
 
-            leaf_children = tree_sap.node_map[int(tree_sap.inode)]
+            pplace = tree_sap.consensus_placement  # type: PhyloPlace
+
+            leaf_children = tree_sap.node_map[int(pplace.edge_num)]
             # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
             if len(leaf_children) > 1:
                 # We need to find the LCA in the Tree instance to find the distances to tips for ete3
                 try:
-                    tip_distances = parent_leaf_memoizer[int(tree_sap.inode)]
+                    tip_distances = parent_leaf_memoizer[int(pplace.edge_num)]
                 except KeyError:
                     tip_distances = phylo_dist.parent_to_tip_distances(tree.get_common_ancestor(leaf_children),
                                                                        leaf_children)
-                    parent_leaf_memoizer[int(tree_sap.inode)] = tip_distances
+                    parent_leaf_memoizer[int(pplace.edge_num)] = tip_distances
             else:
                 tip_distances = [0.0]
 
             avg_tip_dist = round(sum(tip_distances) / len(tip_distances), 3)
-            pendant_length = round(float(tree_sap.get_jplace_element("pendant_length")), 3)
-            distal_length = round(float(tree_sap.get_jplace_element("distal_length")), 3)
+            pendant_length = round(pplace.pendant_length, 3)
+            distal_length = round(pplace.distal_length, 3)
 
             tree_sap.avg_evo_dist = round(distal_length + pendant_length + avg_tip_dist, 3)
             tree_sap.distances = ','.join([str(distal_length), str(pendant_length), str(avg_tip_dist)])
@@ -1053,7 +1050,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_likelih
                 else:
                     call = refpkg.svc.predict(preprocessing.normalize(np_array([len(leaf_children),
                                                                                 tree_sap.evalue,
-                                                                                round(tree_sap.lwr, 2),
+                                                                                round(pplace.like_weight_ratio, 2),
                                                                                 distal_length,
                                                                                 pendant_length,
                                                                                 avg_tip_dist]).reshape(1, -1)))
@@ -1102,13 +1099,9 @@ def select_query_placements(pquery_dict: dict, mode="max"):
                 logging.error("Unknown PQuery consensus algorithm provided: '{}'.\n".format(mode))
                 raise ValueError
 
-            if pquery.classified and len(pquery.placements) != 1:
-                logging.error("Number of JPlace pqueries is {} when only 1 is expected at this point.\n"
-                              "".format(len(pquery.placements)) + pquery.summarize())
-                sys.exit(3)
-            pquery.inode = str(pquery.get_jplace_element("edge_num"))
-            pquery.lwr = float(pquery.get_jplace_element("like_weight_ratio"))
-            pquery.likelihood = float(pquery.get_jplace_element("likelihood"))
+            # pquery.inode = str(pquery.consensus_placement.edge_num)
+            # pquery.lwr = float(pquery.consensus_placement.like_weight_ratio)
+            # pquery.likelihood = float(pquery.consensus_placement.likelihood)
 
             classified_seqs += 1
 
@@ -1139,7 +1132,8 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
     :param pqueries: A list of instantiated PQuery instances
     :return:
         1. Dictionary of PQuery instances indexed by denominator (refpkg code e.g. M0701)
-        2. Dictionary of an JPlace instance (values) mapped to marker name
+        2. Dictionary of an JPlace instance (values) mapped to a refpkg prefix.
+         These instances store all PQuery instances from all JPlace files
     """
 
     logging.info('Parsing the EPA-NG outputs... ')
@@ -1165,7 +1159,8 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
             edge_dist_index = index_tree_edges(jplace_data.tree)
             internal_node_leaf_map = map_internal_nodes_leaves(jplace_data.tree)
             # Demultiplex all pqueries in jplace_data into individual PQuery objects
-            for pquery in jplace_utils.demultiplex_pqueries(jplace_data, pquery_map):  # type: PQuery
+            jplace_data.pqueries = jplace_utils.demultiplex_pqueries(jplace_data, pquery_map)
+            for pquery in jplace_data.pqueries:  # type: PQuery
                 # Flesh out the internal-leaf node map
                 pquery.ref_name = refpkg.prefix
                 if not pquery.seq_name:
@@ -1181,7 +1176,7 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
                 itol_data[refpkg.prefix].ref_name = refpkg.prefix
             else:
                 # If a JPlace file for that tree has already been parsed, just append the placements
-                itol_data[refpkg.prefix].placements = itol_data[refpkg.prefix].placements + jplace_data.placements
+                itol_data[refpkg.prefix].pqueries = itol_data[refpkg.prefix].pqueries + jplace_data.pqueries
 
             # I have decided to not remove the original JPlace files since some may find these useful
             # os.remove(filename)
@@ -1198,7 +1193,59 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
     return tree_saps, itol_data
 
 
-def determine_confident_lineage(tree_saps, tree_numbers_translation, refpkg_dict):
+def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fasta_file: str) -> None:
+    """
+    Function to write the nucleotide sequences representing the full-length ORF for each classified sequence
+    Sequence names are from JPlace.contig_name values so output format is:
+
+     >contig_name|RefPkg|StartCoord_StopCoord
+
+    :param tree_saps: A dictionary of gene_codes as keys and TreeSap objects as values
+    :param formatted_fasta_dict: A dictionary with headers/sequence names as keys and sequences as values
+    :param fasta_file: Path to a file to write the sequences to in FASTA format
+    :return: None
+    """
+    output_fasta_dict = dict()
+    len_parsing_problem = False
+    prefix = ''  # For adding a '>' if the formatted_fasta_dict sequences have them
+    for seq_name in formatted_fasta_dict:
+        if seq_name[0] == '>':
+            prefix = '>'
+        break
+
+    for denominator in tree_saps:
+        for placed_sequence in tree_saps[denominator]:  # type: PQuery
+            if placed_sequence.classified:
+                output_fasta_dict[placed_sequence.place_name] = ""
+                try:
+                    output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix +
+                                                                                         placed_sequence.place_name]
+                except KeyError:
+                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.ref_name),
+                                      '',
+                                      placed_sequence.place_name)
+                    try:
+                        output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix + seq_name]
+                    except KeyError:
+                        logging.error("Unable to find '" + prefix + placed_sequence.place_name +
+                                      "' in predicted ORFs file!\nExample headers in the predicted ORFs file:\n\t" +
+                                      '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
+                        sys.exit(3)
+
+                if not placed_sequence.seq_len:
+                    placed_sequence.seq_len = len(output_fasta_dict[placed_sequence.place_name])
+                    len_parsing_problem = True
+
+    if output_fasta_dict:
+        write_new_fasta(output_fasta_dict, fasta_file)
+
+    if len_parsing_problem:
+        logging.warning("Problem parsing homologous subsequence lengths from headers of classified sequences.\n")
+
+    return
+
+
+def determine_confident_lineage(tree_saps: dict, tree_numbers_translation: dict, refpkg_dict: dict) -> None:
     """
     Determines the best taxonomic lineage for classified sequences based on their
 
@@ -1229,8 +1276,8 @@ def determine_confident_lineage(tree_saps, tree_numbers_translation, refpkg_dict
             tree_sap.lineage_list = tree_sap.children_lineage(leaf_taxa_map)
 
             if len(tree_sap.lineage_list) == 0:
-                logging.error("Unable to find lineage information for marker " +
-                              refpkg_name + ", contig " + tree_sap.place_name + "!\n")
+                logging.error("Unable to find lineage information for reference package {},"
+                              "contig {}!\n".format(refpkg_name, tree_sap.place_name))
                 sys.exit(3)
             elif len(tree_sap.lineage_list) == 1:
                 tree_sap.lct = tree_sap.lineage_list[0]
@@ -1269,7 +1316,7 @@ def write_classification_table(tree_saps, sample_name, output_file):
         for tree_sap in tree_saps[refpkg_name]:  # type: PQuery
             if not tree_sap.classified:
                 continue
-
+            pplace = tree_sap.consensus_placement
             tab_out_string += '\t'.join([sample_name,
                                          re.sub(r"\|{0}\|\d+_\d+$".format(tree_sap.ref_name), '', tree_sap.place_name),
                                          tree_sap.ref_name,
@@ -1277,9 +1324,9 @@ def write_classification_table(tree_saps, sample_name, output_file):
                                          str(tree_sap.end),
                                          tree_sap.recommended_lineage,
                                          str(tree_sap.abundance),
-                                         str(tree_sap.inode),
+                                         str(pplace.edge_num),
                                          str(tree_sap.evalue),
-                                         str(tree_sap.lwr),
+                                         str(pplace.like_weight_ratio),
                                          str(tree_sap.avg_evo_dist),
                                          tree_sap.distances]) + "\n"
     try:
@@ -1294,48 +1341,49 @@ def write_classification_table(tree_saps, sample_name, output_file):
     return
 
 
-def produce_itol_inputs(tree_saps, refpkg_dict, itol_data, output_dir: str, treesapp_data_dir: str):
+def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
+                        itol_base_dir: str, treesapp_data_dir: str) -> None:
     """
     Function to create outputs for the interactive tree of life (iTOL) webservice.
     There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
 
-    :param tree_saps:
+    :param pqueries: Dictionary of PQuery instances indexed by denominator (refpkg code e.g. M0701)
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
-    :param itol_data:
-    :param output_dir:
-    :param treesapp_data_dir:
+    :param jplaces: Dictionary of an JPlace instance (values) mapped to marker name
+    :param itol_base_dir: Output directory to write the iTOL_output files, with the outputs stored within a directory
+     named after their respective reference package prefix (e.g. McrA) 
+    :param treesapp_data_dir: Path to the directory containing reference packages and a iTOL_data directory
     :return: None
     """
     logging.info("Generating inputs for iTOL... ")
 
-    itol_base_dir = output_dir + 'iTOL_output' + os.sep
     if not os.path.exists(itol_base_dir):
         os.mkdir(itol_base_dir)  # drwxr-xr-x
     # Now that all the JPlace files have been loaded, generate the abundance stats for each marker
 
     strip_missing = []
     style_missing = []
-    for refpkg_name in tree_saps:
-        if len(tree_saps[refpkg_name]) == 0:
+    for refpkg_name in pqueries:
+        if len(pqueries[refpkg_name]) == 0:
             # No sequences that were mapped met the minimum likelihood weight ration threshold. Skipping!
             continue
         refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
         if not os.path.exists(itol_base_dir + refpkg.prefix):
             os.mkdir(itol_base_dir + refpkg.prefix)
-        marker_placements = itol_data[refpkg.prefix]
-        marker_treesaps = tree_saps[refpkg_name]
+        jplace_data = jplaces[refpkg.prefix]
+        refpkg_pqueries = pqueries[refpkg_name]
 
         if os.path.isfile(refpkg.f__boot_tree):
-            marker_placements = jplace_utils.add_bipartitions(marker_placements, refpkg.f__boot_tree)
+            # TODO: investigate whether this is still valid for JPlace instance, or should be PQuery
+            jplace_data = jplace_utils.add_bipartitions(jplace_data, refpkg.f__boot_tree)
 
         # Make a master jplace file from the set of placements in all jplace files for each marker
-        master_jplace = itol_base_dir + refpkg.prefix + os.sep + refpkg.prefix + "_complete_profile.jplace"
-        marker_placements = jplace_utils.filter_jplace_data(marker_placements, marker_treesaps)
+        master_jplace = os.path.join(itol_base_dir, refpkg.prefix, refpkg.prefix + "_complete_profile.jplace")
         # TODO: validate no distal lengths exceed their corresponding edge lengths
 
-        jplace_utils.write_jplace(marker_placements, master_jplace)
-        itol_data[refpkg.prefix].clear_object()
-        marker_placements.clear_object()
+        jplace_data.write_jplace(master_jplace)
+        jplaces[refpkg.prefix].clear_object()
+        jplace_data.clear_object()
         # Create a labels file from the tax_ids_marker.txt
         refpkg.create_itol_labels(itol_base_dir)
 
@@ -1350,8 +1398,8 @@ def produce_itol_inputs(tree_saps, refpkg_dict, itol_data, output_dir: str, tree
 
         for annotation_file in annotation_style_files:
             shutil.copy(annotation_file, itol_base_dir + refpkg.prefix)
-        itol_bar_file = os.path.join(output_dir, "iTOL_output", refpkg.prefix, refpkg.prefix + "_abundance_simplebar.txt")
-        generate_simplebar(refpkg.prefix, marker_treesaps, itol_bar_file)
+        itol_bar_file = os.path.join(itol_base_dir, refpkg.prefix, refpkg.prefix + "_abundance_simplebar.txt")
+        generate_simplebar(refpkg.prefix, refpkg_pqueries, itol_bar_file)
 
     logging.info("done.\n")
     if style_missing:
