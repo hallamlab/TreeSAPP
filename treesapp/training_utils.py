@@ -18,11 +18,10 @@ from sklearn import model_selection, svm, metrics, preprocessing, manifold
 from treesapp import file_parsers
 from treesapp import wrapper
 from treesapp import fasta
-from treesapp.phylo_seq import PQuery
+from treesapp.phylo_seq import PQuery, PhyloPlace
 from treesapp.external_command_interface import launch_write_command, create_dir_from_taxon_name
-from treesapp.jplace_utils import jplace_parser
+from treesapp.jplace_utils import jplace_parser, demultiplex_pqueries
 from treesapp.entish import map_internal_nodes_leaves
-from treesapp.phylo_dist import parent_to_tip_distances
 from treesapp.refpkg import ReferencePackage
 
 
@@ -277,36 +276,16 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     jplace_data = jplace_parser(raxml_files["jplace"])
     placement_tree = jplace_data.tree
     node_map = map_internal_nodes_leaves(placement_tree)
-    for pquery in jplace_data.placements:
-        top_lwr = 0.1
-        top_placement = PQuery(taxon, rank)
-        top_placement.ref_name = ref_pkg.prefix
-        for name, info in pquery.items():
-            if name == 'p':
-                for placement in info:
-                    # Only record the best placement's distance
-                    lwr = float(placement[2])
-                    if lwr > top_lwr:
-                        top_lwr = lwr
-                        top_placement.inode = placement[0]
-                        top_placement.likelihood = placement[1]
-                        top_placement.lwr = lwr
-                        top_placement.distal = round(float(placement[3]), 6)
-                        top_placement.pendant = round(float(placement[4]), 6)
-                        leaf_children = node_map[int(top_placement.inode)]
-                        if len(leaf_children) > 1:
-                            # Reference tree with clade excluded
-                            parent = ce_tree.get_common_ancestor(leaf_children)
-                            tip_distances = parent_to_tip_distances(parent, leaf_children)
-                            top_placement.mean_tip = round(float(sum(tip_distances) / len(tip_distances)), 6)
-            elif name == 'n':
-                top_placement.place_name = query_seq_name_map[int(info.pop())]
-            else:
-                logging.error("Unexpected variable in pquery keys: '" + name + "'\n")
-                sys.exit(33)
+    jplace_data.pqueries = demultiplex_pqueries(jplace_data=jplace_data)
+    for pquery in jplace_data.pqueries:  # type: PQuery
+        pquery.ref_name = ref_pkg.prefix
+        pquery.rank = rank
+        pquery.lineage = taxon
+        con_place = pquery.filter_max_weight_placement()
+        con_place.calc_mean_tip_length(internal_leaf_node_map=node_map, ref_tree=ce_tree)
 
-        if top_placement.lwr >= 0.5:  # The minimum likelihood weight ration a placement requires to be included
-            pqueries.append(top_placement)
+        if pquery.consensus_placement.like_weight_ratio >= 0.5:
+            pqueries.append(pquery)
 
     # Remove intermediate files from the analysis of this taxon
     intermediate_files += list(raxml_files.values())
@@ -367,6 +346,7 @@ a numpy array from each query's data:
         internal_nodes = refpkg.get_internal_node_leaf_map()
 
         for pquery in pqueries:  # type: PQuery
+            placement = pquery.consensus_placement  # type: PhyloPlace
             if annot_map:
                 ref_name = annot_map[pquery.ref_name]
             else:
@@ -374,19 +354,20 @@ a numpy array from each query's data:
             if pquery.place_name in condition_names[ref_name]:
                 # Calculate the features
                 try:
-                    distal, pendant, avg = pquery.distal, pquery.pendant, pquery.mean_tip
+                    distal, pendant, avg = placement.distal_length, placement.pendant_length, placement.mean_tip_length
                 except AttributeError:
                     distal, pendant, avg = [round(float(x), 3) for x in pquery.distances.split(',')]
 
-                lwr_bin = round(float(pquery.lwr), 2)
+                lwr_bin = round(float(placement.like_weight_ratio), 2)
                 # hmm_perc = round((int(pquery.seq_len)*100)/refpkg.profile_length, 1)
 
                 try:
-                    leaf_children = len(internal_nodes[int(pquery.inode)])
+                    leaf_children = len(internal_nodes[int(placement.edge_num)])
                 except KeyError:
                     logging.error("Unable to find internal node '{}' in the {} node-leaf map indicating a discrepancy "
                                   "between reference package versions used by treesapp assign and those used here.\n"
-                                  "Was the correct output directory provided?".format(pquery.inode, pquery.ref_name))
+                                  "Was the correct output directory provided?"
+                                  "".format(placement.edge_num, pquery.ref_name))
                     sys.exit(5)
 
                 raw_array = np.array([leaf_children, pquery.evalue, lwr_bin, distal, pendant, avg])

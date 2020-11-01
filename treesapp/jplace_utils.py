@@ -5,7 +5,7 @@ import re
 import glob
 import os
 import logging
-from json import load, loads, dumps
+from json import load, dumps
 
 from treesapp.phylo_seq import PQuery, PhyloPlace, split_placements
 
@@ -295,11 +295,12 @@ def add_bipartitions(jplace_data, bipartition_file):
 def find_edge_length(jplace_tree: str, node: str):
     """
     Parses a Newick-formatted tree with depth-first-search internal nodes enveloped by curly braces
+
     :param jplace_tree: Newick tree
     :param node: The number of an internal node
     :return: float
     """
-    edge_component = re.search(r':([0-9.]+)\{' + re.escape(node) + '}', jplace_tree)
+    edge_component = re.search(r':([0-9.]+){' + re.escape(node) + '}', jplace_tree)
     if edge_component:
         edge_length = float(edge_component.group(1))
     else:

@@ -14,7 +14,6 @@ from treesapp import utilities
 from treesapp import wrapper
 from treesapp import fasta
 from treesapp.phylo_seq import PQuery
-from treesapp.jplace_utils import JPlace
 from treesapp.phylo_dist import cull_outliers, regress_ranks
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.refpkg import ReferencePackage
@@ -60,18 +59,21 @@ def get_options():
     return args
 
 
-def write_placement_table(pqueries: dict, placement_table_file, marker):
+def write_placement_table(pqueries: dict, placement_table_file: str, marker: str) -> None:
     header = ["Marker", "Rank", "Lineage", "Query.Name", "Internal.Node", "Placement.LWR", "Tree.Likelihood",
               "Dist.Distal", "Dist.Pendant", "Dist.MeanTip", "Dist.Total"]
     placement_info_strs = list()
     for rank, taxa in pqueries.items():
         for taxon in taxa:
-            for pquery in taxa[taxon]:
+            for pquery in taxa[taxon]:  # type: PQuery
                 if pquery:
                     placement_info_strs.append("\t".join(
-                        [marker, str(pquery.rank), str(pquery.lineage), str(pquery.ref_name), str(pquery.inode),
-                         str(pquery.lwr), str(pquery.likelihood),
-                         str(pquery.distal), str(pquery.pendant), str(pquery.mean_tip), str(pquery.total_distance())])
+                        [marker, str(pquery.rank), str(pquery.lineage),
+                         str(pquery.ref_name), str(pquery.consensus_placement.edge_num),
+                         str(pquery.consensus_placement.like_weight_ratio), str(pquery.consensus_placement.likelihood),
+                         str(pquery.consensus_placement.distal_length), str(pquery.consensus_placement.pendant_length),
+                         str(pquery.consensus_placement.mean_tip_length),
+                         str(pquery.consensus_placement.total_distance())])
                     )
 
     with open(placement_table_file, 'w') as file_handler:
@@ -98,7 +100,7 @@ def flatten_pquery_dict(pqueries: dict, refpkg_prefix: str) -> dict:
                 for pquery in taxa[taxon]:  # type: PQuery
                     refpkg_pqueries[refpkg_prefix].append(pquery)
             except TypeError:
-                if isinstance(taxon, JPlace):
+                if isinstance(taxon, PQuery):
                     refpkg_pqueries[refpkg_prefix].append(taxon)
                 else:
                     logging.error("An instance of type PQuery was expected, found '{}' instead.\n".format(type(taxon)))
@@ -424,7 +426,8 @@ def evo_dists_from_pqueries(pqueries: dict, training_ranks=None) -> dict:
         taxonomic_placement_distances[rank] = []
         if rank in pqueries and len(pqueries[rank]) > 0:
             for taxon in pqueries[rank]:
-                taxonomic_placement_distances[rank] += [pquery.total_distance() for pquery in pqueries[rank][taxon]]
+                taxonomic_placement_distances[rank] += [pquery.consensus_placement.total_distance() for pquery
+                                                        in pqueries[rank][taxon]]
         else:
             logging.warning("Clade-exclusion could not be performed for '{}'.\n"
                             "No phylogenetic placement data was generated for training.\n".format(rank))

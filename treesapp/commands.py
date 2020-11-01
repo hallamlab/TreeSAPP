@@ -1428,8 +1428,9 @@ def purity(sys_args):
                                    ts_purity.ref_pkg.prefix + "_complete_profile.jplace"])
         jplace_data = jplace_parser(jplace_file)
         tree_placement_queries = demultiplex_pqueries(jplace_data)
-        placement_tree = jplace_data.tree
-        node_map = entish.map_internal_nodes_leaves(placement_tree)
+        node_map = entish.map_internal_nodes_leaves(jplace_data.tree)
+        for pquery in tree_placement_queries:  # type: PQuery
+            pquery.filter_max_weight_placement()
         ortholog_map = ts_purity.assign_leaves_to_orthologs(tree_placement_queries, node_map)
         ts_purity.summarize_groups_assigned(ortholog_map, metadat_dict)
 

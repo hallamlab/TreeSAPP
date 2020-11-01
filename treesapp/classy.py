@@ -926,8 +926,7 @@ class Purity(TreeSAPP):
             seq_info = re.match(r"(.*)\|" + re.escape(p_query.ref_name) + r"\|(\\d+)_(\\d+)$", p_query.place_name)
             if seq_info:
                 p_query.place_name = seq_info.group(1)
-            p_query.inode = int(p_query.get_jplace_element("edge_num"))
-            leaves = internal_node_map[p_query.inode]
+            leaves = internal_node_map[p_query.consensus_placement.edge_num]
             ortholog_name = p_query.place_name.split('_')[0]
             if ortholog_name not in ortholog_map:
                 ortholog_map[ortholog_name] = []

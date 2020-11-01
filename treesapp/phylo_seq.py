@@ -1,61 +1,76 @@
 import logging
 import sys
-from json import loads
+
+from ete3 import Tree
+
+from treesapp.phylo_dist import parent_to_tip_distances
 
 
 class PhyloPlace:
     n_key = 'n'
     p_key = 'p'
 
-    def __init__(self, placement: dict, field_positions=None):
+    def __init__(self, placement=None, field_positions=None):
         self.name = ""
-        self.edge_num = 0
-        self.like_weight_ratio = 0
-        self.likelihood = 0
-        self.distal_length = 0
-        self.pendant_length = 0
-        self.mean_tip_length = 0
+        self.edge_num = -1
+        self.like_weight_ratio = 0.0
+        self.likelihood = 0.0
+        self.distal_length = 0.0
+        self.pendant_length = 0.0
+        self.mean_tip_length = 0.0
         # Load the placed sequence name
-        try:
-            # Ensure the name value type is always a string
-            if isinstance(placement[self.n_key], list):
-                if len(placement[self.n_key]) == 1:
-                    name_val = placement[self.n_key][0]
-                else:
-                    logging.error(
-                        "{} sequence names found in PQuery name value when one was expected :\n{}"
-                        "".format(len(placement[self.n_key]),
-                                  "\t{}\n".join(placement['n'])))
-                    sys.exit(11)
-            else:
-                name_val = placement[self.n_key]
-            self.name = name_val
-        except KeyError:
-            logging.error("Unable to find name key ('{}') in placement: {}\n".format(self.n_key, placement))
-            sys.exit(13)
-
-        # Load the placement's PQuery information
-        try:
-            fields = placement[self.p_key][0]
-        except KeyError:
-            logging.error("Unable to find placement info key ('{}') in placement: {}\n".format(self.p_key, placement))
-            sys.exit(15)
-
-        # Load the placement information fields
-        if not field_positions:
-            field_positions = ['edge_num', 'likelihood', 'like_weight_ratio', 'distal_length', 'pendant_length']
-        x = 0
-        while x < len(field_positions):
+        if placement:
             try:
-                self.__dict__[field_positions[x]] = fields[x]
+                # Ensure the name value type is always a string
+                if isinstance(placement[self.n_key], list):
+                    if len(placement[self.n_key]) == 1:
+                        name_val = placement[self.n_key][0]
+                    else:
+                        logging.error(
+                            "{} sequence names found in PQuery name value when one was expected :\n{}"
+                            "".format(len(placement[self.n_key]),
+                                      "\t{}\n".join(placement['n'])))
+                        sys.exit(11)
+                else:
+                    name_val = placement[self.n_key]
+                self.name = name_val
             except KeyError:
-                logging.error("Field '{}' doesn't exist in PhyloPlace class attributes.\n".format(field_positions[x]))
-                sys.exit(17)
-            x += 1
+                logging.error("Unable to find name key ('{}') in placement: {}\n".format(self.n_key, placement))
+                sys.exit(13)
+
+            # Load the placement's PQuery information
+            try:
+                fields = placement[self.p_key][0]
+            except KeyError:
+                logging.error("Unable to find placement key ('{}') in placement: {}\n".format(self.p_key, placement))
+                sys.exit(15)
+
+            # Load the placement information fields
+            if not field_positions:
+                field_positions = ['edge_num', 'likelihood', 'like_weight_ratio', 'distal_length', 'pendant_length']
+            x = 0
+            while x < len(field_positions):
+                try:
+                    self.__dict__[field_positions[x]] = fields[x]
+                except KeyError:
+                    logging.error("Field '{}' not found in PhyloPlace class attributes.\n".format(field_positions[x]))
+                    sys.exit(17)
+                x += 1
 
         return
 
-    def total_distance(self) -> int:
+    def calc_mean_tip_length(self, internal_leaf_node_map: dict, ref_tree: str) -> None:
+        if isinstance(ref_tree, str):
+            ref_tree = Tree(ref_tree)
+        leaf_children = internal_leaf_node_map[self.edge_num]
+        if len(leaf_children) > 1:
+            # Reference tree with clade excluded
+            parent = ref_tree.get_common_ancestor(leaf_children)
+            tip_distances = parent_to_tip_distances(parent, leaf_children)
+            self.mean_tip_length = round(float(sum(tip_distances) / len(tip_distances)), 6)
+        return
+
+    def total_distance(self) -> float:
         return round(sum([self.pendant_length, self.mean_tip_length, self.distal_length]), 5)
 
     def summary(self) -> str:
@@ -334,7 +349,7 @@ class PQuery:
 
         return
 
-    def filter_max_weight_placement(self) -> None:
+    def filter_max_weight_placement(self) -> PhyloPlace:
         """
         Often times, a single PQuery (query sequence mapped onto a phylogeny) may be inserted into the phylogeny
         at multiple edges with similar likelihood. This function aims to select the single best placement based on
@@ -355,7 +370,7 @@ class PQuery:
             else:
                 logging.error("Unexpected state of PhyloPlace instance!\n{}\n".format(pplace.summary()))
                 sys.exit(3)
-        return
+        return self.consensus_placement
 
 
 def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
@@ -371,9 +386,10 @@ def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
     # "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\tiNode\tE-value\tLWR\tEvoDist\tDistances\n"
     for fields in classified_lines:
         pquery = PQuery()
+        con_place = PhyloPlace()
         try:
             _, pquery.place_name, pquery.ref_name, pquery.start, pquery.end, pquery.recommended_lineage, \
-            _, pquery.inode, pquery.evalue, pquery.lwr, pquery.avg_evo_dist, pquery.distances = fields
+            _, con_place.edge_num, pquery.evalue, con_place.like_weight_ratio, pquery.avg_evo_dist, pquery.distances = fields
         except ValueError:
             logging.error("Bad line in classification table:\n" +
                           '\t'.join(fields) + "\n")
@@ -382,7 +398,9 @@ def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
         pquery.start = int(pquery.start)
         pquery.seq_len = pquery.end - pquery.start
         pquery.lct = pquery.recommended_lineage
-        pquery.distal, pquery.pendant, pquery.mean_tip = [float(d) for d in pquery.distances.split(',')]
+        con_place.distal_length, con_place.pendant_length, con_place.mean_tip_length = [float(d) for d in
+                                                                                        pquery.distances.split(',')]
+        pquery.consensus_placement = con_place
         refpkg = refpkg_dict[pquery.ref_name]  # type: refpkg.ReferencePackage
         try:
             pqueries[refpkg.prefix].append(pquery)
@@ -393,9 +411,14 @@ def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
 
 def split_placements(placements: dict) -> list:
     """
+    When the JPlace data is loaded by json.load(), it is returned as a list.
+    This accepts the dictionary from that list collection, for which there is only a single element, and generates a
+    PhyloPlace instance for each placement in the 'p' value.
 
-    :param placements:
-    :return: A list of
+    :param placements: A dictionary with two keys: 'n' (corresponding to the query sequence name) and
+     'p' (corresponding to the placement data e.g. likelihood weight ratio, distal length).
+    :return: A list of PhyloPlace instances, where the attributes have been populated from each of the placement
+     locations on the phylogeny.
     """
     # Reformat the dictionary so each one is a unique placement
     phylo_places = []

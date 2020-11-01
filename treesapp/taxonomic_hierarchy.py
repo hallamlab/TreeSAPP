@@ -4,6 +4,7 @@ import logging
 import sys
 import re
 from pygtrie import StringTrie
+from ete3 import Tree
 
 from treesapp.phylo_seq import TreeLeafReference
 
@@ -798,6 +799,52 @@ class TaxonomicHierarchy:
             else:
                 i += 1
         return lineage_list
+
+    def prune_branches(self, tree, leaf_taxa_map: dict, rank="Genus"):
+        """
+        Function for removing leaves of unclassified and polyphyletic lineages
+
+        :type tree: Tree()
+        :param tree: An Environment for Tree Exploration (ETE) Tree object
+        :param leaf_taxa_map: A dictionary mapping tree leaf number keys to NCBI lineage strings
+        :param rank: A taxonomic rank to test for monophyly
+        :return: pruned_nodes dict() of Tree() nodes
+        """
+        pruned_nodes = dict()
+        if not isinstance(tree, Tree):
+            logging.error("Tree is not ete tree object.\n")
+            raise AssertionError()
+        # Check to see if the two collections are comparable
+        for leaf in tree:
+            if leaf.name not in leaf_taxa_map.keys():
+                logging.error(str(leaf.name) + " not found in leaf_taxa_map.\n")
+                raise AssertionError("Leaves in tree and tax_ids file are disparate sets.\n")
+        # Raw lineages are too specific to test for monophyly, so try at a deeper rank by trimming the lineages
+        leaf_taxa_map = self.trim_lineages_to_rank(leaf_taxa_map, rank)
+
+        # Add the lineages to the Tree instance
+        for leaf in tree:
+            leaf.add_features(lineage=leaf_taxa_map.get(leaf.name, "none"))
+
+        # Print the tree for debugging:
+        # print(tree.get_ascii(attributes=["name", "lineage"], show_internal=False))
+
+        # Add all the monophyletic leaf node numbers to pruned_nodes
+        unique_lineages = sorted(list(set(leaf_taxa_map.values())))
+        for lineage in unique_lineages:
+            pruned_nodes[lineage] = dict()
+            acc = 1  # In case lineages are scattered (e.g. paralogs in the tree) these need to be indexed
+            for node in tree.get_monophyletic(values=[lineage], target_attr="lineage"):
+                leaf_descendents = node.get_leaves()
+                if len(leaf_descendents) == 1:
+                    pass
+                elif len(leaf_descendents) > 1:
+                    # This is an internal node
+                    pruned_nodes[lineage][acc] = leaf_descendents
+                    acc += 1
+                else:
+                    raise AssertionError("Expected at least one leaf leading from node " + str(node.name))
+        return pruned_nodes
 
     def strip_rank_prefix(self, lineage: str) -> str:
         stripped_lineage = []

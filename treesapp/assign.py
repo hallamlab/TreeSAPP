@@ -1020,7 +1020,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
                 continue
 
             pplace = tree_sap.consensus_placement  # type: PhyloPlace
-
+            # TODO: Replace this with a PhyloPlace function
             leaf_children = tree_sap.node_map[int(pplace.edge_num)]
             # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
             if len(leaf_children) > 1:

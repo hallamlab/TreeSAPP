@@ -19,6 +19,7 @@ def test_pquery(request):
 class PhyloSeqtests(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp.phylo_seq import PQuery
+        from treesapp.refpkg import ReferencePackage
         self.placement_dict = {'p': [[0, -50.7, 0.7, 0.859, 1.227],
                                      [2, -50.8, 0.3, 0.1, 1.1]],
                                'n': ['seq_test_1']}
@@ -26,6 +27,15 @@ class PhyloSeqtests(unittest.TestCase):
         self.pquery_test_1 = PQuery()
         self.pquery_test_1.placements = self.placement_dict
         self.pquery_test_2 = self.db
+        self.refpkg = ReferencePackage(refpkg_name="McrA")
+        self.refpkg.f__json = get_test_data("refpkgs/McrA_build.pkl")
+        self.refpkg.slurp()
+        return
+
+    def test_calc_mean_tip_length(self):
+        placement = self.pquery_test_2.placements[0]
+        placement.calc_mean_tip_length(internal_leaf_node_map=self.pquery_test_2.node_map, ref_tree=self.refpkg.tree)
+        self.assertTrue(0.0 < placement.mean_tip_length)
         return
 
     def test_children_lineage(self):
