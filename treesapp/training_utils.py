@@ -20,7 +20,7 @@ from treesapp import wrapper
 from treesapp import fasta
 from treesapp.phylo_seq import PQuery, PhyloPlace
 from treesapp.external_command_interface import launch_write_command, create_dir_from_taxon_name
-from treesapp.jplace_utils import jplace_parser, demultiplex_pqueries
+from treesapp.jplace_utils import jplace_parser, demultiplex_pqueries, calc_pquery_mean_tip_distances
 from treesapp.entish import map_internal_nodes_leaves
 from treesapp.refpkg import ReferencePackage
 
@@ -277,12 +277,12 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     placement_tree = jplace_data.tree
     node_map = map_internal_nodes_leaves(placement_tree)
     jplace_data.pqueries = demultiplex_pqueries(jplace_data=jplace_data)
+    calc_pquery_mean_tip_distances(jplace_data, internal_node_leaf_map=node_map)
     for pquery in jplace_data.pqueries:  # type: PQuery
         pquery.ref_name = ref_pkg.prefix
         pquery.rank = rank
         pquery.lineage = taxon
-        con_place = pquery.filter_max_weight_placement()
-        con_place.calc_mean_tip_length(internal_leaf_node_map=node_map, ref_tree=ce_tree)
+        pquery.filter_max_weight_placement()
 
         if pquery.consensus_placement.like_weight_ratio >= 0.5:
             pqueries.append(pquery)

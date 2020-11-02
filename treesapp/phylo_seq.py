@@ -1,9 +1,8 @@
 import logging
 import sys
 
-from ete3 import Tree
-
 from treesapp.phylo_dist import parent_to_tip_distances
+from treesapp.entish import load_ete3_tree
 
 
 class PhyloPlace:
@@ -59,19 +58,27 @@ class PhyloPlace:
 
         return
 
-    def calc_mean_tip_length(self, internal_leaf_node_map: dict, ref_tree: str) -> None:
+    def calc_mean_tip_length(self, internal_leaf_node_map: dict, ref_tree, memoization_map=None) -> None:
         if isinstance(ref_tree, str):
-            ref_tree = Tree(ref_tree)
+            ref_tree = load_ete3_tree(ref_tree)
         leaf_children = internal_leaf_node_map[self.edge_num]
         if len(leaf_children) > 1:
-            # Reference tree with clade excluded
-            parent = ref_tree.get_common_ancestor(leaf_children)
-            tip_distances = parent_to_tip_distances(parent, leaf_children)
-            self.mean_tip_length = round(float(sum(tip_distances) / len(tip_distances)), 6)
+            if memoization_map:
+                try:
+                    tip_distances = memoization_map[int(self.edge_num)]
+                except KeyError:
+                    # We need to find the LCA in the Tree instance to find the distances to tips for ete3
+                    parent = ref_tree.get_common_ancestor(leaf_children)
+                    tip_distances = parent_to_tip_distances(parent, leaf_children)
+                    memoization_map[int(self.edge_num)] = tip_distances
+            else:
+                parent = ref_tree.get_common_ancestor(leaf_children)
+                tip_distances = parent_to_tip_distances(parent, leaf_children)
+            self.mean_tip_length = round(float(sum(tip_distances) / len(tip_distances)), 4)
         return
 
     def total_distance(self) -> float:
-        return round(sum([self.pendant_length, self.mean_tip_length, self.distal_length]), 5)
+        return round(sum([self.pendant_length, self.mean_tip_length, self.distal_length]), 4)
 
     def summary(self) -> str:
         summary_string = "Summary for placement '{}' on edge {}\n".format(self.name, self.edge_num)

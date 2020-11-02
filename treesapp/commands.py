@@ -1427,11 +1427,11 @@ def purity(sys_args):
         jplace_file = os.sep.join([ts_purity.assign_dir, "iTOL_output", ts_purity.ref_pkg.prefix,
                                    ts_purity.ref_pkg.prefix + "_complete_profile.jplace"])
         jplace_data = jplace_parser(jplace_file)
-        tree_placement_queries = demultiplex_pqueries(jplace_data)
+        jplace_data.pqueries = demultiplex_pqueries(jplace_data)
         node_map = entish.map_internal_nodes_leaves(jplace_data.tree)
-        for pquery in tree_placement_queries:  # type: PQuery
+        for pquery in jplace_data.pqueries:  # type: PQuery
             pquery.filter_max_weight_placement()
-        ortholog_map = ts_purity.assign_leaves_to_orthologs(tree_placement_queries, node_map)
+        ortholog_map = ts_purity.assign_leaves_to_orthologs(jplace_data.pqueries, node_map)
         ts_purity.summarize_groups_assigned(ortholog_map, metadat_dict)
 
         # Write each sequence name that can be assigned to an ortholog to the log

@@ -7,8 +7,6 @@ import logging
 
 from ete3 import Tree
 
-from treesapp.phylo_seq import TreeLeafReference
-
 
 def get_node(tree: str, pos: int) -> (int, int):
     """
@@ -81,6 +79,13 @@ def get_tip_distances(parent_node):
 #     return find_cluster(parent, intra_distances)
 
 
+def load_ete3_tree(newick_tree) -> Tree:
+    if isinstance(newick_tree, str):
+        return Tree(re.sub(r"{\d+}", '', newick_tree))
+    else:
+        return newick_tree
+
+
 def map_internal_nodes_leaves(tree: str) -> dict:
     """
     Loads a Newick-formatted tree into a dictionary of all internal nodes (keys) and a list of child leaves (values).
@@ -147,7 +152,7 @@ def annotate_partition_tree(refpkg_name: str, leaf_nodes: list, bipart_tree: str
 
     tree = tree_file.readline()
     tree_file.close()
-    for leaf_node in leaf_nodes:  # type: TreeLeafReference
+    for leaf_node in leaf_nodes:
         if not re.search(r"[,(]{0}_{1}".format(leaf_node.number, refpkg_name), tree):
             logging.warning("Unable to find '{}' in {}.\n"
                             "The bipartition tree will not be annotated"

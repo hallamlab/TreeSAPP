@@ -8,6 +8,8 @@ import logging
 from json import load, dumps
 
 from treesapp.phylo_seq import PQuery, PhyloPlace, split_placements
+from treesapp.entish import load_ete3_tree
+from treesapp.phylo_dist import parent_to_tip_distances
 
 
 # def pquery_likelihood_weight_ratio(pquery, position):
@@ -173,6 +175,33 @@ def demultiplex_pqueries(jplace_data: JPlace, pquery_map=None) -> list:
         tree_placement_queries.append(pquery_obj)
 
     return tree_placement_queries
+
+
+def calc_pquery_mean_tip_distances(jplace_data: JPlace, internal_node_leaf_map: dict) -> None:
+    """
+    One of the attributes of a PhyloPlace instance that is not precalculated by EPA is the mean-tip distance from a
+    query sequence's placement position on an edge. This must be calculated by TreeSAPP.
+    This function calls PhyloPlace.calc_mean_tip_length() on each PhyloPlace object in all PQuery.placements collection
+    for all PQuery's in a JPlace's pqueries collection. It's just a convenience function.
+    """
+    jplace_tree = load_ete3_tree(jplace_data.tree)
+    parent_leaf_memoizer = dict()
+
+    for pquery in jplace_data.pqueries:  # type: PQuery
+        for pplace in pquery.placements:  # type: PhyloPlace
+            # Populate the memoization table to speed up length calculations for large JPlace files
+            leaf_children = internal_node_leaf_map[pplace.edge_num]
+            if len(leaf_children) > 1:
+                if int(pplace.edge_num) not in parent_leaf_memoizer:
+                    parent_leaf_memoizer[int(pplace.edge_num)] = parent_to_tip_distances(
+                        jplace_tree.get_common_ancestor(leaf_children), leaf_children
+                    )
+                # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
+                pplace.calc_mean_tip_length(internal_leaf_node_map=internal_node_leaf_map, ref_tree=jplace_tree,
+                                            memoization_map=parent_leaf_memoizer)
+            else:
+                pplace.mean_tip_length = 0.0
+    return
 
 
 def organize_jplace_files(jplace_files: list) -> dict:

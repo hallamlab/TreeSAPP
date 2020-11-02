@@ -994,7 +994,6 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
 
     logging.info("Filtering low-quality placements... ")
     unclassified_seqs = dict()  # A dictionary tracking the seqs unclassified for each marker
-    parent_leaf_memoizer = dict()
 
     for refpkg_name in tree_saps:
         refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
@@ -1003,8 +1002,6 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
         unclassified_seqs[refpkg.prefix]["np"] = list()
         unclassified_seqs[refpkg.prefix]["svm"] = list()
         svc_attempt = False
-
-        tree = Tree(refpkg.f__tree)
 
         for tree_sap in tree_saps[refpkg.prefix]:  # type: PQuery
             tree_sap.filter_min_weight_threshold(min_lwr)
@@ -1020,25 +1017,14 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
                 continue
 
             pplace = tree_sap.consensus_placement  # type: PhyloPlace
-            # TODO: Replace this with a PhyloPlace function
+
             leaf_children = tree_sap.node_map[int(pplace.edge_num)]
-            # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
-            if len(leaf_children) > 1:
-                # We need to find the LCA in the Tree instance to find the distances to tips for ete3
-                try:
-                    tip_distances = parent_leaf_memoizer[int(pplace.edge_num)]
-                except KeyError:
-                    tip_distances = phylo_dist.parent_to_tip_distances(tree.get_common_ancestor(leaf_children),
-                                                                       leaf_children)
-                    parent_leaf_memoizer[int(pplace.edge_num)] = tip_distances
-            else:
-                tip_distances = [0.0]
 
-            avg_tip_dist = round(sum(tip_distances) / len(tip_distances), 3)
-            pendant_length = round(pplace.pendant_length, 3)
-            distal_length = round(pplace.distal_length, 3)
+            avg_tip_dist = round(pplace.mean_tip_length, 4)
+            pendant_length = round(pplace.pendant_length, 4)
+            distal_length = round(pplace.distal_length, 4)
 
-            tree_sap.avg_evo_dist = round(distal_length + pendant_length + avg_tip_dist, 3)
+            tree_sap.avg_evo_dist = pplace.total_distance()
             tree_sap.distances = ','.join([str(distal_length), str(pendant_length), str(avg_tip_dist)])
 
             # hmm_perc = round((int(tree_sap.seq_len) * 100) / refpkg.profile_length, 1)
@@ -1054,15 +1040,13 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
                                                                                 distal_length,
                                                                                 pendant_length,
                                                                                 avg_tip_dist]).reshape(1, -1)))
-                # Discard this placement as a false positive classifier calls this a 0
+                # Discard this placement as a false positive if classifier calls this a 0
                 if call == 0:
                     unclassified_seqs[tree_sap.ref_name]["svm"].append(tree_sap)
                     tree_sap.classified = False
 
         if svc_attempt:
             logging.warning("SVM classifier unavailable for reference package '{}'\n".format(refpkg.prefix))
-
-        parent_leaf_memoizer.clear()
 
     logging.info("done.\n")
 
@@ -1098,10 +1082,6 @@ def select_query_placements(pquery_dict: dict, mode="max"):
             else:
                 logging.error("Unknown PQuery consensus algorithm provided: '{}'.\n".format(mode))
                 raise ValueError
-
-            # pquery.inode = str(pquery.consensus_placement.edge_num)
-            # pquery.lwr = float(pquery.consensus_placement.like_weight_ratio)
-            # pquery.likelihood = float(pquery.consensus_placement.likelihood)
 
             classified_seqs += 1
 
@@ -1160,6 +1140,7 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
             internal_node_leaf_map = map_internal_nodes_leaves(jplace_data.tree)
             # Demultiplex all pqueries in jplace_data into individual PQuery objects
             jplace_data.pqueries = jplace_utils.demultiplex_pqueries(jplace_data, pquery_map)
+            jplace_utils.calc_pquery_mean_tip_distances(jplace_data, internal_node_leaf_map)
             for pquery in jplace_data.pqueries:  # type: PQuery
                 # Flesh out the internal-leaf node map
                 pquery.ref_name = refpkg.prefix
