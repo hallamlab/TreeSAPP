@@ -11,7 +11,7 @@ from ete3 import Tree
 import joblib
 
 from treesapp.phylo_seq import TreeLeafReference
-from treesapp.entish import annotate_partition_tree
+from treesapp.entish import annotate_partition_tree, label_internal_nodes_ete
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
@@ -892,8 +892,17 @@ class ReferencePackage:
         # Generate an instance of the ETE3 Master Tree class
         rt = self.get_ete_tree()
 
-        root_name = self.taxa_trie.rank_representatives("root", with_prefix=True).pop()
+        try:
+            root_name = self.taxa_trie.rank_representatives("root", with_prefix=True).pop()
+        except KeyError:
+            logging.warning("No taxa of rank 'root' were present in '{}' reference package '{}'.\n"
+                            "".format(self.prefix, self.f__json))
+            root_taxon = Taxon(name="Root", rank="root")
+            self.taxa_trie.hierarchy[root_taxon.prefix_taxon()] = root_taxon
+            root_name = root_taxon.prefix_taxon()
         self.taxa_trie.root_domains(self.taxa_trie.get_taxon(root_name))
+
+        label_internal_nodes_ete(rt)
 
         # Propagate a 'taxon' feature - None by default - to all TreeNodes for holding Taxon instances
         for n in rt.traverse():  # type: Tree

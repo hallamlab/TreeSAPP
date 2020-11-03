@@ -1061,7 +1061,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
     return
 
 
-def select_query_placements(pquery_dict: dict, mode="max"):
+def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"):
     """
 
 
@@ -1073,12 +1073,14 @@ def select_query_placements(pquery_dict: dict, mode="max"):
     function_start_time = time.time()
     classified_seqs = 0
 
-    for refpkg_code in pquery_dict:
+    for refpkg_code in pquery_dict:  # type: str
+        refpkg = refpkg_dict[refpkg_code]  # type: ReferencePackage
+        taxa_tree = refpkg.taxonomically_label_tree()
         for pquery in pquery_dict[refpkg_code]:  # type: PQuery
-            if mode == "max":
+            if mode == "max_lwr":
                 pquery.filter_max_weight_placement()
             elif mode == "aelw":
-                pquery.calculate_consensus_placement()
+                pquery.calculate_consensus_placement(taxa_tree)
             else:
                 logging.error("Unknown PQuery consensus algorithm provided: '{}'.\n".format(mode))
                 raise ValueError

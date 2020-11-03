@@ -1,8 +1,10 @@
 import logging
 import sys
 
+from ete3 import Tree
+
 from treesapp.phylo_dist import parent_to_tip_distances
-from treesapp.entish import load_ete3_tree
+from treesapp.entish import load_ete3_tree, get_ete_edge, edge_from_node_name
 
 
 class PhyloPlace:
@@ -341,18 +343,76 @@ class PQuery:
 
         return confident_assignment
 
-    def calculate_consensus_placement(self) -> None:
+    def calculate_consensus_placement(self, labelled_tree: Tree, min_aelw=0.5) -> None:
         """
         Often times, a single PQuery (query sequence mapped onto a phylogeny) may be inserted into the phylogeny
         at multiple edges with similar likelihood.
 
-        The PQuery.consensus_placement attribute is either an existing placement (PhyloPlace instance) or the...
+        The PQuery.consensus_placement attribute is either an existing placement (PhyloPlace instance) or the common
+        ancestor of all descendent placements that contributed to the new taxonomic assignment. In the latter case, the
+        distal, pendant and mean-tip lengths are all set to 0.0.
 
         :return: None
         """
-        # TODO: finish implementing this.
+        # If the number of placements is one, set the consensus placement to the only placement
+        if len(self.placements) == 1:
+            self.consensus_placement = self.placements[0]
+            _, down_node = get_ete_edge(labelled_tree, self.consensus_placement.edge_num)
+            self.lineage = "; ".join([t.prefix_taxon() for t in down_node.taxon.lineage()])
+            self.lct = self.lineage
+            return
+
+        dist_ratio = 0.49
+        aelw_sum = 0.0
+        node_aelw_map = {}  # Maps internal node names to accumulated ELW values
+        taxon_aelw_map = {}  # Maps taxon names to accumulated ELW values
+        node_name_map = {}  # Maps internal node names to TreeNode instances
+        taxon_name_map = {}  # Maps taxon names to Taxon instances
+        contributors = []
         for pplace in self.placements:  # type: PhyloPlace
-            self.consensus_placement = pplace
+            up_node, down_node = get_ete_edge(labelled_tree, pplace.edge_num)
+            parent, child = up_node.taxon, down_node.taxon
+            # Ensure each of the taxon in a lineage is in the aELW dictionary
+            for node in [up_node, down_node]:
+                node_name_map[node.name] = node
+                if node.name not in node_aelw_map:
+                    node_aelw_map[node.name] = 0
+
+            if parent == child:
+                node_aelw_map[up_node.name] += pplace.like_weight_ratio
+                node_aelw_map[down_node.name] += pplace.like_weight_ratio
+            else:
+                node_aelw_map[up_node.name] += (pplace.like_weight_ratio * dist_ratio)
+                node_aelw_map[down_node.name] += (pplace.like_weight_ratio * (1-dist_ratio))
+
+        for node_name in reversed(sorted(node_aelw_map, key=lambda x: node_aelw_map[x])):
+            aelw_sum += node_aelw_map[node_name]
+            contributors.append(node_name_map[node_name])
+            if aelw_sum >= min_aelw:
+                break
+
+        # Find the LCA edge of all placements that contributed to the taxonomic assignment
+        node_lca = contributors[0].get_common_ancestor(contributors)  # type: Tree
+        # Populate the new placement's attributes
+        c_pplace = PhyloPlace()
+        c_pplace.distal_length, c_pplace.pendant_length, c_pplace.mean_tip_length = 0.0, 0.0, 0.0
+        c_pplace.edge_num = edge_from_node_name(labelled_tree, node_name=node_lca.name)
+        c_pplace.like_weight_ratio = aelw_sum
+        self.consensus_placement = c_pplace
+
+        # Sum the likelihood weights across the different taxa
+        for node in contributors:
+            for taxon in node.taxon.lineage():
+                taxon_name_map[taxon.prefix_taxon()] = taxon
+                try:
+                    taxon_aelw_map[taxon.prefix_taxon()] += node_aelw_map[node.name]
+                except KeyError:
+                    taxon_aelw_map[taxon.prefix_taxon()] = node_aelw_map[node.name]
+
+        # Set the PQuery.lineage and lct attributes to the taxon with greatest accumulated likelihood weight
+        most_likely_taxon = taxon_name_map[max(taxon_aelw_map.keys(), key=lambda x: taxon_aelw_map[x])]
+        self.lineage = "; ".join([t.prefix_taxon() for t in most_likely_taxon.lineage()])
+        self.lct = self.lineage
 
         return
 

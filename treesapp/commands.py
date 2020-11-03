@@ -1258,8 +1258,8 @@ def assign(sys_args):
     if ts_assign.stage_status("classify"):
         itol_out_dir = ts_assign.output_dir + 'iTOL_output' + os.sep
         tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, refpkg_dict, pqueries)
-        select_query_placements(tree_saps)  # Set the consensus_placement attribute for each PQuery
-        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_likelihood)
+        select_query_placements(tree_saps, refpkg_dict, mode=args.p_sum)  # Set PQuery.consensus_placement attributes
+        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr)
         write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         for refpkg_code in tree_saps:

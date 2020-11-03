@@ -33,6 +33,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.aes = self.add_argument_group("Aesthetic options")
         self.optopt = self.add_argument_group("Optional options")
         self.taxa_args = self.add_argument_group("Taxonomic-lineage arguments")
+        self.jplace_args = self.add_argument_group("Classification arguments")
         self.miscellany = self.add_argument_group("Miscellaneous options")
 
         self.miscellany.add_argument("-v", "--verbose", action="store_true", default=False,
@@ -279,12 +280,17 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_compute_miscellany()
     # The required parameters... for which there are currently none. But they would go here!
 
+    parser.jplace_args.add_argument("-l", "--min_like_weight_ratio", default=0.1, type=float, dest="min_lwr",
+                                    help="The minimum likelihood weight ratio required for an EPA placement. "
+                                         "[DEFAULT = 0.1]")
+    parser.jplace_args.add_argument("--placement_summary", default="max_lwr", choices=["aelw", "max_lwr"], dest="p_sum",
+                                    help="Controls the algorithm for consolidating multiple phylogenetic placements."
+                                         "Max LWR will take use the phylogenetic placement with greatest LWR."
+                                         "aELW uses the taxon with greatest accumulated LWR across placements.")
+
     # The optionals
     parser.optopt.add_argument('-c', '--composition', default="meta", choices=["meta", "single"],
                                help="Sample composition being either a single organism or a metagenome.")
-    parser.optopt.add_argument("-l", "--min_likelihood", default=0.1, type=float,
-                               help="The minimum likelihood weight ratio required for an EPA placement. "
-                               "[DEFAULT = 0.1]")
     parser.optopt.add_argument("--svm", default=False, required=False, action="store_true",
                                help="Uses the support vector machine (SVM) classification filter. "
                                     "WARNING: Unless you *really* know your refpkg, you probably don't want this.")

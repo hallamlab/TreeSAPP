@@ -5,7 +5,7 @@ import re
 import os
 import logging
 
-from ete3 import Tree
+from ete3 import Tree, TreeNode
 
 
 def get_node(tree: str, pos: int) -> (int, int):
@@ -24,6 +24,55 @@ def get_node(tree: str, pos: int) -> (int, int):
         pos += 1
         c = tree[pos]
     return int(node), pos
+
+
+def label_internal_nodes_ete(ete_tree: Tree) -> None:
+    i = 0
+    if len(ete_tree.children) > 2:
+        ete_tree.resolve_polytomy(recursive=True)
+    for n in ete_tree.traverse(strategy="postorder"):  # type: Tree
+        # Name the edge by it's unique internal node number
+        if not n.name:
+            n.name = str(i)
+        i += 1
+    return
+
+
+def edge_from_node_name(ete_tree: Tree, node_name) -> int:
+    edge_name = 1
+    if len(ete_tree.children) > 2:
+        ete_tree.resolve_polytomy(recursive=False)
+    ete_tree = ete_tree.get_tree_root()
+    for node in ete_tree.traverse(strategy="postorder"):  # type: Tree
+        if len(node.children) > 2:
+            node.resolve_polytomy(recursive=False)
+        if node_name == node.name:
+            return edge_name
+        edge_name += 1
+    return -1
+
+
+def get_ete_edge(ete_tree: Tree, edge_name) -> (TreeNode, TreeNode):
+    """
+    Traverses an ETE3 Tree structure in post-order, looking to match the desired edge_num to the current edge number,
+    which is equal to (node.number + 1).
+
+    :param ete_tree: An ETE3 Tree instance
+    :param edge_name: An integer representing the desired edge number.
+    :return: A tuple of the two immediately adjacent TreeNode instances for the corresponding branch/edge.
+    """
+
+    edge_n = 1
+    if len(ete_tree.children) > 2:
+        ete_tree.resolve_polytomy(recursive=False)
+    ete_tree = ete_tree.get_tree_root()
+    for node in ete_tree.traverse(strategy="postorder"):  # type: Tree
+        if len(node.children) > 2:
+            node.resolve_polytomy(recursive=False)
+        if edge_n == int(edge_name):
+            return node.up, node
+        edge_n += 1
+    return
 
 
 def find_mean_pairwise_distances(children):
