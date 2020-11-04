@@ -20,7 +20,7 @@ class PhyloSeqtests(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp.phylo_seq import PQuery
         from treesapp.refpkg import ReferencePackage
-        self.placement_dict = {'p': [[0, -50.7, 0.7, 0.859, 1.227],
+        self.placement_dict = {'p': [[33, -50.7, 0.7, 0.859, 1.227],
                                      [2, -50.8, 0.3, 0.1, 1.1]],
                                'n': ['seq_test_1']}
         self.field_order = ['edge_num', 'likelihood', 'like_weight_ratio', 'distal_length', 'pendant_length']
@@ -39,7 +39,7 @@ class PhyloSeqtests(unittest.TestCase):
         return
 
     def test_children_lineage(self):
-        self.pquery_test_2.filter_max_weight_placement()
+        self.pquery_test_2.process_max_weight_placement(self.refpkg.taxonomically_label_tree())
         with pytest.raises(SystemExit):
             self.pquery_test_2.children_lineage(leaves_taxa_map={'1': 'd__Archaea', '2': 'd__Archaea',
                                                                  '100': 'd__Archaea; p__Euryarchaeota;'
@@ -47,13 +47,29 @@ class PhyloSeqtests(unittest.TestCase):
                                                                         ' f__Methanobacteriaceae; g__Methanobrevibacter'})
         return
 
-    def test_filter_max_weight_placement(self):
+    def test_process_max_weight_placement(self):
         from treesapp.phylo_seq import split_placements, PhyloPlace
+        # Trigger a failure
+        self.pquery_test_1.placements = split_placements({'p': [[0, -50.7, 0.7, 0.859, 1.227],
+                                                                [2, -50.8, 0.3, 0.1, 1.1]],
+                                                          'n': ['seq_test_1']})
+        with pytest.raises(SystemExit):
+            self.pquery_test_1.process_max_weight_placement(self.refpkg.taxonomically_label_tree())
+
+        # Use valid placements to succeed
         self.pquery_test_1.placements = split_placements(self.placement_dict)
-        self.pquery_test_1.filter_max_weight_placement()
+        self.pquery_test_1.process_max_weight_placement(self.refpkg.taxonomically_label_tree())
         self.assertEqual(2, len(self.pquery_test_1.placements))
         self.assertIsInstance(self.pquery_test_1.consensus_placement, PhyloPlace)
         self.assertEqual(0.7, self.pquery_test_1.consensus_placement.like_weight_ratio)
+        return
+
+    def test_calculate_consensus_placement(self):
+        from treesapp.phylo_seq import split_placements
+        with pytest.raises(AttributeError):
+            self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
+        self.pquery_test_1.placements = split_placements(self.placement_dict)
+        self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
         return
 
     def test_phylo_place(self):

@@ -420,7 +420,7 @@ class PQuery:
 
         return
 
-    def process_max_weight_placement(self, labelled_tree: Tree) -> None:
+    def process_max_weight_placement(self, ref_tree: Tree) -> None:
         """
         Often times, a single PQuery (query sequence mapped onto a phylogeny) may be inserted into the phylogeny
         at multiple edges with similar likelihood. This function aims to select the single best placement based on
@@ -429,9 +429,9 @@ class PQuery:
         The PQuery.consensus_placement attribute is set to this placement with maximum LWR. The PQuery.placements
         attribute is unmodified.
 
+        :param ref_tree: A taxonomically-labelled ETE3 Tree i.e. each TreeNode contains a 'taxon' attribute
         :return: None
         """
-        # TODO: Refactor this to include updating the lineage, and lct attributes of the PQuery
         # Filter the placements
         max_lwr = 0
         for pplace in self.placements:  # type: PhyloPlace
@@ -444,7 +444,13 @@ class PQuery:
                 sys.exit(3)
 
         # Determine the taxonomic lineage of the placement using the labelled tree
-        up_node, down_node = get_ete_edge(labelled_tree, self.consensus_placement.edge_num)
+        try:
+            up_node, down_node = get_ete_edge(ref_tree, self.consensus_placement.edge_num)
+        except TypeError:
+            logging.error("Unable to process placement of '{}' as its placement edge '{}' was not found"
+                          " in the reference tree for {} with {} nodes.\n"
+                          "".format(self.place_name, self.consensus_placement.edge_num, self.ref_name, len(ref_tree)))
+            sys.exit(5)
         node_taxon = down_node.taxon
         self.lineage = "; ".join([t.prefix_taxon() for t in node_taxon.lineage()])
         self.lct = self.lineage

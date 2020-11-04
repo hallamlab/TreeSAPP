@@ -46,7 +46,7 @@ def edge_from_node_name(ete_tree: Tree, node_name) -> int:
     for node in ete_tree.traverse(strategy="postorder"):  # type: Tree
         if len(node.children) > 2:
             node.resolve_polytomy(recursive=False)
-        if node_name == node.name:
+        if str(node_name) == node.name:
             return edge_name
         edge_name += 1
     return -1
