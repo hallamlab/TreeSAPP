@@ -96,8 +96,8 @@ def get_tip_distances(parent_node):
 #     where a cluster is defined as a sub-tree (clade) whose members satisfy the condition:
 #      the distance to the parent of the current subtree's root multiplied by the logarithm base 2 of the number of
 #      cousins is greater than the mean(intra-cluster root-to-tip distances).
-#     Adding a large number of members to the clade is penalized, as well as large distances from the existing subtree to
-#     a new parent.
+#     Adding a large number of members to the clade is penalized, as well as large distances from the existing subtree
+#     to a new parent.
 #
 #     :param lost_node: A node within a tree, for which we want to orient
 #     :param intra_distances: A list with the current set of leaf-tip distances

@@ -295,17 +295,20 @@ class PQuery:
 
     def children_lineage(self, leaves_taxa_map: dict) -> list:
         """
-        From the jplace placement field ()
+        Sequences are inserted into a reference phylogeny on edges/branches which may not be leaves.
+
+        This function retrieves the list of taxonomic lineages for all leaves that are descendent of the placement edge.
+        The lineages within the returned list are non-unique.
 
         :param leaves_taxa_map: Dictionary mapping tree leaf nodes to taxonomic lineages
-        :return:
+        :return: A list of taxonomic lineages of the PQuery's descendents of the placement edge
         """
         children = list()
-        pplace = self.consensus_placement  # type: PhyloPlace
         try:
-            tree_leaves = self.node_map[pplace.edge_num]
+            tree_leaves = self.node_map[self.consensus_placement.edge_num]
         except KeyError:
-            logging.error("Unable to find placement edge '{}' in the PhyloPlace's node_map.\n".format(pplace.edge_num))
+            logging.error("Unable to find placement edge '{}'"
+                          " in the PhyloPlace's node_map.\n".format(self.consensus_placement.edge_num))
             sys.exit(13)
 
         for leaf_node in tree_leaves:
@@ -319,6 +322,7 @@ class PQuery:
             except KeyError:
                 logging.error("Unable to find '" + leaf_num + "' in leaf-lineage map.\n")
                 sys.exit(3)
+
             if ref_lineage:
                 children.append(ref_lineage)
             else:
@@ -416,17 +420,18 @@ class PQuery:
 
         return
 
-    def filter_max_weight_placement(self) -> PhyloPlace:
+    def process_max_weight_placement(self, labelled_tree: Tree) -> None:
         """
         Often times, a single PQuery (query sequence mapped onto a phylogeny) may be inserted into the phylogeny
         at multiple edges with similar likelihood. This function aims to select the single best placement based on
-        it's respective Likelihood Weight Ratio (LWR) or PQuery like_weight_ratio attribute.
+        it's respective Likelihood Weight Ratio (LWR)/PQuery like_weight_ratio attribute.
 
         The PQuery.consensus_placement attribute is set to this placement with maximum LWR. The PQuery.placements
         attribute is unmodified.
 
         :return: None
         """
+        # TODO: Refactor this to include updating the lineage, and lct attributes of the PQuery
         # Filter the placements
         max_lwr = 0
         for pplace in self.placements:  # type: PhyloPlace
@@ -437,7 +442,14 @@ class PQuery:
             else:
                 logging.error("Unexpected state of PhyloPlace instance!\n{}\n".format(pplace.summary()))
                 sys.exit(3)
-        return self.consensus_placement
+
+        # Determine the taxonomic lineage of the placement using the labelled tree
+        up_node, down_node = get_ete_edge(labelled_tree, self.consensus_placement.edge_num)
+        node_taxon = down_node.taxon
+        self.lineage = "; ".join([t.prefix_taxon() for t in node_taxon.lineage()])
+        self.lct = self.lineage
+
+        return
 
 
 def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:

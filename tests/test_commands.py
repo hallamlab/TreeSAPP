@@ -41,6 +41,7 @@ class TreesappTester(unittest.TestCase):
                                 "-m", "prot",
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "relaxed",
+                                "--placement_summary", "max_lwr",
                                 "--trim_align", "--overwrite", "--delete", "--svm"]
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")

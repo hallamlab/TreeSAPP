@@ -34,7 +34,7 @@ from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_pac
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs, select_query_placements,\
     summarize_placements_rpkm, write_classification_table, produce_itol_inputs, replace_contig_names,\
-    read_refpkg_tax_ids, load_homologs, load_pqueries, write_classified_sequences
+    load_homologs, load_pqueries, write_classified_sequences
 from treesapp.jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from treesapp.clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
@@ -1168,7 +1168,6 @@ def assign(sys_args):
     refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
     prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
     ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
-    tree_numbers_translation = read_refpkg_tax_ids(refpkg_dict)
 
     ##
     # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
@@ -1290,7 +1289,7 @@ def assign(sys_args):
 
         abundify_tree_saps(tree_saps, abundance_dict)
         assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
-        determine_confident_lineage(tree_saps, tree_numbers_translation, refpkg_dict)
+        determine_confident_lineage(tree_saps, refpkg_dict)
         write_classification_table(tree_saps, ts_assign.sample_prefix, assign_out)
 
         produce_itol_inputs(tree_saps, refpkg_dict, itol_data, itol_out_dir, ts_assign.refpkg_dir)
@@ -1429,8 +1428,9 @@ def purity(sys_args):
         jplace_data = jplace_parser(jplace_file)
         jplace_data.pqueries = demultiplex_pqueries(jplace_data)
         node_map = entish.map_internal_nodes_leaves(jplace_data.tree)
+        labelled_ref_tree = ts_purity.ref_pkg.taxonomically_label_tree()
         for pquery in jplace_data.pqueries:  # type: PQuery
-            pquery.filter_max_weight_placement()
+            pquery.process_max_weight_placement(labelled_ref_tree)
         ortholog_map = ts_purity.assign_leaves_to_orthologs(jplace_data.pqueries, node_map)
         ts_purity.summarize_groups_assigned(ortholog_map, metadat_dict)
 

@@ -869,12 +869,41 @@ class ReferencePackage:
         return
 
     def load_pfit_params(self, build_param_line):
+        """
+        Loads the polynomial classifier parameters that are stored in the ReferencePackage.pfit attribute
+        """
         build_param_fields = build_param_line.split("\t")
         if build_param_fields[8]:
             self.pfit = [float(x) for x in build_param_fields[8].split(',')]
         return
 
+    def enumerate_taxonomic_lineages(self) -> dict:
+        """
+        At times, it is handy to know how many of each taxonomic label are present in the reference package.
+        enumerate_taxonomic_lineages() iterates over the ranks (as the numeric representation) and sums the number of
+        taxa that are descendents of each broader taxonomic rank.
+        This leads to multiple-counts of each taxon by design.
+
+        :return: A dictionary mapping unique taxa in the ReferencePackage to their respective count
+        """
+        rank = 1
+        taxonomic_counts = dict()
+        while rank < 9:
+            for leaf in self.generate_tree_leaf_references_from_refpkg():
+                lineage = leaf.lineage.split(self.taxa_trie.lin_sep)
+                if len(lineage) < rank:
+                    continue
+                taxonomy = "; ".join(lineage[:rank])
+                if taxonomy not in taxonomic_counts:
+                    taxonomic_counts[taxonomy] = 0
+                taxonomic_counts[taxonomy] += 1
+            rank += 1
+        return taxonomic_counts
+
     def all_possible_assignments(self):
+        """
+        Returns a StringTrie (prefix-tree) representation of the taxonomic lineages of the ReferencePackage
+        """
         if len(self.lineage_ids) == 0:
             logging.error("ReferencePackage.lineage_ids is empty - information hasn't been slurped up yet.\n")
             sys.exit(17)

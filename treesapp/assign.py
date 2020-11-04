@@ -48,23 +48,6 @@ except ImportWarning:
     sys.exit(3)
 
 
-def read_refpkg_tax_ids(refpkg_dict: dict) -> dict:
-    """
-    Function to read tax_ids files for each ReferencePackage in
-
-    :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
-    :return: A dictionary of lists of LeafNodes indexed by the reference package codes (denominators)
-    """
-
-    tree_numbers_translation = dict()
-
-    for refpkg_name in sorted(refpkg_dict.keys()):
-        refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
-        tree_numbers_translation[refpkg_name] = refpkg.generate_tree_leaf_references_from_refpkg()
-
-    return tree_numbers_translation
-
-
 def replace_contig_names(numeric_contig_index: dict, fasta: FASTA):
     for marker in numeric_contig_index:
         assign_re = re.compile(r"(.*)\|{0}\|(\d+_\d+)$".format(marker))
@@ -965,21 +948,6 @@ def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
     return tree_protein_list
 
 
-def enumerate_taxonomic_lineages(lineage_list):
-    rank = 1
-    taxonomic_counts = dict()
-    while rank < 9:
-        for lineage in lineage_list:
-            if len(lineage) < rank:
-                continue
-            taxonomy = "; ".join(lineage[:rank])
-            if taxonomy not in taxonomic_counts:
-                taxonomic_counts[taxonomy] = 0
-            taxonomic_counts[taxonomy] += 1
-        rank += 1
-    return taxonomic_counts
-
-
 def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: float) -> None:
     """
     Determines the total distance of each placement from its branch point on the tree
@@ -1078,7 +1046,7 @@ def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"
         taxa_tree = refpkg.taxonomically_label_tree()
         for pquery in pquery_dict[refpkg_code]:  # type: PQuery
             if mode == "max_lwr":
-                pquery.filter_max_weight_placement()
+                pquery.process_max_weight_placement(taxa_tree)
             elif mode == "aelw":
                 pquery.calculate_consensus_placement(taxa_tree)
             else:
@@ -1228,7 +1196,7 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
     return
 
 
-def determine_confident_lineage(tree_saps: dict, tree_numbers_translation: dict, refpkg_dict: dict) -> None:
+def determine_confident_lineage(tree_saps: dict, refpkg_dict: dict) -> None:
     """
     Determines the best taxonomic lineage for classified sequences based on their
 
@@ -1237,20 +1205,16 @@ def determine_confident_lineage(tree_saps: dict, tree_numbers_translation: dict,
 3. the optimal rank recommended by the linear model
 
     :param tree_saps: A dictionary containing PQuery objects
-    :param tree_numbers_translation: Dictionary containing taxonomic information for each leaf in the reference tree
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :return: None
     """
     leaf_taxa_map = dict()
     for refpkg_name in tree_saps:
         # All the leaves for that tree [number, translation, lineage]
-        leaves = tree_numbers_translation[refpkg_name]
-        lineage_list = list()
-        # Test if the reference set have lineage information
-        for leaf in leaves:
-            lineage_list.append(leaf.lineage)
+        ref_pkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
+        taxonomic_counts = ref_pkg.enumerate_taxonomic_lineages()
+        for leaf in ref_pkg.generate_tree_leaf_references_from_refpkg():
             leaf_taxa_map[leaf.number] = leaf.lineage
-        taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 
         for tree_sap in tree_saps[refpkg_name]:  # type: PQuery
             if not tree_sap.classified:

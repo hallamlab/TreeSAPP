@@ -105,6 +105,15 @@ class RefPkgTester(unittest.TestCase):
         self.assertTrue(isinstance(labelled_rt.taxon, Taxon))
         return
 
+    def test_enumerate_taxonomic_lineages(self):
+        from treesapp.refpkg import ReferencePackage
+        mock_rp = ReferencePackage()
+        self.assertEqual(0, len(mock_rp.enumerate_taxonomic_lineages()))
+        taxa_counts = self.db.enumerate_taxonomic_lineages()
+        self.assertIsInstance(taxa_counts, dict)
+        self.assertTrue("r__Root" in taxa_counts)
+        return
+
 
 if __name__ == '__main__':
     unittest.main()

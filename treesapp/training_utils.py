@@ -6,7 +6,6 @@ import time
 import itertools
 from glob import glob
 
-from ete3 import Tree
 from tqdm import tqdm
 import numpy as np
 import seaborn
@@ -212,7 +211,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
 
     ce_fasta = fasta.FASTA(ce_refpkg.f__msa)
     ce_fasta.load_fasta()
-    ce_tree = Tree(ce_refpkg.f__tree)
+    ce_tree = ce_refpkg.taxonomically_label_tree()
 
     # Paths to temporary files
     query_fasta_file = taxon_test_dir + "queries.fa"
@@ -282,7 +281,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
         pquery.ref_name = ref_pkg.prefix
         pquery.rank = rank
         pquery.lineage = taxon
-        pquery.filter_max_weight_placement()
+        pquery.process_max_weight_placement(ce_tree)
 
         if pquery.consensus_placement.like_weight_ratio >= 0.5:
             pqueries.append(pquery)
