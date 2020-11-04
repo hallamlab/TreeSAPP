@@ -264,3 +264,9 @@ def index_tree_edges(tree: str):
             i += 1
 
     return edge_index
+
+
+def verify_bifurcations(newick_tree: str) -> str:
+    ete_tree = load_ete3_tree(newick_tree)
+    ete_tree.resolve_polytomy(recursive=True)
+    return ete_tree.write(format=1)
