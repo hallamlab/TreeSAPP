@@ -50,7 +50,7 @@ class PhyloSeqtests(unittest.TestCase):
     def test_process_max_weight_placement(self):
         from treesapp.phylo_seq import split_placements, PhyloPlace
         # Trigger a failure
-        self.pquery_test_1.placements = split_placements({'p': [[0, -50.7, 0.7, 0.859, 1.227],
+        self.pquery_test_1.placements = split_placements({'p': [[511, -50.7, 0.7, 0.859, 1.227],
                                                                 [2, -50.8, 0.3, 0.1, 1.1]],
                                                           'n': ['seq_test_1']})
         with pytest.raises(SystemExit):
@@ -70,6 +70,7 @@ class PhyloSeqtests(unittest.TestCase):
             self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
         self.pquery_test_1.placements = split_placements(self.placement_dict)
         self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
+        self.assertEqual("r__Root", self.pquery_test_1.lct)
         return
 
     def test_phylo_place(self):

@@ -39,7 +39,7 @@ def label_internal_nodes_ete(ete_tree: Tree) -> None:
 
 
 def edge_from_node_name(ete_tree: Tree, node_name) -> int:
-    edge_name = 1
+    edge_name = 0
     if len(ete_tree.children) > 2:
         ete_tree.resolve_polytomy(recursive=False)
     ete_tree = ete_tree.get_tree_root()
@@ -62,7 +62,7 @@ def get_ete_edge(ete_tree: Tree, edge_name) -> (TreeNode, TreeNode):
     :return: A tuple of the two immediately adjacent TreeNode instances for the corresponding branch/edge.
     """
 
-    edge_n = 1
+    edge_n = 0
     if len(ete_tree.children) > 2:
         ete_tree.resolve_polytomy(recursive=False)
     ete_tree = ete_tree.get_tree_root()

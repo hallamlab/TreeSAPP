@@ -1212,37 +1212,26 @@ def determine_confident_lineage(tree_saps: dict, refpkg_dict: dict) -> None:
     for refpkg_name in tree_saps:
         # All the leaves for that tree [number, translation, lineage]
         ref_pkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
-        taxonomic_counts = ref_pkg.enumerate_taxonomic_lineages()
         for leaf in ref_pkg.generate_tree_leaf_references_from_refpkg():
             leaf_taxa_map[leaf.number] = leaf.lineage
 
-        for tree_sap in tree_saps[refpkg_name]:  # type: PQuery
-            if not tree_sap.classified:
+        for pquery in tree_saps[refpkg_name]:  # type: PQuery
+            if not pquery.classified:
                 continue
 
-            tree_sap.lineage_list = tree_sap.children_lineage(leaf_taxa_map)
-
-            if len(tree_sap.lineage_list) == 0:
-                logging.error("Unable to find lineage information for reference package {},"
-                              "contig {}!\n".format(refpkg_name, tree_sap.place_name))
-                sys.exit(3)
-            elif len(tree_sap.lineage_list) == 1:
-                tree_sap.lct = tree_sap.lineage_list[0]
-                tree_sap.wtd = 0.0
-            else:
-                lca = tree_sap.megan_lca()
-                # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
-                tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
-                tree_sap.wtd, status = weighted_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
-                if status > 0:
-                    tree_sap.summarize()
+            lineage_list = pquery.children_lineage(leaf_taxa_map)
+            # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
+            # pquery.lct = lowest_common_taxonomy(lineage_list, lca, taxonomic_counts, "LCA*")
+            pquery.wtd, status = weighted_taxonomic_distance(lineage_list, pquery.lct)
+            if status > 0:
+                pquery.summarize()
 
             # Based on the calculated distance from the leaves, what rank is most appropriate?
-            recommended_rank = phylo_dist.rank_recommender(tree_sap.avg_evo_dist, refpkg_dict[refpkg_name].pfit)
-            if tree_sap.lct.split("; ")[0] != "r__Root":
-                tree_sap.lct = "r__Root; " + tree_sap.lct
+            recommended_rank = phylo_dist.rank_recommender(pquery.avg_evo_dist, refpkg_dict[refpkg_name].pfit)
+            if pquery.lct.split(ref_pkg.taxa_trie.lin_sep)[0] != "r__Root":
+                pquery.lct = "r__Root; " + pquery.lct
                 recommended_rank += 1
-            tree_sap.recommended_lineage = tree_sap.lowest_confident_taxonomy(recommended_rank)
+            pquery.recommended_lineage = pquery.lowest_confident_taxonomy(recommended_rank)
         leaf_taxa_map.clear()
     return
 

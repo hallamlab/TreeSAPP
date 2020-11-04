@@ -11,7 +11,7 @@ from ete3 import Tree
 import joblib
 
 from treesapp.phylo_seq import TreeLeafReference
-from treesapp.entish import annotate_partition_tree, label_internal_nodes_ete
+from treesapp.entish import annotate_partition_tree, label_internal_nodes_ete, verify_bifurcations
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
@@ -327,6 +327,8 @@ class ReferencePackage:
                                                                                       self.num_seqs,
                                                                                       len(rt)))
             return False
+        self.tree = verify_bifurcations(self.tree)
+
         # Compare the number of sequences in lineage IDs
         n_leaf_nodes = len(self.generate_tree_leaf_references_from_refpkg())
         if n_leaf_nodes != self.num_seqs:
@@ -918,9 +920,17 @@ class ReferencePackage:
         return load_taxonomic_trie(lineage_list)
 
     def taxonomically_label_tree(self) -> Tree:
+        """
+        When deciding what the taxonomic label should be assigned to a query sequence, algorithms may require a tree
+        (ete3.Tree instance) for which each node contains a 'taxon' instance, itself being a taxonomic_hierarchy.Taxon
+        instance.
+        This function assures that the phylogeny is strictly bifurcating, by using ete3's resolve_polytomy() function.
+        To label the nodes of a phylogeny,
+        """
         # Generate an instance of the ETE3 Master Tree class
         rt = self.get_ete_tree()
 
+        # Ensure that every taxonomic lineage is rooted by setting the parent of each 'domain' taxon to "r__Root"
         try:
             root_name = self.taxa_trie.rank_representatives("root", with_prefix=True).pop()
         except KeyError:
@@ -931,10 +941,11 @@ class ReferencePackage:
             root_name = root_taxon.prefix_taxon()
         self.taxa_trie.root_domains(self.taxa_trie.get_taxon(root_name))
 
+        # Label the internal nodes with a unique numerical identifier
         label_internal_nodes_ete(rt)
 
         # Propagate a 'taxon' feature - None by default - to all TreeNodes for holding Taxon instances
-        for n in rt.traverse():  # type: Tree
+        for n in rt.traverse(strategy="postorder"):  # type: Tree
             n.add_feature(pr_name="taxon", pr_value=None)
 
         # Add the taxonomic lineages as features to each of the leaf nodes

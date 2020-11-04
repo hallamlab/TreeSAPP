@@ -219,8 +219,8 @@ def launch_evolutionary_placement_queries(executables: dict, split_msa_files: di
     # Maximum-likelihood sequence placement analyses
     for refpkg_name in sorted(split_msa_files.keys()):
         if not isinstance(refpkg_name, str):
-            logging.error(str(refpkg_name) + " is not string but " + str(type(refpkg_name)) + "\n")
-            raise AssertionError()
+            logging.error("RefPkg name key '{}' is not string but {}\n.".format(refpkg_name, type(refpkg_name)))
+            raise AssertionError
         ref_pkg = refpkg_dict[refpkg_name]
         for split_msa in split_msa_files[refpkg_name]:
             query_name = re.sub("_queries.mfa", '', os.path.basename(split_msa.query))

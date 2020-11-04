@@ -133,7 +133,7 @@ class PQuery:
         ##
         # Taxonomic information:
         ##
-        self.lineage_list = list()  # List containing each child's lineage
+        # TODO: remove lct when possible
         self.wtd = 0
         self.lct = ""  # The LCA taxonomy derived from lineage_list
         self.recommended_lineage = ""
@@ -163,7 +163,6 @@ class PQuery:
     def clear(self):
         self.node_map.clear()
         self.placements.clear()
-        self.lineage_list.clear()
         return
 
     # def transfer_metadata(self, jplace_inst):
@@ -258,40 +257,6 @@ class PQuery:
                 pquery.distal_length = tree_len
 
         return
-
-    def megan_lca(self):
-        """
-        Using the lineages of all leaves to which this sequence was mapped (n >= 1),
-        A lowest common ancestor is found at the point which these lineages converge.
-        This emulates the LCA algorithm employed by the MEtaGenome ANalyzer (MEGAN).
-        :return:
-        """
-        # If there is only one child, return the joined string
-        if len(self.lineage_list) == 1:
-            return "; ".join(self.lineage_list[0])
-
-        listed_lineages = [lineage.strip().split("; ") for lineage in self.lineage_list]
-        max_depth = max([len(lineage) for lineage in listed_lineages])
-        lca_set = set()
-        lca_lineage_strings = list()
-        i = 0
-        while i < max_depth:
-            contributors = 0
-            for lineage in sorted(listed_lineages):
-                try:
-                    lca_set.add(lineage[i])
-                    contributors += 1
-                except IndexError:
-                    pass
-
-            if len(lca_set) == 1 and contributors == len(listed_lineages):
-                lca_lineage_strings.append(list(lca_set)[0])
-                i += 1
-                lca_set.clear()
-            else:
-                i = max_depth
-
-        return "; ".join(lca_lineage_strings)
 
     def children_lineage(self, leaves_taxa_map: dict) -> list:
         """
