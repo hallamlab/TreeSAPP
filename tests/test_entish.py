@@ -12,6 +12,7 @@ class EntishTester(unittest.TestCase):
             self.placement_tree = test_tree.readline()
         self.test_ete_tree = load_ete3_tree(self.placement_tree)
         self.mock_tree = Tree("(A:1,(B:1,(E:1,D:1):0.5):0.5);")
+        self.multifurcating_tree = Tree("(B,(A, C, D), E);")
         label_internal_nodes_ete(self.test_ete_tree)
         return
 
@@ -40,6 +41,10 @@ class EntishTester(unittest.TestCase):
         label_internal_nodes_ete(self.mock_tree)
         for n in self.mock_tree:
             self.assertIsInstance(n.name, str)
+        self.assertEqual(7, len(self.multifurcating_tree.get_edges()))
+        label_internal_nodes_ete(self.multifurcating_tree)
+        self.assertEqual(9, len(self.multifurcating_tree.get_edges()))
+        self.assertEqual('8', self.multifurcating_tree.get_tree_root().name)
         return
 
     def test_edge_from_node_name(self):
