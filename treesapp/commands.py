@@ -186,8 +186,8 @@ def train(sys_args):
         logging.info("done.\n")
         ts_trainer.increment_stage_dir()
     else:
-        if not os.path.isfile(ts_trainer.formatted_input):
-            ts_trainer.formatted_input = ts_trainer.input_sequences
+        ts_trainer.formatted_input = ts_trainer.input_sequences
+        train_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_trainer.formatted_input), True)
     train_seqs.file = ts_trainer.formatted_input
 
     ##

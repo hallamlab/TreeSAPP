@@ -2,7 +2,6 @@
 
 import os
 import sys
-import argparse
 import logging
 import re
 import random
@@ -19,44 +18,11 @@ from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.refpkg import ReferencePackage
 from treesapp.training_utils import rarefy_rank_distances, generate_pquery_data_for_trainer
 
-__author__ = 'Connor Morgan-Lang'
 
-
-def get_options():
-    parser = argparse.ArgumentParser(description="Workflow for estimating calibrating the edge distances corresponding"
-                                                 " to taxonomic ranks by iterative leave-one-out validation")
-    required_args = parser.add_argument_group("Required arguments")
-    seqop_args = parser.add_argument_group("Sequence operation arguments")
-    taxa_args = parser.add_argument_group("Taxonomic-lineage arguments")
-    miscellaneous_opts = parser.add_argument_group("Miscellaneous arguments")
-
-    required_args.add_argument("-f", "--fasta_input", required=True,
-                               help='The raw, unclustered and unfiltered FASTA file to train the reference package.')
-    required_args.add_argument("-n", "--name", required=True,
-                               help="Prefix name of the reference package "
-                                    "(i.e. McrA for McrA.fa, McrA.hmm, McrA_tree.txt)")
-    required_args.add_argument("-p", "--pkg_path", required=True,
-                               help="The path to the TreeSAPP-formatted reference package.")
-    seqop_args.add_argument("-d", "--domain",
-                            help="An HMM profile representing a specific domain.\n"
-                                 "Domains will be excised from input sequences based on hmmsearch alignments.",
-                            required=False, default=None)
-    taxa_args.add_argument("-l", "--lineages",
-                           help="The accession lineage map downloaded during reference package generation.",
-                           required=False)
-    miscellaneous_opts.add_argument('-m', '--molecule', default='prot', choices=['prot', 'dna', 'rrna'],
-                                    help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide )')
-    miscellaneous_opts.add_argument("-T", "--num_threads", required=False, default=4, type=int,
-                                    help="The number of threads to be used by RAxML.")
-    miscellaneous_opts.add_argument("-o", "--output_dir", required=False, default='.',
-                                    help="Path to directory for writing outputs.")
-    miscellaneous_opts.add_argument("-v", "--verbose", action='store_true',  default=False,
-                                    help='Prints a more verbose runtime log')
-    miscellaneous_opts.add_argument("-O", "--overwrite", default=False, action="store_true",
-                                    help="Force recalculation of placement distances for query sequences.")
-    args = parser.parse_args()
-    args.targets = ["ALL"]
-    return args
+def fail_training(msg) -> None:
+    boilerplate = "Clade-exclusion analysis could not be performed for training the reference package models:\n"
+    logging.error(boilerplate + msg + "\n")
+    return
 
 
 def write_placement_table(pqueries: dict, placement_table_file: str, marker: str) -> None:
@@ -340,8 +306,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
 
 def clade_exclusion_phylo_placement(rank_training_seqs: dict,
                                     test_fasta: fasta.FASTA, ref_pkg: ReferencePackage,
-                                    leaf_taxa_map: dict, executables: dict,
-                                    output_dir="./", raxml_threads=4) -> dict:
+                                    executables: dict, output_dir="./", raxml_threads=4, min_seqs=30) -> dict:
     """
     Function for iteratively performing leave-one-out analysis for every taxonomic lineage represented in the tree,
     yielding an estimate of placement distances corresponding to taxonomic ranks.
@@ -350,14 +315,13 @@ def clade_exclusion_phylo_placement(rank_training_seqs: dict,
      to rank depth values where Kingdom is 0, Phylum is 1, etc.
     :param test_fasta: Dictionary with headers as keys and sequences as values for deduplicated training sequences
     :param ref_pkg: A ReferencePackage instance
-    :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric sequence identifiers to taxonomic lineages
     :param executables: A dictionary mapping software to a path of their respective executable
     :param output_dir: Path to directory where all intermediate files should be written
     :param raxml_threads: Number of threads to be used by RAxML for parallel computation
+    :param min_seqs: The minimum number of sequences required for training all taxonomic ranks of a reference package
 
     :return: Dictionary of ranks indexing a dictionary of taxa of that rank indexing a list of PQuery instances
     """
-    leaf_trimmed_taxa_map = dict()
     pqueries = dict()
 
     if output_dir[-1] != os.sep:
@@ -376,8 +340,8 @@ def clade_exclusion_phylo_placement(rank_training_seqs: dict,
             logging.debug("{} sequences to train {}-level placement distances\n".format(num_rank_training_seqs, rank))
         num_training_queries += num_rank_training_seqs
 
-    if num_training_queries < 30:
-        logging.error("Too few ({}) sequences for training placement distance model.\n".format(num_training_queries))
+    if num_training_queries < min_seqs:
+        fail_training("Too few ({}) sequences for training placement distance model.\n".format(num_training_queries))
         return pqueries
     if num_training_queries < 50:
         logging.warning("Only {} sequences for training placement distance model.\n".format(num_training_queries))
@@ -389,9 +353,6 @@ def clade_exclusion_phylo_placement(rank_training_seqs: dict,
     for rank in sorted(rank_training_seqs, reverse=True):
         pbar.set_description("Processing %s" % rank)
         pqueries[rank] = {}
-        for leaf_node, lineage in ref_pkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, rank).items():
-            leaf_trimmed_taxa_map[leaf_node + "_" + ref_pkg.prefix] = lineage
-
         for taxonomy in sorted(rank_training_seqs[rank]):
             logging.debug("Testing placements for {}:\n".format(taxonomy))
             pqueries[rank][taxonomy] = generate_pquery_data_for_trainer(ref_pkg, taxonomy, test_fasta,
@@ -401,7 +362,6 @@ def clade_exclusion_phylo_placement(rank_training_seqs: dict,
         if len(pqueries[rank]) == 0:
             logging.debug("No samples available for " + rank + ".\n")
 
-        leaf_trimmed_taxa_map.clear()
     pbar.close()
 
     return pqueries
@@ -422,20 +382,22 @@ def evo_dists_from_pqueries(pqueries: dict, training_ranks=None) -> dict:
         training_ranks = {"class": 3, "species": 7}
 
     # Populate dictionary of evolutionary distances indexed by rank and taxon
-    for rank in training_ranks:
+    for rank in training_ranks:  # type: str
+        if rank not in pqueries:
+            fail_training(msg="No phylogenetic placements were performed for taxonomic rank '{}'.\n"
+                              "Either find more reference sequences or increase percent similarity to "
+                              "increase the chances of having multiple representatives of the same rank".format(rank))
+            return {}
+
         taxonomic_placement_distances[rank] = []
         if rank in pqueries and len(pqueries[rank]) > 0:
             for taxon in pqueries[rank]:
                 taxonomic_placement_distances[rank] += [pquery.consensus_placement.total_distance() for pquery
                                                         in pqueries[rank][taxon]]
-        else:
-            logging.warning("Clade-exclusion could not be performed for '{}'.\n"
-                            "No phylogenetic placement data was generated for training.\n".format(rank))
-            continue
 
         if len(taxonomic_placement_distances[rank]) == 0:
-            logging.error("No PQuery distances were transferred for rank {}.\n".format(rank))
-            sys.exit(17)
+            fail_training(msg="No phylogenetic placements succeeded for taxonomic rank '{}'.\n".format(rank))
+            return {}
 
         median_dist = round(utilities.median(taxonomic_placement_distances[rank]), 4)
         mean_dist = round(utilities.mean(taxonomic_placement_distances[rank]), 4)
@@ -541,7 +503,7 @@ def gen_cladex_data(fasta_input: str, executables: dict, ref_pkg: ReferencePacka
         return {}
 
     # Perform the rank-wise clade exclusion analysis for estimating placement distances
-    pqueries = clade_exclusion_phylo_placement(rank_training_seqs, test_seqs, ref_pkg, leaf_taxa_map,
+    pqueries = clade_exclusion_phylo_placement(rank_training_seqs, test_seqs, ref_pkg,
                                                executables, output_dir, num_threads)
 
     return pqueries
