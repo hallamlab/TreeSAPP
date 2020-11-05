@@ -28,12 +28,12 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         super(TreeSAPPArgumentParser, self).__init__(add_help=False, prog=_prog, **kwargs)
         self.reqs = self.add_argument_group("Required parameters")
         self.seqops = self.add_argument_group("Sequence operation arguments")
+        self.jplace_args = self.add_argument_group("Classification arguments")
         self.rpkm_opts = self.add_argument_group("RPKM options")
         self.io = self.add_argument_group("Inputs and Outputs")
         self.aes = self.add_argument_group("Aesthetic options")
         self.optopt = self.add_argument_group("Optional options")
         self.taxa_args = self.add_argument_group("Taxonomic-lineage arguments")
-        self.jplace_args = self.add_argument_group("Classification arguments")
         self.miscellany = self.add_argument_group("Miscellaneous options")
 
         self.miscellany.add_argument("-v", "--verbose", action="store_true", default=False,
@@ -287,13 +287,13 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
                                     help="Controls the algorithm for consolidating multiple phylogenetic placements."
                                          "Max LWR will take use the phylogenetic placement with greatest LWR."
                                          "aELW uses the taxon with greatest accumulated LWR across placements.")
+    parser.optopt.add_argument("--svm", default=False, required=False, action="store_true",
+                               help="Uses the support vector machine (SVM) classification filter. "
+                                    "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
 
     # The optionals
     parser.optopt.add_argument('-c', '--composition', default="meta", choices=["meta", "single"],
                                help="Sample composition being either a single organism or a metagenome.")
-    parser.optopt.add_argument("--svm", default=False, required=False, action="store_true",
-                               help="Uses the support vector machine (SVM) classification filter. "
-                                    "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "orf-call", "search", "align", "place", "classify"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
