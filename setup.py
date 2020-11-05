@@ -48,6 +48,9 @@ SETUP_METADATA = \
                              "biopython", "ete3",
                              "numpy", "scipy", "scikit-learn", "joblib",
                              "seaborn", "matplotlib", "tqdm", "packaging"],
+        "setup_requires": [
+            "setuptools>=50.3.2"
+        ],
         "extras_require": {
             'test': ['pytest', 'pytest-cov'],
         }

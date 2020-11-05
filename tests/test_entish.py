@@ -76,7 +76,7 @@ class EntishTester(unittest.TestCase):
         return
 
     def test_verify_bifurcations(self):
-        from entish import verify_bifurcations
+        from treesapp.entish import verify_bifurcations
         pre_edges = len(Tree(self.multifurcating_tree_str).get_edges())
         temp_tree = verify_bifurcations(self.multifurcating_tree_str)
         post_edges = len(Tree(temp_tree).get_edges())

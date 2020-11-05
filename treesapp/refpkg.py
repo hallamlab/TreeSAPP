@@ -388,7 +388,7 @@ class ReferencePackage:
         label_internal_nodes_ete(rt)
         return rt
 
-    def get_internal_node_leaf_map(self):
+    def get_internal_node_leaf_map(self) -> dict:
         node_map = dict()
         leaf_stack = list()
         rt = self.get_ete_tree()
