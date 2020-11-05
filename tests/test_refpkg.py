@@ -86,8 +86,9 @@ class RefPkgTester(unittest.TestCase):
         self.db.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.db.slurp()
         node_map = self.db.get_internal_node_leaf_map()
-        self.assertEqual((2*self.db.num_seqs)-1, len(node_map))
+        self.assertEqual(2*self.db.num_seqs, len(node_map))
         self.assertEqual(self.db.num_seqs, len(node_map[max(node_map.keys())]))
+        return
 
     def test_pickle_package(self):
         self.db.f__json = self.new_pkl_path

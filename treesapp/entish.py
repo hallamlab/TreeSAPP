@@ -55,7 +55,7 @@ def edge_from_node_name(ete_tree: Tree, node_name) -> int:
 def get_ete_edge(ete_tree: Tree, edge_name) -> (TreeNode, TreeNode):
     """
     Traverses an ETE3 Tree structure in post-order, looking to match the desired edge_num to the current edge number,
-    which is equal to (node.number + 1).
+    which is equal to node.number. Edge numbers are zero-indexed.
 
     :param ete_tree: An ETE3 Tree instance
     :param edge_name: An integer representing the desired edge number.

@@ -376,29 +376,37 @@ class ReferencePackage:
 
         return refpkg_fa
 
-    def get_ete_tree(self):
+    def get_ete_tree(self) -> Tree:
         if not self.tree:
             logging.error("Unable to load tree - '{}' reference package hasn't been slurped yet.\n".format(self.prefix))
             sys.exit(5)
         if type(self.tree) is list:
             if len(self.tree) > 0:
                 self.tree = self.tree.pop(0)
-        return Tree(self.tree)
+
+        rt = Tree(self.tree)
+        label_internal_nodes_ete(rt)
+        return rt
 
     def get_internal_node_leaf_map(self):
         node_map = dict()
         leaf_stack = list()
-        i = 0
         rt = self.get_ete_tree()
+
+        i = 0
         for inode in rt.traverse(strategy="postorder"):
-            if inode.name:
-                node_map[i] = [inode.name]
-                leaf_stack.append(node_map[i])
-            else:
+            if inode.children:
                 node_map[i] = leaf_stack.pop() + leaf_stack.pop()
                 leaf_stack.append(node_map[i])
+            else:
+                node_map[i] = [inode.name]
+                leaf_stack.append(node_map[i])
             i += 1
-        node_map[i] = leaf_stack.pop() + leaf_stack.pop()
+        node_map[i] = leaf_stack.pop()
+        if leaf_stack:
+            logging.error("Some leaves remain unpopped from the stack - internal node to leaf map is incomplete.\n")
+            sys.exit(17)
+
         return node_map
 
     def leaf_node_order(self) -> list:
@@ -940,9 +948,6 @@ class ReferencePackage:
             self.taxa_trie.hierarchy[root_taxon.prefix_taxon()] = root_taxon
             root_name = root_taxon.prefix_taxon()
         self.taxa_trie.root_domains(self.taxa_trie.get_taxon(root_name))
-
-        # Label the internal nodes with a unique numerical identifier
-        label_internal_nodes_ete(rt)
 
         # Propagate a 'taxon' feature - None by default - to all TreeNodes for holding Taxon instances
         for n in rt.traverse(strategy="postorder"):  # type: Tree

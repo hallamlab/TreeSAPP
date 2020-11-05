@@ -33,9 +33,10 @@ class EntishTester(unittest.TestCase):
     def test_get_ete_edge(self):
         from treesapp.entish import get_ete_edge
         # Test an interesting edge
-        p, c = get_ete_edge(self.test_ete_tree, 31)  # type: (TreeNode, TreeNode)
-        self.assertEqual('490', p.name)
-        self.assertEqual(self.test_ete_tree.get_leaves(), p.get_leaves())
+        p, c = get_ete_edge(self.test_ete_tree, 490)  # type: (TreeNode, TreeNode)
+        self.assertEqual('490', c.name)
+        self.assertIsNone(p)
+        self.assertEqual(self.test_ete_tree.get_leaves(), c.get_leaves())
 
         # Test an edge that doesn't exist
         self.assertEqual(None, get_ete_edge(self.test_ete_tree, 492))
@@ -45,7 +46,7 @@ class EntishTester(unittest.TestCase):
         self.assertEqual(0, len(c.children))
 
         # Test root edge
-        p, c = get_ete_edge(self.mock_tree, 7)
+        p, c = get_ete_edge(self.mock_tree, 6)
         self.assertEqual(4, len(c.get_leaves()))
         self.assertEqual(None, p)
         return
@@ -65,7 +66,7 @@ class EntishTester(unittest.TestCase):
     def test_edge_from_node_name(self):
         from treesapp.entish import edge_from_node_name
         edge_name = edge_from_node_name(self.mock_tree, 'D')
-        self.assertEqual(4, edge_name)
+        self.assertEqual(3, edge_name)
         return
 
     def test_map_internal_nodes_leaves(self):
