@@ -191,9 +191,11 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
 
     # Remove sequences that are not related at the rank of Domain
     ref_domains = t_hierarchy.rank_representatives("domain", True)
-    for seq_name in sorted(accession_lineage_map):
-        query_domain = accession_lineage_map[seq_name].split(lin_sep)[0]
-        if query_domain not in ref_domains:
+    for seq_name in sorted(accession_lineage_map):  # type: str
+        query_domain = t_hierarchy.get_rank_from_lineage(accession_lineage_map[seq_name].split(lin_sep)[-1], "domain")
+        if not query_domain:
+            continue
+        elif query_domain.prefix_taxon() not in ref_domains:
             unrelated_queries.append(seq_name)
         else:
             related_queries.append(seq_name)
@@ -210,8 +212,11 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     # Calculate the number of sequences that cannot be used in clade exclusion analysis due to no coverage in the input
     test_taxa_summary = []
     for rank in taxonomic_ranks:
-        test_taxa_summary.append("Sequences available for training %s-level placement distances:" % rank)
         trimmed_ref_lineages = t_hierarchy.trim_lineages_to_rank(leaf_taxa_map, rank)
+        if not trimmed_ref_lineages:
+            logging.warning("No reference sequences are resolved to the rank '{}' in reference package.\n".format(rank))
+            continue
+        test_taxa_summary.append("Sequences available for training %s-level placement distances:" % rank)
         unique_ref_lineages = sorted(set(trimmed_ref_lineages.values()))
 
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment

@@ -400,33 +400,32 @@ def remove_by_truncated_lineages(fasta_records, min_taxonomic_rank, guarantees=N
     return fasta_replace_dict
 
 
-def order_dict_by_lineage(ref_seq_dict):
+def order_dict_by_lineage(ref_seqs: dict) -> dict:
     """
     Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
     Remove the cluster members since they will no longer be used
 
-    :param ref_seq_dict: A dictionary mapping `treesapp_id`s (integers) to ReferenceSequence objects
+    :param ref_seqs: A dictionary mapping `treesapp_id`s (integers) to ReferenceSequence objects
     :return: An ordered, filtered version of the input dictionary
     """
     # Create a new dictionary with lineages as keys
     logging.debug("Re-enumerating the reference sequences in taxonomic order... ")
     lineage_dict = dict()
     sorted_lineage_dict = dict()
-    for treesapp_id in ref_seq_dict:
-        ref_seq = ref_seq_dict[treesapp_id]
+    for treesapp_id, e_record in ref_seqs.items():  # type: (str, entrez_utils.EntrezRecord)
         # Skip the redundant sequences that are not cluster representatives
-        if not ref_seq.cluster_rep:
+        if not e_record.cluster_rep:
             continue
         try:
-            lineage_dict[ref_seq.lineage].append(ref_seq)
+            lineage_dict[e_record.lineage].append(e_record)
         except KeyError:
-            lineage_dict[ref_seq.lineage] = [ref_seq]
+            lineage_dict[e_record.lineage] = [e_record]
 
     # Now re-write the ref_seq_dict, but the numeric keys are now sorted by lineage
     #  AND it doesn't contain redundant fasta objects
     num_key = 1
     for lineage in sorted(lineage_dict.keys(), key=str):
-        for ref_seq in lineage_dict[lineage]:
+        for ref_seq in lineage_dict[lineage]:  # type: entrez_utils.EntrezRecord
             if ref_seq.cluster_rep:
                 # Replace the treesapp_id object
                 code = '_'.join(ref_seq.short_id.split('_')[1:])
@@ -497,10 +496,10 @@ def lineages_to_dict(fasta_replace_dict: dict, taxa_lca=False) -> dict:
     """
     no_lineage = list()
     ref_lineage_map = {}
-    for treesapp_id in sorted(fasta_replace_dict.keys(), key=int):
+    for treesapp_id in sorted(fasta_replace_dict.keys(), key=int):  # type: str
         # Definitely will not uphold phylogenetic relationships but at least sequences
         # will be in the right neighbourhood rather than ordered by their position in the FASTA file
-        reference_sequence = fasta_replace_dict[treesapp_id]
+        reference_sequence = fasta_replace_dict[treesapp_id]  # type: entrez_utils.EntrezRecord
         if taxa_lca:
             lineage = reference_sequence.cluster_lca
         else:

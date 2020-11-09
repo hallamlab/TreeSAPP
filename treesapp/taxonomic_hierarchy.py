@@ -164,13 +164,32 @@ class TaxonomicHierarchy:
         logging.error(summary_string)
         raise RuntimeError(17)
 
-    def get_taxon_names(self, with_prefix=False):
+    def get_taxon_names(self, with_prefix=False) -> set:
+        """
+        Returns a set of all rank-prefixed taxa, from all ranks, in the TaxonomicHierarchy's hierarchy dictionary
+        """
         if with_prefix:
             return set([self.hierarchy[taxon].prefix_taxon() for taxon in self.hierarchy])
         else:
             return set([self.hierarchy[taxon].name for taxon in self.hierarchy])
 
-    def get_taxon(self, prefix_taxon) -> Taxon:
+    def get_rank_from_lineage(self, prefix_taxon: str, rank: str):
+        """
+        Retrieves the Taxon of a specific rank from the lineage of a Taxon instance.
+        If no ranks from the Taxon instances match the rank parameter then None is returned.
+
+        Example usage:
+            get_rank_from_lineage('s__Bos taurus', 'class')
+        """
+        taxon = self.get_taxon(prefix_taxon)
+        if not taxon:
+            return
+        for tax_name in taxon.lineage():  # type: Taxon
+            if tax_name.rank == rank:
+                return tax_name
+        return
+
+    def get_taxon(self, prefix_taxon: str) -> Taxon:
         """
         Retrieve the Taxon instance mapped to prefix_taxon in self.hierarchy.
         If prefix_taxon isn't in self.hierarchy, a warning is issued and None returned
@@ -221,6 +240,26 @@ class TaxonomicHierarchy:
         except IndexError:
             self.so_long_and_thanks_for_all_the_fish("Empty taxon in lineage '{}'\n".format(lineage))
 
+    def find_root_taxon(self) -> Taxon:
+        """
+        Searches for the taxa that represent the root of the taxonomic hierarchy, returning the Taxon.prefix_taxon()
+        of which if found. If one is not found, a placeholder Taxon is added to self.hierarchy to fill the 'root' rank.
+
+        :return: A string of the rank-prefixed taxon, typically 'r__Root'
+        """
+        try:
+            root_reps = self.rank_representatives("root", with_prefix=True)
+            if len(root_reps) > 1:
+                self.so_long_and_thanks_for_all_the_fish("More than one taxon at rank of 'root' identified in"
+                                                         " taxonomic hierarchy.\n")
+                raise AssertionError
+            return self.get_taxon(root_reps.pop())
+        except KeyError:
+            logging.debug("No taxa at rank 'root' were present in reference package hierarchy - adding now.\n")
+            root_taxon = Taxon(name="Root", rank="root")
+            self.hierarchy[root_taxon.prefix_taxon()] = root_taxon
+            return root_taxon
+
     def root_domains(self, root: Taxon) -> None:
         if root.prefix_taxon() not in self.hierarchy:
             self.digest_taxon(taxon=root.name, previous=None, rank=root.rank, rank_prefix='r')
@@ -231,6 +270,7 @@ class TaxonomicHierarchy:
             domain_taxon = self.get_taxon(domain_name)
             if domain_taxon.parent is None:
                 domain_taxon.parent = root
+        self.build_multifurcating_trie()
         return
 
     def reroot_lineage(self, lineage: str) -> str:
@@ -890,6 +930,37 @@ class TaxonomicHierarchy:
                 raise KeyError
         return self.lin_sep.join(reconstructed_lineage)
 
+    def match_organism(self, organism: str, lineage: list) -> str:
+        """
+        Searches the taxonomic hierarchy's prefix tree (StringTrie instance) for organisms that are descendents
+        of the provided lineage.
+
+        :param organism: The organism name to query against the prefix tree
+        :param lineage: A list of taxa that are part of a single lineage. These are to be joined,
+        using the TaxonomicHierarchy's lin_sep attribute, to create the prefix tree query.
+        :return: Name of the organism with a rank-prefix if the organism was found to be a descendent of lineage.
+        """
+        if isinstance(lineage, str):
+            logging.error("Lineage was string when list was expected.\n")
+            raise TypeError
+
+        if len(self.trie) == 0 or self.trie_key_prefix is False:
+            self.build_multifurcating_trie(key_prefix=True, value_prefix=False)
+
+        if self.canonical_prefix.search(organism):
+            return organism
+        else:
+
+            if self.lin_sep.join(lineage) not in self.trie:
+                logging.error("Lineage elements are not present in prefix tree: '{}'.\n".format("; ".join(lineage)))
+                sys.exit(13)
+
+            descendents = self.trie.items(prefix=self.lin_sep.join(lineage))
+            for child_lineage, taxon in descendents:  # type: (str, str)
+                if taxon == organism:
+                    return child_lineage.split(self.lin_sep)[-1]
+            return ""
+
     def check_lineage(self, lineage: str, organism: str, verbosity=0) -> str:
         """
         Sometimes the NCBI lineage is incomplete or the rank prefixes are out of order.
@@ -919,24 +990,28 @@ class TaxonomicHierarchy:
         if len(lineage) == 0:
             return ""
 
-        if not self.project_lineage(lineage):
-            self.so_long_and_thanks_for_all_the_fish("Lineage '{0}' not in taxonomic hierarchy.\n".format(lineage))
+        hierarchy_taxon = self.get_taxon(prefix_taxon=lineage.split(self.lin_sep)[-1])
+        if not hierarchy_taxon:
+            self.so_long_and_thanks_for_all_the_fish("Taxon '{}' from lineage '{}'"
+                                                     " is not in TaxonomicHierarchy.\n".format(organism, lineage))
+            raise RuntimeError
+
+        taxon_lineage = [t for t in hierarchy_taxon.lineage() if t.rank in self.accepted_ranks_depths]
+        lineage_list = [t.prefix_taxon() for t in taxon_lineage]
 
         # Handle prefix discrepancy between lineage and organism if organism doesn't have rank prefix
-        if not self.canonical_prefix.search(organism):
-            for child_lineage, taxon in self.trie.items(prefix=lineage):  # type: (str, str)
-                if taxon == organism:
-                    organism = child_lineage.split(self.lin_sep)[-1]
+        organism = self.match_organism(organism, lineage_list)
 
-        lineage_list = lineage.split(self.lin_sep)
-        rank_resolution = self.resolved_to(lineage)
+        # Ensure the taxon's most resolved rank is canonical
         try:
-            rank_depth = self.accepted_ranks_depths[rank_resolution]
+            rank_depth = self.accepted_ranks_depths[hierarchy_taxon.rank]
         except KeyError:
             logging.error("'{}' not in list of accepted ranks ({}).\n"
-                          "".format(rank_resolution, ", ".join(self.accepted_ranks_depths.keys())))
+                          "".format(hierarchy_taxon.rank, ", ".join(self.accepted_ranks_depths.keys())))
             raise KeyError
-        if self.proper_species_re.match(lineage_list[-1]):
+
+        # Determine the state of completeness for the taxon's lineage
+        if hierarchy_taxon.rank == "species" or self.proper_species_re.match(lineage_list[-1]):
             if verbosity:
                 logging.debug("check_lineage(): Perfect lineage.\n")
         elif len(lineage_list) == 6 and rank_depth == 6 and self.proper_species_re.match(organism):
@@ -957,17 +1032,10 @@ class TaxonomicHierarchy:
         self.validate_rank_prefixes()  # Ensure the rank-prefix map is formatted correctly
         # Ensure the order and progression of ranks is correct (no domain -> phylum -> species for example)
         i = 0
-        for taxon in lineage_list:  # type: str
-            try:
-                prefix, _ = taxon.split(self.taxon_sep)
-            except ValueError:
-                self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for check_lineage(),"
-                                                         " taxon: '{}'.\n".format(taxon))
-                raise ValueError
-
-            if self.rank_prefix_map[prefix] not in self.accepted_ranks_depths:
+        for taxon in taxon_lineage:  # type: Taxon
+            if self.rank_prefix_map[taxon.prefix] not in self.accepted_ranks_depths:
                 logging.debug("Rank '{0}' is not in the list of accepted taxonomic ranks.\n"
-                              "Lineage will be truncated to '{1}'.\n".format(self.rank_prefix_map[prefix],
+                              "Lineage will be truncated to '{1}'.\n".format(self.rank_prefix_map[taxon.prefix],
                                                                              self.lin_sep.join(lineage_list[0:i])))
                 for prefix_taxon_name in lineage_list[i:]:
                     if self.get_taxon(prefix_taxon=prefix_taxon_name):
@@ -975,7 +1043,7 @@ class TaxonomicHierarchy:
                 lineage_list = lineage_list[0:i]
                 break
 
-            if self.accepted_ranks_depths[self.rank_prefix_map[taxon[0]]] > i+1:
+            if self.accepted_ranks_depths[self.rank_prefix_map[taxon.prefix]] > i:
                 logging.debug("Order of taxonomic ranks in cleaned lineage '{0}' is unexpected.\n"
                               "Lineage will be truncated to '{1}'.\n".format(self.lin_sep.join(lineage_list),
                                                                              self.lin_sep.join(lineage_list[0:i])))
@@ -1097,26 +1165,57 @@ class TaxonomicHierarchy:
 
         self.validate_rank_prefixes()
 
-        for node_name in sorted(leaf_taxa_map):
+        for node_name in sorted(leaf_taxa_map):  # type: str
             lineage = leaf_taxa_map[node_name].split(self.lin_sep)
+            base_taxon = self.get_taxon(lineage[0])
+            leaf_taxon = self.get_taxon(lineage[-1])
 
-            # Remove lineage from testing if the rank doesn't exist (unclassified at a high rank)
-            if len(lineage) == 1 or len(lineage) < depth:
-                truncated += 1
+            if not base_taxon or not leaf_taxon:
+                logging.debug("Unable to trim lineage '{}' as some taxa were not found in taxonomic hierarchy.\n"
+                              "".format(leaf_taxa_map[node_name]))
                 continue
 
-            trimmed_lineage_map[node_name] = self.lin_sep.join(lineage[:depth])
+            post = True
+            lin = []
+            for taxon in reversed(leaf_taxon.lineage()):  # type: Taxon
+                if taxon.prefix_taxon() not in lineage:
+                    continue
+                if taxon.rank == rank:
+                    post = False
+                if not post:
+                    lin.append(taxon.prefix_taxon())
+                else:
+                    continue
+            if lin:
+                trimmed_lineage_map[node_name] = self.lin_sep.join(reversed(lin))
 
-            # Ensure the last taxon in the lineage has the expected rank-prefix
-            taxon = lineage[:depth][-1]
-            try:
-                th_rank_name = self.rank_prefix_map[taxon[0]]
-            except KeyError:
-                self.so_long_and_thanks_for_all_the_fish("Rank prefix {}"
-                                                         " not found in rank prefix map.\n".format(taxon[0]))
-            if rank != th_rank_name:
-                self.so_long_and_thanks_for_all_the_fish("Rank prefix '{}' doesn't match rank name '{}'"
-                                                         " in trimmed lineage.\n".format(rank, th_rank_name))
+            # if base_taxon.prefix_taxon() == self.root_taxon:
+            #     modifier = 1
+            # elif base_taxon.rank != "domain":
+            #     logging.error("Lineage '{}' doesn't begin with a taxon representing either root or domain rank.\n")
+            #     sys.exit(17)
+            # else:
+            #     modifier = 0
+            #
+            # # Remove lineage from testing if the rank doesn't exist (unclassified at a high rank)
+            # if len(lineage) == 1 or len(lineage) < (depth+modifier):
+            #     truncated += 1
+            #     continue
+            #
+            # trimmed_lineage_map[node_name] = lineage[:(depth+modifier)]
+            #
+            # # Ensure the last taxon in the lineage has the expected rank-prefix
+            # taxon = trimmed_lineage_map[node_name][-1]
+            # try:
+            #     th_rank_name = self.rank_prefix_map[taxon[0]]
+            # except KeyError:
+            #     self.so_long_and_thanks_for_all_the_fish("Rank prefix {}"
+            #                                              " not found in rank prefix map.\n".format(taxon[0]))
+            # if rank != th_rank_name:
+            #     self.so_long_and_thanks_for_all_the_fish("Rank prefix '{}' doesn't match rank name '{}'"
+            #                                              " in trimmed lineage.\n".format(rank, th_rank_name))
+            #
+            # trimmed_lineage_map[node_name] = self.lin_sep.join(trimmed_lineage_map[node_name])
 
         logging.debug("{0} lineages truncated before '{1}' were removed during lineage trimming.\n".format(truncated,
                                                                                                            rank))

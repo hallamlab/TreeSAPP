@@ -150,6 +150,11 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         out = self.db.trim_lineages_to_rank(dict_in, "class")
         self.assertEqual({'9': 'd__Bacteria; p__Actinobacteria; c__Actinobacteria'}, out)
 
+        dict_in.update({"10": 'd__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales;'
+                        ' f__Actinomycetaceae; s__Actinomyces nasicola'})
+        self.assertEqual(1, len(self.db.trim_lineages_to_rank(dict_in, "genus")))
+        return
+
     def test_rank_representatives(self):
         self.assertEqual({'Bacteria'}, self.db.rank_representatives("domain"))
         self.assertEqual({'Actinobacteria'}, self.db.rank_representatives("class"))
@@ -204,6 +209,29 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.assertEqual(root_taxon, self.db.hierarchy["d__Bacteria"].parent)
         # Remove the Taxon 'r__Root' so other tests are not affected
         self.db.redirect_hierarchy_paths(root_taxon)
+        return
+
+    def test_match_organism(self):
+        # Test when organism isn't in the taxonomic hierarchy
+        organism = self.db.match_organism(organism="doesn't exist",
+                                          lineage=["d__Bacteria"])
+        self.assertEqual("", organism)
+        # Test when the lineage isn't in the taxonomic hierarchy
+        with pytest.raises(SystemExit):
+            self.db.match_organism(organism="Homo sapiens", lineage=["d__Eukaryota"])
+
+        # Test when the organism isn't a descendent of the lineage
+        organism = self.db.match_organism(organism="Methanosarcina barkeri",
+                                          lineage="d__Bacteria; p__Actinobacteria; c__Actinobacteria".split('; '))
+        self.assertEqual("", organism)
+        # Test when the lineage is the wrong type (string)
+        with pytest.raises(TypeError):
+            self.db.match_organism(organism="", lineage="")
+
+        # Behaviour when inputs are correct
+        organism = self.db.match_organism(organism="Bifidobacterium",
+                                          lineage="d__Bacteria; p__Actinobacteria; c__Actinobacteria".split('; '))
+        self.assertEqual("g__Bifidobacterium", organism)
         return
 
     def test_redirect_hierarchy_paths(self):

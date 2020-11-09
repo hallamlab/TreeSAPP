@@ -593,7 +593,7 @@ class ReferencePackage:
             s_query = lineage.split(lin_sep)
             x = 0
             while x < min([len(s_query), len(s_target)]):
-                if re.search("unclassified|environmental sample|root", s_query[x], re.IGNORECASE):
+                if re.search("unclassified|environmental sample", s_query[x], re.IGNORECASE):
                     n_unclassified += 1
                     break
                 if s_query[x] != s_target[x]:
@@ -939,15 +939,8 @@ class ReferencePackage:
         rt = self.get_ete_tree()
 
         # Ensure that every taxonomic lineage is rooted by setting the parent of each 'domain' taxon to "r__Root"
-        try:
-            root_name = self.taxa_trie.rank_representatives("root", with_prefix=True).pop()
-        except KeyError:
-            logging.warning("No taxa of rank 'root' were present in '{}' reference package '{}'.\n"
-                            "".format(self.prefix, self.f__json))
-            root_taxon = Taxon(name="Root", rank="root")
-            self.taxa_trie.hierarchy[root_taxon.prefix_taxon()] = root_taxon
-            root_name = root_taxon.prefix_taxon()
-        self.taxa_trie.root_domains(self.taxa_trie.get_taxon(root_name))
+        root_taxon = self.taxa_trie.find_root_taxon()
+        self.taxa_trie.root_domains(root_taxon)
 
         # Propagate a 'taxon' feature - None by default - to all TreeNodes for holding Taxon instances
         for n in rt.traverse(strategy="postorder"):  # type: Tree

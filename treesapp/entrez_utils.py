@@ -371,6 +371,7 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
         if len(to_repair) == 0:
             logging.info("done.\n")
 
+    t_hierarchy.root_domains(root=t_hierarchy.find_root_taxon())
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         e_record = ref_seq_dict[treesapp_id]  # type: EntrezRecord
         e_record.lineage = t_hierarchy.check_lineage(e_record.lineage, e_record.organism)
@@ -379,8 +380,7 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
 
 
 def fill_entrez_record_taxon_rank(entrez_record_map: dict, t_hierarchy: TaxonomicHierarchy) -> None:
-    for treesapp_id in entrez_record_map:
-        ref_seq = entrez_record_map[treesapp_id]  # type: EntrezRecord
+    for treesapp_id, ref_seq in entrez_record_map.items():  # type: (str, EntrezRecord)
         if not ref_seq.taxon_rank:
             ref_seq.taxon_rank = t_hierarchy.resolved_to(ref_seq.lineage)
     return
@@ -420,7 +420,7 @@ def fill_ref_seq_lineages(entrez_record_map: dict, accession_lineages: dict, com
         else:
             pass
         # TODO: Come up with a better way of removing the organism name after filling the organism attribute
-        if len(ref_seq.lineage.split("; ")) > 7 and not re.match(r"[a-z]__.*", ref_seq.organism):
+        if len(ref_seq.lineage.split("; ")) > 8 and not re.match(r"[a-z]__.*", ref_seq.organism):
             ref_seq.lineage = "; ".join(ref_seq.lineage.split("; ")[:-1])
         ref_seq.tracking_stamp()
 
