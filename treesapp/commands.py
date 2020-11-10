@@ -473,9 +473,8 @@ def create(sys_args):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
         fasta_records = create_refpkg.screen_filter_taxa(fasta_records, args.screen, args.filter, ref_seqs.amendments)
         # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
-        # TODO: Replace this function with one offered by TaxonomicHierarchy
-        fasta_records = create_refpkg.remove_by_truncated_lineages(fasta_records,
-                                                                   args.min_taxonomic_rank, ref_seqs.amendments)
+        fasta_records = create_refpkg.remove_by_truncated_lineages(fasta_records, args.min_taxonomic_rank,
+                                                                   ts_create.ref_pkg.taxa_trie, ref_seqs.amendments)
 
         if len(fasta_records.keys()) < 2:
             logging.error("{} sequences post-homology + taxonomy filtering\n".format(len(fasta_records)))

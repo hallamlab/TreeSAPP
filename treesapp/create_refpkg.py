@@ -373,23 +373,24 @@ def strip_rank_prefix_from_organisms(entrez_record_dict: dict, taxa_trie: Taxono
     return
 
 
-def remove_by_truncated_lineages(fasta_records, min_taxonomic_rank, guarantees=None):
-    rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
-    min_depth = rank_depth_map[min_taxonomic_rank]
+def remove_by_truncated_lineages(fasta_records: dict, min_taxonomic_rank: str, taxa_hierarchy: TaxonomicHierarchy,
+                                 guarantees=None) -> dict:
     if min_taxonomic_rank == 'k':
         return fasta_records
 
     num_removed = 0
     fasta_replace_dict = dict()
 
+    rank_name = taxa_hierarchy.rank_prefix_map[min_taxonomic_rank]
+
     for treesapp_id in fasta_records:
         ref_seq = fasta_records[treesapp_id]
+        # Keep all sequences that are guaranteed to be in the final reference package
         if guarantees and treesapp_id in guarantees:
             fasta_replace_dict[treesapp_id] = ref_seq
             continue
-        if len(ref_seq.lineage.split("; ")) < min_depth:
-            num_removed += 1
-        elif re.search("^unclassified", ref_seq.lineage.split("; ")[min_depth-1], re.IGNORECASE):
+        # Check whether the reference sequence is resolved to at least the rank
+        if not taxa_hierarchy.resolved_as(ref_seq.lineage, rank_name):
             num_removed += 1
         else:
             fasta_replace_dict[treesapp_id] = ref_seq
