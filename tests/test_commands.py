@@ -6,6 +6,7 @@ from shutil import rmtree
 class TreesappTester(unittest.TestCase):
     def setUp(self) -> None:
         from .testing_utils import get_test_data
+        self.num_procs = 4
         # FASTA files
         self.aa_test_fa = get_test_data("marker_test_suite.faa")
         self.nt_test_fa = get_test_data("marker_test_suite.fna")
@@ -37,7 +38,7 @@ class TreesappTester(unittest.TestCase):
         assign_commands_list = ["--fastx_input", self.aa_test_fa,
                                 "--targets", ','.join(ref_pkgs),
                                 "--refpkg_dir", self.refpkg_dir,
-                                "--num_procs", str(2),
+                                "--num_procs", str(self.num_procs),
                                 "-m", "prot",
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "relaxed",
@@ -54,7 +55,7 @@ class TreesappTester(unittest.TestCase):
         from treesapp.file_parsers import read_classification_table
         assign_commands_list = ["--fastx_input", self.nt_test_fa,
                                 "--targets", ','.join(ref_pkgs),
-                                "--num_procs", str(2),
+                                "--num_procs", str(self.num_procs),
                                 "-m", "dna",
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "strict",
@@ -97,7 +98,7 @@ class TreesappTester(unittest.TestCase):
                                 "--screen", "Bacteria", "--filter", "Archaea",
                                 "--min_taxonomic_rank", 'p',
                                 "--output", "./TreeSAPP_create",
-                                "--num_proc", str(2),
+                                "--num_procs", str(self.num_procs),
                                 "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
@@ -120,7 +121,7 @@ class TreesappTester(unittest.TestCase):
                                 "--profile", get_test_data("PuhA_search.hmm"),
                                 "--molecule", "prot",
                                 "--screen", "Bacteria,Archaea",
-                                "--num_proc", str(4),
+                                "--num_procs", str(self.num_procs),
                                 "--raxml_model", "LG+F+R4",
                                 "--min_taxonomic_rank", 'p',
                                 "--stage", "support",
@@ -148,7 +149,7 @@ class TreesappTester(unittest.TestCase):
                     "--molecule", "prot",
                     "--screen", "Archaea", "--filter", "Bacteria,Eukaryota",
                     "--min_taxonomic_rank", 'g',
-                    "--num_proc", str(2),
+                    "--num_procs", str(self.num_procs),
                     "--stage", "evaluate",
                     "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
         create(cmd_list)
@@ -168,7 +169,7 @@ class TreesappTester(unittest.TestCase):
                                  "-o", "./TreeSAPP_evaluate",
                                  "-m", "prot",
                                  "--taxonomic_ranks", "class", "order",
-                                 "-n", str(2),
+                                 "-n", str(self.num_procs),
                                  "--trim_align", "--overwrite", "--delete"]
         evaluate(evaluate_command_list)
         self.assertEqual(True, True)
@@ -184,7 +185,7 @@ class TreesappTester(unittest.TestCase):
                                   "--reads", get_test_data("test_TarA.1.fq"),
                                   "--reverse", get_test_data("test_TarA.2.fq"),
                                   "--pairing", "pe",
-                                  "--num_procs", str(2),
+                                  "--num_procs", str(self.num_procs),
                                   "--delete"]
         abundance(abundance_command_list)
         post_lines = read_classification_table(get_test_data(classification_table))
@@ -198,7 +199,8 @@ class TreesappTester(unittest.TestCase):
                                "--extra_info", get_treesapp_file("dev_utils/TIGRFAM_info.tsv"),
                                "--output", "./TreeSAPP_purity",
                                "--refpkg_path", self.mcra_pkl,
-                               "--trim_align", "--molecule", "prot", "-n", str(2)]
+                               "-num_procs", str(self.num_procs),
+                               "--trim_align", "--molecule", "prot"]
         purity(purity_command_list)
         self.assertEqual(True, True)
         return
@@ -241,7 +243,7 @@ class TreesappTester(unittest.TestCase):
                                "--refpkg_path", self.puha_pkl,
                                "--treesapp_output", get_test_data("assign_SwissProt_PuhA/"),
                                "--output", "./TreeSAPP_update",
-                               "--num_proc", str(4),
+                               "--num_proc", str(self.num_procs),
                                "--molecule", "prot",
                                "--trim_align", "--cluster", "--fast", "--headless",
                                "--overwrite", "--delete", "--skip_assign", "--resolve"]
@@ -262,7 +264,7 @@ class TreesappTester(unittest.TestCase):
                                "--treesapp_output", get_test_data("assign_SwissProt_PuhA/"),
                                "--seqs2lineage", get_test_data("SwissProt_PuhA_seqs2lineage.txt"),
                                "--output", "./TreeSAPP_update",
-                               "--num_proc", str(2),
+                               "--num_procs", str(self.num_procs),
                                "--molecule", "prot",
                                "-b", str(0),
                                "--trim_align", "--cluster", "--fast", "--headless",
@@ -287,7 +289,7 @@ class TreesappTester(unittest.TestCase):
                               "--refpkg_path", self.puha_pkl,
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
                               "--max_examples", str(max_ex),
-                              "--num_proc", str(4),
+                              "--num_proc", str(self.num_procs),
                               "--molecule", "prot",
                               "--svm_kernel", "rbf",
                               "--classifier", "bin",
@@ -332,7 +334,7 @@ class TreesappTester(unittest.TestCase):
                "--targets", "McrA",
                "--molecule", "prot",
                "--tool", "treesapp",
-               "--num_procs", str(4),
+               "--num_procs", str(self.num_procs),
                "--delete", "--svm", "--overwrite"]
         MCC_calculator.mcc_calculator(cmd)
         self.assertEqual(True, True)
