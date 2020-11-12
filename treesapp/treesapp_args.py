@@ -28,7 +28,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         super(TreeSAPPArgumentParser, self).__init__(add_help=False, prog=_prog, **kwargs)
         self.reqs = self.add_argument_group("Required parameters")
         self.seqops = self.add_argument_group("Sequence operation arguments")
-        self.jplace_args = self.add_argument_group("Classification arguments")
+        self.pplace_args = self.add_argument_group("Phylogenetic placement arguments")
         self.rpkm_opts = self.add_argument_group("RPKM options")
         self.io = self.add_argument_group("Inputs and Outputs")
         self.aes = self.add_argument_group("Aesthetic options")
@@ -121,6 +121,16 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.optopt.add_argument("--outdet_align", default=False, action="store_true", dest="od_seq",
                                  help="Flag to activate outlier detection and removal from multiple sequence alignments"
                                       " using OD-seq. [DEFAULT = False]")
+
+    def add_pplace_params(self):
+        self.pplace_args.add_argument("-l", "--min_like_weight_ratio", default=0.1, type=float, dest="min_lwr",
+                                      help="The minimum likelihood weight ratio required for an EPA placement. "
+                                           "[DEFAULT = 0.1]")
+        self.pplace_args.add_argument("--placement_summary", default="max_lwr", choices=["aelw", "max_lwr"],
+                                      dest="p_sum",
+                                      help="Controls the algorithm for consolidating multiple phylogenetic placements."
+                                           "Max LWR will take use the phylogenetic placement with greatest LWR."
+                                           "aELW uses the taxon with greatest accumulated LWR across placements.")
 
     def add_compute_miscellany(self):
         self.miscellany.add_argument('--overwrite', action='store_true', default=False,
@@ -265,45 +275,39 @@ def add_layer_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
+def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
     """
     Adds command-line arguments that are specific to *treesapp assign*
 
     :return: None
     """
-    parser.add_io()
-    parser.add_refpkg_opt()
-    parser.add_refpkg_targets()
-    parser.add_rpkm_params()
-    parser.add_seq_params()
-    parser.add_search_params()
-    parser.add_compute_miscellany()
+    assign_parser.add_io()
+    assign_parser.add_refpkg_opt()
+    assign_parser.add_refpkg_targets()
+    assign_parser.add_rpkm_params()
+    assign_parser.add_seq_params()
+    assign_parser.add_search_params()
+    assign_parser.add_pplace_params()
+    assign_parser.add_compute_miscellany()
     # The required parameters... for which there are currently none. But they would go here!
 
-    parser.jplace_args.add_argument("-l", "--min_like_weight_ratio", default=0.1, type=float, dest="min_lwr",
-                                    help="The minimum likelihood weight ratio required for an EPA placement. "
-                                         "[DEFAULT = 0.1]")
-    parser.jplace_args.add_argument("--placement_summary", default="max_lwr", choices=["aelw", "max_lwr"], dest="p_sum",
-                                    help="Controls the algorithm for consolidating multiple phylogenetic placements."
-                                         "Max LWR will take use the phylogenetic placement with greatest LWR."
-                                         "aELW uses the taxon with greatest accumulated LWR across placements.")
-    parser.optopt.add_argument("--svm", default=False, required=False, action="store_true",
-                               help="Uses the support vector machine (SVM) classification filter. "
-                                    "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
+    assign_parser.optopt.add_argument("--svm", default=False, required=False, action="store_true",
+                                      help="Uses the support vector machine (SVM) classification filter. "
+                                           "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
 
     # The optionals
-    parser.optopt.add_argument('-c', '--composition', default="meta", choices=["meta", "single"],
-                               help="Sample composition being either a single organism or a metagenome.")
-    parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "orf-call", "search", "align", "place", "classify"],
-                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
-    parser.rpkm_opts.add_argument("--rpkm", action="store_true", default=False,
-                                  help="Flag indicating RPKM values should be calculated for the sequences detected")
+    assign_parser.optopt.add_argument('-c', '--composition', default="meta", choices=["meta", "single"],
+                                      help="Sample composition being either a single organism or a metagenome.")
+    assign_parser.optopt.add_argument("--stage", default="continue", required=False,
+                                      choices=["continue", "orf-call", "search", "align", "place", "classify"],
+                                      help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    assign_parser.rpkm_opts.add_argument("--rpkm", action="store_true", default=False,
+                                         help="Flag indicating RPKM values should be calculated for the sequences detected")
 
     # The miscellany
-    parser.miscellany.add_argument('-R', '--reftree', required=False, default="", type=str,
-                                   help="[IN PROGRESS] Reference package that all queries should be immediately and "
-                                        "directly classified as (i.e. homology search step is skipped).")
+    assign_parser.miscellany.add_argument('-R', '--reftree', required=False, default="", type=str,
+                                          help="[IN PROGRESS] Reference package that all queries should be immediately and "
+                                               "directly classified as (i.e. homology search step is skipped).")
     return
 
 

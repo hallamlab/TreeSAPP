@@ -91,12 +91,6 @@ class JPlace:
         if len(self.pqueries) == 0:
             return
 
-        try:
-            jplace_out = open(jplace_file, 'w')
-        except IOError:
-            logging.error("Unable to open " + jplace_file + " for writing.\n")
-            sys.exit(9)
-
         jplace_str = ""
         # Begin writing elements to the jplace file
         jplace_str += '{\n\t"tree": "'
@@ -106,7 +100,10 @@ class JPlace:
         jplace_str += "\t\"placements\": [\n\t"
         new_placement_collection = []
         for pquery in self.pqueries:  # type: PQuery
-            new_placement_collection.append(dumps(PhyloPlace.format_pplace_to_jplace(pquery.placements)))
+            if pquery.classified:
+                new_placement_collection.append(dumps(PhyloPlace.format_pplace_to_jplace(pquery.placements)))
+        if len(new_placement_collection) == 0:
+            return
         jplace_str += ",\n\t".join(new_placement_collection)
         jplace_str += "\n\t],\n"
 
@@ -114,6 +111,12 @@ class JPlace:
         jplace_str += "\t\"version\": " + str(self.version) + ",\n"
         jplace_str += "\t\"fields\": [\n\t"
         jplace_str += ", ".join(['"' + x + '"' for x in self.fields]) + "\n\t]\n}\n"
+
+        try:
+            jplace_out = open(jplace_file, 'w')
+        except IOError:
+            logging.error("Unable to open " + jplace_file + " for writing.\n")
+            sys.exit(9)
 
         jplace_out.write(jplace_str)
         jplace_out.close()

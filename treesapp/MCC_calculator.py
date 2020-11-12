@@ -168,7 +168,7 @@ class ConfusionTest:
                 map_lineages(self.fn[refpkg_name], self.tax_lineage_map)
         return
 
-    def summarise_reference_taxa(self, taxa_file, classification_file, rank="Phylum"):
+    def summarise_reference_taxa(self, taxa_file: str, classification_file: str, rank="Phylum"):
         lineage_list = []
         info_string = "RefPkg\tName\tTaxDist\tClassified\tTrueLineage\tAssignedLineage\tOptimalLineage\n"
         for marker in self.tp:
@@ -178,15 +178,15 @@ class ConfusionTest:
                                           tp_inst.true_lineage, tp_inst.assigned_lineage,
                                           tp_inst.optimal_lineage]) + "\n"
         for marker in self.fn:
-            for seq_name in self.fn[marker]:
+            for tp_inst in self.fn[marker]:  # type: QuerySequence
                 # TODO: Support headers from databases other than EggNOG
-                tax_id = seq_name.split('.')[0]
+                tax_id = tp_inst.ncbi_tax
                 try:
                     true_lineage = self.tax_lineage_map[tax_id]
                 except KeyError:
                     continue
                 lineage_list.append(true_lineage)
-                info_string += "\t".join([marker, seq_name, "NA", "False", true_lineage, "NA", "NA"]) + "\n"
+                info_string += "\t".join([marker, tp_inst.place_name, "NA", "False", true_lineage, "NA", "NA"]) + "\n"
 
         with open(classification_file, 'w') as info_handler:
             info_handler.write(info_string)
@@ -336,7 +336,7 @@ class ConfusionTest:
             return unique_fn
 
     def bin_headers(self, assignments: dict, annot_map: dict) -> None:
-        binned_tp, binned_fp, binned_fn = bin_headers(assignments, annot_map, self.entrez_query_dict)
+        binned_tp, binned_fp, binned_fn = bin_headers(assignments, annot_map, self.entrez_query_dict, self.ref_packages)
 
         self.tp.update(binned_tp)
         self.fp.update(binned_fp)
@@ -556,6 +556,7 @@ def get_arguments(sys_args):
     parser.add_refpkg_targets()
     parser.add_seq_params()
     parser.add_compute_miscellany()
+    parser.add_pplace_params()
     parser.add_annot_map(required=True)
 
     parser.optopt.add_argument("--tool", default="treesapp", required=False,
@@ -639,7 +640,7 @@ def check_previous_output(output_dir, overwrite=False) -> None:
         os.mkdir(output_dir)
     elif overwrite:
         if os.path.isdir(output_dir):
-            logging.warning("Overwriting directory '{}' in 5 seconds. Press Ctrl-C to cancel.")
+            logging.warning("Overwriting directory '{}' in 5 seconds. Press Ctrl-C to cancel.".format(output_dir))
             sleep(5)
             shutil.rmtree(output_dir)
         os.mkdir(output_dir)
@@ -715,6 +716,8 @@ def mcc_calculator(sys_args):
                              "-m", "prot",
                              "--output", test_obj.data_dir,
                              "--stringency", args.stringency,
+                             "--placement_summary", args.p_sum,
+                             "--min_like_weight_ratio", str(args.min_lwr),
                              "--overwrite", "--delete"]
             if args.trim_align:
                 classify_args.append("--trim_align")

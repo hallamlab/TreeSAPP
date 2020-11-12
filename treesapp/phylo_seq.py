@@ -97,6 +97,10 @@ class PhyloPlace:
         placements_list = []
         name = set()
 
+        if len(pplaces) == 0:
+            logging.error("No phylogenetic placements were provided, unable to format for JPlace.\n")
+            sys.exit(11)
+
         if not field_positions:
             field_positions = ['edge_num', 'likelihood', 'like_weight_ratio', 'distal_length', 'pendant_length']
 
@@ -109,11 +113,15 @@ class PhyloPlace:
                 x += 1
             placements_list.append(placement)
 
-        if len(name) > 1:
+        if len(name) == 1:
+            jplace_dict['n'] = [name.pop()]
+        elif len(name) == 0:
+            logging.error("No unique name feature was found for phylogenetic placements.\n")
+            sys.exit(11)
+        else:
             logging.error("More than one query name provided when rebuilding JPlace file:\n{}\n".format(','.join(name)))
             sys.exit(13)
-        else:
-            jplace_dict['n'] = [name.pop()]
+
         jplace_dict['p'] = placements_list
 
         return jplace_dict

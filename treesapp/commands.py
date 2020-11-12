@@ -330,7 +330,8 @@ def train(sys_args):
                 if not pquery.rank:
                     pquery.rank = "species"
         else:
-            tp, fp, fn = bin_headers(refpkg_pqueries, ts_trainer.pkg_dbname_dict, query_seq_records)
+            tp, fp, fn = bin_headers(refpkg_pqueries, ts_trainer.pkg_dbname_dict, query_seq_records,
+                                     {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
             # The individual instances are of QuerySequence type
             for refpkg_name, tp_query_seqs in tp.items():
                 tp_names[refpkg_name] = [qseq.place_name for qseq in tp_query_seqs]

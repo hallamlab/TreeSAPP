@@ -31,6 +31,23 @@ class TreesappTester(unittest.TestCase):
                 rmtree(output_dir)
         return
 
+    def test_abundance(self):
+        from treesapp.commands import abundance
+        from treesapp.file_parsers import read_classification_table
+        from .testing_utils import get_test_data
+        classification_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
+        pre_lines = read_classification_table(get_test_data(classification_table))
+        abundance_command_list = ["--treesapp_output", self.ts_assign_output,
+                                  "--reads", get_test_data("test_TarA.1.fq"),
+                                  "--reverse", get_test_data("test_TarA.2.fq"),
+                                  "--pairing", "pe",
+                                  "--num_procs", str(self.num_procs),
+                                  "--delete"]
+        abundance(abundance_command_list)
+        post_lines = read_classification_table(get_test_data(classification_table))
+        self.assertEqual(len(pre_lines), len(post_lines))
+        return
+
     def test_assign_prot(self):
         ref_pkgs = ["McrA", "M0702", "S0001"]
         from treesapp.commands import assign
@@ -176,19 +193,29 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(True, True)
         return
 
-    def test_abundance(self):
-        from treesapp.commands import abundance
-        from treesapp.file_parsers import read_classification_table
+    def test_layer(self):
+        from treesapp.commands import layer
         from .testing_utils import get_test_data
-        classification_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
+        from treesapp.file_parsers import read_classification_table
+        # Layering annotations from multiple reference packages
+        original_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
+        layered_table = os.path.join(self.ts_assign_output, "final_outputs",
+                                     "extra_annotated_marker_contig_map.tsv")
+        pre_lines = read_classification_table(get_test_data(original_table))
+        layer_command_list = ["--treesapp_output", self.ts_assign_output]
+        layer_command_list += ["--refpkg_dir", self.refpkg_dir]
+        layer(layer_command_list)
+        post_lines = read_classification_table(get_test_data(layered_table))
+        self.assertEqual(len(pre_lines), len(post_lines))
+
+        # With a different reference package, XmoA, just to be sure
+        classification_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
+                                            "final_outputs", "marker_contig_map.tsv")
         pre_lines = read_classification_table(get_test_data(classification_table))
-        abundance_command_list = ["--treesapp_output", self.ts_assign_output,
-                                  "--reads", get_test_data("test_TarA.1.fq"),
-                                  "--reverse", get_test_data("test_TarA.2.fq"),
-                                  "--pairing", "pe",
-                                  "--num_procs", str(self.num_procs),
-                                  "--delete"]
-        abundance(abundance_command_list)
+        layer_command_list = ["--colours_style", get_test_data("XmoA_Function.txt"),
+                              "--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
+                              "--refpkg_dir", self.refpkg_dir]
+        layer(layer_command_list)
         post_lines = read_classification_table(get_test_data(classification_table))
         self.assertEqual(len(pre_lines), len(post_lines))
         return
@@ -206,34 +233,67 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(True, True)
         return
 
-    def test_layer(self):
-        from treesapp.commands import layer
-        from .testing_utils import get_test_data
-        from treesapp.file_parsers import read_classification_table
-        original_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
-        layered_table = os.path.join(self.ts_assign_output, "final_outputs",
-                                     "extra_annotated_marker_contig_map.tsv")
-        pre_lines = read_classification_table(get_test_data(original_table))
-        layer_command_list = ["--treesapp_output", self.ts_assign_output]
-        layer_command_list += ["--refpkg_dir", self.refpkg_dir]
-        layer(layer_command_list)
-        post_lines = read_classification_table(get_test_data(layered_table))
-        self.assertEqual(len(pre_lines), len(post_lines))
+    def test_package(self):
+        from treesapp.commands import package
+        from treesapp.refpkg import ReferencePackage
+        view_command_list = ["view", "lineage_ids",
+                             "--refpkg_path", self.mcra_pkl,
+                             "--output", "./TreeSAPP_package"]
+        package(view_command_list)
+        edit_command_list = ["edit",
+                             "f__msa", self.aa_test_fa,
+                             "--refpkg_path", self.mcra_pkl,
+                             "--output", "./TreeSAPP_package"]
+        package(edit_command_list)
+        test_refpkg = ReferencePackage()
+        test_refpkg.f__json = "./TreeSAPP_package/McrA_build.pkl"
+        test_refpkg.slurp()
+        self.assertFalse(test_refpkg.validate())
         return
 
-    def test_xmoa_layer(self):
-        from treesapp.commands import layer
+    def test_mcc_calculator(self):
+        from treesapp import MCC_calculator
         from .testing_utils import get_test_data
-        from treesapp.file_parsers import read_classification_table
-        classification_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
-                                            "final_outputs", "marker_contig_map.tsv")
-        pre_lines = read_classification_table(get_test_data(classification_table))
-        layer_command_list = ["--colours_style", get_test_data("XmoA_Function.txt"),
-                              "--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
-                              "--refpkg_dir", self.refpkg_dir]
-        layer(layer_command_list)
-        post_lines = read_classification_table(get_test_data(classification_table))
-        self.assertEqual(len(pre_lines), len(post_lines))
+        cmd = ["--fastx_input", get_test_data("EggNOG_McrA.faa"),
+               "--annot_map", get_test_data("EggNOG_McrA_annot_map.tsv"),
+               "--output", "./TreeSAPP_MCC",
+               "--refpkg_dir", self.refpkg_dir,
+               "--targets", "McrA",
+               "--molecule", "prot",
+               "--tool", "treesapp",
+               "--num_procs", str(self.num_procs),
+               "--delete", "--svm", "--overwrite"]
+        MCC_calculator.mcc_calculator(cmd)
+        self.assertEqual(True, True)
+        return
+
+    def test_train(self):
+        import csv
+        from treesapp.commands import train
+        from .testing_utils import get_test_data
+        output_dir_path = "./TreeSAPP_train"
+        max_ex = 50
+        train_command_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
+                              "--annot_map", get_test_data("ENOG4111FIN_annot_map.tsv"),
+                              "--output", output_dir_path,
+                              "--refpkg_path", self.puha_pkl,
+                              "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
+                              "--max_examples", str(max_ex),
+                              "--num_proc", str(self.num_procs),
+                              "--molecule", "prot",
+                              "--svm_kernel", "rbf",
+                              "--classifier", "bin",
+                              "--trim_align", "--delete", "--overwrite"]
+        train(train_command_list)
+        rank_list = []
+        with open(os.path.join(output_dir_path, "final_outputs", "placement_info.tsv")) as placement_tbl:
+            csv_handler = csv.reader(placement_tbl, delimiter="\t")
+            next(csv_handler)
+            for fields in csv_handler:
+                rank_list.append(fields[1])
+
+        self.assertEqual(0, len({"class", "order", "family", "genus", "species"}.difference(set(rank_list))))
+        self.assertEqual(max_ex, len(rank_list))
         return
 
     def test_update_resolve(self):
@@ -278,74 +338,14 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(50, test_refpkg.num_seqs)
         return
 
-    def test_train(self):
-        import csv
-        from treesapp.commands import train
-        from .testing_utils import get_test_data
-        output_dir_path = "./TreeSAPP_train"
-        max_ex = 50
-        train_command_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
-                              "--annot_map", get_test_data("ENOG4111FIN_annot_map.tsv"),
-                              "--output", output_dir_path,
-                              "--refpkg_path", self.puha_pkl,
-                              "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
-                              "--max_examples", str(max_ex),
-                              "--num_proc", str(self.num_procs),
-                              "--molecule", "prot",
-                              "--svm_kernel", "rbf",
-                              "--classifier", "bin",
-                              "--trim_align", "--delete", "--overwrite"]
-        train(train_command_list)
-        rank_list = []
-        with open(os.path.join(output_dir_path, "final_outputs", "placement_info.tsv")) as placement_tbl:
-            csv_handler = csv.reader(placement_tbl, delimiter="\t")
-            next(csv_handler)
-            for fields in csv_handler:
-                rank_list.append(fields[1])
-
-        self.assertEqual(0, len({"class", "order", "family", "genus", "species"}.difference(set(rank_list))))
-        self.assertEqual(max_ex, len(rank_list))
-        return
-
-    def test_package(self):
-        from treesapp.commands import package
-        from treesapp.refpkg import ReferencePackage
-        view_command_list = ["view", "lineage_ids",
-                             "--refpkg_path", self.mcra_pkl,
-                             "--output", "./TreeSAPP_package"]
-        package(view_command_list)
-        edit_command_list = ["edit",
-                             "f__msa", self.aa_test_fa,
-                             "--refpkg_path", self.mcra_pkl,
-                             "--output", "./TreeSAPP_package"]
-        package(edit_command_list)
-        test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_package/McrA_build.pkl"
-        test_refpkg.slurp()
-        self.assertFalse(test_refpkg.validate())
-        return
-
-    def test_mcc_calculator(self):
-        from treesapp import MCC_calculator
-        from .testing_utils import get_test_data
-        cmd = ["--fastx_input", get_test_data("EggNOG_McrA.faa"),
-               "--annot_map", get_test_data("EggNOG_McrA_annot_map.tsv"),
-               "--output", "./TreeSAPP_MCC",
-               "--refpkg_dir", self.refpkg_dir,
-               "--targets", "McrA",
-               "--molecule", "prot",
-               "--tool", "treesapp",
-               "--num_procs", str(self.num_procs),
-               "--delete", "--svm", "--overwrite"]
-        MCC_calculator.mcc_calculator(cmd)
-        self.assertEqual(True, True)
-        return
-
     # def test_tmp(self):
-    #     from treesapp.commands import create
+    #     # from treesapp.commands import create
+    #     from treesapp import MCC_calculator
     #     base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
-    #     cmd = "".format(base_dir)
-    #     create(cmd.split())
+    #     cmd = "-i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/EggNOGv4.5_PF00380_PF00410.faa -o /home/connor/Desktop/TreeSAPP_outputs/MCC_treesapp_0.9.3/ --trim_align -m prot --annot_map /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/EggNOG_refpkg_OG_map.tsv -n 8 --targets T0380,T0410 --overwrite"
+    #     MCC_calculator.mcc_calculator(cmd.split())
+    #     # cmd = "".format(base_dir)
+    #     # create(cmd.split())
     #     return
 
 

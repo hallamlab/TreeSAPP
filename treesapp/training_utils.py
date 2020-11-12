@@ -67,7 +67,7 @@ def summarize_query_classes(positives: set, query_seq_names: set) -> None:
     return
 
 
-def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict) -> (dict, dict, dict):
+def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, refpkgs: dict) -> (dict, dict, dict):
     """
     Function for sorting/binning the classified sequences at T/F positives/negatives based on the annot_map file
     that specifies which queries belong to which orthologous group/protein family and reference package.
@@ -75,6 +75,7 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict) -> 
     :param assignments: Dictionary mapping the ReferencePackage.prefix to TreeProtein instances
     :param annot_map: Dictionary mapping reference package (gene) name keys to database names values
     :param entrez_query_dict: Dictionary mapping sequence names to their respective EntrezRecord instances
+    :param refpkgs: A dictionary mapping reference package prefixes to its ReferencePackage instance
     :return: None
     """
     # False positives: those that do not belong to the annotation matching a reference package name
@@ -99,9 +100,13 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict) -> 
         try:
             positives = positive_queries[refpkg_name]
         except KeyError:
-            logging.error("Unable to find '{}' in the set of positive queries:\n".format(refpkg_name) +
-                          ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
-            sys.exit(5)
+            refpkg = refpkgs[refpkg_name]  # type: ReferencePackage
+            if refpkg.refpkg_code in positive_queries:
+                positives = positive_queries[refpkg.refpkg_code]
+            else:
+                logging.error("Unable to find '{}' in the set of positive queries:\n".format(refpkg_name) +
+                              ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
+                sys.exit(5)
         true_positives = set()
         tp[refpkg_name] = list()
         fp[refpkg_name] = set()
