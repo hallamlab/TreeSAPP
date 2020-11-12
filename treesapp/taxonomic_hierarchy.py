@@ -1046,15 +1046,15 @@ class TaxonomicHierarchy:
                           "clean_trie = {3}\n".format(lineage, organism, self.trie_key_prefix, self.clean_trie))
 
         lineage = self.clean_lineage_string(lineage, with_prefix=True)
+        lineage_list = lineage.split(self.lin_sep)
+        self.rm_absent_taxa_from_lineage(lineage_list, with_prefix=True)
 
-        if len(lineage) == 0:
-            return ""
-
-        hierarchy_taxon = self.get_taxon(prefix_taxon=lineage.split(self.lin_sep)[-1])
-        if not hierarchy_taxon:
+        if len(lineage_list) == 0:
             self.so_long_and_thanks_for_all_the_fish("Taxon '{}' from lineage '{}'"
                                                      " is not in TaxonomicHierarchy.\n".format(organism, lineage))
             raise RuntimeError
+
+        hierarchy_taxon = self.get_taxon(prefix_taxon=lineage_list[-1])
 
         # Ensure the lineage is rooted, and if not, ensure all domains are properly rooted
         taxon_lineage = [t for t in hierarchy_taxon.lineage() if t.rank in self.accepted_ranks_depths]

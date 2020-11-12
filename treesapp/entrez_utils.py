@@ -1192,6 +1192,11 @@ def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
     header_names = ["Organism", "Lineage", "Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]
     fields = next(tbl_reader)
     field_positions = get_list_positions(fields, header_names)
+    if not field_positions:
+        logging.error("Unable to read headers from sequence-taxa table file {}."
+                      " The table must have some combination of the following column names:\n{}\n"
+                      "".format(seq_names_to_taxa, ','.join(header_names)))
+        sys.exit(3)
 
     try:
         for row in tbl_reader:

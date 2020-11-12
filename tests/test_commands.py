@@ -91,6 +91,7 @@ class TreesappTester(unittest.TestCase):
         from .testing_utils import get_test_data
         create_commands_list = ["--fastx_input", get_test_data("create_test.faa"),
                                 "--accession2taxid", get_test_data("create_test.accession2taxid"),
+                                "--seqs2lineage", get_test_data("create_test_accession2lin.tsv"),
                                 "--refpkg_name", "Crt",
                                 "--similarity", "0.95",
                                 "--bootstraps", str(0),
@@ -199,7 +200,7 @@ class TreesappTester(unittest.TestCase):
                                "--extra_info", get_treesapp_file("dev_utils/TIGRFAM_info.tsv"),
                                "--output", "./TreeSAPP_purity",
                                "--refpkg_path", self.mcra_pkl,
-                               "-num_procs", str(self.num_procs),
+                               "--num_procs", str(self.num_procs),
                                "--trim_align", "--molecule", "prot"]
         purity(purity_command_list)
         self.assertEqual(True, True)

@@ -86,9 +86,8 @@ class TaxonomicHierarchyTester(unittest.TestCase):
                       {'ScientificName': 'Prochlorococcus', 'Rank': 'genus'}])
         self.assertEqual("r__Root; d__Bacteria; p__Cyanobacteria",
                          self.db.check_lineage(lineage=t4_lineage, organism=t4_organism))
-        return
 
-    def test_check_lineage_nonexistant(self):
+        # Test a lineage that doesn't exist in the hierarchy
         with pytest.raises(RuntimeError):
             self.db.check_lineage(lineage="d__Archaea", organism="Archaea")
         return
