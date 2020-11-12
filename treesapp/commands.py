@@ -213,6 +213,9 @@ def train(sys_args):
             ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
             train_seqs.file = ts_trainer.hmm_purified_seqs
             train_seqs.fasta_dict = fasta.read_fasta_to_dict(train_seqs.file)
+            if not train_seqs.fasta_dict:
+                logging.error("No sequences were detected in the HMM-purified FASTA '{}'.\n".format(train_seqs.file))
+                sys.exit(13)
         else:
             train_seqs.file = ts_trainer.hmm_purified_seqs
             train_seqs.load_fasta()
@@ -473,9 +476,8 @@ def create(sys_args):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
         fasta_records = create_refpkg.screen_filter_taxa(fasta_records, args.screen, args.filter, ref_seqs.amendments)
         # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
-        # TODO: Replace this function with one offered by TaxonomicHierarchy
-        fasta_records = create_refpkg.remove_by_truncated_lineages(fasta_records,
-                                                                   args.min_taxonomic_rank, ref_seqs.amendments)
+        fasta_records = create_refpkg.remove_by_truncated_lineages(fasta_records, args.min_taxonomic_rank,
+                                                                   ts_create.ref_pkg.taxa_trie, ref_seqs.amendments)
 
         if len(fasta_records.keys()) < 2:
             logging.error("{} sequences post-homology + taxonomy filtering\n".format(len(fasta_records)))

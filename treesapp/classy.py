@@ -952,8 +952,8 @@ class TaxonTest:
         self.classifier_output = ""
 
     def get_optimal_assignment(self):
-        if self.lineage.split('; ')[0] != "Root":
-            self.lineage = "; ".join(["Root"] + self.lineage.split("; "))
+        if self.lineage.split('; ')[0] != "r__Root":
+            self.lineage = "; ".join(["r__Root"] + self.lineage.split("; "))
         return optimal_taxonomic_assignment(self.taxonomic_tree, self.lineage)
 
     def summarise_taxon_test(self):

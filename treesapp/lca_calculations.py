@@ -54,7 +54,7 @@ def optimal_taxonomic_assignment(trie: StringTrie, query_taxon: str):
     while not trie.__contains__(query_taxon) and len(query_taxon.split('; ')) > 1:
         query_taxon = "; ".join(query_taxon.split('; ')[:-1])
     if not trie.__contains__(query_taxon):
-        query_taxon = "Root"
+        query_taxon = "r__Root"
     return query_taxon
 
 

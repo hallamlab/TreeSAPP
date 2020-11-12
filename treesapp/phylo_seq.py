@@ -304,7 +304,7 @@ class PQuery:
         :return: String representing 'confident' taxonomic assignment for the sequence
         """
         # Sequence likely isn't a FP but is highly divergent from reference set
-        confident_assignment = "Root"
+        confident_assignment = "r__Root"
         if depth < 1:
             return confident_assignment
 

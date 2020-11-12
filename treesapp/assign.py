@@ -448,21 +448,21 @@ def multiple_alignments(executables: dict, single_query_sequence_files: list,
     return concatenated_msa_files
 
 
-def create_ref_phy_files(refpkg_dict, output_dir, single_query_fasta_files, ref_aln_dimensions):
+def create_ref_phy_files(refpkgs: dict, output_dir: str, query_fasta_files: list, ref_aln_dimensions: dict) -> None:
     """
     Creates a phy file for every reference marker that was matched by a query sequence
 
-    :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
-    :param output_dir:
-    :param single_query_fasta_files:
-    :param ref_aln_dimensions:
-    :return:
+    :param refpkgs: A dictionary of ReferencePackage instances indexed by their prefix values
+    :param output_dir: Path to a directory for writing the Phylip files
+    :param query_fasta_files: A list containing paths to FASTA files that are to be converted to Phylip format
+    :param ref_aln_dimensions: A dictionary of refpkg.prefix keys mapping to a tuple of the nrow, ncol for a MSA
+    :return: None
     """
 
     # Convert the reference sequence alignments to .phy files for every marker identified
-    for query_fasta in single_query_fasta_files:
+    for query_fasta in query_fasta_files:
         marker = re.match("(.*)_hmm_purified.*", os.path.basename(query_fasta)).group(1)
-        refpkg = refpkg_dict[marker]  # type: ReferencePackage
+        refpkg = refpkgs[marker]  # type: ReferencePackage
 
         ref_alignment_phy = output_dir + marker + ".phy"
         if os.path.isfile(ref_alignment_phy):

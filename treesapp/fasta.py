@@ -209,12 +209,13 @@ def read_fasta_to_dict(fasta_file: str) -> dict:
     fasta_dict = dict()
 
     if not os.path.exists(fasta_file):
-        logging.error("'{}' fasta file doesn't exist.\n".format(fasta_file))
+        logging.debug("'{}' fasta file doesn't exist.\n".format(fasta_file))
+        return fasta_dict
 
     try:
         py_fa = Fasta(fasta_file, build_index=False, full_name=True)
     except RuntimeError as error:
-        logging.warning(str(error))
+        logging.debug(str(error)+"\n")
         return fasta_dict
 
     for name, seq in py_fa:  # type: (str, str)
@@ -1253,7 +1254,7 @@ def split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file) -
     return
 
 
-def multiple_alignment_dimensions(mfa_file, seq_dict=None):
+def multiple_alignment_dimensions(mfa_file: str, seq_dict=None) -> (int, int):
     """
     Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
 

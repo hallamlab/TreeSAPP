@@ -753,6 +753,10 @@ class ReferencePackage:
 
         # fasta
         ref_fasta_dict = read_fasta_to_dict(self.f__msa)
+        if len(ref_fasta_dict) == 0:
+            logging.error("No sequences were read from Reference Package {}'s FASTA '{}'.\n"
+                          "".format(self.prefix, self.f__msa))
+            sys.exit(13)
         off_target_ref_headers = [ref_num + '_' + self.prefix for ref_num in self.lineage_ids]
         if len(off_target_ref_headers) == 0:
             logging.error("No reference sequences were retained for building testing " + target_clade + "\n")

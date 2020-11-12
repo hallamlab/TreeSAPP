@@ -55,6 +55,63 @@ class TaxonomicHierarchyTester(unittest.TestCase):
     def test_fixture(self):
         self.assertEqual(True, hasattr(self, "db"))
 
+    def test_check_lineage(self):
+        t1_lineage = "n__cellular organisms; d__Bacteria; n__Terrabacteria group; p__Actinobacteria; c__Actinobacteria"
+        t1_organism = "Actinobacteria"
+        t2_lineage = "d__Bacteria; p__Actinobacteria; c__Actinobacteria; " \
+                     "o__Actinomycetales; f__Actinomycetaceae; g__Actinomyces"
+        t2_organism = "s__Actinomyces nasicola"
+        t3_lineage = "r__Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales"
+        t4_lineage = "d__Bacteria; p__Cyanobacteria; o__Synechococcales; f__Prochloraceae; g__Prochlorococcus"
+        t4_organism = "s__Prochlorococcus marinus"
+
+        # Remove the taxa that have no taxonomic rank
+        self.assertEqual(4,
+                         len(self.db.check_lineage(lineage=t1_lineage, organism=t1_organism,
+                                                   verbosity=1).split(self.db.lin_sep)))
+        # Add the organism as the new species
+        self.assertEqual(8,
+                         len(self.db.check_lineage(lineage=t2_lineage, organism=t2_organism,
+                                                   verbosity=1).split(self.db.lin_sep)))
+        # Nothing to change
+        self.assertEqual(t3_lineage,
+                         self.db.check_lineage(lineage=t3_lineage, organism=t3_lineage.split(self.db.lin_sep)[-1],
+                                               verbosity=1))
+        # Test when a taxon is out of order
+        self.db.feed("Bacteria; Cyanobacteria; Synechococcales; Prochloraceae; Prochlorococcus",
+                     [{'ScientificName': 'Bacteria', 'Rank': 'domain'},
+                      {'ScientificName': 'Cyanobacteria', 'Rank': 'phylum'},
+                      {'ScientificName': 'Synechococcales', 'Rank': 'order'},
+                      {'ScientificName': 'Prochloraceae', 'Rank': 'family'},
+                      {'ScientificName': 'Prochlorococcus', 'Rank': 'genus'}])
+        self.assertEqual("r__Root; d__Bacteria; p__Cyanobacteria",
+                         self.db.check_lineage(lineage=t4_lineage, organism=t4_organism))
+
+        # Test a lineage that doesn't exist in the hierarchy
+        with pytest.raises(RuntimeError):
+            self.db.check_lineage(lineage="d__Archaea", organism="Archaea")
+        return
+
+    def test_clean_lineage_string(self):
+        l1 = "n__cellular organisms; d__Bacteria; n__Terrabacteria group"
+        l2 = "d__Bacteria"
+        l3 = "d__Bacteria; p__Candidatus Omnitrophica; s__Candidatus Omnitrophica bacterium CG02__42_8"
+        self.assertEqual(self.db.clean_lineage_string(l1, with_prefix=True),
+                         self.db.clean_lineage_string(l2, with_prefix=True))
+        self.assertEqual("Bacteria", self.db.clean_lineage_string(l1, with_prefix=False))
+        self.assertEqual("d__Bacteria; p__Candidatus Omnitrophica; s__Candidatus Omnitrophica bacterium CG02_42_8",
+                         self.db.clean_lineage_string(l3, with_prefix=True))
+        return
+
+    def test_emit(self):
+        actino_line = "Root; Bacteria; Terrabacteria group; Actinobacteria;" \
+                      " Actinobacteria; Actinomycetales; Actinomycetaceae; Actinomyces"
+        bifido_line = "r__Root; d__Bacteria; n__Terrabacteria group; p__Actinobacteria;" \
+                      " c__Actinobacteria; o__Bifidobacteriales; f__Bifidobacteriaceae; g__Bifidobacterium"
+        self.assertEqual(actino_line, self.db.emit("g__Actinomyces"))
+        self.assertEqual(bifido_line, self.db.emit("g__Bifidobacterium", with_prefix=True))
+        return
+
     def test_feed(self):
         """
         Since lineages are already fed into self.db (via TaxonomicHierarchy.feed()), other functions are used for
@@ -78,57 +135,6 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.assertTrue("n__environmental samples_1" in test_th.hierarchy)
         self.assertTrue("n__environmental samples_2" not in test_th.hierarchy)
         self.assertEqual(0, len(test_th.conflicts))
-        return
-
-    def test_emit(self):
-        actino_line = "Bacteria; Terrabacteria group; Actinobacteria;" \
-                      " Actinobacteria; Actinomycetales; Actinomycetaceae; Actinomyces"
-        bifido_line = "Bacteria; Terrabacteria group; Actinobacteria;" \
-                      " Actinobacteria; Bifidobacteriales; Bifidobacteriaceae; Bifidobacterium"
-        self.assertEqual(actino_line, self.db.emit("g__Actinomyces"))
-        self.assertEqual(bifido_line, self.db.emit("g__Bifidobacterium"))
-        return
-
-    def test_check_lineage(self):
-        t1_lineage = "n__cellular organisms; d__Bacteria; n__Terrabacteria group; p__Actinobacteria; c__Actinobacteria"
-        t1_organism = "Actinobacteria"
-        t2_lineage = "d__Bacteria; p__Actinobacteria; c__Actinobacteria; " \
-                     "o__Actinomycetales; f__Actinomycetaceae; g__Actinomyces"
-        t2_organism = "s__Actinomyces nasicola"
-        self.assertEqual(3,
-                         len(self.db.check_lineage(lineage=t1_lineage,
-                                                   organism=t1_organism).split(self.db.lin_sep)))
-        self.assertEqual(7,
-                         len(self.db.check_lineage(lineage=t2_lineage,
-                                                   organism=t2_organism).split(self.db.lin_sep)))
-        return
-
-    def test_check_lineage_nonexistant(self):
-        with pytest.raises(RuntimeError):
-            self.db.check_lineage(lineage="d__Archaea", organism="Archaea")
-        return
-
-    def test_check_lineage_rankless(self):
-        lin = "d__Bacteria; p__Cyanobacteria; o__Synechococcales; f__Prochloraceae; g__Prochlorococcus"
-        org = "s__Prochlorococcus marinus"
-        self.db.feed("Bacteria; Cyanobacteria; Synechococcales; Prochloraceae; Prochlorococcus",
-                     [{'ScientificName': 'Bacteria', 'Rank': 'domain'},
-                      {'ScientificName': 'Cyanobacteria', 'Rank': 'phylum'},
-                      {'ScientificName': 'Synechococcales', 'Rank': 'order'},
-                      {'ScientificName': 'Prochloraceae', 'Rank': 'family'},
-                      {'ScientificName': 'Prochlorococcus', 'Rank': 'genus'}])
-        self.assertEqual("d__Bacteria; p__Cyanobacteria", self.db.check_lineage(lineage=lin, organism=org))
-        return
-
-    def test_clean_lineage_string(self):
-        l1 = "n__cellular organisms; d__Bacteria; n__Terrabacteria group"
-        l2 = "d__Bacteria"
-        l3 = "d__Bacteria; p__Candidatus Omnitrophica; s__Candidatus Omnitrophica bacterium CG02__42_8"
-        self.assertEqual(self.db.clean_lineage_string(l1, with_prefix=True),
-                         self.db.clean_lineage_string(l2, with_prefix=True))
-        self.assertEqual("Bacteria", self.db.clean_lineage_string(l1, with_prefix=False))
-        self.assertEqual("d__Bacteria; p__Candidatus Omnitrophica; s__Candidatus Omnitrophica bacterium CG02_42_8",
-                         self.db.clean_lineage_string(l3, with_prefix=True))
         return
 
     def test_remove_leaf_nodes(self):
@@ -165,18 +171,67 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.db.build_multifurcating_trie(key_prefix=False, value_prefix=True)
         self.assertTrue("Bacteria" in self.db.trie)
         self.assertEqual("c__Actinobacteria", self.db.trie["Bacteria; Actinobacteria; Actinobacteria"])
+        return
 
-    def test_rm_bad_taxa(self):
+    def test_rm_bad_taxa_from_lineage(self):
         self.assertEqual(["Archaea"], self.db.rm_bad_taxa_from_lineage(["cellular organisms", "Archaea"]))
+        return
+
+    def test_rm_absent_taxa_from_lineage(self):
+        ll_1 = ["d__Bacteria", "n__Absent", "p__Actinobacteria"]
+        ll_2 = ["Bacteria", "Actinomyces", "Actinobacteria"]
+        ll_3 = "d__Bacteria; p__Actinobacteria; c__Actinobacteria".split(self.db.lin_sep)
+        # Test a lineage containing a taxon that is not present in the taxonomic hierarchy
+        self.db.rm_absent_taxa_from_lineage(ll_1, True)
+        self.assertEqual(2, len(ll_1))
+        # Test a lineage where the taxa are out of order
+        self.db.rm_absent_taxa_from_lineage(ll_2)
+        self.assertEqual(3, len(ll_2))
+        # Test a lineage where all taxa are in the hierarchy -> lineage should be unchanged
+        self.db.rm_absent_taxa_from_lineage(ll_3, True)
+        self.assertEqual(3, len(ll_3))
+        return
 
     def test_get_prefixed_lineage_from_bare(self):
         self.db.clean_trie = True
         self.db.build_multifurcating_trie(key_prefix=False, value_prefix=True)
-        self.assertEqual("d__Bacteria",
+        # Determine whether a prefix for the root taxon is needed for the expected values
+        if self.db.rooted:
+            root_name = self.db.root_taxon + self.db.lin_sep
+        else:
+            root_name = ""
+        # Test a lineage with taxa with no rank
+        self.assertEqual(root_name + "d__Bacteria",
                          self.db.get_prefixed_lineage_from_bare("cellular organisms; Bacteria; "
                                                                 "Terrabacteria group; Actinobacteria"))
-        self.assertEqual("d__Bacteria; p__Actinobacteria; c__Actinobacteria",
+        # Test a lineage where two ranks share the same name
+        self.assertEqual(root_name + "d__Bacteria; p__Actinobacteria; c__Actinobacteria",
                          self.db.get_prefixed_lineage_from_bare("Bacteria; Actinobacteria; Actinobacteria"))
+        # Test a lineage that isn't found in the taxonomic hierarchy
+        with pytest.raises(SystemExit):
+            self.db.get_prefixed_lineage_from_bare("Archaea; Lokiarchaeota")
+        return
+
+    def test_get_bare_taxon(self):
+        with pytest.raises(RuntimeError):
+            self.db.get_bare_taxon("d__Bacteria")
+        with pytest.raises(SystemExit):
+            self.db.get_bare_taxon("E. coli")
+        taxon = self.db.get_bare_taxon("Actinobacteria")
+        self.assertIsNone(taxon)
+        taxon = self.db.get_bare_taxon("Bacteria")
+        self.assertEqual("d__Bacteria", taxon.prefix_taxon())
+        return
+
+    def test_reroot_lineage(self):
+        # Test without rank-prefixes on the taxa - should exit
+        with pytest.raises(RuntimeError):
+            self.db.reroot_lineage("Bacteria; Actinobacteria; Actinobacteria")
+        # Test with normal behaviour - adds the root taxon
+        self.assertEqual("r__Root; d__Bacteria", self.db.reroot_lineage("d__Bacteria"))
+        # Test when the lineage is already rooted - nothing should be changed
+        self.assertEqual("r__Root; d__Bacteria", self.db.reroot_lineage("r__Root; d__Bacteria"))
+        return
 
     def test_build_multifurcating_trie(self):
         self.db.trie_key_prefix = True
@@ -202,27 +257,36 @@ class TaxonomicHierarchyTester(unittest.TestCase):
 
     def test_root_domains(self):
         from treesapp.taxonomic_hierarchy import Taxon
-        with pytest.raises(AttributeError):
+        with pytest.raises(TypeError):
             self.db.root_domains("Root")
         root_taxon = Taxon(name="Root", rank="root")
-        self.db.root_domains(root_taxon)
+        root_taxon = self.db.root_domains(root_taxon)
         self.assertEqual(root_taxon, self.db.hierarchy["d__Bacteria"].parent)
         # Remove the Taxon 'r__Root' so other tests are not affected
         self.db.redirect_hierarchy_paths(root_taxon)
         return
 
     def test_match_organism(self):
+        # Prepare the lineages for testing, depending on whether the domains are rooted or not
+        ll_1 = ["d__Bacteria"]
+        ll_2 = ["d__Eukaryota"]
+        ll_3 = "d__Bacteria; p__Actinobacteria; c__Actinobacteria".split('; ')
+        if self.db.rooted:
+            ll_1 = [self.db.root_taxon] + ll_1
+            ll_2 = [self.db.root_taxon] + ll_2
+            ll_3 = [self.db.root_taxon] + ll_3
+
         # Test when organism isn't in the taxonomic hierarchy
         organism = self.db.match_organism(organism="doesn't exist",
-                                          lineage=["d__Bacteria"])
+                                          lineage=ll_1)
         self.assertEqual("", organism)
         # Test when the lineage isn't in the taxonomic hierarchy
         with pytest.raises(SystemExit):
-            self.db.match_organism(organism="Homo sapiens", lineage=["d__Eukaryota"])
+            self.db.match_organism(organism="Homo sapiens", lineage=ll_2)
 
         # Test when the organism isn't a descendent of the lineage
         organism = self.db.match_organism(organism="Methanosarcina barkeri",
-                                          lineage="d__Bacteria; p__Actinobacteria; c__Actinobacteria".split('; '))
+                                          lineage=ll_3)
         self.assertEqual("", organism)
         # Test when the lineage is the wrong type (string)
         with pytest.raises(TypeError):
@@ -230,7 +294,7 @@ class TaxonomicHierarchyTester(unittest.TestCase):
 
         # Behaviour when inputs are correct
         organism = self.db.match_organism(organism="Bifidobacterium",
-                                          lineage="d__Bacteria; p__Actinobacteria; c__Actinobacteria".split('; '))
+                                          lineage=ll_3)
         self.assertEqual("g__Bifidobacterium", organism)
         return
 
