@@ -47,15 +47,20 @@ class RefPkgTester(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.disband_path, "McrA.fa")))
 
     def test_remove_taxon_from_lineage_ids(self):
+        # Ensure the initial state is as expected
+        self.assertEqual(246, self.db.num_seqs)
+        self.assertEqual(246, len(self.db.lineage_ids))
+
+        # Test
         self.db.remove_taxon_from_lineage_ids("d__Archaea; p__Euryarchaeota; c__Methanobacteria; o__Methanobacteriales;"
                                               " f__Methanobacteriaceae; g__Methanosphaera")
-        self.assertEqual(190, self.db.num_seqs)
+        self.assertEqual(193, self.db.num_seqs)
         self.db.remove_taxon_from_lineage_ids("d__Archaea; p__Euryarchaeota; c__Methanobacteria")
-        self.assertEqual(143, len(self.db.lineage_ids))
+        self.assertEqual(146, len(self.db.lineage_ids))
 
         self.db.remove_taxon_from_lineage_ids("d__Archaea")
-        self.assertEqual(0, len(self.db.lineage_ids))
-        self.assertEqual(0, self.db.num_seqs)
+        self.assertEqual(3, len(self.db.lineage_ids))
+        self.assertEqual(3, self.db.num_seqs)
 
     def test_get_fasta(self):
         refpkg_fa = self.db.get_fasta()
