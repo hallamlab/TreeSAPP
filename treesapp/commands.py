@@ -213,6 +213,9 @@ def train(sys_args):
             ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
             train_seqs.file = ts_trainer.hmm_purified_seqs
             train_seqs.fasta_dict = fasta.read_fasta_to_dict(train_seqs.file)
+            if not train_seqs.fasta_dict:
+                logging.error("No sequences were detected in the HMM-purified FASTA '{}'.\n".format(train_seqs.file))
+                sys.exit(13)
         else:
             train_seqs.file = ts_trainer.hmm_purified_seqs
             train_seqs.load_fasta()

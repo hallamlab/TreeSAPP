@@ -72,8 +72,14 @@ class MyTestCase(unittest.TestCase):
 
     def test_read_fasta_to_dict(self):
         from treesapp.fasta import read_fasta_to_dict
+
+        # Test normal functionality with a fasta file
         fa_dict = read_fasta_to_dict(self.test_fa)
         self.assertEqual(236, len(fa_dict))
+
+        # Test reading a file that doesn't exist
+        self.assertEqual({}, read_fasta_to_dict("./fake_file.fa"))
+        return
 
     def test_split_fa_size(self):
         from treesapp.fasta import split_fa, read_fasta_to_dict
