@@ -690,6 +690,8 @@ class TaxonomicHierarchy:
                     taxa.clear()
                     continue
                 taxon = self.digest_taxon(taxon_name, rank, rank_prefix, previous)  # type: Taxon
+                if taxon.rank == "root":
+                    self.rooted = True
                 if not taxon and previous:
                     ref_leaf.lineage = self.lin_sep.join([taxon.prefix_taxon() for taxon in previous.lineage()])
                     break
