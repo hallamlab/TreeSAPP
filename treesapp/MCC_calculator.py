@@ -659,15 +659,31 @@ def check_previous_output(output_dir: str, files: list, overwrite=False) -> None
 
 def filter_redundant_og(query_og_map: dict) -> set:
     redundants = set()
+    ortho_counts = {}
+    ortho_filters = {}
     for query_name, ortho_groups in query_og_map.items():
+        for og in ortho_groups:
+            try:
+                ortho_counts[og] += 1
+            except KeyError:
+                ortho_counts[og] = 1
         if len(ortho_groups) > 1:
+            for og in ortho_groups:
+                try:
+                    ortho_filters[og] += 1
+                except KeyError:
+                    ortho_filters[og] = 1
             redundants.add(query_name)
+
+    if redundants:
+        logging.warning("{}/{} query sequences were annotated as multiple reference packages and have been removed.\n"
+                        "".format(len(redundants), len(query_og_map)))
+        for og in ortho_filters:
+            logging.info("{}% of annotated sequences were filtered for '{}'.\n"
+                         "".format(round((ortho_filters[og]*100)/ortho_counts[og], 1), og))
 
     for query_name in redundants:
         query_og_map.pop(query_name)
-
-    logging.warning("{}/{} query sequences were annotated as multiple reference packages and have been removed.\n"
-                    "".format(len(redundants), len(query_og_map)))
 
     return redundants
 
@@ -702,7 +718,11 @@ def match_queries_to_refpkgs(query_name_map: dict, refpkg_dict: dict) -> (dict, 
    """
     # Create the dictionaries for rapid look-up
     prefix_to_code = {refpkg.prefix: refpkg.refpkg_code for name, refpkg in refpkg_dict.items()}
-    code_to_prefix = {refpkg.refpkg_code: refpkg.prefix for name, refpkg in refpkg_dict.items()}
+    code_to_prefix = {refpkg.refpkg_code: set() for name, refpkg in refpkg_dict.items()}
+    for rp_code in code_to_prefix:
+        for prefix, refpkg in refpkg_dict.items():  # type: (str, ReferencePackage)
+            if rp_code == refpkg.refpkg_code:
+                code_to_prefix[rp_code].add(prefix)
     query_to_prefix = {}
     query_to_code = {}
     unmapped_queries = []
@@ -716,13 +736,14 @@ def match_queries_to_refpkgs(query_name_map: dict, refpkg_dict: dict) -> (dict, 
                 query_to_code[query].add(prefix_to_code[match])
             elif match in code_to_prefix:  # Match must be a ReferencePackage.refpkg_code
                 query_to_code[query].add(match)
-                query_to_prefix[query].add(code_to_prefix[match])
+                query_to_prefix[query].update(code_to_prefix[match])
             else:
                 unmapped_queries.append(query)
                 missing_matches.append(match)
     # Remove the queries that don't have a valid reference package name
     for qname in unmapped_queries:
-        query_name_map.pop(qname)
+        query_to_prefix.pop(qname)
+        query_to_code.pop(qname)
 
     if missing_matches:
         logging.info("{} unique reference packages ({} total) referred to in the annotation file were not found"
@@ -764,6 +785,9 @@ def mcc_calculator(sys_args):
     # Remove the query names that are mapped to multiple OGs or reference packages
     test_obj.redundant_queries = filter_redundant_og(query_name_dict)
     query_to_prefix, query_to_code = match_queries_to_refpkgs(query_name_dict, refpkg_dict)
+    if len(query_to_code) == 0 or len(query_to_prefix) == 0:
+        logging.error("Matching reference package annotations to queries failed.\n")
+        sys.exit(13)
 
     refpkg_name_query_map = create_refpkg_query_map(query_to_code, refpkg_dict)
 
