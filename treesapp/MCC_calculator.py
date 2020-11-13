@@ -33,12 +33,13 @@ class ConfusionTest:
         self.fn = {key: [] for key in gene_list}
         self.fp = {key: set() for key in gene_list}
         self.tp = {key: [] for key in gene_list}  # This will be a list of QuerySequence instances
+        self.redundant_queries = set()
         self.tax_lineage_map = {}
         self.tp_lineage_map = {}
         self.dist_wise_tp = {}
         self.header_registry = {}
         self.entrez_query_dict = {}
-        self.num_total_queries = 0
+        self.all_queries = set()
         self.rank_depth_map = {"Domain": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
         self.classification_table = ""
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
@@ -52,8 +53,8 @@ class ConfusionTest:
         self.check_dist()
         info_string += "Stats based on taxonomic distance < " + str(self._MAX_TAX_DIST) + "\n"
 
-        if self.num_total_queries > 0:
-            info_string += str(self.num_total_queries) + " query sequences being used for testing.\n"
+        if len(self.all_queries) > 0:
+            info_string += "{} query sequences being used for testing.\n".format(len(self.all_queries))
 
         if verbose:
             for refpkg in sorted(self.ref_packages):
@@ -157,7 +158,7 @@ class ConfusionTest:
                 logging.warning("Lineage information unavailable for taxonomy ID '" + e_record.ncbi_tax + "'\n")
                 self.tax_lineage_map[e_record.ncbi_tax] = ''
             else:
-                self.tax_lineage_map[e_record.ncbi_tax] = e_record.lineage
+                self.tax_lineage_map[e_record.ncbi_tax] = "r__Root; " + e_record.lineage
         return
 
     def map_true_lineages(self) -> None:
@@ -213,13 +214,12 @@ class ConfusionTest:
         for marker in self.tp:
             refpkg = self.ref_packages[marker]  # type: ReferencePackage
             refpkg.taxa_trie.trie_check()
-            lin_sep = refpkg.taxa_trie.lin_sep
+            if not refpkg.taxa_trie.rooted:
+                refpkg.taxa_trie.root_domains(root=refpkg.taxa_trie.find_root_taxon())
             self.dist_wise_tp[marker] = dict()
             for tp_inst in self.tp[marker]:  # type: QuerySequence
                 # Find the optimal taxonomic assignment
                 tp_inst.true_lineage = refpkg.taxa_trie.clean_lineage_string(tp_inst.true_lineage)
-                if tp_inst.assigned_lineage.split(lin_sep)[0] == "r__Root":
-                    tp_inst.assigned_lineage = lin_sep.join(tp_inst.assigned_lineage.split(lin_sep)[1:])
                 optimal_taxon = optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
                 if not optimal_taxon:
                     logging.debug("Optimal taxonomic assignment '{}' for {}"
@@ -311,10 +311,10 @@ class ConfusionTest:
         unique_fp = set()
         unique_tp = set()
         for marker in marker_set:
-            unique_fn.update(self.fn[marker])
-            unique_fp.update(self.fp[marker])
-            unique_tp.update(self.tp[marker])
-        return self.num_total_queries - sum([len(unique_fn), len(unique_fp), len(unique_tp)])
+            unique_fn.update(qseq.place_name for qseq in self.fn[marker])
+            unique_fp.update(qseq.place_name for qseq in self.fp[marker])
+            unique_tp.update(qseq.place_name for qseq in self.tp[marker])
+        return len(self.all_queries) - sum([len(unique_fn), len(unique_fp), len(unique_tp)])
 
     def get_false_positives(self, refpkg_name=None):
         if refpkg_name:
@@ -322,7 +322,7 @@ class ConfusionTest:
         else:
             unique_fp = set()
             for marker in self.ref_packages:
-                unique_fp.update(self.fp[marker])
+                unique_fp.update(qseq.place_name for qseq in self.fp[marker])
             return unique_fp
 
     def get_false_negatives(self, refpkg_name=None):
@@ -332,7 +332,7 @@ class ConfusionTest:
             unique_fn = set()
             for marker in self.ref_packages:
                 # Remove sequences that were classified by a homologous marker
-                unique_fn.update(self.fn[marker])
+                unique_fn.update(qseq.place_name for qseq in self.fn[marker])
             return unique_fn
 
     def bin_headers(self, assignments: dict, annot_map: dict) -> None:
@@ -346,10 +346,10 @@ class ConfusionTest:
 
     def validate_false_positives(self):
         # Get all the original Orthologous Group (OG) headers for sequences classified as TP or FN
-        tp_names = []
+        tp_names = set()
         for marker in list(self.ref_packages.keys()):
-            tp_names += [pquery.place_name for pquery in self.tp[marker]]
-            tp_names += [pquery.place_name for pquery in self.fn[marker]]
+            tp_names = tp_names.union(set([pquery.place_name for pquery in self.tp[marker]]))
+            tp_names = tp_names.union(set([pquery.place_name for pquery in self.fn[marker]]))
 
         for marker in self.fp:
             validated_fp = set()
@@ -359,7 +359,7 @@ class ConfusionTest:
                     seq_name = seq_name[1:]
                 if seq_name not in tp_names:
                     validated_fp.add(qseq)
-            self.fp[marker] = validated_fp
+            self.fp[marker] = self.all_queries.intersection(validated_fp)
         return
 
     def validate_false_negatives(self, refpkg_dbname_dict: dict):
@@ -375,13 +375,17 @@ class ConfusionTest:
 
         for marker in self.fn:
             if marker in refpkg_dbname_dict:
-                homologous_tps = set()
+                homologous_tp_names = set()
                 for og in refpkg_dbname_dict[marker]:
                     for homolgous_marker in refpkg_og_map[og]:
                         if homolgous_marker != marker:
-                            homologous_tps.update(set(cs.ref_name for cs in self.tp[homolgous_marker]))
+                            homologous_tp_names.update(set(qs.place_name for qs in self.tp[homolgous_marker]))
+                validated_fns = set()
+                for qseq in self.fn[marker]:  # type: QuerySequence
+                    if qseq.place_name not in homologous_tp_names:
+                        validated_fns.add(qseq)
                 # Remove all sequences from this marker's false negatives that are found in a homologous TP set
-                self.fn[marker] = set(self.fn[marker]).difference(homologous_tps)
+                self.fn[marker] = self.all_queries.intersection(validated_fns)
         return
 
     def summarise_type_one_placements(self, classification_lines) -> str:
@@ -597,6 +601,9 @@ def internal_node_leaf_map(tree: str) -> dict:
 def validate_command(args, sys_args):
     logging.debug("Command used:\n" + ' '.join(sys_args) + "\n")
 
+    if not os.path.isdir(args.output):
+        os.mkdir(args.output)
+
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
     if args.tool == "treesapp" and not args.refpkg_dir:
         args.refpkg_dir = args.treesapp + "data" + os.sep
@@ -635,22 +642,99 @@ def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: in
         return round(numerator/sqrt(denominator), 3)
 
 
-def check_previous_output(output_dir, overwrite=False) -> None:
+def check_previous_output(output_dir: str, files: list, overwrite=False) -> None:
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
     elif overwrite:
         if os.path.isdir(output_dir):
-            logging.warning("Overwriting directory '{}' in 5 seconds. Press Ctrl-C to cancel.".format(output_dir))
+            logging.warning("Overwriting directory '{}' in 5 seconds. Press Ctrl-C to cancel.\n".format(output_dir))
             sleep(5)
             shutil.rmtree(output_dir)
         os.mkdir(output_dir)
+        for f in files:
+            if os.path.isfile(f):
+                os.remove(f)
     return
+
+
+def filter_redundant_og(query_og_map: dict) -> set:
+    redundants = set()
+    for query_name, ortho_groups in query_og_map.items():
+        if len(ortho_groups) > 1:
+            redundants.add(query_name)
+
+    for query_name in redundants:
+        query_og_map.pop(query_name)
+
+    logging.warning("{}/{} query sequences were annotated as multiple reference packages and have been removed.\n"
+                    "".format(len(redundants), len(query_og_map)))
+
+    return redundants
+
+
+def create_refpkg_query_map(query_name_map: dict, refpkg_dict: dict) -> dict:
+    refpkg_query_map = {}
+    tmp_map = {}
+    for rp_name, rp in refpkg_dict.items():  # type: (str, ReferencePackage)
+        try:
+            tmp_map[rp.refpkg_code].add(rp_name)
+        except KeyError:
+            tmp_map[rp.refpkg_code] = {rp_name}
+    for qname, ref_codes in query_name_map.items():  # type: (str, str)
+        for rp_code in ref_codes:
+            for rp_name in tmp_map[rp_code]:
+                try:
+                    refpkg_query_map[rp_name].add(qname)
+                except KeyError:
+                    refpkg_query_map[rp_name] = {qname}
+    return refpkg_query_map
+
+
+def match_queries_to_refpkgs(query_name_map: dict, refpkg_dict: dict) -> (dict, dict):
+    """
+    Used for removing any query sequence names from the query name map if the reference package they should be assigned
+    is not present in the refpkg_dict.
+
+    :param query_name_map: A dictionary mapping query sequence names to either ReferencePackage
+    'prefix' or 'refpkg_code' values.
+    :param refpkg_dict: A dictionary mapping reference package prefixes to their respective ReferencePackage instance
+    :return: None
+   """
+    # Create the dictionaries for rapid look-up
+    prefix_to_code = {refpkg.prefix: refpkg.refpkg_code for name, refpkg in refpkg_dict.items()}
+    code_to_prefix = {refpkg.refpkg_code: refpkg.prefix for name, refpkg in refpkg_dict.items()}
+    query_to_prefix = {}
+    query_to_code = {}
+    unmapped_queries = []
+    missing_matches = []
+    for query, matches in query_name_map.items():  # type: (str, set)
+        query_to_prefix[query] = set()
+        query_to_code[query] = set()
+        for match in matches:  # type: str
+            if match in prefix_to_code:  # Match must be a ReferencePackage.prefix
+                query_to_prefix[query].add(match)
+                query_to_code[query].add(prefix_to_code[match])
+            elif match in code_to_prefix:  # Match must be a ReferencePackage.refpkg_code
+                query_to_code[query].add(match)
+                query_to_prefix[query].add(code_to_prefix[match])
+            else:
+                unmapped_queries.append(query)
+                missing_matches.append(match)
+    # Remove the queries that don't have a valid reference package name
+    for qname in unmapped_queries:
+        query_name_map.pop(qname)
+
+    if missing_matches:
+        logging.info("{} unique reference packages ({} total) referred to in the annotation file were not found"
+                     " in the reference package list.\n".format(len(set(missing_matches)), len(missing_matches)))
+        logging.debug("Unique annotation names that couldn't be mapped to reference packages:\n{}\n"
+                      "".format(set(missing_matches)))
+
+    return query_to_prefix, query_to_code
 
 
 def mcc_calculator(sys_args):
     args = get_arguments(sys_args)
-
-    check_previous_output(args.output, args.overwrite)
 
     summary_rank = "Phylum"
     output_prefix = args.output + os.path.splitext(os.path.basename(args.input))[0]
@@ -658,7 +742,10 @@ def mcc_calculator(sys_args):
     mcc_file = output_prefix + "_MCC_table.tsv"
     taxa_dist_output = output_prefix + '_' + summary_rank + "_dist.tsv"
     classification_info_output = output_prefix + "_classifications.tsv"
+
+    # Instantiate the logging instance and write the log
     prep_logging(log_name, args.verbose)
+
     logging.info("\n##\t\t\tBeginning Matthews Correlation Coefficient analysis\t\t\t##\n")
     validate_command(args, sys.argv)
 
@@ -669,14 +756,19 @@ def mcc_calculator(sys_args):
     refpkg_dict = file_parsers.gather_ref_packages(args.refpkg_dir, args.targets)
     test_obj = ConfusionTest(refpkg_dict.keys())
     test_obj.map_data(output_dir=args.output, tool=args.tool)
-    if args.overwrite and os.path.exists(test_obj.data_dir):
-        shutil.rmtree(test_obj.data_dir)
-        for f in [mcc_file, taxa_dist_output, classification_info_output]:
-            if os.path.isfile(f):
-                os.remove(f)
+
+    # Remove outputs from past runs if overwriting
+    check_previous_output(output_dir=test_obj.data_dir, files=[mcc_file, taxa_dist_output, classification_info_output],
+                          overwrite=args.overwrite)
+
+    # Remove the query names that are mapped to multiple OGs or reference packages
+    test_obj.redundant_queries = filter_redundant_og(query_name_dict)
+    query_to_prefix, query_to_code = match_queries_to_refpkgs(query_name_dict, refpkg_dict)
+
+    refpkg_name_query_map = create_refpkg_query_map(query_to_code, refpkg_dict)
 
     # Creates the dictionary of Header instances
-    test_obj.header_registry = register_headers(list(query_name_dict.keys()))
+    test_obj.header_registry = register_headers(list(query_to_code.keys()))
     test_obj.generate_entrez_queries()
     # Downloads lineage information for the header instances
     test_obj.retrieve_lineages()
@@ -761,20 +853,19 @@ def mcc_calculator(sys_args):
         sys.exit(3)
 
     logging.info("Reading headers in " + args.input + "... ")
-    test_seq_names = [seq_name[1:] if seq_name[0] == '>' else seq_name for seq_name in get_headers(args.input)]
+    test_obj.all_queries = set([seq_name[1:] if seq_name[0] == '>' else seq_name for
+                                seq_name in get_headers(args.input)])
     logging.info("done.\n")
-    test_obj.num_total_queries = len(test_seq_names)
 
     ##
     # Bin the test sequence names into their respective confusion categories (TP, TN, FP, FN)
     ##
-    test_obj.bin_headers(assignments, query_name_dict)
-    test_seq_names.clear()
+    test_obj.bin_headers(assignments, query_to_code)
     test_obj.map_true_lineages()
 
     test_obj.bin_true_positives_by_taxdist()
     test_obj.validate_false_positives()
-    test_obj.validate_false_negatives(query_name_dict)
+    test_obj.validate_false_negatives(refpkg_name_query_map)
 
     test_obj.summarise_reference_taxa(taxa_dist_output, classification_info_output, summary_rank)
     if args.tool == "treesapp" and classification_lines:

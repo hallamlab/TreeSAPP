@@ -122,7 +122,7 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
                 missing.add(pquery.place_name)
                 continue
             if not e_record.lineage:
-                true_positives.add(tp_inst.place_name)
+                true_positives.add(tp_inst.place_name)  # So these queries are not classified as false negatives
                 continue
             tp_inst.ncbi_tax = e_record.ncbi_tax
             tp_inst.rank = pquery.rank
@@ -148,10 +148,11 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
             fn[refpkg_name].add(qseq)
     logging.info("done.\n")
 
-    logging.warning("Unable to find {}/{} sequence accessions in the Entrez records.\n".format(len(missing),
-                                                                                               len(entrez_query_dict)))
-    logging.debug("Unable to find the following sequence accessions in the Entrez records:\n"
-                  "{}\n".format(', '.join(missing)))
+    if missing:
+        logging.warning("Unable to find {}/{} sequence accessions in the Entrez records.\n".format(len(missing),
+                                                                                                   len(entrez_query_dict)))
+        logging.debug("Unable to find the following sequence accessions in the Entrez records:\n"
+                      "{}\n".format(', '.join(missing)))
 
     return tp, fp, fn
 
