@@ -223,13 +223,13 @@ class MyFormatter(logging.Formatter):
         return result
 
 
-def prep_logging(log_file_name=None, verbosity=False) -> None:
+def prep_logging(log_file=None, verbosity=False) -> None:
     """
     Allows for multiple file handlers to be added to the root logger, but only a single stream handler.
     The new file handlers must be removed outside of this function explicitly
 
-    :param log_file_name:
-    :param verbosity:
+    :param log_file: Path to a file to write the TreeSAPP log
+    :param verbosity: Whether debug-level information should be written (True) or not (False)
     :return: None
     """
     if verbosity:
@@ -237,7 +237,7 @@ def prep_logging(log_file_name=None, verbosity=False) -> None:
     else:
         logging_level = logging.INFO
 
-    # Detect whether a handlers are already present and return if true
+    # Detect whether handlers are already present and return if true
     logger = logging.getLogger()
     if len(logger.handlers):
         return
@@ -249,16 +249,18 @@ def prep_logging(log_file_name=None, verbosity=False) -> None:
     ch.terminator = ''
     ch.setFormatter(formatter)
 
-    if log_file_name:
-        output_dir = os.path.dirname(log_file_name)
+    if log_file:
+        if not os.path.isabs(log_file):
+            log_file = os.path.join(os.getcwd(), os.path.dirname(log_file), os.path.basename(log_file))
+        output_dir = os.path.dirname(log_file)
         try:
             if output_dir and not os.path.isdir(output_dir):
-                os.makedirs(output_dir)
+                os.mkdir(output_dir)
         except (IOError, OSError):
             sys.stderr.write("ERROR: Unable to make directory '" + output_dir + "'.\n")
             sys.exit(3)
         logging.basicConfig(level=logging.DEBUG,
-                            filename=log_file_name,
+                            filename=log_file,
                             filemode='w',
                             datefmt="%d/%m %H:%M:%S",
                             format="%(asctime)s %(levelname)s:\n%(message)s")
