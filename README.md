@@ -2,11 +2,17 @@
 
 [![Build Status](https://travis-ci.org/hallamlab/TreeSAPP.svg?branch=master)](https://travis-ci.org/hallamlab/TreeSAPP)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/b1937000c13040e8bba62f46e954796e)](https://www.codacy.com/gh/hallamlab/TreeSAPP?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hallamlab/TreeSAPP&amp;utm_campaign=Badge_Grade)
+[![codecov](https://codecov.io/gh/hallamlab/TreeSAPP/branch/master/graph/badge.svg)](https://codecov.io/gh/hallamlab/TreeSAPP)
+
 [![PyPI version](https://badge.fury.io/py/treesapp.svg)](https://badge.fury.io/py/treesapp)
+[![Python version](https://img.shields.io/pypi/pyversions/treesapp.svg)](https://img.shields.io/pypi/pyversions/)
 
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/treesapp/README.html)
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/treesapp/badges/platforms.svg)](https://anaconda.org/bioconda/treesapp)
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/treesapp/badges/version.svg)](https://anaconda.org/bioconda/treesapp)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/treesapp/badges/platforms.svg)](https://anaconda.org/bioconda/treesapp)
+
+[![Docker Repository on Quay](https://quay.io/repository/hallamlab/treesapp/status "Docker Repository on Quay")](https://quay.io/repository/hallamlab/treesapp)
+
 
 ## Overview
 
