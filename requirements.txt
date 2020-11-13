@@ -6,7 +6,7 @@ packaging >=20.4
 pyfastx >=0.7.0
 pygtrie >=2.3.3
 samsum >=0.1.2
-setuptools >=50.3.2
+setuptools >=50.3.1
 scikit-learn ==0.23.1
 scipy >=1.5.2
 six >=1.15.0
