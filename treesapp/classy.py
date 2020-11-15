@@ -1215,7 +1215,7 @@ class Evaluator(TreeSAPP):
 
         for depth in sorted(self.rank_depth_map):
             rank = self.rank_depth_map[depth]
-            if rank == "Cellular organisms":
+            if rank == "root":
                 continue
             taxonomic_distance = dict()
             n_queries, n_classified, sensitivity = self.get_sensitivity(rank)
@@ -1230,10 +1230,6 @@ class Evaluator(TreeSAPP):
                 for assignments in rank_assigned_dict[rank]:
                     for classified in assignments:
                         acc += 1
-                        if classified.split("; ")[0] == "Cellular organisms":
-                            logging.error("Lineage string cleaning has gone awry somewhere. "
-                                          "The root rank should be a Kingdom (e.g. Bacteria or Archaea) but nope.\n")
-                            sys.exit(21)
                         optimal, query = assignments[classified]
                         if optimal == classified:
                             offset = 0

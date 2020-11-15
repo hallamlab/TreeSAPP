@@ -320,7 +320,7 @@ def compute_taxonomic_distance(ref_lineage: str, query_lineage: str):
     return distance, 0
 
 
-def determine_offset(classified, optimal):
+def determine_offset(classified: str, optimal: str) -> int:
     # Figure out which taxonomic lineage is longer
     offset = 0
     while classified != optimal and offset < 7:
