@@ -22,7 +22,7 @@ CLASSIFIERS = [
 SETUP_METADATA = \
     {
         "name": "treesapp",
-        "version": "0.9.3",
+        "version": "0.9.4",
         "description": "TreeSAPP is a functional and taxonomic annotation tool for genomes and metagenomes.",
         "long_description": LONG_DESCRIPTION,
         "long_description_content_type": "text/markdown",

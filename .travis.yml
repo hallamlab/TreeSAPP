@@ -10,6 +10,9 @@ branches:
   only:
   - master
 
+on:
+  tags: true
+
 before_deploy:
     - git config --local user.name "cmorganl"
     - git config --local user.email "c.morganlang@gmail.com"
