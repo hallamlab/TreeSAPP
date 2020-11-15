@@ -116,9 +116,17 @@ class ReferencePackage:
         return refpkg_clone
 
     def pickle_package(self) -> None:
+        """
+        Dumps a new joblib pickled file of the ReferencePackage instance dictionary to self.f__json.
+
+        :return: None.
+        """
         if len(self.f__json) == 0:
             self.bail("ReferencePackage.f__json not set. ReferencePackage band() cannot be completed.\n")
             raise AttributeError
+
+        if not os.path.isdir(os.path.dirname(self.f__json)):
+            os.mkdir(os.path.dirname(self.f__json))
 
         try:
             refpkg_handler = open(self.f__json, 'wb')
@@ -645,7 +653,7 @@ class ReferencePackage:
 
         return taxa_internal_node_map
 
-    def remove_taxon_from_lineage_ids(self, taxon) -> None:
+    def remove_taxon_from_lineage_ids(self, taxon: str) -> None:
         """
         Removes all sequences/leaves from the reference package that match the target taxon. Leaves with that have a
         taxonomic resolution lower than the target are also removed as their taxonomic provenance is uncertain.
@@ -747,6 +755,13 @@ class ReferencePackage:
         if tmp_dir[-1] != os.sep:
             tmp_dir = tmp_dir + os.sep
         self.disband(tmp_dir)
+
+        split_lineage = target_clade.split(self.taxa_trie.lin_sep)
+        base_taxon = self.taxa_trie.get_taxon(split_lineage[0])
+        if not base_taxon:
+            logging.error("Unable to find taxon '{}' in taxonomic hierarchy."
+                          " Unable to exclude from reference package '{}'.\n".format(split_lineage[0], self.prefix))
+            sys.exit(11)
 
         # tax_ids
         self.remove_taxon_from_lineage_ids(target_clade)

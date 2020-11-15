@@ -3,26 +3,16 @@
 __author__ = 'Connor Morgan-Lang'
 
 import os
-import shutil
 import logging
 import sys
 import re
-from glob import glob
 
-from treesapp.fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes, sequence_info_groups
+from treesapp.fasta import write_new_fasta, FASTA
 from treesapp.external_command_interface import launch_write_command
-from treesapp.classy import get_header_format, Evaluator
+from treesapp.classy import Evaluator
 from treesapp.refpkg import ReferencePackage
 from treesapp.phylo_dist import trim_lineages_to_rank
 from treesapp.entrez_utils import EntrezRecord
-
-_RANK_DEPTH_MAP = {0: "cellular organisms", 1: "domain",
-                   2: "phylum", 3: "class", 4: "order",
-                   5: "family", 6: "genus", 7: "species", 8: "strain"}
-
-
-def load_rank_depth_map(evaluator: Evaluator):
-    evaluator.rank_depth_map = _RANK_DEPTH_MAP
 
 
 def parse_distances(classification_lines):
@@ -36,61 +26,6 @@ def parse_distances(classification_lines):
         distances["pendant"].append(float(dist_fields[1]))
         distances["tip"].append(float(dist_fields[2]))
     return distances
-
-
-def read_intermediate_assignments(inter_class_file):
-    logging.debug("Reading " + inter_class_file + " for saved intermediate data... ")
-    assignments = dict()
-    n_saved = 0
-    try:
-        file_handler = open(inter_class_file, 'r')
-    except OSError:
-        logging.error("Unable to open " + inter_class_file + " for reading.\n")
-        sys.exit(21)
-    line = file_handler.readline()
-    while line:
-        line = line.strip()
-        try:
-            marker, ref, queries = line.split('\t')
-        except ValueError:
-            logging.warning("\tWARNING: " + inter_class_file + " is incorrectly formatted so regenerating instead.\n" +
-                            "Violating line with " + str(len(line.split('\t'))) + " elements:\n" + line + "\n")
-            return assignments, n_saved
-        queries_list = queries.split(',')
-        n_saved += len(queries_list)
-
-        if marker not in assignments:
-            assignments[marker] = dict()
-        assignments[marker][ref] = queries_list
-        line = file_handler.readline()
-
-    file_handler.close()
-    logging.debug("done.\n")
-    return assignments, n_saved
-
-
-def write_intermediate_assignments(inter_class_file, assignments):
-    logging.debug("Saving intermediate data... ")
-    try:
-        file_handler = open(inter_class_file, 'w')
-    except OSError:
-        logging.error("Unable to open " + inter_class_file + " for writing!\n")
-        sys.exit(21)
-    assignments_string = ""
-    for marker in assignments.keys():
-        for ref in assignments[marker].keys():
-            queries = assignments[marker][ref]
-            if len(queries) == 0:
-                logging.warning("No lineage information was downloaded for queries assigned to " +
-                                ref + "\n")
-            else:
-                assignments_string += marker + "\t" + ref + "\t"
-                assignments_string += ','.join(queries) + "\n"
-
-    file_handler.write(assignments_string)
-    file_handler.close()
-    logging.debug("done.\n")
-    return
 
 
 def determine_containment(marker_eval_inst: Evaluator):
@@ -173,111 +108,6 @@ def determine_containment(marker_eval_inst: Evaluator):
     sys.stdout.write("\n".join(containment_strings) + "\n")
 
     return containment_strings
-
-
-def clean_classification_names(assignments):
-    """
-    Removes certain ranks, taxonomic super-groups, etc. so strings are more comparable
-
-    :param assignments:
-    :return:
-    """
-    cleaned_assignments = dict()
-    for marker in assignments.keys():
-        cleaned_assignments[marker] = dict()
-        for ref, queries in assignments[marker].items():
-            cleaned_assignments[marker][ref] = list()
-            for query in queries:
-                try:
-                    query = re.sub('_', "; ", query)
-                except TypeError:
-                    logging.error("Unexpected type of lineage string (" + str(type(query)) + "):\n" +
-                                  str(query) + "\n")
-                    sys.exit(21)
-                cleaned_assignments[marker][ref].append(query)
-    return cleaned_assignments
-
-
-def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
-    """
-    Since the headers used throughout the TreeSAPP pipeline are truncated,
-    we read the FASTA file and use those headers instead of their short version
-    in case valuable information was discarded
-
-    :param fasta_headers: full-length headers that will replace those in assignments
-    :param header_map:
-    :param assignments: A dictionary of reference (lineage) and query names
-    :param molecule_type: prot, nucl, or rrna? Parsed from command-line arguments
-    :return: assignments with a full lineage for both reference (keys) and queries (values)
-    """
-    genome_position_re = re.compile("^([A-Z0-9._]+):.[0-9]+-[0-9]+[_]+.*")
-    marker_assignments = dict()
-    entrez_query_list = list()
-    num_queries = 0
-    header_regex_dict = load_fasta_header_regexes()
-    for robust_classification in assignments.keys():
-        marker_assignments[robust_classification] = list()
-        for query in assignments[robust_classification]:
-            try:
-                original_header = header_map['>' + query]
-            except KeyError:
-                logging.error("Unable to find " + query +
-                              " in header_map (constructed from either the input FASTA or .uc file).\n" +
-                              "This is probably an error stemming from `reformat_string()`.\n")
-                sys.exit(21)
-            # print(query, original_header)
-            database = molecule_type
-            q_accession = ""
-            if not re.search(r"Bacteria|Archaea", query):
-                # Check for genomic coordinates, indicating these genes will be in the 'nucleotide' database
-                if genome_position_re.match(query):
-                    q_accession = genome_position_re.match(query).group(1)
-                    database = "dna"
-                else:
-                    header_format_re, header_db, _ = get_header_format(original_header, header_regex_dict)
-                    sequence_info = header_format_re.match(original_header)
-                    q_accession = sequence_info_groups(sequence_info, header_db, original_header).accession
-                # print(q_accession)
-                entrez_query_list.append((q_accession, database))
-                marker_assignments[robust_classification].append(q_accession)
-                num_queries += 1
-            else:
-                n_match = 0
-                for header in fasta_headers:
-                    f_accession = header[1:].split('_')[0]
-                    # Useful for headers containing the full lineage
-                    if q_accession == f_accession:
-                        marker_assignments[robust_classification].append('_'.join(header.split('_')[1:]))
-                        n_match += 1
-                    else:
-                        pass
-                if n_match == 0:
-                    logging.error("Unable to find matching header for " + query + " in fasta!\n")
-                    sys.exit(21)
-                elif n_match > 1:
-                    logging.error("Headers with identical accessions were identified in fasta!\n" +
-                                  "Offending accession: " + q_accession + "\n")
-                sys.exit(21)
-
-    return marker_assignments, entrez_query_list
-
-
-def assign_lineages(complete_ref_seqs, assignments):
-    """
-
-    :param assignments:
-    :param complete_ref_seqs:
-    :return: lineages_list = full_assignments[marker][ref_classification]
-    """
-    for marker in assignments:
-        for robust_classification in assignments[marker]:
-            tmp_lineage_list = []
-            for accession in assignments[marker][robust_classification]:
-                for ref_seq in complete_ref_seqs:
-                    if ref_seq.accession == accession:
-                        tmp_lineage_list.append(ref_seq.lineage)
-            assignments[marker][robust_classification] = tmp_lineage_list
-    return assignments
 
 
 def map_headers_to_lineage(assignments: dict, ref_sequences: dict) -> dict:
@@ -438,7 +268,7 @@ def str_list_index(lst: list, query: str):
 
 def same_lineage(target_lineage: str, candidate_lineage: str) -> bool:
     """
-    Identify which candidate lineages are belong to target lineage and are at least as specific
+    Identify which candidate lineages belong to target lineage and are at least as specific
     1. "Root; Bacteria", "Root"                           False
     2. "Root; Bacteria", "Root; Archaea"                  False
     3. "Root; Bacteria", "Root; Bacteria"                 True
@@ -553,80 +383,42 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
     return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
 
 
-def prep_graftm_ref_files(intermediate_dir: str, target_taxon: str, refpkg: ReferencePackage, depth: int):
+def prep_graftm_ref_files(refpkg: ReferencePackage, tmp_dir: str, target_clade: str, executables: dict) -> dict:
     """
     From the original TreeSAPP reference package files, the necessary GraftM create input files are generated
     with all reference sequences related to the target_taxon removed from the multiple sequence alignment,
     unaligned reference FASTA file and the tax_ids file.
 
-    :param intermediate_dir:  Path to write the intermediate files with target references removed
-    :param target_taxon: Name of the taxon that is being tested in the current clade exclusion iteration
+    :param tmp_dir:  Path to write the intermediate files with target references removed
+    :param target_clade: Taxonomic lineage of the clade that is being excluded from the reference package.
     :param refpkg: A ReferencePackage instance for the reference package being tested
-    :param depth: Depth of the current taxonomic rank in hierarchy (e.g. Phylum = 2, Class = 3, etc.)
-    :return: None
+    :param executables: Dictionary of paths to dependency executables indexed by their names. Must include:
+         'hmmbuild', 'FastTree' and 'raxml-ng'.
+    :return: A dictionary providing paths to output files
     """
-    # Move the original FASTA, tree and tax_ids files to a temporary location
-    off_target_ref_leaves = dict()
-    # tax_ids file
-    ref_tree_leaves = refpkg.generate_tree_leaf_references_from_refpkg()
-    with open(intermediate_dir + "tax_ids_" + refpkg.prefix + ".txt", 'w') as tax_ids_handle:
-        tax_ids_strings = list()
-        for ref_leaf in ref_tree_leaves:
-            if re.search(target_taxon, ref_leaf.lineage):
-                continue
-            sc_lineage = ref_leaf.lineage.split("; ")
-            if len(sc_lineage) < depth:
-                continue
-            if re.search("unclassified|environmental sample", ref_leaf.lineage, re.IGNORECASE):
-                i = 0
-                while i <= depth:
-                    if re.search("unclassified|environmental sample", sc_lineage[i], re.IGNORECASE):
-                        i -= 1
-                        break
-                    i += 1
-                if i < depth:
-                    continue
-            organism, accession = ref_leaf.description.split(" | ")
-            off_target_ref_leaves[ref_leaf.number] = accession
-            tax_ids_strings.append(accession + "\t" + ref_leaf.lineage)
-        tax_ids_handle.write("\n".join(tax_ids_strings) + "\n")
+    # GraftM refpkg input paths:
+    output_paths = {"filtered_tax_ids": os.path.join(tmp_dir, refpkg.prefix + "_lineage_ids.txt"),
+                    "filtered_mfa": os.path.join(tmp_dir, refpkg.prefix + ".mfa"),
+                    "filtered_fasta": os.path.join(tmp_dir, refpkg.prefix + ".fa")}
 
-    # fasta
-    ref_fasta_dict = read_fasta_to_dict(refpkg.msa)
-    accession_fasta_dict = dict()
-    for key_id in ref_fasta_dict:
-        num_key = key_id.split('_')[0]
-        if num_key in off_target_ref_leaves.keys():
-            accession_fasta_dict[off_target_ref_leaves[num_key]] = ref_fasta_dict[key_id]
-        else:
-            pass
-    write_new_fasta(accession_fasta_dict, intermediate_dir + refpkg.prefix + ".mfa")
-    for acc in accession_fasta_dict:
-        accession_fasta_dict[acc] = re.sub('-', '', accession_fasta_dict[acc])
-    write_new_fasta(accession_fasta_dict, intermediate_dir + refpkg.prefix + ".fa")
-    return
+    ce_refpkg = refpkg.clone(clone_path=tmp_dir + refpkg.prefix + refpkg.refpkg_suffix)
 
+    ce_refpkg.exclude_clade_from_ref_files(tmp_dir=tmp_dir, executables=executables, target_clade=target_clade)
 
-def validate_ref_package_files(refpkg: ReferencePackage, intermediate_dir):
-    intermediate_prefix = intermediate_dir + "ORIGINAL"
+    # Write the lineage_ids file
+    lineage_info = []
+    for ref_leaf in ce_refpkg.generate_tree_leaf_references_from_refpkg():
+        lineage_info.append("{}_{}\t{}".format(ref_leaf.number, ce_refpkg.prefix, ref_leaf.lineage))
 
-    # This prevents users from quitting mid-analysis then using bad reference package files with clades removed
-    remnants = glob(intermediate_prefix + "*")
-    if len(remnants) > 0:
-        logging.warning("Intermediate files from incomplete analysis exist:\n" + "\n".join(remnants) + "\n")
-        logging.info("Attempting recovery... ")
-        # Easiest way to recover is to move the originals back to proper location and proceed
-        try:
-            shutil.copy(intermediate_prefix + ".fa", refpkg.msa)
-            shutil.copy(intermediate_prefix + "_tree.txt", refpkg.tree)
-            if os.path.isfile(intermediate_prefix + "_bipartitions.txt"):
-                shutil.copy(intermediate_prefix + "_bipartitions.txt", refpkg.boot_tree)
-            shutil.copy(intermediate_prefix + "_tax_ids.txt", refpkg.lineage_ids)
-            logging.info("succeeded.\n")
-        except FileNotFoundError:
-            logging.info("failed. Redownload data files and start over.\n")
-            sys.exit(21)
-    return
+    with open(output_paths["filtered_tax_ids"], 'w') as taxa_handler:
+        taxa_handler.write("\n".join(lineage_info) + "\n")
+
+    # Create and write the unaligned fasta file
+    ce_fasta = ce_refpkg.get_fasta()  # type: FASTA
+    write_new_fasta(fasta_dict=ce_fasta.fasta_dict, fasta_name=output_paths["filtered_mfa"])
+    ce_fasta.unalign()
+    write_new_fasta(fasta_dict=ce_fasta.fasta_dict, fasta_name=output_paths["filtered_fasta"])
+    return output_paths
 
 
 def build_graftm_package(gpkg_path: str, tax_file: str, mfa_file: str, fa_file: str, threads: int):

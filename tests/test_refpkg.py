@@ -3,11 +3,12 @@ import pytest
 import os
 from shutil import rmtree
 
+from . import testing_utils as utils
+
 
 @pytest.fixture(scope="class")
 def refpkg_class(request):
     from treesapp import refpkg
-    from . import testing_utils as utils
     request.cls.db = refpkg.ReferencePackage("McrA")
     request.cls.db.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
     request.cls.db.slurp()
@@ -17,11 +18,21 @@ def refpkg_class(request):
 @pytest.mark.usefixtures("refpkg_class")
 class RefPkgTester(unittest.TestCase):
     def setUp(self) -> None:
+        from treesapp.utilities import fetch_executable_path
         self.new_pkl_path = "./test_write_json" + self.db.refpkg_suffix
         self.disband_path = "_".join([self.db.prefix, self.db.refpkg_code, self.db.date])
         if os.path.isdir(self.disband_path):
             rmtree(self.disband_path)
+        self.intermediates_dir = "refpkg_test_dir"
+        if os.path.isdir(self.intermediates_dir):
+            rmtree(self.intermediates_dir)
+        os.mkdir(self.intermediates_dir)
 
+        # Find the executables
+        self.exe_map = {}
+        self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+        for dep in ["hmmbuild", "hmmalign", "raxml-ng", "mafft", "BMGE.jar", "FastTree"]:
+            self.exe_map[dep] = fetch_executable_path(dep, utils.get_treesapp_root())
         return
 
     def tearDown(self) -> None:
@@ -29,6 +40,8 @@ class RefPkgTester(unittest.TestCase):
             rmtree(self.disband_path)
         if os.path.isfile(self.new_pkl_path):
             os.remove(self.new_pkl_path)
+        if os.path.isdir(self.intermediates_dir):
+            rmtree(self.intermediates_dir)
         return
 
     def test_band(self):
@@ -118,6 +131,24 @@ class RefPkgTester(unittest.TestCase):
         taxa_counts = self.db.enumerate_taxonomic_lineages()
         self.assertIsInstance(taxa_counts, dict)
         self.assertTrue("r__Root" in taxa_counts)
+        return
+
+    def test_exclude_clade_from_ref_files(self):
+        ce_taxon = "c__Methanosarcinales"
+        ce_refpkg = self.db.clone(clone_path=os.path.join(self.intermediates_dir, ce_taxon,
+                                                          self.db.prefix + self.db.refpkg_suffix))
+
+        # Fail due to invalid target taxon
+        with pytest.raises(SystemExit):
+            ce_refpkg.exclude_clade_from_ref_files(tmp_dir=os.path.join(self.intermediates_dir, ce_taxon),
+                                                   executables=self.exe_map, target_clade=ce_taxon)
+
+        # Work as normal
+        ce_taxon = "d__Archaea; p__Euryarchaeota; c__Methanomicrobia; o__Methanosarcinales"
+        ce_refpkg.exclude_clade_from_ref_files(tmp_dir=os.path.join(self.intermediates_dir, ce_taxon.split("; ")[-1]),
+                                               executables=self.exe_map,
+                                               target_clade=ce_taxon, fresh=True)
+        self.assertEqual(144, ce_refpkg.num_seqs)
         return
 
 

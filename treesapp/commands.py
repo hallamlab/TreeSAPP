@@ -38,7 +38,7 @@ from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_pac
 from treesapp.jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from treesapp.clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
-    determine_containment, parse_distances, load_rank_depth_map, get_testable_lineages_for_rank
+    determine_containment, parse_distances, get_testable_lineages_for_rank
 
 
 def info(sys_args):
@@ -1469,7 +1469,8 @@ def evaluate(sys_args):
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_evaluate_arguments(ts_evaluate, args)
     ts_evaluate.decide_stage(args)
-    load_rank_depth_map(ts_evaluate)
+    ts_evaluate.rank_depth_map = {ts_evaluate.ref_pkg.taxa_trie.accepted_ranks_depths[rank_name]: rank_name for
+                                  rank_name in ts_evaluate.ref_pkg.taxa_trie.accepted_ranks_depths}
 
     ref_leaves = ts_evaluate.ref_pkg.generate_tree_leaf_references_from_refpkg()
     ref_lineages = {leaf.number: leaf.lineage for leaf in ref_leaves}
@@ -1512,11 +1513,7 @@ def evaluate(sys_args):
         else:
             min_seq_length = str(30)
 
-        # validate_ref_package_files(refpkg, ts_evaluate.output_dir)
-
-        ranks = {"domain": 0, "phylum": 1, "class": 2, "order": 3, "family": 4, "genus": 5, "species": 6}
         for rank in args.taxon_rank:
-            depth = ranks[rank]
             for lineage in get_testable_lineages_for_rank(ref_lineages, rep_accession_lineage_map, rank):
                 # Select representative sequences belonging to the taxon being tested
                 taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_records, lineage)
@@ -1546,25 +1543,21 @@ def evaluate(sys_args):
                     gpkg_path = intermediates_path + test_refpkg_prefix + ".gpkg"
 
                     if not os.path.isfile(classification_table):
-                        # GraftM refpkg input paths:
-                        filtered_gpkg_tax_ids = intermediates_path + "tax_ids_" + ts_evaluate.ref_pkg.prefix + ".txt"
-                        filtered_mfa = intermediates_path + ts_evaluate.ref_pkg.prefix + ".mfa"
-                        filtered_fasta = intermediates_path + ts_evaluate.ref_pkg.prefix + ".fa"
                         # GraftM refpkg output files:
                         gpkg_refpkg_path = gpkg_path + os.sep + test_refpkg_prefix + ".gpkg.refpkg" + os.sep
                         gpkg_tax_ids_file = gpkg_refpkg_path + ts_evaluate.ref_pkg.prefix + "_taxonomy.csv"
 
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prep_graftm_ref_files(intermediate_dir=intermediates_path,
-                                              target_taxon=lineage,
-                                              refpkg=ts_evaluate.ref_pkg,
-                                              depth=depth)
+                        output_paths = prep_graftm_ref_files(tmp_dir=intermediates_path,
+                                                             target_clade=lineage,
+                                                             refpkg=ts_evaluate.ref_pkg,
+                                                             executables=ts_evaluate.executables)
 
                         if not os.path.isdir(gpkg_path):
                             build_graftm_package(gpkg_path=gpkg_path,
-                                                 tax_file=filtered_gpkg_tax_ids,
-                                                 mfa_file=filtered_mfa,
-                                                 fa_file=filtered_fasta,
+                                                 tax_file=output_paths["filtered_tax_ids"],
+                                                 mfa_file=output_paths["filtered_mfa"],
+                                                 fa_file=output_paths["filtered_fasta"],
                                                  threads=args.num_threads)
                         shutil.copy(gpkg_tax_ids_file, tax_ids_file)
                         # Write the query sequences
