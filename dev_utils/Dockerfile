@@ -1,16 +1,17 @@
 FROM ubuntu:bionic
 
-ENV TREESAPP_VERSION="0.9.2"\
+ENV TREESAPP_VERSION="0.9.5"\
   MAFFT_VERSION="7.471-1"\
   BWA_VERSION="0.7.17"\
   PRODIGAL_VERSION="2.6.3"\
   HMMER_VERSION="3.3"\
   RAXML_VERSION="1.0.1"\
   EPA_VERSION="0.3.8"\
-  VSEARCH_VERSION="2.15.0"
+  VSEARCH_VERSION="2.15.0"\
+  MMSEQS_VERSION="12-113e3"
 
 LABEL base.image="ubuntu:bionic"
-LABEL container.version="0.1"
+LABEL container.version="0.2"
 LABEL software="TreeSAPP"
 LABEL software.version=${TREESAPP_VERSION}
 LABEL description="A Python package for gene-centric taxonomic and functional classification using phylogenetic placement"
@@ -57,6 +58,10 @@ RUN wget https://github.com/torognes/vsearch/archive/v${VSEARCH_VERSION}.tar.gz 
  tar xzf v${VSEARCH_VERSION}.tar.gz && \
  cd vsearch-${VSEARCH_VERSION} && \
  ./autogen.sh && ./configure && make && make install && cd -
+
+RUN curl -LJ0 --output mmseqs-linux-sse41.tar.gz https://github.com/soedinglab/MMseqs2/releases/download/${MMSEQS_VERSION}/MMseqs2-Linux-SSE4_1.tar.gz && \
+ tar xvzf mmseqs-linux-sse41.tar.gz && \
+ cp mmseqs/bin/mmseqs /usr/local/bin
 
 RUN curl -LJ0 --output /usr/bin/prodigal https://github.com/hyattpd/Prodigal/releases/download/v${PRODIGAL_VERSION}/prodigal.linux && \
  chmod +x /usr/bin/prodigal
