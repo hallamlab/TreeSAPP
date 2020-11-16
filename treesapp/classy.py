@@ -695,9 +695,9 @@ class Updater(TreeSAPP):
         self.combined_fasta = ""  # Holds the newly identified candidate reference sequences and the original ref seqs
         self.old_ref_fasta = ""  # Contains only the original reference sequences
         self.cluster_input = ""  # Used only if resolve is True
-        self.uclust_prefix = ""  # Used only if resolve is True
+        self.clusters_prefix = ""  # Used only if resolve is True
         self.updated_refpkg_path = ""
-        self.rank_depth_map = None
+        # self.rank_depth_map = None
         self.prop_sim = 1.0
         self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the refpkg
         self.updated_refpkg = ReferencePackage()

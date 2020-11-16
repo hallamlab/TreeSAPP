@@ -702,8 +702,8 @@ def check_create_arguments(creator: Creator, args) -> None:
     creator.training_dir = os.path.abspath(creator.var_output_dir) + os.sep + "placement_trainer" + os.sep
     creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
     creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
-    creator.cluster_input = creator.var_output_dir + creator.sample_prefix + "_uclust_input.fasta"
-    creator.clusters_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.ref_pkg.pid)
+    creator.cluster_input = creator.var_output_dir + creator.sample_prefix + "_cluster_input.fasta"
+    creator.clusters_prefix = creator.var_output_dir + creator.sample_prefix + "_cluster" + str(creator.ref_pkg.pid)
     creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
     creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
 
@@ -728,7 +728,7 @@ def check_updater_arguments(updater: Updater, args):
                                                os.path.basename(updater.ref_pkg.f__json))
     updater.ref_pkg.disband(os.path.join(updater.output_dir, "intermediates"))
     updater.seq_names_to_taxa = args.seq_names_to_taxa
-    updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
+    # updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
 
     if args.similarity == 1.0:
         updater.prop_sim = updater.ref_pkg.pid
@@ -739,7 +739,7 @@ def check_updater_arguments(updater: Updater, args):
         if not 0.5 <= float(args.similarity) <= 1.0:
             if 0.5 < float(args.similarity) / 100 < 1.0:
                 args.similarity = str(float(args.similarity) / 100)
-                logging.warning("--similarity  set to {} for compatibility with VSEARCH.\n".format(args.similarity))
+                logging.warning("--similarity set to {} for compatibility.\n".format(args.similarity))
             else:
                 logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
@@ -760,8 +760,8 @@ def check_updater_arguments(updater: Updater, args):
     updater.combined_fasta = updater.var_output_dir + "all_refs.fasta"
     updater.lineage_map_file = updater.var_output_dir + "accession_id_lineage_map.tsv"
     updater.assignment_table = updater.final_output_dir + "marker_contig_map.tsv"
-    updater.cluster_input = updater.var_output_dir + updater.sample_prefix + "_uclust_input.fasta"
-    updater.uclust_prefix = updater.var_output_dir + updater.sample_prefix + "_uclust" + str(updater.prop_sim)
+    updater.cluster_input = updater.var_output_dir + updater.sample_prefix + "_cluster_input.fasta"
+    updater.clusters_prefix = updater.var_output_dir + updater.sample_prefix + "_cluster" + str(updater.prop_sim)
     classified_seqs = glob(updater.final_output_dir + "*_classified.faa")
 
     if len(classified_seqs) == 1:

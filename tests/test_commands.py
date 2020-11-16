@@ -123,7 +123,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
-        self.assertEqual(70, test_refpkg.num_seqs)
+        self.assertEqual(69, test_refpkg.num_seqs)
         self.assertEqual(2, len(test_refpkg.pfit))
         self.assertTrue(test_refpkg.pfit[0] < 0)
         return
@@ -175,7 +175,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/PF01280_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
-        self.assertEqual(54, test_refpkg.num_seqs)
+        self.assertEqual(51, test_refpkg.num_seqs)
         return
 
     def test_evaluate(self):
@@ -313,7 +313,7 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
-        self.assertEqual(50, test_refpkg.num_seqs)
+        self.assertEqual(49, test_refpkg.num_seqs)
         return
 
     def test_update_seqs2lineage(self):
@@ -335,17 +335,14 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
-        self.assertEqual(50, test_refpkg.num_seqs)
+        self.assertEqual(49, test_refpkg.num_seqs)
         return
 
     # def test_tmp(self):
-    #     # from treesapp.commands import create
-    #     from treesapp import MCC_calculator
+    #     from treesapp.commands import create
     #     base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
-    #     cmd = "-i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/EggNOGv4.5_PF00380_PF00410.faa -o /home/connor/Desktop/TreeSAPP_outputs/MCC_treesapp_0.9.3/ --trim_align -m prot --annot_map /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/EggNOG_refpkg_OG_map.tsv -n 8 --targets T0380,T0410 --overwrite"
-    #     MCC_calculator.mcc_calculator(cmd.split())
-    #     # cmd = "".format(base_dir)
-    #     # create(cmd.split())
+    #     cmd = "".format(base_dir)
+    #     create(cmd.split())
     #     return
 
 

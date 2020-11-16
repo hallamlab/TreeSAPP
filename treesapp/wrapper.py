@@ -566,7 +566,7 @@ def cluster_sequences(software_path: str, fasta_input: str, output_prefix: str, 
     if "mmseqs" in software_path:
         logging.info("Clustering sequences with MMSeqs' Linclust... ")
         run_linclust(mmseqs_exe=software_path, fa_in=[fasta_input], output_prefix=output_prefix, prop_sim=similarity,
-                     tmp_dir=os.path.dirname(output_prefix), num_threads=num_threads)
+                     num_threads=num_threads)
     elif "vsearch" in software_path:
         logging.info("Clustering sequences with VSEARCH's cluster_fast algorithm... ")
         run_vsearch_clustering(software_path, fasta_input, output_prefix, similarity)

@@ -164,8 +164,8 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     warning_threshold = 10  # Emit a warning if the number of taxa representing a rank drops below this proportion
     min_refpkg_size = 10  # Minimum number of sequences in a clade-excluded reference package for it to be used
     min_refpkg_proportion = int(len(leaf_taxa_map)*0.5)
-    uclust_prefix = output_dir + os.sep + "uclust" + str(similarity)
-    uclust_input = output_dir + os.sep + "uclust_input.fasta"
+    clustering_prefix = output_dir + os.sep + "cluster" + str(similarity)
+    clustering_input = output_dir + os.sep + "clustering_input.fasta"
     lin_sep = t_hierarchy.lin_sep
 
     rank_training_seqs = dict()
@@ -267,9 +267,10 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     logging.debug("\n".join(test_taxa_summary) + "\n")
 
     test_seqs.change_dict_keys("num")
-    fasta.write_new_fasta(test_seqs.fasta_dict, uclust_input)
-    wrapper.cluster_sequences(executables["vsearch"], uclust_input, uclust_prefix, similarity)
-    cluster_dict = file_parsers.read_uc(uclust_prefix + ".uc")
+    fasta.write_new_fasta(test_seqs.fasta_dict, clustering_input)
+    wrapper.cluster_sequences(executables["mmseqs"], clustering_input, clustering_prefix, similarity)
+    cluster_dict = file_parsers.create_mmseqs_clusters(clusters_tbl=clustering_prefix + "_cluster.tsv",
+                                                       aln_tbl=clustering_prefix + "_cluster_aln.tsv")
     test_seqs.keep_only([cluster_dict[clust_id].representative for clust_id in cluster_dict.keys()])
     logging.debug("\t" + str(len(test_seqs.fasta_dict.keys())) + " sequence clusters\n")
 

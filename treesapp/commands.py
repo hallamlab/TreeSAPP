@@ -504,8 +504,9 @@ def create(sys_args):
                               fasta_name=ts_create.cluster_input,
                               headers=list(fasta_records.keys()))
         if args.cluster:
-            wrapper.cluster_sequences(ts_create.executables["mmseqs"], ts_create.cluster_input,
-                                      ts_create.clusters_prefix, ts_create.ref_pkg.pid)
+            wrapper.cluster_sequences(software_path=ts_create.executables["mmseqs"],
+                                      fasta_input=ts_create.cluster_input, output_prefix=ts_create.clusters_prefix,
+                                      similarity=ts_create.ref_pkg.pid, num_threads=args.num_threads)
             ts_create.clusters_table = ts_create.clusters_prefix + "_cluster.tsv"
             cluster_alignments = ts_create.clusters_prefix + "_cluster_aln.tsv"
         # Read the uc file if present
@@ -857,11 +858,12 @@ def update(sys_args):
         # not all clustering tools + versions keep whole header - spaces are replaced with underscores
         fasta.write_new_fasta(fasta_dict=combined_fasta.fasta_dict,
                               fasta_name=ts_updater.cluster_input)
-        wrapper.cluster_sequences(ts_updater.executables["vsearch"], ts_updater.cluster_input,
-                                  ts_updater.uclust_prefix, ts_updater.prop_sim)
-        ts_updater.uc = ts_updater.uclust_prefix + ".uc"
+        wrapper.cluster_sequences(ts_updater.executables["mmseqs"], ts_updater.cluster_input,
+                                  ts_updater.clusters_prefix, ts_updater.prop_sim)
+        clusters_table = ts_updater.clusters_prefix + "_cluster.tsv"
+        cluster_alignments = ts_updater.clusters_prefix + "_cluster_aln.tsv"
 
-        cluster_dict = file_parsers.read_uc(ts_updater.uc)
+        cluster_dict = file_parsers.create_mmseqs_clusters(clusters_tbl=clusters_table, aln_tbl=cluster_alignments)
 
         # Revert headers in cluster_dict from 'formatted' back to 'original'
         fasta.rename_cluster_headers(cluster_dict, combined_fasta.header_registry)
