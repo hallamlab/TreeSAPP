@@ -385,23 +385,41 @@ def profile_aligner(executables, ref_aln, ref_profile, input_fasta, output_sto, 
     return stdout
 
 
-def run_papara(executable, tree_file, ref_alignment_phy, query_fasta, molecule):
-    papara_command = [executable]
-    papara_command += ["-t", tree_file]
-    papara_command += ["-s", ref_alignment_phy]
-    papara_command += ["-q", query_fasta]
-    if molecule == "prot":
-        papara_command.append("-a")
+def run_linclust(mmseqs_exe: str, fa_in: str, output_prefix: str, prop_sim: float,
+                 aln_cov=0.95, num_threads=2, tmp_dir="./tmp_dir") -> None:
+    """
+    Wrapper for MMSeqs2's LinClust algorithm for clustering amino acid and nucleotide sequences in linear time.
 
-    stdout, ret_code = launch_write_command(papara_command)
-    if ret_code != 0:
-        logging.error("PaPaRa did not complete successfully!\n" +
-                      "Command used:\n" + ' '.join(papara_command) + "\n")
-        sys.exit(3)
-    return stdout
+    :param mmseqs_exe: Path to the mmseqs executable
+    :param fa_in: Path to the input FASTA to be clustered
+    :param output_prefix: Prefix to use for naming the output files
+    :param prop_sim: List matches above this sequence identity (for clustering) (range 0.0-1.0)
+    :param aln_cov: List matches above this fraction of aligned (covered) residues
+    :param num_threads: The number of computational threads to use when clustering
+    :param tmp_dir: The path to a temporary output directory. It does not need to already exist; MMSeqs2 will create it.
+    :return: None
+    """
+    if not 0.0 < aln_cov < 1.0:
+        logging.error("Provided alignment sequence similarity {} not in expected range, 0.0-1.0.\n".format(prop_sim))
+        sys.exit(5)
+
+    mmseqs_cmd = [mmseqs_exe, "easy-linclust",
+                  "--min-seq-id", str(prop_sim),
+                  "-c", str(aln_cov),
+                  "--threads", str(num_threads),
+                  fa_in, output_prefix, tmp_dir]
+
+    stdout, mmseqs_retcode = launch_write_command(mmseqs_cmd)
+
+    if mmseqs_retcode != 0:
+        logging.error("Linclust sequence clustering with {} failed."
+                      " Command used:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_cmd)))
+        sys.exit(7)
+
+    return
 
 
-def cluster_sequences(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
+def run_vsearch_clustering(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
     """
     Wrapper function for clustering a FASTA file at some similarity using vsearch's cluster_fast algorithm
 
@@ -411,13 +429,12 @@ def cluster_sequences(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
     :param similarity: The proportional similarity to cluster input sequences
     :return: None
     """
-    logging.info("Clustering sequences with VSEARCH's cluster_fast algorithm... ")
     uclust_cmd = [uclust_exe]
     uclust_cmd += ["--cluster_fast", fasta_input]
     uclust_cmd += ["--id", str(similarity)]
     uclust_cmd += ["--centroids", uclust_prefix + ".fa"]
     uclust_cmd += ["--uc", uclust_prefix + ".uc"]
-    logging.info("done.\n")
+
     stdout, returncode = launch_write_command(uclust_cmd)
 
     if returncode != 0:
@@ -429,7 +446,44 @@ def cluster_sequences(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
     return
 
 
-def build_hmm_profile(hmmbuild_exe: str, msa_in: str, output_hmm: str, name=None):
+def cluster_sequences(software_path: str, fasta_input: str, output_prefix: str, similarity=0.60, num_threads=2) -> None:
+    """
+    Wrapper function for clustering a FASTA file at some similarity using some tool.
+
+    :param software_path: Path to the software's executable
+    :param fasta_input: FASTA file for which contained sequences will be clustered
+    :param output_prefix: Prefix for the output files
+    :param similarity: The proportional similarity to cluster input sequences
+    :param num_threads: The number of threads for the clustering software to use
+    :return: None
+    """
+    if "mmseqs" in software_path:
+        logging.info("Clustering sequences with MMSeqs' Linclust... ")
+        run_linclust(mmseqs_exe=software_path, fa_in=fasta_input, output_prefix=output_prefix, prop_sim=similarity,
+                     tmp_dir=os.path.dirname(output_prefix), num_threads=num_threads)
+    elif "vsearch" in software_path:
+        logging.info("Clustering sequences with VSEARCH's cluster_fast algorithm... ")
+        run_vsearch_clustering(software_path, fasta_input, output_prefix, similarity)
+    else:
+        logging.error("Unsupported software for clustering sequences: '{}'.\n".format(software_path))
+        sys.exit(19)
+
+    logging.info("done.\n")
+
+    return
+
+
+def build_hmm_profile(hmmbuild_exe: str, msa_in: str, output_hmm: str, name=None, graceful=False) -> None:
+    """
+    Wrapper for hmmbuild, used to build profile hidden Markov models (HMMs).
+
+    :param hmmbuild_exe: Path to the hmmbuild executable
+    :param msa_in: Path to the multiple sequence alignment to be used for inferring the profile HMM
+    :param output_hmm: Path to the output HMM
+    :param name: Optional name for the HMM. If not the name is taken from the MSA file name
+    :param graceful: Optionally, TreeSAPP will not exit if hmmbuild failed and graceful is True; it will return instead.
+    :return: None
+    """
     logging.debug("Building HMM profile... ")
     hmm_build_command = [hmmbuild_exe]
     if name:
@@ -438,25 +492,10 @@ def build_hmm_profile(hmmbuild_exe: str, msa_in: str, output_hmm: str, name=None
     stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
     logging.debug("done.\n")
 
-    if hmmbuild_pro_returncode != 0:
+    if hmmbuild_pro_returncode != 0 and not graceful:
         logging.error("hmmbuild did not complete successfully for:\n" +
                       ' '.join(hmm_build_command) + "\n")
         sys.exit(7)
-
-
-def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
-    prodigal_command = [args.executables["prodigal"]]
-    prodigal_command += ["-i", fasta_file]
-    prodigal_command += ["-p", "meta"]
-    prodigal_command += ["-a", output_file]
-    if nucleotide_orfs:
-        prodigal_command += ["-d", nucleotide_orfs]
-    stdout, proc_code = launch_write_command(prodigal_command)
-
-    if proc_code != 0:
-        logging.error("Prodigal did not complete successfully!\n" +
-                      "Command used:\n" + ' '.join(prodigal_command), "err", "\n")
-        sys.exit(3)
     return
 
 
@@ -571,7 +610,18 @@ def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads) -> Non
     return
 
 
-def run_odseq(odseq_exe, fasta_in, outliers_fa, num_threads):
+def run_odseq(odseq_exe: str, fasta_in: str, outliers_fa: str, num_threads: int) -> None:
+    """
+    Wrapper for OD-Seq, software for detecting outliers in a multiple sequence alignment.
+    1000 bootstrap replicates are used, along with a linear metric for selecting the outliers.
+    These parameters were found to perform the best, empirically.
+
+    :param odseq_exe: Path to the OD-Seq executable
+    :param fasta_in: Path to the multiple sequence alignment file in FASTA format.
+    :param outliers_fa: Path to the fasta file containing the outliers detected
+    :param num_threads: Number of threads for OD-Seq to use
+    :return: None
+    """
     odseq_command = [odseq_exe]
     odseq_command += ["-i", fasta_in]
     odseq_command += ["-f", "fasta"]
