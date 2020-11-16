@@ -184,6 +184,43 @@ class Cluster:
         return info_string
 
 
+class BlastAln:
+    def __init__(self):
+        self.subject = ""
+        self.query = ""
+        self.start = 0
+        self.end = 0
+        self.alnlen = 0
+        self.gapopen = 0
+        self.mismatch = 0
+        self.qstart = 0
+        self.qend = 0
+        self.tstart = 0
+        self.tend = 0
+        self.evalue = 0.0
+        self.pident = 0.0
+        self.bits = 0.0
+
+    def load_blast_tab(self, line: str, sep="\t") -> None:
+        try:
+            fields = line.strip().split(sep)
+        except ValueError:
+            logging.error("Unable to parse line in from alignment table:\n{}\n".format(line))
+            sys.exit(7)
+
+        try:
+            self.subject, self.query = fields[0], fields[1]
+            self.pident, self.alnlen, self.mismatch, self.gapopen = fields[2:6]
+            self.qstart, self.qend, self.tstart, self.tend = fields[6:10]
+            self.evalue, self.bits = fields[10], fields[11]
+        except ValueError:
+            logging.error("Incorrect format for line in alignment file. Twelve were expected, found {}.\n{}\n"
+                          "".format(len(fields), line))
+            sys.exit(7)
+
+        return
+
+
 class MyFormatter(logging.Formatter):
 
     error_fmt = "%(levelname)s - %(module)s, line %(lineno)d:\n%(message)s"
@@ -565,7 +602,7 @@ class TreeSAPP:
             dependencies += ["bwa"]
 
         if self.command in ["create", "update", "train", "evaluate"]:
-            dependencies += ["vsearch", "mafft"]
+            dependencies += ["mmseqs", "mafft"]
             if hasattr(args, "fast") and args.fast:
                 dependencies.append("FastTree")
 
@@ -727,8 +764,8 @@ class Creator(TreeSAPP):
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
         self.filtered_fasta = ""
         self.hmm_profile = ""  # HMM profile used for screening the input sequences
-        self.uclust_prefix = ""  # FASTA file prefix for cluster centroids
-        self.uc = ""  # UCLUST-specific output file defining the clusters, members, representatives, etc.
+        self.clusters_prefix = ""  # FASTA file prefix for cluster centroids
+        self.clusters_table = ""  # Output file defining the clusters, members, representatives, and similarity
         self.cluster_input = ""  # Name of the file to be used for clustering
         self.unaln_ref_fasta = ""  # FASTA file of unaligned reference sequences
         self.phylip_file = ""  # Used for building the phylogenetic tree with RAxML

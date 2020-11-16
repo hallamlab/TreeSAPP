@@ -2,8 +2,9 @@ import sys
 import os
 import time
 import re
+import glob
 import logging
-from shutil import copy
+from shutil import copy, rmtree
 
 from tqdm import tqdm
 
@@ -385,10 +386,68 @@ def profile_aligner(executables, ref_aln, ref_profile, input_fasta, output_sto, 
     return stdout
 
 
-def run_linclust(mmseqs_exe: str, fa_in: str, output_prefix: str, prop_sim: float,
-                 aln_cov=0.95, num_threads=2, tmp_dir="./tmp_dir") -> None:
+def generate_mmseqs_cluster_alignments(mmseqs_exe: str, db_name: str,
+                                       clusters_file: str, align_db: str, align_tab: str) -> None:
+    """
+    Wrapper for generating an alignment file from MMSeqs clusters.
+
+    :param mmseqs_exe: Path to the mmseqs executable
+    :param db_name: Root path to the MMSeqs database files
+    :param clusters_file: Path to the file defining MMSeqs clusters
+    :param align_db: Name of the output alignment database
+    :param align_tab: Name of the output alignment table
+    :return: None
+    """
+    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "align",
+                                                   "--alignment-mode", str(3),
+                                                   db_name, db_name, clusters_file, align_db])
+    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "convertalis",
+                                                   db_name, db_name, align_db, align_tab])
+    if mmseqs_retcode != 0:
+        logging.error("{} sequence cluster alignments failed.\n".format(mmseqs_exe))
+        sys.exit(7)
+    return
+
+
+def generate_mmseqs_cluster_fasta(mmseqs_exe: str, db_name: str,
+                                  clusters_file: str, reps: str, reps_fasta: str) -> None:
+    """
+    Wrapper for generating a FASTA file containing just the representative sequences from an MMSeqs clustering analysis.
+
+    :param mmseqs_exe: Path to the mmseqs executable
+    :param db_name: Root path to the MMSeqs database files
+    :param clusters_file: Path to the file defining MMSeqs clusters
+    :param reps: Prefix for the file defining the cluster representatives
+    :param reps_fasta: Path to the FASTA file storing the sequences of the cluster representatives
+    :return: None
+    """
+    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "createsubdb",
+                                                   clusters_file, db_name, reps])
+    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "convert2fasta",
+                                                   reps, reps_fasta])
+    if mmseqs_retcode != 0:
+        logging.error("{} failed to generate a cluster fasta file.\n".format(mmseqs_exe))
+        sys.exit(7)
+    return
+
+
+def generate_mmseqs_cluster_table(mmseqs_exe, db_name, int_clusters, cluster_tbl):
+    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "createtsv",
+                                                   db_name, db_name,
+                                                   int_clusters, cluster_tbl])
+    if mmseqs_retcode != 0:
+        logging.error("{} failed to generate a cluster fasta file.\n".format(mmseqs_exe))
+        sys.exit(7)
+    return
+
+
+def run_linclust(mmseqs_exe: str, fa_in: list, output_prefix: str, prop_sim: float,
+                 aln_cov=0.95, num_threads=2, db_type="aa", tmp_dir="") -> None:
     """
     Wrapper for MMSeqs2's LinClust algorithm for clustering amino acid and nucleotide sequences in linear time.
+    In addition to just generating the clusters file, this wrapper generates:
+1. a FASTA file with the cluster representatives
+2. a table including the sequence alignment similarities between the representatives and members
 
     :param mmseqs_exe: Path to the mmseqs executable
     :param fa_in: Path to the input FASTA to be clustered
@@ -396,6 +455,7 @@ def run_linclust(mmseqs_exe: str, fa_in: str, output_prefix: str, prop_sim: floa
     :param prop_sim: List matches above this sequence identity (for clustering) (range 0.0-1.0)
     :param aln_cov: List matches above this fraction of aligned (covered) residues
     :param num_threads: The number of computational threads to use when clustering
+    :param db_type: Molecule type for the database, default being amino acids (aa). These are translated for MMSeqs.
     :param tmp_dir: The path to a temporary output directory. It does not need to already exist; MMSeqs2 will create it.
     :return: None
     """
@@ -403,18 +463,64 @@ def run_linclust(mmseqs_exe: str, fa_in: str, output_prefix: str, prop_sim: floa
         logging.error("Provided alignment sequence similarity {} not in expected range, 0.0-1.0.\n".format(prop_sim))
         sys.exit(5)
 
-    mmseqs_cmd = [mmseqs_exe, "easy-linclust",
-                  "--min-seq-id", str(prop_sim),
-                  "-c", str(aln_cov),
-                  "--threads", str(num_threads),
-                  fa_in, output_prefix, tmp_dir]
+    if not tmp_dir:
+        tmp_dir = os.path.join(os.path.dirname(output_prefix), "tmp")
 
-    stdout, mmseqs_retcode = launch_write_command(mmseqs_cmd)
+    # Set up MMSeqs parameters
+    if db_type == "aa":
+        db_type = 1
+    elif db_type == "nuc":
+        db_type = 2
+    else:
+        db_type = 0
+    # Intermediate files
+    db_name = output_prefix + "_mmseqs_db"
+    clusters_file = db_name + "_clu"
+    reps = clusters_file + "_reps"
+    align_db = clusters_file + "_aln"
+    # Final outputs
+    align_tab = output_prefix + "_cluster_aln.tsv"
+    clust_tab = output_prefix + "_cluster.tsv"
+    reps_fasta = output_prefix + "_rep_seq.fasta"
 
+    # Create the MMSeqs database
+    mmseqs_db_cmd = [mmseqs_exe, "createdb",
+                     "--dbtype", str(db_type),
+                     ' '.join(fa_in), db_name]
+
+    stdout, mmseqs_retcode = launch_write_command(mmseqs_db_cmd)
+    if mmseqs_retcode != 0:
+        logging.error("MMSeqs database creation with {} failed."
+                      " Command used:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_db_cmd)))
+        sys.exit(7)
+
+    # Cluster the MMSeqs database
+    mmseqs_cluster_cmd = [mmseqs_exe, "linclust",
+                          "--min-seq-id", str(prop_sim),
+                          "-c", str(aln_cov),
+                          "--threads", str(num_threads),
+                          "--cluster-mode", str(2),
+                          "--cov-mode", str(1),
+                          db_name, clusters_file, tmp_dir]
+
+    stdout, mmseqs_retcode = launch_write_command(mmseqs_cluster_cmd)
     if mmseqs_retcode != 0:
         logging.error("Linclust sequence clustering with {} failed."
-                      " Command used:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_cmd)))
+                      " Command used:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_cluster_cmd)))
         sys.exit(7)
+
+    # Format the desired outputs
+    generate_mmseqs_cluster_fasta(mmseqs_exe, db_name, clusters_file, reps, reps_fasta)
+    generate_mmseqs_cluster_alignments(mmseqs_exe, db_name, clusters_file, align_db, align_tab)
+    generate_mmseqs_cluster_table(mmseqs_exe, db_name, clusters_file, clust_tab)
+
+    # Remove the intermediate files
+    rmtree(tmp_dir)
+    for f_path in [reps, align_db, db_name]:
+        if glob.glob(f_path + "*"):
+            for f_name in glob.glob(f_path + "*"):
+                if os.path.isfile(f_name):
+                    os.remove(f_name)
 
     return
 
@@ -459,7 +565,7 @@ def cluster_sequences(software_path: str, fasta_input: str, output_prefix: str, 
     """
     if "mmseqs" in software_path:
         logging.info("Clustering sequences with MMSeqs' Linclust... ")
-        run_linclust(mmseqs_exe=software_path, fa_in=fasta_input, output_prefix=output_prefix, prop_sim=similarity,
+        run_linclust(mmseqs_exe=software_path, fa_in=[fasta_input], output_prefix=output_prefix, prop_sim=similarity,
                      tmp_dir=os.path.dirname(output_prefix), num_threads=num_threads)
     elif "vsearch" in software_path:
         logging.info("Clustering sequences with VSEARCH's cluster_fast algorithm... ")

@@ -7,7 +7,7 @@ import logging
 from glob import glob
 from collections import namedtuple
 
-from treesapp.classy import Cluster
+from treesapp.classy import Cluster, BlastAln
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import read_fasta_to_dict
 from treesapp import HMMER_domainTblParser
@@ -440,30 +440,6 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> dict:
     return clusters
 
 
-def xml_parser(xml_record, term):
-    """
-    Recursive function for parsing individual xml records
-
-    :param xml_record:
-    :param term:
-    :return:
-    """
-    # TODO: Finish this off - would be great for consistently extracting data from xml
-    value = None
-    if isinstance(xml_record, str):
-        return value
-    if term not in xml_record.keys():
-        for record in xml_record:
-            value = xml_parser(record, term)
-            if value:
-                return value
-            else:
-                continue
-    else:
-        return xml_record[term]
-    return value
-
-
 def read_phylip_to_dict(phylip_input):
     header_dict = dict()
     tmp_seq_dict = dict()
@@ -571,7 +547,7 @@ def read_stockholm_to_dict(sto_file):
     return seq_dict
 
 
-def read_uc(uc_file):
+def read_uc(uc_file: str) -> dict:
     """
     Function to read a VSEARCH cluster (.uc) file
 
@@ -580,7 +556,6 @@ def read_uc(uc_file):
         The Cluster object
     """
     cluster_dict = dict()
-    rep_len_map = dict()
     try:
         uc = open(uc_file, 'r')
     except IOError:
@@ -594,7 +569,6 @@ def read_uc(uc_file):
         cluster_type, num_id, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
         if cluster_type == "S":
             cluster_dict[num_id] = Cluster(header)
-            rep_len_map[header] = length
         elif cluster_type == "H":
             cluster_dict[num_id].members.append([header, identity])
         elif cluster_type == "C":
@@ -606,6 +580,101 @@ def read_uc(uc_file):
     uc.close()
     logging.debug("done.\n")
     return cluster_dict
+
+
+def read_linclust_clusters(clusters_tsv_file: str) -> dict:
+    """
+    Reads the two-column TSV file representing MMSeqs clusters, where the first column is the name of the
+    representative sequence and the second is the name of the member sequence.
+
+    :param clusters_tsv_file: Path to the two-column TSV file written by `mmseqs createtsv`.
+    :return: A dictionary mapping the cluster number (in order of iteration) mapped to its Cluster instance.
+    """
+    try:
+        cluster_tbl = open(clusters_tsv_file)
+    except IOError:
+        logging.error("Unable to open MMSeqs clusters table '{}' for reading!\n".format(clusters_tsv_file))
+        sys.exit(13)
+
+    previous = ""
+    cluster_acc = 0
+    clusters = dict()
+    cl_inst = None
+    for line in cluster_tbl:
+        if not line:
+            continue
+        try:
+            rep_name, mem_name = line.strip().split("\t")
+        except ValueError:
+            logging.error("Unacceptable line format in MMSeqs cluster table:\n{}\n".format(line))
+            sys.exit(17)
+        if rep_name != previous:
+            cl_inst = Cluster(rep_name)
+            clusters[str(cluster_acc)] = cl_inst
+            cluster_acc += 1
+        cl_inst.members.append([mem_name, 0.0])
+        previous = rep_name
+
+    cluster_tbl.close()
+
+    return clusters
+
+
+def create_mmseqs_clusters(clusters_tbl: str, aln_tbl: str) -> dict:
+    """
+    Joins an cluster-specific alignment table created by MMSeqs.
+
+    :param clusters_tbl: Path to a tab-separated values file with 2 columns, one each for the sequence names of
+     the cluster representative and for the cluster member.
+    :param aln_tbl: Path to a tab-separated values file with 12 columns:
+     (1,2) identifiers for query and target sequences/profiles,
+     (3) sequence identity,
+     (4) alignment length,
+     (5) number of mismatches,
+     (6) number of gap openings,
+     (7-8, 9-10) domain start and end-position in query and in target,
+     (11) E-value, and (12) bit score.
+    :return: Dictionary where keys are numerical identifiers representing the cluster ID and values are Cluster objects
+    """
+    # Define the clusters
+    clusters = read_linclust_clusters(clusters_tbl)
+
+    try:
+        aln = open(aln_tbl, 'r')
+    except IOError:
+        logging.error("Unable to open MMSeqs alignment table '{}' for reading!\n".format(aln_tbl))
+        sys.exit(13)
+
+    # Read the alignments, storing them in a dictionary indexed by subject/target/representative names
+    aln_map = {}
+    for line in aln:
+        if not line:
+            continue
+        alignment = BlastAln()
+        alignment.load_blast_tab(line)
+        try:
+            aln_map[alignment.subject].append(alignment)
+        except KeyError:
+            aln_map[alignment.subject] = [alignment]
+    aln.close()
+
+    for num_id, cluster in clusters.items():  # type: (int, Cluster)
+        rep_alignments = aln_map[cluster.representative]
+        for member in cluster.members:  # type: list
+            mem_name, pident = member
+            x = 0
+            while x < len(rep_alignments):
+                alignment = rep_alignments[x]  # type: BlastAln
+                if alignment.query == mem_name:
+                    member[1] = alignment.pident
+                    rep_alignments.pop(x)
+                else:
+                    x += 1
+            if member[1] == 0:
+                logging.error("Unable to find an alignment between representative '{}' and query '{}' from MMSeqs.\n")
+                sys.exit(11)
+
+    return clusters
 
 
 def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, queries_mapped=False, min_seq_length=30):

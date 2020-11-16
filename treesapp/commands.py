@@ -504,12 +504,13 @@ def create(sys_args):
                               fasta_name=ts_create.cluster_input,
                               headers=list(fasta_records.keys()))
         if args.cluster:
-            wrapper.cluster_sequences(ts_create.executables["vsearch"], ts_create.cluster_input,
-                                      ts_create.uclust_prefix, ts_create.ref_pkg.pid)
-            ts_create.uc = ts_create.uclust_prefix + ".uc"
+            wrapper.cluster_sequences(ts_create.executables["mmseqs"], ts_create.cluster_input,
+                                      ts_create.clusters_prefix, ts_create.ref_pkg.pid)
+            ts_create.clusters_table = ts_create.clusters_prefix + "_cluster.tsv"
+            cluster_alignments = ts_create.clusters_prefix + "_cluster_aln.tsv"
         # Read the uc file if present
-        if ts_create.uc:
-            cluster_dict = file_parsers.read_uc(ts_create.uc)
+        if ts_create.clusters_table and cluster_alignments:
+            cluster_dict = file_parsers.create_mmseqs_clusters(ts_create.clusters_table, cluster_alignments)
 
             # Revert headers in cluster_dict from 'formatted' back to 'original'
             fasta.rename_cluster_headers(cluster_dict, ref_seqs.header_registry)
@@ -524,7 +525,7 @@ def create(sys_args):
         ##
         # Swap sequences in 'guarantee' for the representatives, creating new clusters
         ##
-        if args.guarantee and ts_create.uc:
+        if args.guarantee and ts_create.clusters_table:
             # We don't want to make the tree redundant so instead of simply adding the sequences in guarantee,
             #  we will swap them for their respective representative sequences.
             # All important sequences become representative, even if multiple are in the same cluster
@@ -534,11 +535,11 @@ def create(sys_args):
         ##
         # Set the cluster-specific values for ReferenceSequence objects
         ##
-        if ts_create.uc and not args.headless:
+        if ts_create.clusters_table and not args.headless:
             # Allow user to select the representative sequence based on organism name, sequence length and similarity
             create_refpkg.present_cluster_rep_options(cluster_dict, fasta_records, ref_seqs.header_registry,
                                                       ref_seqs.amendments)
-        elif ts_create.uc and args.headless:
+        elif ts_create.clusters_table and args.headless:
             create_refpkg.finalize_cluster_reps(cluster_dict, fasta_records, ref_seqs.header_registry)
         else:
             pass
