@@ -398,13 +398,15 @@ def generate_mmseqs_cluster_alignments(mmseqs_exe: str, db_name: str,
     :param align_tab: Name of the output alignment table
     :return: None
     """
-    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "align",
-                                                   "--alignment-mode", str(3),
-                                                   db_name, db_name, clusters_file, align_db])
+    # Align the member sequences to each representative for a cluster
+    launch_write_command([mmseqs_exe, "align", "--alignment-mode", str(3), db_name, db_name, clusters_file, align_db])
+
+    # Convert the MMSeqs alignments to a twelve-column BLAST-like table
     stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "convertalis",
                                                    db_name, db_name, align_db, align_tab])
     if mmseqs_retcode != 0:
-        logging.error("{} sequence cluster alignments failed.\n".format(mmseqs_exe))
+        logging.error("{} sequence cluster alignments failed. MMSeqs output:\n"
+                      "{}\n".format(mmseqs_exe, stdout))
         sys.exit(7)
     return
 
@@ -421,12 +423,14 @@ def generate_mmseqs_cluster_fasta(mmseqs_exe: str, db_name: str,
     :param reps_fasta: Path to the FASTA file storing the sequences of the cluster representatives
     :return: None
     """
-    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "createsubdb",
-                                                   clusters_file, db_name, reps])
-    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "convert2fasta",
-                                                   reps, reps_fasta])
+    # Subset the database to just include the sequence for representatives
+    launch_write_command([mmseqs_exe, "createsubdb", clusters_file, db_name, reps])
+
+    # Convert the subsetted database to a FASTA file
+    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "convert2fasta", reps, reps_fasta])
     if mmseqs_retcode != 0:
-        logging.error("{} failed to generate a cluster fasta file.\n".format(mmseqs_exe))
+        logging.error("{} failed to generate a cluster fasta file. MMSeqs output:\n"
+                      "{}\n".format(mmseqs_exe, stdout))
         sys.exit(7)
     return
 
@@ -436,7 +440,8 @@ def generate_mmseqs_cluster_table(mmseqs_exe, db_name, int_clusters, cluster_tbl
                                                    db_name, db_name,
                                                    int_clusters, cluster_tbl])
     if mmseqs_retcode != 0:
-        logging.error("{} failed to generate a cluster fasta file.\n".format(mmseqs_exe))
+        logging.error("{} failed to generate a cluster fasta file. MMSeqs output:\n"
+                      "{}\n".format(mmseqs_exe, stdout))
         sys.exit(7)
     return
 
@@ -490,8 +495,9 @@ def run_linclust(mmseqs_exe: str, fa_in: list, output_prefix: str, prop_sim: flo
 
     stdout, mmseqs_retcode = launch_write_command(mmseqs_db_cmd)
     if mmseqs_retcode != 0:
-        logging.error("MMSeqs database creation with {} failed."
-                      " Command used:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_db_cmd)))
+        logging.error("MMSeqs database creation with {} failed. Command used:\n"
+                      "{}\n"
+                      "MMSeqs output:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_db_cmd), stdout))
         sys.exit(7)
 
     # Cluster the MMSeqs database

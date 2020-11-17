@@ -658,14 +658,13 @@ def create_mmseqs_clusters(clusters_tbl: str, aln_tbl: str) -> dict:
             aln_map[alignment.subject] = [alignment]
     aln.close()
 
-    for num_id, cluster in clusters.items():  # type: (int, Cluster)
+    for _, cluster in clusters.items():  # type: (int, Cluster)
         rep_alignments = aln_map[cluster.representative]
-        for member in cluster.members:  # type: list
-            mem_name, pident = member
+        for member in cluster.members:  # type: [str, float]
             x = 0
             while x < len(rep_alignments):
                 alignment = rep_alignments[x]  # type: BlastAln
-                if alignment.query == mem_name:
+                if alignment.query == member[0]:
                     member[1] = alignment.pident
                     rep_alignments.pop(x)
                 else:
