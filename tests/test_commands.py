@@ -1,4 +1,5 @@
 import unittest
+import pytest
 import os
 from shutil import rmtree
 
@@ -191,6 +192,13 @@ class TreesappTester(unittest.TestCase):
                                  "--trim_align", "--overwrite", "--delete"]
         evaluate(evaluate_command_list)
         self.assertEqual(True, True)
+        return
+
+    def test_info(self):
+        from treesapp.commands import info
+        with pytest.raises(SystemExit):
+            info(["--verbose", "--refpkg_dir", "./"])
+        info([])
         return
 
     def test_layer(self):

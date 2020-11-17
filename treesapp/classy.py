@@ -260,13 +260,14 @@ class MyFormatter(logging.Formatter):
         return result
 
 
-def prep_logging(log_file=None, verbosity=False) -> None:
+def prep_logging(log_file=None, verbosity=False, stream=sys.stderr) -> None:
     """
     Allows for multiple file handlers to be added to the root logger, but only a single stream handler.
     The new file handlers must be removed outside of this function explicitly
 
     :param log_file: Path to a file to write the TreeSAPP log
     :param verbosity: Whether debug-level information should be written (True) or not (False)
+    :param stream: Which stream, sys.stdout or sys.stderr, should the console logger write to?
     :return: None
     """
     if verbosity:
@@ -281,10 +282,10 @@ def prep_logging(log_file=None, verbosity=False) -> None:
 
     formatter = MyFormatter()
     # Set the console handler normally writing to stdout/stderr
-    ch = logging.StreamHandler()
-    ch.setLevel(logging_level)
-    ch.terminator = ''
-    ch.setFormatter(formatter)
+    console_handler = logging.StreamHandler(stream=stream)
+    console_handler.setLevel(logging_level)
+    console_handler.terminator = ''
+    console_handler.setFormatter(formatter)
 
     if log_file:
         if not os.path.isabs(log_file):
@@ -301,7 +302,7 @@ def prep_logging(log_file=None, verbosity=False) -> None:
                             filemode='w',
                             datefmt="%d/%m %H:%M:%S",
                             format="%(asctime)s %(levelname)s:\n%(message)s")
-        logging.getLogger('').addHandler(ch)
+        logging.getLogger('').addHandler(console_handler)
         logging.getLogger('').propagate = False
     else:
         logging.basicConfig(level=logging_level,

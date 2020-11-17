@@ -136,7 +136,7 @@ Use '-h' to get subcommand-specific help, e.g.
     if not os.path.isdir(args.output):
         os.mkdir(args.output)
 
-    classy.prep_logging(os.path.join(args.output, 'TreeSAPP_package_log.txt'))
+    classy.prep_logging(log_file=os.path.join(args.output, 'TreeSAPP_package_log.txt'), stream=sys.stdout)
 
     for refpkg_pkl in args.pkg_path:
         refpkg.f__json = refpkg_pkl
