@@ -280,6 +280,9 @@ def executable_dependency_versions(exe_dict: dict) -> str:
             stdout, returncode = launch_write_command([exe_dict[exe], "-h"])
         elif exe in no_params:
             stdout, returncode = launch_write_command([exe_dict[exe]])
+        elif exe == "mmseqs":
+            stdout, returncode = launch_write_command([exe_dict[exe], "version"])
+            versions_dict[exe] = stdout.strip()
         elif exe == "FastTree":
             stdout, returncode = launch_write_command([exe_dict[exe], "-expert"])
         elif exe == "BMGE.jar":

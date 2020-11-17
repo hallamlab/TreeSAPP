@@ -135,6 +135,13 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.assertTrue("n__environmental samples_1" in test_th.hierarchy)
         self.assertTrue("n__environmental samples_2" not in test_th.hierarchy)
         self.assertEqual(0, len(test_th.conflicts))
+
+        # Test loading a TreeLeafReference instance with unclassified taxa
+        unclassified_leaf = TreeLeafReference('5', '2667527398_667992784')
+        unclassified_leaf.lineage = "d__Archaea; p__Euryarchaeota; c__Methanomicrobia; o__Methanomicrobiales; f__unclassified; g__unclassified"
+        test_th.feed_leaf_nodes([unclassified_leaf])
+        self.assertEqual(4, test_th.lineages_fed)
+        self.assertEqual(1, test_th.get_taxon("d__Archaea").coverage)
         return
 
     def test_remove_leaf_nodes(self):

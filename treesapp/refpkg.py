@@ -782,8 +782,8 @@ class ReferencePackage:
             sys.exit(21)
 
         # profile HMM
-        hmm_build_command = [executables["hmmbuild"], self.f__profile, self.f__msa]
-        launch_write_command(hmm_build_command)
+        wrapper.build_hmm_profile(executables["hmmbuild"],
+                                  output_hmm=self.f__profile, msa_in=self.f__msa, graceful=True)
 
         # profile HMM used for homology search
         self.dereplicate_hmm(dereplication_rank="genus",
