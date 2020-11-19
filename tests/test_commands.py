@@ -199,6 +199,7 @@ class TreesappTester(unittest.TestCase):
         with pytest.raises(SystemExit):
             info(["--verbose", "--refpkg_dir", "./"])
         info([])
+        self.assertTrue(True)
         return
 
     def test_layer(self):

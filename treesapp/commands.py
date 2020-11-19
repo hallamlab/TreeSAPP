@@ -714,7 +714,7 @@ def update(sys_args):
     ts_updater.furnish_with_arguments(args)
     ts_updater.check_previous_output(args.overwrite)
 
-    log_file_name = args.output + os.sep + "TreeSAPP_updater_log.txt"
+    log_file_name = args.output + os.sep + "TreeSAPP_update_log.txt"
     classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tUpdating TreeSAPP reference package\t\t\t##\n")
 
