@@ -494,9 +494,10 @@ def create(sys_args):
     fasta.write_new_fasta(fasta_dict=ref_seqs.fasta_dict, fasta_name=ref_seqs.file, headers=filtered_headers)
 
     ##
-    # Optionally cluster the input sequences using VSEARCH at the specified identity
+    # Optionally cluster the input sequences using MMSeqs' linclust at the specified identity
     ##
     if ts_create.stage_status("cluster"):
+        pre_cluster = ref_seqs.n_seqs()
         ref_seqs.change_dict_keys("num")
         # Write a FASTA for clustering containing the formatted headers since
         # not all clustering tools + versions keep whole header - spaces are replaced with underscores
@@ -515,7 +516,7 @@ def create(sys_args):
 
             # Revert headers in cluster_dict from 'formatted' back to 'original'
             fasta.rename_cluster_headers(cluster_dict, ref_seqs.header_registry)
-            logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
+            logging.debug("\t{} sequence clusters\n".format(len(cluster_dict.keys())))
             ##
             # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
             ##
@@ -544,6 +545,9 @@ def create(sys_args):
             create_refpkg.finalize_cluster_reps(cluster_dict, fasta_records, ref_seqs.header_registry)
         else:
             pass
+        ref_seqs.keep_only(header_subset=[x for x in fasta_records if fasta_records[x].cluster_rep])
+        post_cluster = ref_seqs.n_seqs()
+        ts_create.overcluster_warning(pre_cluster, post_cluster)
 
     if ts_create.stage_status("build"):
         if args.od_seq:

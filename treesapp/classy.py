@@ -882,6 +882,17 @@ class Creator(TreeSAPP):
                      "".format(self.ref_pkg.f__json, self.treesapp_dir))
         return
 
+    def overcluster_warning(self, pre_count: int, post_count: int) -> None:
+        low_count = 100
+        proportion = 0.5
+        if pre_count > low_count > post_count and post_count/pre_count < proportion:
+            logging.warning("Clustering at {} similarity removed >{}% of input sequences -"
+                            " consider increasing this threshold.\n"
+                            "You have five seconds to cancel and restart.\n".format(self.ref_pkg.pid,
+                                                                                    100*(1-proportion)))
+            time.sleep(5)
+        return
+
 
 class Purity(TreeSAPP):
     def __init__(self):
