@@ -1459,16 +1459,20 @@ class Assigner(TreeSAPP):
                        4: ModuleFunction("place", 4, self.place),
                        5: ModuleFunction("classify", 5, self.classify)}
 
-    def decide_stage(self, args):
+    def decide_stage(self, args) -> None:
         """
         Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
 
         This function ensures all the required inputs are present for beginning at the desired first stage,
         otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
 
-        If a
         :return: None
         """
+        if args.molecule == "dna":
+            if os.path.isfile(self.aa_orfs_file) and os.path.isfile(self.nuc_orfs_file):
+                self.change_stage_status("orf-call", False)
+                self.query_sequences = self.aa_orfs_file
+
         if args.rpkm:
             if not args.reads:
                 if args.reverse:
@@ -1561,6 +1565,7 @@ class Assigner(TreeSAPP):
         logging.debug("\tProdigal time required: " +
                       ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
+        self.query_sequences = self.aa_orfs_file
         return
 
     def clean(self):

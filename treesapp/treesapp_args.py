@@ -618,6 +618,7 @@ def check_classify_arguments(assigner: Assigner, args):
     assigner.validate_refpkg_dir(args.refpkg_dir)
 
     if args.molecule == "prot":
+        assigner.query_sequences = assigner.input_sequences
         assigner.change_stage_status("orf-call", False)
         if args.rpkm:
             logging.error("Unable to calculate RPKM values for protein sequences.\n")

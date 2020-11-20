@@ -1180,9 +1180,6 @@ def assign(sys_args):
     ##
     if ts_assign.stage_status("orf-call"):
         ts_assign.predict_orfs(args.composition, args.num_threads)
-        ts_assign.query_sequences = ts_assign.aa_orfs_file
-    else:
-        ts_assign.query_sequences = ts_assign.input_sequences
 
     query_seqs = fasta.FASTA(ts_assign.query_sequences)
     # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
