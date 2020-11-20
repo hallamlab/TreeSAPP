@@ -656,25 +656,29 @@ class TreeSAPP:
             entrez_utils.sync_record_and_hierarchy_lineages(ref_leaf_nodes, entrez_record_dict)
             self.ref_pkg.taxa_trie.validate_rank_prefixes()
             self.ref_pkg.taxa_trie.build_multifurcating_trie()
+
         if self.stage_status("lineages"):
             entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(entrez_record_dict)
             logging.debug("\tNumber of queries =\t" + str(len(entrez_query_list)) + "\n")
-            if len(entrez_query_list) == 0:
-                return entrez_record_dict
-            entrez_utils.map_accessions_to_lineages(entrez_query_list, self.ref_pkg.taxa_trie, molecule, acc_to_taxid)
-            # Repair entrez_record instances either lacking lineages or whose lineages do not contain rank-prefixes
-            entrez_utils.repair_lineages(entrez_record_dict, self.ref_pkg.taxa_trie)
-            self.seq_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_query_list)
-            # Map proper accession to lineage from the tuple keys (accession, accession.version)
-            #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
-            entrez_utils.verify_lineage_information(self.seq_lineage_map, entrez_record_dict,
-                                                    self.ref_pkg.taxa_trie, num_lineages_provided)
+
+            if len(entrez_query_list) >= 1:
+                entrez_utils.map_accessions_to_lineages(entrez_query_list, self.ref_pkg.taxa_trie,
+                                                        molecule, acc_to_taxid)
+                # Repair entrez_record instances either lacking lineages or whose lineages do not contain rank-prefixes
+                entrez_utils.repair_lineages(entrez_record_dict, self.ref_pkg.taxa_trie)
+                self.seq_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_query_list)
+                # Map proper accession to lineage from the tuple keys (accession, accession.version)
+                #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
+                entrez_utils.verify_lineage_information(self.seq_lineage_map, entrez_record_dict,
+                                                        self.ref_pkg.taxa_trie, num_lineages_provided)
 
             self.seq_lineage_map = entrez_utils.accession_lineage_map_from_entrez_records(entrez_record_dict)
             # Ensure the accession IDs are stripped of '>'s
             for accession in sorted(self.seq_lineage_map):
                 if accession[0] == '>':
                     self.seq_lineage_map[accession[1:]] = self.seq_lineage_map.pop(accession)
+
+            # Write the accession-lineage mapping file - essential for training too
             write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
             self.increment_stage_dir()
         else:
