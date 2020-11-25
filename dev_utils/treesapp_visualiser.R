@@ -223,8 +223,6 @@ rank_palette <- scale_fill_manual(name="Resolved", drop=TRUE,
 ##
 # Set up the options parser
 opt <- get_args()
-opt$treesapp_table <-"/home/connor/Desktop/TreeSAPP_outputs/marker_test/final_outputs/marker_contig_map.tsv"
-opt$output_dir <- "~/Desktop/TreeSAPP_outputs/marker_test/"
 
 
 if (is.null(opt$treesapp_table)){
@@ -239,7 +237,7 @@ ts_dat <- load_classification_table(opt$treesapp_table)
 # Summarize taxonomic classification resolution
 taxa_res_bar(ts_dat, opt$output_dir)
 
-# TODO: make a bubble plot of taxonomy by sample name
+# Make a bubble plot of taxonomy by sample name
 taxa_bubbles(ts_dat, opt$output_dir)
 
 # Make a faceted bar plot of taxonomy by sample name
