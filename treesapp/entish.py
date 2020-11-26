@@ -148,6 +148,7 @@ def map_internal_nodes_leaves(tree: str) -> dict:
     node_stack = list()
     leaf_stack = list()
     x = 0
+    current_node = 0
     num_buffer = ""
     while x < len(no_length_tree):
         c = no_length_tree[x]
@@ -189,7 +190,17 @@ def map_internal_nodes_leaves(tree: str) -> dict:
         logging.error("Node stack not empty by end of loading internal-node map:\n" + str(node_stack) + "\n")
         sys.exit(11)
 
-    # validate_internal_node_map(node_map)
+    # Ensure all the leaves were popped in case the tree was unrooted
+    while leaf_stack:
+        current_node += 1
+        try:
+            node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
+        except IndexError:
+            logging.error("Tried to generate leaf-to-internal node map from multifurcating tree.\n")
+            sys.exit(11)
+        if leaf_stack:
+            leaf_stack.append(current_node)
+
     return node_map
 
 
