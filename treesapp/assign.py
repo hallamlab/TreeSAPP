@@ -963,7 +963,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
     logging.info("Filtering low-quality placements... ")
     unclassified_seqs = dict()  # A dictionary tracking the seqs unclassified for each marker
 
-    for refpkg_name in tree_saps:
+    for refpkg_name, pqueries in tree_saps.items():  # type: (str, list)
         refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
         unclassified_seqs[refpkg.prefix] = dict()
         unclassified_seqs[refpkg.prefix]["low_lwr"] = list()
@@ -971,7 +971,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
         unclassified_seqs[refpkg.prefix]["svm"] = list()
         svc_attempt = False
 
-        for tree_sap in tree_saps[refpkg.prefix]:  # type: PQuery
+        for tree_sap in sorted(pqueries, key=lambda x: x.seq_name):  # type: PQuery
             tree_sap.filter_min_weight_threshold(min_lwr)
             if not tree_sap.classified:
                 unclassified_seqs[refpkg.prefix]["low_lwr"].append(tree_sap)
@@ -1054,6 +1054,7 @@ def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"
                 raise ValueError
 
             classified_seqs += 1
+            pquery.placements = [pquery.consensus_placement]
 
             # I have decided to not remove the original JPlace files since some may find these useful
             # os.remove(filename)

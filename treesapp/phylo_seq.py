@@ -320,7 +320,7 @@ class PQuery:
 
         return confident_assignment
 
-    def calculate_consensus_placement(self, labelled_tree: Tree, min_aelw=0.5) -> None:
+    def calculate_consensus_placement(self, labelled_tree: Tree, min_aelw=0.66) -> None:
         """
         Often times, a single PQuery (query sequence mapped onto a phylogeny) may be inserted into the phylogeny
         at multiple edges with similar likelihood.
@@ -328,6 +328,9 @@ class PQuery:
         The PQuery.consensus_placement attribute is either an existing placement (PhyloPlace instance) or the common
         ancestor of all descendent placements that contributed to the new taxonomic assignment. In the latter case, the
         distal, pendant and mean-tip lengths are all set to 0.0.
+
+        All placements that are found to have contributed to the final consensus placement are removed and replaced
+        with the single consensus placement.
 
         :return: None
         """
@@ -340,13 +343,19 @@ class PQuery:
             return
 
         dist_ratio = 0.49
-        aelw_sum = 0.0
         node_aelw_map = {}  # Maps internal node names to accumulated ELW values
         taxon_aelw_map = {}  # Maps taxon names to accumulated ELW values
         node_name_map = {}  # Maps internal node names to TreeNode instances
         taxon_name_map = {}  # Maps taxon names to Taxon instances
         contributors = []
-        for pplace in self.placements:  # type: PhyloPlace
+        # Sort to pop the placements in order of biggest likelihood weight ratio to smallest
+        self.placements = sorted(self.placements, key=lambda x: float(x.like_weight_ratio))
+        self.consensus_placement = PhyloPlace()
+        self.consensus_placement.name = self.placements[-1].name
+        self.consensus_placement.likelihood = self.placements[-1].likelihood
+        while self.placements:
+            # Remove the placements contributing to the aELW and replace with the consensus placement
+            pplace = self.placements.pop(-1)  # type: PhyloPlace
             up_node, down_node = get_ete_edge(labelled_tree, pplace.edge_num)
             parent, child = up_node.taxon, down_node.taxon
             # Ensure each of the taxon in a lineage is in the aELW dictionary
@@ -356,26 +365,30 @@ class PQuery:
                     node_aelw_map[node.name] = 0
 
             if parent == child:
-                node_aelw_map[up_node.name] += pplace.like_weight_ratio
-                node_aelw_map[down_node.name] += pplace.like_weight_ratio
+                node_aelw_map[up_node.name] += (pplace.like_weight_ratio/2)
+                node_aelw_map[down_node.name] += (pplace.like_weight_ratio/2)
             else:
                 node_aelw_map[up_node.name] += (pplace.like_weight_ratio * dist_ratio)
                 node_aelw_map[down_node.name] += (pplace.like_weight_ratio * (1-dist_ratio))
 
-        for node_name in reversed(sorted(node_aelw_map, key=lambda x: node_aelw_map[x])):
-            aelw_sum += node_aelw_map[node_name]
-            contributors.append(node_name_map[node_name])
-            if aelw_sum >= min_aelw:
+            # Check whether the minimum likelihood weight has been reached
+            self.consensus_placement.like_weight_ratio = 0.0
+            contributors.clear()
+            for node_name in reversed(sorted(node_aelw_map, key=lambda x: node_aelw_map[x])):
+                self.consensus_placement.like_weight_ratio += node_aelw_map[node_name]
+                contributors.append(node_name_map[node_name])
+                if self.consensus_placement.like_weight_ratio >= min_aelw:
+                    break
+            if self.consensus_placement.like_weight_ratio >= min_aelw:
                 break
 
         # Find the LCA edge of all placements that contributed to the taxonomic assignment
         node_lca = contributors[0].get_common_ancestor(contributors)  # type: Tree
         # Populate the new placement's attributes
-        c_pplace = PhyloPlace()
-        c_pplace.distal_length, c_pplace.pendant_length, c_pplace.mean_tip_length = 0.0, 0.0, 0.0
-        c_pplace.edge_num = edge_from_node_name(labelled_tree, node_name=node_lca.name)
-        c_pplace.like_weight_ratio = aelw_sum
-        self.consensus_placement = c_pplace
+        self.consensus_placement.distal_length, self.consensus_placement.pendant_length, self.consensus_placement.mean_tip_length = 0.0, 0.0, 0.0
+        self.consensus_placement.edge_num = edge_from_node_name(labelled_tree, node_name=node_lca.name)
+        # Replace the placements that were used in the LCA with the consensus placement
+        self.placements.append(self.consensus_placement)
 
         # Sum the likelihood weights across the different taxa
         for node in contributors:
