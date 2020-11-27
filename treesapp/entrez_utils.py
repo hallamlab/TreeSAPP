@@ -8,6 +8,7 @@ import csv
 
 from Bio import Entrez
 from urllib import error
+from tqdm import tqdm
 
 from treesapp.utilities import get_list_positions, get_field_delimiter
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
@@ -1226,32 +1227,43 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
     :param refpkg_name: The reference package's name
     :return: A dictionary mapping each classified sequence to a lineage and list of TreeSAPP IDs that were mapped
     """
-    logging.info("Mapping assigned sequences to provided taxonomic lineages... ")
+    logging.info("Mapping assigned sequences to provided taxonomic lineages:\n")
     seq_lineage_map = read_seq_taxa_table(seq_lineage_tbl)
     classified_seq_lineage_map = dict()
     treesapp_nums = list(header_registry.keys())
     mapped_treesapp_nums = []
-    for seq_name, lineage in seq_lineage_map.items():  # type: (str, Lineage)
+
+    pbar = tqdm(total=len(seq_lineage_map), ncols=100)
+
+    for seq_name in sorted(seq_lineage_map):  # type: (str, Lineage)
         # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
         # we can't use hash-based data structures to bring it to O(N)
         parent_re = re.compile(seq_name)
         x = 0
         while x < len(treesapp_nums):
             header = header_registry[treesapp_nums[x]]
-            original = header.original
-            assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(refpkg_name), '', original)
+            assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(refpkg_name), '', header.original)
             if parent_re.search(assigned_seq_name):
-                classified_seq_lineage_map[header.first_split] = lineage.build_lineage(add_organism=True)
-                mapped_treesapp_nums.append(treesapp_nums.pop(x))
-            else:
-                x += 1
-        if len(treesapp_nums) == 0:
-            logging.info("done.\n")
-            return classified_seq_lineage_map, mapped_treesapp_nums
+                # Now ensure that this is the best+longest match
+                if header.first_split not in classified_seq_lineage_map:
+                    classified_seq_lineage_map[header.first_split] = seq_name
+                    mapped_treesapp_nums.append(treesapp_nums[x])
+                else:
+                    curr_match = parent_re.search(assigned_seq_name)  # type: re.Match
+                    prev_match = re.search(classified_seq_lineage_map[header.first_split], assigned_seq_name)
+                    if curr_match.end() > prev_match.end():
+                        classified_seq_lineage_map[header.first_split] = seq_name
+            x += 1
+
+        pbar.update()
+    pbar.close()
+
+    # Swap the sequence name for its associated taxonomic lineage
+    for query_name, match_name in classified_seq_lineage_map.items():
+        classified_seq_lineage_map[query_name] = seq_lineage_map[match_name].build_lineage(add_organism=True)
+
     logging.debug("Unable to find parent for " + str(len(treesapp_nums)) + " ORFs in sequence-lineage map:\n" +
                   "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n")
-
-    logging.info("done.\n")
 
     if len(mapped_treesapp_nums) == 0:
         logging.error("Unable to match any sequence names in {}.\n".format(seq_lineage_tbl))

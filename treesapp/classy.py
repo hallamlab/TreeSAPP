@@ -681,7 +681,7 @@ class TreeSAPP:
             # Write the accession-lineage mapping file - essential for training too
             write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
             self.increment_stage_dir()
-        else:
+        elif self.stage_status("lineages") is False and os.path.isfile(self.acc_to_lin):
             logging.info("Reading cached lineages in '{}'... ".format(self.acc_to_lin))
             self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
             logging.info("done.\n")
