@@ -101,6 +101,10 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.assertEqual("Bacteria", self.db.clean_lineage_string(l1, with_prefix=False))
         self.assertEqual("d__Bacteria; p__Candidatus Omnitrophica; s__Candidatus Omnitrophica bacterium CG02_42_8",
                          self.db.clean_lineage_string(l3, with_prefix=True))
+
+        # Test for failure if a lineage lacking rank prefixes was provided
+        with pytest.raises(RuntimeError):
+            self.db.clean_lineage_string("Root; Bacteria; Proteobacteria")
         return
 
     def test_emit(self):
@@ -166,6 +170,11 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         dict_in.update({"10": 'd__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales;'
                         ' f__Actinomycetaceae; s__Actinomyces nasicola'})
         self.assertEqual(1, len(self.db.trim_lineages_to_rank(dict_in, "genus")))
+
+        # Test for failure when an invalid rank is provided
+        with pytest.raises(RuntimeError):
+            self.db.trim_lineages_to_rank(dict_in, "superclass")
+
         return
 
     def test_rank_representatives(self):
@@ -305,15 +314,47 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.assertEqual("g__Bifidobacterium", organism)
         return
 
-    def test_redirect_hierarchy_paths(self):
+    # def test_redirect_hierarchy_paths(self):
+    #     from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+    #     t_hierarchy = TaxonomicHierarchy()
+    #     t_hierarchy.redirect_hierarchy_paths()
+    #     return
+
+    def test_evaluate_hierarchy_clash(self):
+        from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
+        t_hierarchy = TaxonomicHierarchy()
+        proteo = Taxon("Proteobacteria", "phylum")
+        gamma_c = Taxon("Gammaproteobacteria", "class")
+        gamma_c.parent = proteo
+        beta_c = Taxon("Betaproteobacteria", "class")
+        beta_c.parent = proteo
+        beta_o = Taxon("Betaproteobacteriales", "order")
+        beta_o.parent = gamma_c
+        nitro_o = Taxon("Nitrosomonadales", "order")
+        nitro_o.parent = beta_c
+        c = Taxon(name="Nitrosomonadaceae", rank="family")
+        c.parent = nitro_o
+        t_hierarchy.evaluate_hierarchy_clash(child=c, p1=beta_o, p2=nitro_o)
+        self.assertEqual(1, len(t_hierarchy.conflicts))
         return
 
-    # def test_rm_absent_taxa_from_lineage(self):
-    #     return
-    #
-    # def test_evaluate_hierarchy_clash(self):
-    #     from taxonomic_hierarchy import TaxonomicHierarchy
-    #     return
+    def test_digest_taxon(self):
+        from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+        t_hierarchy = TaxonomicHierarchy()
+        # Ensure that a bad taxon isn't inserted into the hierarchy's dictionary
+        self.assertIsNone(t_hierarchy.digest_taxon(rank="no rank", rank_prefix="n",
+                                                   taxon="cellular organisms", previous=None))
+
+        # Ensure that a proper taxon can be inserted properly
+        taxon = t_hierarchy.digest_taxon(rank="domain", taxon="Bacteria", previous=None)
+        self.assertEqual("domain", taxon.rank)
+        self.assertTrue("d__Bacteria" in t_hierarchy.hierarchy)
+
+        # Ensure that an unexpected rank isn't included in the hierarchy
+        with pytest.raises(RuntimeError):
+            t_hierarchy.digest_taxon(rank="superkingdom", rank_prefix="s", taxon="Bacteria", previous=None)
+
+        return
 
 
 class TaxonTester(unittest.TestCase):

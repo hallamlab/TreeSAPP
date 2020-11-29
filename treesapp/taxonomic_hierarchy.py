@@ -306,7 +306,7 @@ class TaxonomicHierarchy:
             else:
                 root = self.get_taxon(root.prefix_taxon())
         else:
-            self.digest_taxon(taxon=root.name, previous=None, rank=root.rank, rank_prefix='r')
+            self.digest_taxon(taxon=root.name, rank=root.rank)
         for domain_name in self.rank_representatives("domain", with_prefix=True):
             domain_taxon = self.get_taxon(domain_name)
             if domain_taxon.parent is None:
@@ -344,6 +344,20 @@ class TaxonomicHierarchy:
         return
 
     def redirect_hierarchy_paths(self, old: Taxon, rep=None):
+        """
+        Multiple taxonomic hierarchies may be used in a single reference package.
+        In these scenarios, like when the GTDB hierarchy (or multiple versions thereof) are mixed with the NCBI's,
+        they are likely to conflict (i.e. the descendents of two nodes have multiple parents). Example:
+             rep lineage:
+             old lineage:
+             new lineage:
+        This function moves the children from the old Taxon to the rep Taxon (if provided, else it's basically rooting)
+        and adds the old Taxon's 'coverage' attribute to the rep Taxon, and decrements the old Taxon's.
+
+        :param old: A Taxon instance that is going to be removed from the hierarchy
+        :param rep: A Taxon instance that is going to take the place of the old Taxon
+        :return: None
+        """
         for taxon in self.hierarchy.values():  # type: Taxon
             if taxon.parent == old:
                 if taxon == rep:
@@ -357,7 +371,7 @@ class TaxonomicHierarchy:
             # Remove all taxa between the old taxon and the LCA(rep, old)
             lca = Taxon.lca(old, rep)
             for taxon in Taxon.lineage_slice(old, lca):
-                self.scrub_taxon_from_hierarchy(taxon)
+                self.scrub_taxon_from_hierarchy(taxon, decrement=taxon.coverage)
         return
 
     @staticmethod
@@ -400,7 +414,7 @@ class TaxonomicHierarchy:
                 rep = node_one
             else:
                 rep, obsolete = self.max_node_force(node_one, node_two)
-                logging.debug("Conflicting nodes '{0}' and '{1}' both had valid ranks and the one with greater coverage"
+                logging.debug("Conflicting nodes '{0}' and '{1}' both had valid ranks so the more popular one"
                               " ({0} = {2}) was selected to represent.\n".format(rep.name, obsolete.name, rep.coverage))
 
             self.redirect_hierarchy_paths(rep=rep, old=obsolete)  # obsolete Taxon is removed from self.hierarchy
@@ -456,6 +470,7 @@ class TaxonomicHierarchy:
 
     def hierarchy_key_chain(self, child: Taxon, parent: Taxon) -> Taxon:
         """
+        Creates new, temporary names for taxa that clash in the hierarchy and shouldn't be resolved.
 
         :param child:
         :param parent:
@@ -515,19 +530,17 @@ class TaxonomicHierarchy:
         if (p1_ranks and not p1_ranks.difference({self.no_rank_name})) or \
                 (p2_ranks and not p2_ranks.difference({self.no_rank_name})):
             child.coverage += 1
-            self.conflicts.add((p1, p2))
+            self.conflicts.add(tuple(sorted((p1, p2), key=lambda x: x.coverage)))
             return child
-        elif max(p1_lca_dist, p2_lca_dist) > 1:  # The hierarchy path between the parent and LCA is too long to pop
+        elif p1.rank != p2.rank or p1_lca_dist != p2_lca_dist:
             # These are both taxa with a valid rank - the job gets a bit harder now. Time to prevent a clash!
-            return self.hierarchy_key_chain(child, p1)
-        elif p1.rank != p2.rank:
             return self.hierarchy_key_chain(child, p1)
         else:
             child.coverage += 1
-            self.conflicts.add((p1, p2))
+            self.conflicts.add(tuple(sorted((p1, p2), key=lambda x: x.coverage)))
             return child
 
-    def digest_taxon(self, taxon: str, rank: str, rank_prefix: str, previous: Taxon) -> Taxon:
+    def digest_taxon(self, taxon: str, rank: str, rank_prefix="", previous=None) -> Taxon:
         """
         Digest taxon adds a new taxon to the TaxonomicHierarchy.hierarchy dictionary if it isn't already in the keys,
         or will increment the coverage attribute of a Taxon if it is already in the hierarchy dictionary.
@@ -538,6 +551,34 @@ class TaxonomicHierarchy:
         :param previous: The Taxon instance representing the parent of taxon
         :return: The Taxon instance representing taxon
         """
+        # Decide what the prefix will be
+        if rank in self.accepted_ranks_depths:
+            pass
+        elif rank in self.rank_name_map:
+            rank = self.rank_name_map[rank]
+        else:
+            rank = self.no_rank_name
+
+        # Create the rank-prefix if none was provided
+        if not rank_prefix:
+            rank_prefix = rank[0]
+
+        # Record the rank's prefix in rank_prefix_map
+        try:
+            self.rank_prefix_map[rank_prefix].add(rank)
+        except KeyError:
+            # Ensure the rank isn't present under multiple keys
+            for rp, vals in self.rank_prefix_map.items():
+                if rank in vals:
+                    self.so_long_and_thanks_for_all_the_fish("rank '{}' already has prefix '{}'.\n".format(rank, rp))
+            self.rank_prefix_map[rank_prefix] = {rank}
+        except AttributeError:
+            if rank != self.rank_prefix_map[rank_prefix]:
+                self.so_long_and_thanks_for_all_the_fish(
+                    "TaxonomicHierarchy.rank_prefix_map is incomplete and values are not all sets.\n"
+                    "Attempted to add rank '{}' to rank-prefix map under '{}' when the current value is '{}'.\n"
+                    "".format(rank, rank_prefix, self.rank_prefix_map[rank_prefix]))
+
         # taxon can come with the rank_prefix included and we don't want to prepend it again
         if taxon.startswith(rank_prefix + self.taxon_sep):
             taxon = taxon.lstrip(rank_prefix + self.taxon_sep)
@@ -591,23 +632,8 @@ class TaxonomicHierarchy:
                               "taxon_info = {1}\n".format(taxon_name, str(taxon_info)))
                 sys.exit(11)
             rank = taxon_info["Rank"]
-            # Decide what the prefix will be
-            if rank in self.accepted_ranks_depths:
-                pass
-            elif rank in self.rank_name_map:
-                rank = self.rank_name_map[rank]
-            else:
-                rank = self.no_rank_name
-            rank_prefix = rank[0]
-            # Record the rank's prefix in rank_prefix_map
-            try:
-                self.rank_prefix_map[rank_prefix].add(rank)
-            except KeyError:
-                self.rank_prefix_map[rank_prefix] = {rank}
-            except AttributeError:
-                self.so_long_and_thanks_for_all_the_fish("TaxonomicHierarchy.rank_prefix_map values are not all sets.\n")
 
-            taxon = self.digest_taxon(taxon_name, rank, rank_prefix, previous)  # type: Taxon
+            taxon = self.digest_taxon(taxon_name, rank, previous=previous)  # type: Taxon
             if not taxon and previous:
                 break
             else:
@@ -626,7 +652,7 @@ class TaxonomicHierarchy:
 
         return previous
 
-    def append_to_hierarchy_dict(self, child: str, parent: str, rank: str, rank_prefix: str) -> None:
+    def append_to_hierarchy_dict(self, child: str, parent: str, rank: str) -> None:
         """
         This can be used for including a new taxon in self.hierarchy, connecting it to a pre-existing lineage.
         The child must be more-resolved (i.e. a species name) than the parent (i.e. a genus name).
@@ -636,7 +662,6 @@ class TaxonomicHierarchy:
         :param child: Unlabelled taxon that is a more-resolved label than parent.
         :param parent: A labelled taxon that is a less-resolved label (is deeper in the taxonomic hierarchy) than child.
         :param rank: The taxonomic rank name that the child represents.
-        :param rank_prefix:  The prefix of the rank. Typically this is the first character (lowercase) of rank.
         :return: None
         """
         try:
@@ -650,7 +675,7 @@ class TaxonomicHierarchy:
 
         self.whet()
         self.validate_rank_prefixes()
-        self.digest_taxon(taxon=child, previous=parent_taxon, rank=rank, rank_prefix=rank_prefix)
+        self.digest_taxon(taxon=child, previous=parent_taxon, rank=rank)
         return
 
     def feed_leaf_nodes(self, ref_leaves: list, rank_prefix_name_map=None) -> None:
@@ -689,7 +714,8 @@ class TaxonomicHierarchy:
                                   "".format(taxon_name, ref_leaf.lineage, self.taxon_sep))
                     taxa.clear()
                     continue
-                taxon = self.digest_taxon(taxon_name, rank, rank_prefix, previous)  # type: Taxon
+                taxon = self.digest_taxon(taxon=taxon_name, rank=rank,
+                                          rank_prefix=rank_prefix, previous=previous)  # type: Taxon
                 if not taxon and previous:
                     ref_leaf.lineage = self.lin_sep.join([taxon.prefix_taxon() for taxon in previous.lineage()])
                     break
@@ -902,52 +928,6 @@ class TaxonomicHierarchy:
                 i += 1
         return
 
-    def prune_branches(self, tree, leaf_taxa_map: dict, rank="Genus"):
-        """
-        Function for removing leaves of unclassified and polyphyletic lineages
-
-        :type tree: Tree()
-        :param tree: An Environment for Tree Exploration (ETE) Tree object
-        :param leaf_taxa_map: A dictionary mapping tree leaf number keys to NCBI lineage strings
-        :param rank: A taxonomic rank to test for monophyly
-        :return: pruned_nodes dict() of Tree() nodes
-        """
-        pruned_nodes = dict()
-        if not isinstance(tree, Tree):
-            logging.error("Tree is not ete tree object.\n")
-            raise AssertionError()
-        # Check to see if the two collections are comparable
-        for leaf in tree:
-            if leaf.name not in leaf_taxa_map.keys():
-                logging.error(str(leaf.name) + " not found in leaf_taxa_map.\n")
-                raise AssertionError("Leaves in tree and tax_ids file are disparate sets.\n")
-        # Raw lineages are too specific to test for monophyly, so try at a deeper rank by trimming the lineages
-        leaf_taxa_map = self.trim_lineages_to_rank(leaf_taxa_map, rank)
-
-        # Add the lineages to the Tree instance
-        for leaf in tree:
-            leaf.add_features(lineage=leaf_taxa_map.get(leaf.name, "none"))
-
-        # Print the tree for debugging:
-        # print(tree.get_ascii(attributes=["name", "lineage"], show_internal=False))
-
-        # Add all the monophyletic leaf node numbers to pruned_nodes
-        unique_lineages = sorted(list(set(leaf_taxa_map.values())))
-        for lineage in unique_lineages:
-            pruned_nodes[lineage] = dict()
-            acc = 1  # In case lineages are scattered (e.g. paralogs in the tree) these need to be indexed
-            for node in tree.get_monophyletic(values=[lineage], target_attr="lineage"):
-                leaf_descendents = node.get_leaves()
-                if len(leaf_descendents) == 1:
-                    pass
-                elif len(leaf_descendents) > 1:
-                    # This is an internal node
-                    pruned_nodes[lineage][acc] = leaf_descendents
-                    acc += 1
-                else:
-                    raise AssertionError("Expected at least one leaf leading from node " + str(node.name))
-        return pruned_nodes
-
     def strip_rank_prefix(self, lineage: str) -> str:
         stripped_lineage = []
         for rank in lineage.split(self.lin_sep):
@@ -1079,7 +1059,7 @@ class TaxonomicHierarchy:
                 else:
                     self.so_long_and_thanks_for_all_the_fish("Unexpected rank prefix for species"
                                                              " in TaxonomicHierarchy.rank_prefix_map\n")
-            self.append_to_hierarchy_dict(child=organism, parent=lineage_list[-1], rank="species", rank_prefix='s')
+            self.append_to_hierarchy_dict(child=organism, parent=lineage_list[-1], rank="species")
             lineage_list.append(organism)
             if verbosity:
                 logging.debug("check_lineage(): Organism name added to complete the lineage.\n")

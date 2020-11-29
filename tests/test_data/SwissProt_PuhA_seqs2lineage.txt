@@ -3,3 +3,4 @@ P06008	d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhizobiales; f
 P0C0Y7	d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhodobacterales; f__Rhodobacteraceae; g__Rhodobacter; s__Rhodobacter sphaeroides
 P19056	d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhodobacterales; f__Rhodobacteraceae; g__Rhodobacter; s__Rhodobacter capsulatus
 Q3J170	d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhodobacterales; f__Rhodobacteraceae; g__Rhodobacter; s__Rhodobacter sphaeroides
+Q3J17	d__Bacteria

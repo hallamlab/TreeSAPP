@@ -209,7 +209,7 @@ class TreesappTester(unittest.TestCase):
         from treesapp.commands import info
         with pytest.raises(SystemExit):
             info(["--verbose", "--refpkg_dir", "./"])
-        info([])
+        info(["--verbose"])
         self.assertTrue(True)
         return
 
@@ -298,6 +298,7 @@ class TreesappTester(unittest.TestCase):
                               "--output", output_dir_path,
                               "--refpkg_path", self.puha_pkl,
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
+                              "--profile",
                               "--max_examples", str(max_ex),
                               "--num_proc", str(self.num_procs),
                               "--molecule", "prot",

@@ -622,6 +622,13 @@ class ReferencePackage:
         return off_target_ref_leaves
 
     def get_monophyletic_clades(self, taxon_name: str, leaf_nodes=None) -> list:
+        """
+        Finds the internal node names whose children all belong to a taxon, taxon_name, i.e. is monophyletic.
+
+        :param taxon_name: The name of a taxon.
+        :param leaf_nodes: A set with the names of the leaf names (e.g. 1_McrA, 2_McrA)
+        :return: A list of sets containing internal nodes representing a monophyletic clade of the taxon of interest
+        """
         taxa_internal_node_map = []
         if not leaf_nodes:
             # Find all leaf nodes that represent taxon_name (i.e. p__Proteobacteria)

@@ -658,6 +658,7 @@ def check_previous_output(output_dir: str, files: list, overwrite=False) -> None
 
 
 def filter_redundant_og(query_og_map: dict) -> set:
+    """ Returns the set of query names that were annotated as multiple different orthologous groups (OGs) """
     redundants = set()
     ortho_counts = {}
     ortho_filters = {}
@@ -678,7 +679,7 @@ def filter_redundant_og(query_og_map: dict) -> set:
     if redundants:
         logging.warning("{}/{} query sequences were annotated as multiple reference packages and have been removed.\n"
                         "".format(len(redundants), len(query_og_map)))
-        for og in ortho_filters:
+        for og in sorted(ortho_filters):
             logging.info("{}% of annotated sequences were filtered for '{}'.\n"
                          "".format(round((ortho_filters[og]*100)/ortho_counts[og], 1), og))
 

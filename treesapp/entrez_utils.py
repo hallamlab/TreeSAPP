@@ -333,7 +333,7 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
                 to_repair.add(treesapp_id)
                 unprefixed_lineages.add(ref_seq.lineage)  # It only takes one rank without a prefix to add it
         else:
-            ref_seq.lineage = "r__Root"
+            ref_seq.lineage = t_hierarchy.root_taxon
 
     prep_for_entrez_query()
     # Build list of entrez queries for EntrezRecords with un-annotated lineages
@@ -1244,12 +1244,17 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
             header = header_registry[treesapp_nums[x]]
             assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(refpkg_name), '', header.original)
             if parent_re.search(assigned_seq_name):
+                curr_match = parent_re.search(assigned_seq_name)  # type: re.Match
+                if assigned_seq_name not in seq_name:
+                    # Prevent seq_lineage_tbl 'seq_name's that are incomplete words from matching header names
+                    if not re.match(string=assigned_seq_name[curr_match.end()], pattern=r"[_\-\.,;: |]"):
+                        x += 1
+                        continue
                 # Now ensure that this is the best+longest match
                 if header.first_split not in classified_seq_lineage_map:
                     classified_seq_lineage_map[header.first_split] = seq_name
                     mapped_treesapp_nums.append(treesapp_nums[x])
                 else:
-                    curr_match = parent_re.search(assigned_seq_name)  # type: re.Match
                     prev_match = re.search(classified_seq_lineage_map[header.first_split], assigned_seq_name)
                     if curr_match.end() > prev_match.end():
                         classified_seq_lineage_map[header.first_split] = seq_name
@@ -1270,23 +1275,3 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
         sys.exit(13)
 
     return classified_seq_lineage_map, mapped_treesapp_nums
-
-
-def main():
-    th = TaxonomicHierarchy()
-    prep_for_entrez_query()
-    tolerant_entrez_query(['12968'])
-    er_vparadoxus = EntrezRecord(acc="WP_042579442", ver="WP_042579442.1")
-    er_pmarinus = EntrezRecord(acc="WP_075487081", ver="WP_075487081.1")
-    er_dict = {"1": er_vparadoxus, "2": er_pmarinus}
-    get_multiple_lineages(list(er_dict.values()), th, "prot")
-    alm = entrez_records_to_accession_lineage_map(list(er_dict.values()))
-    repair_lineages(er_dict, th)
-    verify_lineage_information(accession_lineage_map=alm, entrez_record_map=er_dict, t_hierarchy=th, taxa_searched=2)
-    print(er_vparadoxus.get_info(),
-          er_pmarinus.get_info())
-    return
-
-
-if __name__ == "__main__":
-    main()
