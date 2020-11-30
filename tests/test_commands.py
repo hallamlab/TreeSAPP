@@ -360,14 +360,10 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_tmp(self):
-        from treesapp.commands import update
+        from treesapp.commands import create
         base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
-        cmd = "--molecule prot --fastx_input {0}/Nitrogen_metabolism/Denitrification/NapA/ENOG501NS3T_TIGR01706.faa" \
-              " --refpkg_path {0}/Nitrogen_metabolism/Denitrification/NapA/seed_refpkg/final_outputs/NapA_build.pkl " \
-              "--treesapp_output /media/connor/Rufus/TreeSAPP_outputs/Denitrification_Nov_25_2020/ " \
-              "--output {0}/Nitrogen_metabolism/Denitrification/NapA/Saanich_SAG_update " \
-              "--num_proc 8 --trim_align --cluster --fast --headless --overwrite --delete --skip_assign --resolve --seqs2lineage /media/connor/Rufus/TreeSAPP_outputs/TreeSAPP_Update_Nov_25_2020.tsv".format(base_dir)
-        update(cmd.split())
+        cmd = "".format(base_dir)
+        create(cmd.split())
         return
 
 

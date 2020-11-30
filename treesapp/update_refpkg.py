@@ -353,4 +353,3 @@ def formulate_create_command(ts_updater: Updater, args) -> list:
     if args.min_taxonomic_rank:
         create_cmd += ["--min_taxonomic_rank", args.min_taxonomic_rank]
     return create_cmd
-
