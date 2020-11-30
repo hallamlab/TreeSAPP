@@ -14,6 +14,8 @@ class MyTestCase(unittest.TestCase):
 
         self.test_fa = FASTA(utils.get_test_data("create_test.faa"))
         self.test_fa.load_fasta()
+        # Subset to complete quicker
+        self.test_fa.keep_only(self.test_fa.get_seq_names()[0:18])
 
         self.create_inst = Creator()
         self.create_inst.current_stage = self.create_inst.stages[1]
@@ -25,7 +27,11 @@ class MyTestCase(unittest.TestCase):
             os.remove(self.create_inst.acc_to_lin)
 
     def test_fetch_entrez_lineages(self):
-        self.create_inst.fetch_entrez_lineages(self.test_fa, 'prot')
+        entrez_record_dict = self.create_inst.fetch_entrez_lineages(self.test_fa, 'prot')
+        self.assertEqual(self.test_fa.n_seqs(), len(entrez_record_dict))
+        for er in entrez_record_dict.values():
+            self.assertEqual(7, er.bitflag)
+            self.assertTrue(len(er.lineage) > 1)
         return
 
     def test_prep_for_entrez_query(self):
