@@ -11,6 +11,7 @@ class MyTestCase(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp.fasta import FASTA
         from treesapp.classy import Creator
+        from treesapp.entrez_utils import EntrezRecord
 
         self.test_fa = FASTA(utils.get_test_data("create_test.faa"))
         self.test_fa.load_fasta()
@@ -20,6 +21,12 @@ class MyTestCase(unittest.TestCase):
         self.create_inst = Creator()
         self.create_inst.current_stage = self.create_inst.stages[1]
         self.create_inst.acc_to_lin = "./test_create_acc_to_lin.tsv"
+
+        self.accession2taxid = utils.get_test_data("create_test.accession2taxid")
+        self.test_entrez_records = []
+        test_accs = ["BAJ94456", "CUW39146.1", "NP_001076868", "WP_056230317.1", "XP_005707548.1"]
+        for acc in test_accs:
+            self.test_entrez_records.append(EntrezRecord(acc=acc, ver=""))
         return
 
     def tearDown(self) -> None:
@@ -54,6 +61,41 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(3, len(tlin.Lineage.split(tlin.lin_sep)))
         # Retry now that tlin.Lineage has been reformatted
         self.assertFalse(tlin.lineage_format_check())
+        return
+
+    def test_map_accession2taxid(self):
+        from treesapp.entrez_utils import map_accession2taxid, EntrezRecord
+        # Test failure if accession2taxid file doesn't exist
+        with pytest.raises(SystemExit):
+            map_accession2taxid(self.test_entrez_records, "test_data/fake.accession2taxid")
+
+        # Test normal operating conditions
+        er_acc_dict = map_accession2taxid(query_accessions=self.test_entrez_records,
+                                          accession2taxid_list=self.accession2taxid)
+        self.assertEqual(5, len(er_acc_dict))
+        self.assertEqual('112509', er_acc_dict["BAJ94456"].pop().ncbi_tax)
+        self.assertEqual('', er_acc_dict["XP_005707548.1"].pop().ncbi_tax)
+
+        # Clear for other tests
+        for q in self.test_entrez_records:  # type: EntrezRecord
+            q.lineage = ""
+        return
+
+    def test_map_accessions_to_lineages(self):
+        from treesapp.entrez_utils import map_accessions_to_lineages, EntrezRecord
+        from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+        taxa_hrcy = TaxonomicHierarchy()
+
+        # Test normal operating conditions
+        map_accessions_to_lineages(query_accession_list=self.test_entrez_records, t_hierarchy=taxa_hrcy,
+                                   accession_to_taxid=self.accession2taxid, molecule="prot")
+        self.assertEqual(70, len(taxa_hrcy.hierarchy))
+        self.assertEqual(5, taxa_hrcy.lineages_fed)
+        self.assertTrue("d__Bacteria" in taxa_hrcy.hierarchy)
+
+        # Clear for other tests
+        for q in self.test_entrez_records:  # type: EntrezRecord
+            q.lineage = ""
         return
 
     def test_map_orf_lineages(self):
