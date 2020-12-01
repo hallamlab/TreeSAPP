@@ -10,7 +10,7 @@ from collections import namedtuple
 from treesapp.classy import Cluster, BlastAln
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import read_fasta_to_dict
-from treesapp import HMMER_domainTblParser
+from treesapp import hmmer_tbl_parser
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -214,8 +214,8 @@ def best_discrete_matches(matches: list) -> list:
         while j < len(len_sorted_matches):
             b_match = len_sorted_matches[j]  # type HmmMatch
             if a_match.target_hmm != b_match.target_hmm:
-                if HMMER_domainTblParser.detect_orientation(a_match.start, a_match.end,
-                                                            b_match.start, b_match.end) != "satellite":
+                if hmmer_tbl_parser.detect_orientation(a_match.start, a_match.end,
+                                                       b_match.start, b_match.end) != "satellite":
                     if a_match.full_score > b_match.full_score:
                         dropped_annotations.append(len_sorted_matches.pop(j))
                         j -= 1
@@ -248,11 +248,11 @@ def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
     :return: Dictionary of HmmMatch objects indexed by their reference package and/or HMM name
     """
     # Check if the HMM filtering thresholds have been set
-    thresholds = HMMER_domainTblParser.prep_args_for_parsing(args)
+    thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
 
     logging.info("Parsing HMMER domain tables for high-quality matches... ")
 
-    search_stats = HMMER_domainTblParser.HmmSearchStats()
+    search_stats = hmmer_tbl_parser.HmmSearchStats()
     hmm_matches = dict()
     orf_gene_map = dict()
     optional_matches = list()
@@ -260,12 +260,12 @@ def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
     # TODO: Capture multimatches across multiple domain table files
     for domtbl_file in hmm_domtbl_files:
         prefix, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
-        domain_table = HMMER_domainTblParser.DomainTableParser(domtbl_file)
+        domain_table = hmmer_tbl_parser.DomainTableParser(domtbl_file)
         domain_table.read_domtbl_lines()
-        distinct_hits = HMMER_domainTblParser.format_split_alignments(domain_table, search_stats)
-        purified_hits = HMMER_domainTblParser.filter_poor_hits(thresholds, distinct_hits, search_stats)
-        complete_hits = HMMER_domainTblParser.filter_incomplete_hits(thresholds, purified_hits, search_stats)
-        HMMER_domainTblParser.renumber_multi_matches(complete_hits)
+        distinct_hits = hmmer_tbl_parser.format_split_alignments(domain_table, search_stats)
+        purified_hits = hmmer_tbl_parser.filter_poor_hits(thresholds, distinct_hits, search_stats)
+        complete_hits = hmmer_tbl_parser.filter_incomplete_hits(thresholds, purified_hits, search_stats)
+        hmmer_tbl_parser.renumber_multi_matches(complete_hits)
 
         for match in complete_hits:
             match.genome = reference

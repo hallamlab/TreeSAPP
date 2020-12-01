@@ -272,7 +272,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_mcc_calculator(self):
-        from treesapp import MCC_calculator
+        from treesapp import mcc_calculator
         from .testing_utils import get_test_data
         cmd = ["--fastx_input", get_test_data("EggNOG_McrA.faa"),
                "--annot_map", get_test_data("EggNOG_McrA_annot_map.tsv"),
@@ -283,7 +283,7 @@ class TreesappTester(unittest.TestCase):
                "--tool", "treesapp",
                "--num_procs", str(self.num_procs),
                "--delete", "--svm", "--overwrite"]
-        MCC_calculator.mcc_calculator(cmd)
+        mcc_calculator.mcc_calculator(cmd)
         self.assertEqual(True, True)
         return
 
@@ -359,12 +359,12 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(49, test_refpkg.num_seqs)
         return
 
-    def test_tmp(self):
-        from treesapp.commands import create
-        base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
-        cmd = "".format(base_dir)
-        create(cmd.split())
-        return
+    # def test_tmp(self):
+    #     from treesapp.commands import create
+    #     base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
+    #     cmd = "".format(base_dir)
+    #     create(cmd.split())
+    #     return
 
 
 if __name__ == '__main__':

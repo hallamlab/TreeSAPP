@@ -40,7 +40,7 @@ try:
     from treesapp import phylo_dist
     from treesapp import utilities
     from treesapp import wrapper
-    from treesapp.HMMER_domainTblParser import HmmMatch
+    from treesapp.hmmer_tbl_parser import HmmMatch
 
 except ImportWarning:
     sys.stderr.write("Could not load some user defined module functions")
