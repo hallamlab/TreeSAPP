@@ -34,7 +34,7 @@ try:
         multiple_alignment_dimensions, Header
     from treesapp.entish import index_tree_edges, map_internal_nodes_leaves
     from treesapp.external_command_interface import launch_write_command
-    from treesapp.lca_calculations import lowest_common_taxonomy, weighted_taxonomic_distance
+    from treesapp import lca_calculations as ts_lca
     from treesapp import jplace_utils
     from treesapp import file_parsers
     from treesapp import phylo_dist
@@ -1223,7 +1223,7 @@ def determine_confident_lineage(tree_saps: dict, refpkg_dict: dict) -> None:
             lineage_list = pquery.children_lineage(leaf_taxa_map)
             # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
             # pquery.lct = lowest_common_taxonomy(lineage_list, lca, taxonomic_counts, "LCA*")
-            pquery.wtd, status = weighted_taxonomic_distance(lineage_list, pquery.lct)
+            pquery.wtd, status = ts_lca.weighted_taxonomic_distance(lineage_list, pquery.lct)
             if status > 0:
                 pquery.summarize()
 

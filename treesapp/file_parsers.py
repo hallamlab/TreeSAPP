@@ -5,7 +5,9 @@ import os
 import re
 import logging
 from glob import glob
+
 from collections import namedtuple
+from pygtrie import StringTrie
 
 from treesapp.classy import Cluster, BlastAln
 from treesapp.refpkg import ReferencePackage
@@ -825,3 +827,43 @@ def read_annotation_mapping_file(annot_map_file: str) -> dict:
 
     annot_map_handler.close()
     return annot_map
+
+
+def grab_graftm_taxa(tax_ids_file):
+    taxonomic_tree = StringTrie(separator='; ')
+    with open(tax_ids_file) as tax_ids:
+        header = tax_ids.readline().strip()
+        last_rank = int(header[-1])
+        final_index = 6 - last_rank
+        if not re.search("parent_id,rank,tax_name,root,rank_0,rank_1,rank_2,rank_3,rank_4,rank_5,rank_6", header):
+            logging.error("Unable to handle format of " + tax_ids_file + "!")
+            sys.exit(21)
+        line = tax_ids.readline().strip()
+        while line:
+            fields = line.split(',')
+            if final_index < 0:
+                fields = line.split(',')[:final_index]
+            try:
+                _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_, = fields
+            except (IndexError, ValueError):
+                logging.error("Unexpected format of line with %d fields in " % len(line.split(',')) +
+                              tax_ids_file + ":\n" + line)
+                sys.exit(21)
+            ranks = ["Root", k_, p_, c_, o_, f_, g_, s_]
+            lineage_list = []
+            # In case there are missing ranks... which is likely
+            for rank in ranks:
+                if rank:
+                    # GraftM seems to append an 'e1' to taxa that are duplicated in the taxonomic lineage.
+                    # For example: Bacteria; Aquificae; Aquificaee1; Aquificales
+                    lineage_list.append(re.sub(r'_graftm_\d+$', '', rank))
+                    # lineage_list.append(rank)
+            lineage = re.sub('_', ' ', '; '.join(lineage_list))
+            i = 0
+            ranks = len(lineage)
+            while i < len(lineage):
+                taxonomic_tree["; ".join(lineage.split("; ")[:ranks - i])] = True
+                i += 1
+
+            line = tax_ids.readline().strip()
+    return taxonomic_tree

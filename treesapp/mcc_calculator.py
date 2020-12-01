@@ -20,7 +20,7 @@ from treesapp.fasta import get_headers, register_headers
 from treesapp.external_command_interface import launch_write_command
 from treesapp.classy import prep_logging, get_header_info
 from treesapp.entrez_utils import EntrezRecord, get_multiple_lineages
-from treesapp.lca_calculations import compute_taxonomic_distance, optimal_taxonomic_assignment, grab_graftm_taxa
+from treesapp import lca_calculations as ts_lca
 from treesapp.treesapp_args import TreeSAPPArgumentParser
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.training_utils import bin_headers, QuerySequence
@@ -220,13 +220,13 @@ class ConfusionTest:
             for tp_inst in self.tp[marker]:  # type: QuerySequence
                 # Find the optimal taxonomic assignment
                 tp_inst.true_lineage = refpkg.taxa_trie.clean_lineage_string(tp_inst.true_lineage)
-                optimal_taxon = optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
+                optimal_taxon = ts_lca.optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
                 if not optimal_taxon:
                     logging.debug("Optimal taxonomic assignment '{}' for {}"
                                   " not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.place_name))
                     continue
                 tp_inst.optimal_lineage = optimal_taxon
-                tp_inst.tax_dist, status = compute_taxonomic_distance(tp_inst.assigned_lineage, optimal_taxon)
+                tp_inst.tax_dist, status = ts_lca.compute_taxonomic_distance(tp_inst.assigned_lineage, optimal_taxon)
                 if status > 0:
                     logging.debug("Lineages didn't converge between:\n"
                                   "'{}' and '{}' (taxid: {})\n".format(tp_inst.assigned_lineage,
@@ -256,7 +256,7 @@ class ConfusionTest:
 
             for tp_inst in self.tp[marker]:  # type: QuerySequence
                 # Find the optimal taxonomic assignment
-                optimal_taxon = optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
+                optimal_taxon = ts_lca.optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
                 if not optimal_taxon:
                     logging.debug("Optimal taxonomic assignment '{}' for {} "
                                   "not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.place_name))
@@ -810,7 +810,7 @@ def mcc_calculator(sys_args):
                 try:
                     tax_ids_file = glob(os.path.join(gpkg, gpkg_name + ".gpkg.refpkg",
                                                      gpkg_name + "*taxonomy.csv")).pop()
-                    test_obj.ref_packages[gpkg_name].taxa_trie = grab_graftm_taxa(tax_ids_file)
+                    test_obj.ref_packages[gpkg_name].taxa_trie = file_parsers.grab_graftm_taxa(tax_ids_file)
                 except IndexError:
                     logging.warning("No GraftM taxonomy file found for {}. Is this gpkg complete?\n".format(gpkg_name))
     else:
