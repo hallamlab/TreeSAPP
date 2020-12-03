@@ -60,7 +60,7 @@ class Taxon:
         return
 
     def tax_dist(self, taxon) -> int:
-        if self.name == taxon.name:
+        if self.name == taxon.name and self.rank == taxon.rank:
             return 0
         if not self.parent and not taxon.parent:
             return 1
@@ -371,7 +371,7 @@ class TaxonomicHierarchy:
             # Remove all taxa between the old taxon and the LCA(rep, old)
             lca = Taxon.lca(old, rep)
             for taxon in Taxon.lineage_slice(old, lca):
-                self.scrub_taxon_from_hierarchy(taxon, decrement=taxon.coverage)
+                self.scrub_taxon_from_hierarchy(taxon, decrement=old.coverage)
         return
 
     @staticmethod
@@ -381,6 +381,21 @@ class TaxonomicHierarchy:
             return node_one, node_two
         else:
             return node_two, node_one
+
+    def order_conflict_taxa(self) -> list:
+        """ Arranges the conflicting taxon tuples from class to no rank """
+        ordered_conflicts = []
+        self.conflicts = list(self.conflicts)
+        i = 0
+        while i < len(self.conflicts):
+            conflict_tup = self.conflicts[i]
+            if self.no_rank_name in [conflict_tup[0].rank, conflict_tup[1].rank]:
+                ordered_conflicts.append(self.conflicts.pop(i))
+            else:
+                i += 1
+
+        ordered_conflicts = sorted(self.conflicts, key=lambda x: self.accepted_ranks_depths[x[0].rank]) + ordered_conflicts
+        return ordered_conflicts
 
     def resolve_conflicts(self) -> dict:
         """
@@ -397,9 +412,10 @@ class TaxonomicHierarchy:
         if len(self.conflicts) == 0:
             return replaced_nodes
 
+        self.conflicts = self.order_conflict_taxa()
         conflict_resolution_summary = "Taxonomic hierarchy conflicts were resolved by merging the left taxon into the right:\n"
         while self.conflicts:
-            node_one, node_two = self.conflicts.pop()  # type: (Taxon, Taxon)
+            node_one, node_two = self.conflicts.pop(-1)  # type: (Taxon, Taxon)
 
             if not node_one.valid(self.hierarchy) or not node_two.valid(self.hierarchy):
                 continue
@@ -423,6 +439,7 @@ class TaxonomicHierarchy:
                                                                                rep.name, rep.rank)
 
         logging.debug(conflict_resolution_summary)
+        self.conflicts = set()
         return replaced_nodes
 
     def validate_rank_prefixes(self) -> None:
@@ -525,7 +542,6 @@ class TaxonomicHierarchy:
         p2_ranks = {t.rank for t in Taxon.lineage_slice(p2, parent_lca)}
         p1_lca_dist = p1.tax_dist(parent_lca)
         p2_lca_dist = p2.tax_dist(parent_lca)
-        # TODO: What if the taxonomic distance between a parent and the LCA is 0 i.e. the parent is the LCA?
         # If all of the ranks are 'no rank' between _one_ parent and the lca of the parents, add it to conflicts
         if (p1_ranks and not p1_ranks.difference({self.no_rank_name})) or \
                 (p2_ranks and not p2_ranks.difference({self.no_rank_name})):
@@ -534,6 +550,8 @@ class TaxonomicHierarchy:
             return child
         elif p1.rank != p2.rank or p1_lca_dist != p2_lca_dist:
             # These are both taxa with a valid rank - the job gets a bit harder now. Time to prevent a clash!
+            return self.hierarchy_key_chain(child, p1)
+        elif child.rank == self.no_rank_name:
             return self.hierarchy_key_chain(child, p1)
         else:
             child.coverage += 1
@@ -1013,7 +1031,7 @@ class TaxonomicHierarchy:
         :param lineage: A taxonomic lineage *with prefixed ranks* separated by self.lin_sep
         :param organism: Name of the organism. Parsed from the sequence header (usually at the end in square brackets)
         :param verbosity: 1 prints debugging messages
-        :return: A list of elements for each taxonomic rank representing the taxonomic lineage
+        :return: A string representation of the validated taxonomic lineage
         """
         if not self.trie_key_prefix or not self.clean_trie or len(self.trie) == 0:
             self.clean_trie = True
@@ -1032,9 +1050,8 @@ class TaxonomicHierarchy:
         self.rm_absent_taxa_from_lineage(lineage_list, with_prefix=True)
 
         if len(lineage_list) == 0:
-            self.so_long_and_thanks_for_all_the_fish("Taxon '{}' from lineage '{}'"
-                                                     " is not in TaxonomicHierarchy.\n".format(organism, lineage))
-            raise RuntimeError
+            logging.debug("Taxon '{}' from lineage '{}' is not in TaxonomicHierarchy.\n".format(organism, lineage))
+            return ""
 
         hierarchy_taxon = self.get_taxon(prefix_taxon=lineage_list[-1])
 

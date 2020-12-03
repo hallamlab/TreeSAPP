@@ -375,7 +375,12 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     t_hierarchy.root_domains(root=t_hierarchy.find_root_taxon())
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         e_record = ref_seq_dict[treesapp_id]  # type: EntrezRecord
-        e_record.lineage = t_hierarchy.check_lineage(e_record.lineage, e_record.organism)
+        valid_lineage = t_hierarchy.check_lineage(e_record.lineage, e_record.organism)
+        if not valid_lineage:
+            logging.warning("{} lineage '{}' shall not pass! It will be labelled as {} instead.\n"
+                            "".format(e_record.versioned, e_record.lineage, t_hierarchy.root_taxon))
+            valid_lineage = t_hierarchy.root_taxon
+        e_record.lineage = valid_lineage
 
     return
 
