@@ -375,7 +375,7 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         cis.parent = rep
         t_hierarchy.redirect_hierarchy_paths(rep=rep,
                                              old=cis)
-        self.assertEqual(2, t_hierarchy.get_taxon('c__Clostridia').coverage)
+        self.assertEqual(3, t_hierarchy.get_taxon('c__Clostridia').coverage)
 
         return
 

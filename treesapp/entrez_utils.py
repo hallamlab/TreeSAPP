@@ -279,9 +279,9 @@ def repair_conflict_lineages(t_hierarchy: TaxonomicHierarchy, ref_seq_dict: dict
 
                 ref_taxon = t_hierarchy.get_taxon(organism_query)  # type: Taxon
                 for taxon in ref_taxon.lineage():
-                    if ref_taxon.coverage > taxon.coverage:
+                    if taxon.parent and taxon.coverage > taxon.parent.coverage:
                         logging.error("Coverage of descendent {} ({}) is greater than that of ancestral taxon {} ({}).\n"
-                                      "".format(ref_taxon.name, ref_taxon.coverage, taxon.name, taxon.coverage))
+                                      "".format(taxon.name, taxon.coverage, taxon.parent.name, taxon.parent.coverage))
                         sys.exit(13)
                 try:
                     record.lineage = t_hierarchy.lin_sep.join([taxon.prefix_taxon() for taxon in ref_taxon.lineage()])
@@ -612,9 +612,11 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
             lineage_ex += [{"ScientificName": tax_organism, "Rank": tax_rank}]
 
         taxon = t_hierarchy.feed(tax_lineage, lineage_ex)  # type: Taxon
-        # We don't want to begin accumulating coverage at this stage
-        for t in taxon.lineage():
-            t.coverage = max(0, t.coverage-1)
+        # Ensure all of the ranks in the lineage have been incremented,
+        # whether they're part of the NCBI taxonomy or not. Necessary for 'r__Root'.
+        for t in taxon.lineage():  # type: Taxon
+            if t.parent and t.coverage > t.parent.coverage:
+                t.parent.coverage += 1
         lineage_anno = t_hierarchy.emit(taxon.prefix_taxon(), True)
 
         try:

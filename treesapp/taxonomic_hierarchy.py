@@ -367,8 +367,11 @@ class TaxonomicHierarchy:
                     taxon.parent = rep
         if rep is not None:
             # Do not add values to rep since old is likely in its lineage so double counting
-            if rep not in old.lineage():  # Just to make sure though...
-                rep.absorb(old)
+            for t in rep.lineage():
+                if t not in old.lineage():
+                    t.absorb(old)
+            # if rep not in old.lineage():  # Just to make sure though...
+            #     rep.absorb(old)
             # Remove all taxa between the old taxon and the LCA(rep, old)
             lca = Taxon.lca(old, rep)
             for taxon in Taxon.lineage_slice(old, lca):
