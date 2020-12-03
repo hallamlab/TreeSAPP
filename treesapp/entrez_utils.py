@@ -259,31 +259,37 @@ def repair_conflict_lineages(t_hierarchy: TaxonomicHierarchy, ref_seq_dict: dict
 
     nodes_replaced_map = t_hierarchy.resolve_conflicts()  # return taxa whose nodes were merged
 
-    for old_taxon, new_taxon in nodes_replaced_map.items():  # type: (Taxon, Taxon)
-        taxon_name = old_taxon.prefix_taxon()
-        for record in ref_seq_lineage_scanner(ref_seq_dict, taxon_name):  # type: EntrezRecord
-            # Find the name of the organism to use for building the new taxonomic lineage
-            if t_hierarchy.canonical_prefix.match(record.organism):
-                organism_query = record.organism
-            elif t_hierarchy.canonical_prefix.match(record.lineage.split(t_hierarchy.lin_sep)[-1]):
-                organism_query = record.lineage.split(t_hierarchy.lin_sep)[-1]
-            else:
-                continue
+    for new_taxon, old_taxa in nodes_replaced_map.items():  # type: (Taxon, list)
+        for obsolete in old_taxa:  # type: Taxon
+            taxon_name = obsolete.prefix_taxon()
+            for record in ref_seq_lineage_scanner(ref_seq_dict, taxon_name):  # type: EntrezRecord
+                # Find the name of the organism to use for building the new taxonomic lineage
+                if t_hierarchy.canonical_prefix.match(record.organism):
+                    organism_query = record.organism
+                elif t_hierarchy.canonical_prefix.match(record.lineage.split(t_hierarchy.lin_sep)[-1]):
+                    organism_query = record.lineage.split(t_hierarchy.lin_sep)[-1]
+                else:
+                    continue
 
-            # If the current record's most resolved taxon has been substituted
-            # swap all taxonomic information to the new representative
-            if organism_query == taxon_name:
-                record.organism = new_taxon.prefix_taxon()
-                organism_query = record.organism
+                # If the current record's most resolved taxon has been substituted
+                # swap all taxonomic information to the new representative
+                if organism_query == taxon_name:
+                    record.organism = new_taxon.prefix_taxon()
+                    organism_query = record.organism
 
-            ref_taxon = t_hierarchy.get_taxon(organism_query)  # type: Taxon
-            try:
-                record.lineage = t_hierarchy.lin_sep.join([taxon.prefix_taxon() for taxon in ref_taxon.lineage()])
-                continue
-            except AttributeError:
-                logging.warning("Unable to repair the conflicted lineage of record {}, "
-                                "'{}'".format(record.accession, record.lineage))
-                continue
+                ref_taxon = t_hierarchy.get_taxon(organism_query)  # type: Taxon
+                for taxon in ref_taxon.lineage():
+                    if ref_taxon.coverage > taxon.coverage:
+                        logging.error("Coverage of descendent {} ({}) is greater than that of ancestral taxon {} ({}).\n"
+                                      "".format(ref_taxon.name, ref_taxon.coverage, taxon.name, taxon.coverage))
+                        sys.exit(13)
+                try:
+                    record.lineage = t_hierarchy.lin_sep.join([taxon.prefix_taxon() for taxon in ref_taxon.lineage()])
+                    continue
+                except AttributeError:
+                    logging.warning("Unable to repair the conflicted lineage of record {}, "
+                                    "'{}'".format(record.accession, record.lineage))
+                    continue
     return
 
 
@@ -608,7 +614,7 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
         taxon = t_hierarchy.feed(tax_lineage, lineage_ex)  # type: Taxon
         # We don't want to begin accumulating coverage at this stage
         for t in taxon.lineage():
-            t.coverage = 0
+            t.coverage = max(0, t.coverage-1)
         lineage_anno = t_hierarchy.emit(taxon.prefix_taxon(), True)
 
         try:

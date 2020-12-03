@@ -128,8 +128,48 @@ class MyTestCase(unittest.TestCase):
         return
 
     def test_repair_conflict_lineages(self):
-        from treesapp.entrez_utils import repair_conflict_lineages
+        from treesapp.entrez_utils import repair_conflict_lineages, EntrezRecord
+        from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+        from treesapp.phylo_seq import TreeLeafReference
+        # Test an empty TaxonomicHierarchy with zero conflicts
         repair_conflict_lineages(t_hierarchy=self.create_inst.ref_pkg.taxa_trie, ref_seq_dict={})
+
+        triple_conflict = ["p__Firmicutes; c__Clostridia; o__Clostridiales; f__Clostridiaceae; g__Clostridium; s__Clostridium autoethanogenum",
+                           "p__Firmicutes; c__Clostridia; o__Clostridiales; f__Clostridiaceae; g__Alkaliphilus; s__Alkaliphilus metalliredigens",
+                           "p__Firmicutes; c__Clostridia; o__Clostridiales; f__Veillonellaceae; g__Selenomonas; s__Selenomonas flueggei",
+                           'p__Firmicutes; c__Negativicutes; o__Selenomonadales; f__Veillonellaceae; g__Mitsuokella; s__Mitsuokella multacida',
+                           'p__Firmicutes; c__Negativicutes; o__Selenomonadales; f__Selenomonadaceae; g__Mitsuokella; s__Mitsuokella multacida',
+                           'p__Firmicutes; c__Negativicutes; o__Veillonellales; f__Veillonellaceae; g__Megasphaera; s__Megasphaera elsdenii']
+        # Test a TaxonomicHierarchy with several conflicting taxa
+        er_dict = {}
+        leaf_nodes = []
+        index = 1
+        for lineage in triple_conflict:
+            leaf = TreeLeafReference(str(index), 'test')
+            er = EntrezRecord(acc=str(index), ver=str(index) + ".1")
+            leaf.lineage = lineage
+            er.lineage = lineage
+            er_dict[str(index)] = er
+            leaf_nodes.append(leaf)
+            index += 1
+
+        taxonomy = TaxonomicHierarchy()
+        taxonomy.feed_leaf_nodes(leaf_nodes)
+
+        # Orders: 'Veillonellales' -> 'Selenomonadales', 'Selenomonadales' -> 'Clostridiales'
+        # Families: 'Selenomonadaceae' -> 'Veillonellaceae'
+        # Change the coverage of the different lineages to control the representative
+        for t in taxonomy.get_taxon("s__Clostridium autoethanogenum").lineage():
+            t.coverage += 3
+        taxonomy.conflicts = {(taxonomy.get_taxon("o__Veillonellales"), taxonomy.get_taxon("o__Selenomonadales")),
+                              (taxonomy.get_taxon("o__Selenomonadales"), taxonomy.get_taxon("o__Clostridiales")),
+                              (taxonomy.get_taxon("f__Veillonellaceae"), taxonomy.get_taxon("f__Selenomonadaceae"))}
+
+        repair_conflict_lineages(taxonomy, er_dict)
+        self.assertEqual("p__Firmicutes; c__Clostridia; o__Clostridiales; f__Veillonellaceae; g__Megasphaera; s__Megasphaera elsdenii",
+                         "; ".join([t.prefix_taxon() for t in taxonomy.get_taxon("s__Megasphaera elsdenii").lineage()]))
+        self.assertFalse("o__Veillonellales" in taxonomy.hierarchy)
+        self.assertFalse("o__Selenomonadales" in taxonomy.hierarchy)
         return
 
     def test_verify_rank_occupancy(self):

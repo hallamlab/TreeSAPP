@@ -3,8 +3,8 @@ __author__ = 'Connor Morgan-Lang'
 import logging
 import sys
 import re
+
 from pygtrie import StringTrie
-from ete3 import Tree
 
 from treesapp.phylo_seq import TreeLeafReference
 
@@ -311,6 +311,7 @@ class TaxonomicHierarchy:
             domain_taxon = self.get_taxon(domain_name)
             if domain_taxon.parent is None:
                 domain_taxon.parent = root
+            root.coverage += domain_taxon.coverage
         self.build_multifurcating_trie()
         self.rooted = True
         return root
@@ -415,10 +416,17 @@ class TaxonomicHierarchy:
         self.conflicts = self.order_conflict_taxa()
         conflict_resolution_summary = "Taxonomic hierarchy conflicts were resolved by merging the left taxon into the right:\n"
         while self.conflicts:
-            node_one, node_two = self.conflicts.pop(-1)  # type: (Taxon, Taxon)
+            node_one, node_two = self.conflicts.pop(0)  # type: (Taxon, Taxon)
 
+            # See if one was removed during previous conflict resolution
             if not node_one.valid(self.hierarchy) or not node_two.valid(self.hierarchy):
-                continue
+                for rep, obsolete in replaced_nodes.items():
+                    if node_one in obsolete:
+                        node_one = rep
+                        break
+                    elif node_two in obsolete:
+                        node_two = rep
+                        break
 
             if node_one.rank == self.no_rank_name and node_two.rank == self.no_rank_name:
                 rep, obsolete = self.max_node_force(node_one, node_two)
@@ -434,7 +442,10 @@ class TaxonomicHierarchy:
                               " ({0} = {2}) was selected to represent.\n".format(rep.name, obsolete.name, rep.coverage))
 
             self.redirect_hierarchy_paths(rep=rep, old=obsolete)  # obsolete Taxon is removed from self.hierarchy
-            replaced_nodes[obsolete] = rep
+            try:
+                replaced_nodes[rep].append(obsolete)
+            except KeyError:
+                replaced_nodes[rep] = [obsolete]
             conflict_resolution_summary += "\t'{}' ({}) -> '{}' ({})\n".format(obsolete.name, obsolete.rank,
                                                                                rep.name, rep.rank)
 
