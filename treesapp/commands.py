@@ -278,8 +278,7 @@ def train(sys_args):
         try:
             assign(assign_params)
             plain_pqueries = ts_phylo_seq.assignments_to_treesaps(file_parsers.read_classification_table(
-                os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")),
-                {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+                os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")))
         except (SystemExit, IOError):
             logging.info("failed.\n")
             logging.error("treesapp assign did not complete successfully.\n")
@@ -316,19 +315,19 @@ def train(sys_args):
         if args.classifier == "occ":
             # The individual instances are of PQuery type
             tp_names.update({ts_trainer.ref_pkg.prefix:
-                             [pquery.place_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]})
+                             [pquery.seq_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]})
 
             for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]:
                 if not pquery.rank:
                     pquery.rank = "species"
         else:
             tp, fp, fn = training_utils.bin_headers(refpkg_pqueries, ts_trainer.pkg_dbname_dict, query_seq_records,
-                                                             {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+                                                    {ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
             # The individual instances are of QuerySequence type
             for refpkg_name, tp_query_seqs in tp.items():
-                tp_names[refpkg_name] = [qseq.place_name for qseq in tp_query_seqs]
+                tp_names[refpkg_name] = [qseq.seq_name for qseq in tp_query_seqs]
             for refpkg_name, fp_query_seqs in fp.items():
-                fp_names[refpkg_name] = [qseq.place_name for qseq in fp_query_seqs]
+                fp_names[refpkg_name] = [qseq.seq_name for qseq in fp_query_seqs]
 
         logging.info("Extracting features from TreeSAPP classifications... ")
         tp, t_pqs = training_utils.vectorize_placement_data(condition_names=tp_names, classifieds=refpkg_pqueries,
@@ -1227,7 +1226,8 @@ def assign(sys_args):
             abundance_args = ["--treesapp_output", ts_assign.output_dir,
                               "--reads", args.reads,
                               "--pairing", args.pairing,
-                              "--num_procs", str(args.num_threads)]
+                              "--num_procs", str(args.num_threads),
+                              "--report", "nothing"]
             if args.reverse:
                 abundance_args += ["--reverse", args.reverse]
             abundance_dict = abundance(abundance_args)
@@ -1269,7 +1269,6 @@ def abundance(sys_args):
 
     ts_abund = classy.Abundance()
     ts_abund.furnish_with_arguments(args)
-    abundance_dict = {}
 
     log_file_name = args.output + os.sep + "TreeSAPP_abundance_log.txt"
     classy.prep_logging(log_file_name, args.verbose)
@@ -1277,7 +1276,6 @@ def abundance(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     ts_abund.check_arguments(args)
-    refpkg_dict = file_parsers.gather_ref_packages(ts_abund.refpkg_dir)
     # TODO: Implement check-pointing for abundance
     # ts_abund.decide_stage(args)
 
@@ -1289,12 +1287,11 @@ def abundance(sys_args):
     if os.path.isfile(sam_file):
         ref_seq_abunds = samsum_cmd.ref_sequence_abundances(aln_file=sam_file, seq_file=ts_abund.classified_nuc_seqs,
                                                             min_aln=10, p_cov=50, map_qual=1, multireads=False)
-        for ref_name, ref_seq in ref_seq_abunds.items():
-            abundance_dict[re.sub(r"\|(.*){2,10}\|\d+_\d+$", '', ref_seq.name)] = ref_seq.fpkm
+        abundance_dict = {ref_seq.name: ref_seq.fpkm for ref_seq in ref_seq_abunds.values()}
         ref_seq_abunds.clear()
     else:
         logging.warning("SAM file '%s' was not generated.\n" % sam_file)
-        return abundance_dict
+        return {}
 
     ts_assign_mod.delete_files(args.delete, ts_abund.var_output_dir, 4)
 
@@ -1302,9 +1299,9 @@ def abundance(sys_args):
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
         assignments = file_parsers.read_classification_table(ts_abund.classifications)
         # Convert assignments to PQuery instances
-        tree_saps = ts_phylo_seq.assignments_to_treesaps(assignments, refpkg_dict)
-        ts_assign_mod.summarize_placements_rpkm(tree_saps, abundance_dict)
-        ts_assign_mod.write_classification_table(tree_saps, ts_abund.sample_prefix, ts_abund.classifications)
+        pqueries = ts_phylo_seq.assignments_to_treesaps(assignments)
+        ts_assign_mod.abundify_tree_saps(pqueries, abundance_dict)
+        ts_assign_mod.write_classification_table(pqueries, ts_abund.sample_prefix, ts_abund.classifications)
 
     return abundance_dict
 

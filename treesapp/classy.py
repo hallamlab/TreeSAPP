@@ -1440,7 +1440,6 @@ class Abundance(TreeSAPP):
 
         if not os.path.isdir(self.var_output_dir):
             os.makedirs(self.var_output_dir)
-        self.validate_refpkg_dir(args.refpkg_dir)
 
         return
 

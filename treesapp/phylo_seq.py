@@ -444,13 +444,12 @@ class PQuery:
         return
 
 
-def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
+def assignments_to_treesaps(classified_lines: list) -> dict:
     """
     Used for converting the TreeSAPP-assignment information of classified sequences (found in self.classifications)
     into JPlace instances such that these can be reproducibly modified and written again, if needed.
 
     :param classified_lines: A list of lists. Each sub-list represents a line from self.classifications
-    :param refpkg_dict: A dictionary of MarkerBuild instances indexed by their RefPkg codes
     :return: A dictionary of JPlace instances, indexed by their respective names (ReferencePackage.prefix)
     """
     pqueries = dict()
@@ -459,12 +458,13 @@ def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
         pquery = PQuery()
         con_place = PhyloPlace()
         try:
-            _, pquery.place_name, pquery.ref_name, pquery.start, pquery.end, pquery.recommended_lineage, \
+            _, pquery.seq_name, pquery.ref_name, pquery.start, pquery.end, pquery.recommended_lineage, \
             _, con_place.edge_num, pquery.evalue, con_place.like_weight_ratio, pquery.avg_evo_dist, pquery.distances = fields
         except ValueError:
             logging.error("Bad line in classification table:\n" +
                           '\t'.join(fields) + "\n")
             sys.exit(21)
+        pquery.place_name = "{}|{}|{}_{}".format(pquery.seq_name, pquery.ref_name, pquery.start, pquery.end)
         pquery.end = int(pquery.end)
         pquery.start = int(pquery.start)
         pquery.seq_len = pquery.end - pquery.start
@@ -472,11 +472,10 @@ def assignments_to_treesaps(classified_lines: list, refpkg_dict: dict) -> dict:
         con_place.distal_length, con_place.pendant_length, con_place.mean_tip_length = [float(d) for d in
                                                                                         pquery.distances.split(',')]
         pquery.consensus_placement = con_place
-        refpkg = refpkg_dict[pquery.ref_name]  # type: refpkg.ReferencePackage
         try:
-            pqueries[refpkg.prefix].append(pquery)
+            pqueries[pquery.ref_name].append(pquery)
         except KeyError:
-            pqueries[refpkg.prefix] = [pquery]
+            pqueries[pquery.ref_name] = [pquery]
     return pqueries
 
 

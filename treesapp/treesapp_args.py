@@ -312,7 +312,6 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
 
 
 def add_abundance_arguments(parser: TreeSAPPArgumentParser):
-    parser.add_refpkg_opt()
     parser.add_rpkm_params()
     parser.add_compute_miscellany()
     parser.add_delete()

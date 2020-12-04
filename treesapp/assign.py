@@ -984,7 +984,7 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
 
     sam_file = aln_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
     if os.path.isfile(sam_file):
-        logging.info("output found.\n")
+        logging.info("Alignment map file {} found.\n".format(sam_file))
         return sam_file
     index_command = [bwa_exe, "index"]
     index_command += [reference_fasta]
@@ -1015,65 +1015,6 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
     logging.info("done.\n")
 
     return sam_file
-
-
-def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict):
-    """
-    Recalculates the percentages for each marker gene final output based on the RPKM values
-    The abundance_dict contains RPKM values of contigs whereas tree_saps may be fragments of contigs,
-    and if multiple fragments are classified this could "inflate" the RPKM values. Currently, this is not handled.
-
-    :param tree_saps: A dictionary of JPlace instances, indexed by their respective RefPkg codes (denominators)
-    :param abundance_dict: A dictionary mapping predicted (not necessarily classified) seq_names to abundance values
-    :return: None
-    """
-    placement_rpkm_map = dict()  # Used to map the internal nodes to the total RPKM of all descendent nodes
-    marker_rpkm_map = dict()  # Used to hold the RPKM sums for each marker
-    orf_rpkms = dict()  # Essentially a duplicate of abundance_dict after the first for-loop
-
-    # Identify the internal node each sequence was placed, used for iTOL outputs
-    for denominator in tree_saps:
-        for pquery in tree_saps[denominator]:  # type: PQuery
-            if not pquery.classified:
-                continue
-            seq_name = re.sub(r"\|{0}\|\d+_\d+$".format(pquery.ref_name), '', pquery.place_name)
-            try:
-                pquery.abundance = abundance_dict.pop(seq_name)
-                orf_rpkms[seq_name] = pquery.abundance
-            except KeyError:
-                if seq_name in orf_rpkms:
-                    pquery.abundance = orf_rpkms[seq_name]
-                else:
-                    logging.error("Unable to find sequence '" + seq_name +
-                                  "' in RPKM abundance dictionary keys. Examples:\n" +
-                                  "\n".join("'" + f + "'" for f in list(abundance_dict.keys())[0:6]) + "\n")
-                    sys.exit(3)
-            if pquery.consensus_placement.edge_num not in placement_rpkm_map:
-                placement_rpkm_map[pquery.consensus_placement.edge_num] = 0
-
-    if len(abundance_dict) > 0:
-        logging.warning(str(len(abundance_dict)) + " sequence names remain in the RPKM abundance dictionary.\n")
-        logging.debug("Leftover sequences in abundance dict:\n" + "\n".join(abundance_dict.keys()) + "\n")
-    orf_rpkms.clear()
-
-    # Calculate the percentage contribution of each placed sequence
-    for refpkg_name in tree_saps:
-        marker_rpkm_total = 0
-        marker_rpkm_map[refpkg_name] = dict()
-        for pquery in tree_saps[refpkg_name]:
-            if not pquery.classified:
-                continue
-            placement_rpkm_map[pquery.consensus_placement.edge_num] += float(pquery.abundance)
-            marker_rpkm_total += float(pquery.abundance)
-            marker_rpkm_map[refpkg_name][pquery.consensus_placement.edge_num] = 0
-        for placement in marker_rpkm_map[refpkg_name]:
-            try:
-                percentage = (placement_rpkm_map[placement]*100)/marker_rpkm_total
-            except ZeroDivisionError:
-                percentage = 0
-            marker_rpkm_map[refpkg_name][placement] = percentage
-
-    return
 
 
 def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):

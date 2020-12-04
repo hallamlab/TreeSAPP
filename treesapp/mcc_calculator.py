@@ -842,7 +842,7 @@ def mcc_calculator(sys_args):
                 classify_args.append("--svm")
             assign(classify_args)
         classification_lines = file_parsers.read_classification_table(classification_table)
-        assignments = assignments_to_treesaps(classification_lines, test_obj.ref_packages)
+        assignments = assignments_to_treesaps(classification_lines)
     else:
         # Since you are only able to analyze a single reference package at a time with GraftM, this is ran iteratively
         for gpkg in glob(args.refpkg_dir + "*gpkg"):
