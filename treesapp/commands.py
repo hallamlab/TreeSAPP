@@ -9,7 +9,7 @@ from random import randint
 from joblib import dump as jdump
 from joblib import load as jload
 from collections import namedtuple
-from samsum.commands import ref_sequence_abundances
+from samsum import commands as samsum_cmd
 
 from treesapp import entrez_utils
 from treesapp import file_parsers
@@ -1109,7 +1109,7 @@ def assign(sys_args):
     treesapp_args.add_classify_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_assign = classy.Assigner()
+    ts_assign = ts_assign_mod.Assigner()
     ts_assign.furnish_with_arguments(args)
     ts_assign.check_previous_output(args.overwrite)
 
@@ -1118,7 +1118,7 @@ def assign(sys_args):
     logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
-    treesapp_args.check_classify_arguments(ts_assign, args)
+    ts_assign.check_classify_arguments(args)
     ts_assign.decide_stage(args)
 
     refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
@@ -1214,40 +1214,27 @@ def assign(sys_args):
         # Set PQuery.consensus_placement attributes
         ts_assign_mod.select_query_placements(tree_saps, refpkg_dict, mode=args.p_sum)
         ts_assign_mod.filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr)
-        ts_assign_mod.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
+        ts_assign_mod.determine_confident_lineage(tree_saps, refpkg_dict)
+
+        ts_assign.write_classified_orfs(tree_saps, extracted_seq_dict)
         abundance_dict = dict()
         for refpkg_code in tree_saps:
             for placed_seq in tree_saps[refpkg_code]:  # type: ts_phylo_seq.PQuery
                 abundance_dict[placed_seq.place_name] = 1.0
-        if args.molecule == "dna":
-            if os.path.isfile(ts_assign.nuc_orfs_file):
-                nuc_orfs = fasta.FASTA(ts_assign.nuc_orfs_file)
-                nuc_orfs.load_fasta()
-                nuc_orfs.change_dict_keys()
-                if not os.path.isfile(ts_assign.classified_nuc_seqs):
-                    logging.info("Creating nucleotide FASTA file of classified sequences '" +
-                                 ts_assign.classified_nuc_seqs + "'... ")
-                    ts_assign_mod.write_classified_sequences(tree_saps,
-                                                             nuc_orfs.fasta_dict, ts_assign.classified_nuc_seqs)
-                    logging.info("done.\n")
-            else:
-                logging.warning("Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
-                                "Cannot create the nucleotide FASTA file of classified sequences!\n")
-            if args.rpkm:
-                abundance_args = ["--treesapp_output", ts_assign.output_dir,
-                                  "--reads", args.reads,
-                                  "--pairing", args.pairing,
-                                  "--num_procs", str(args.num_threads)]
-                if args.reverse:
-                    abundance_args += ["--reverse", args.reverse]
-                abundance_dict = abundance(abundance_args)
-                ts_assign_mod.summarize_placements_rpkm(tree_saps, abundance_dict,
-                                                        refpkg_dict, ts_assign.final_output_dir)
 
+        # Run the abundance subcommand on the classified sequences
+        if ts_assign.stage_status("abundance"):
+            abundance_args = ["--treesapp_output", ts_assign.output_dir,
+                              "--reads", args.reads,
+                              "--pairing", args.pairing,
+                              "--num_procs", str(args.num_threads)]
+            if args.reverse:
+                abundance_args += ["--reverse", args.reverse]
+            abundance_dict = abundance(abundance_args)
         ts_assign_mod.abundify_tree_saps(tree_saps, abundance_dict)
-        assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
-        ts_assign_mod.determine_confident_lineage(tree_saps, refpkg_dict)
-        ts_assign_mod.write_classification_table(tree_saps, ts_assign.sample_prefix, assign_out)
+
+        ts_assign_mod.write_classification_table(tree_saps, ts_assign.sample_prefix,
+                                                 output_file=ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv")
 
         ts_assign_mod.produce_itol_inputs(tree_saps, refpkg_dict, itol_data, itol_out_dir, ts_assign.refpkg_dir)
         ts_assign_mod.delete_files(args.delete, ts_assign.var_output_dir, 4)
@@ -1300,8 +1287,8 @@ def abundance(sys_args):
     ts_abund.sample_prefix = ts_abund.fq_suffix_re.sub('', '.'.join(os.path.basename(args.reads).split('.')[:-1]))
 
     if os.path.isfile(sam_file):
-        ref_seq_abunds = ref_sequence_abundances(aln_file=sam_file, seq_file=ts_abund.classified_nuc_seqs,
-                                                 min_aln=10, p_cov=50, map_qual=1, multireads=False)
+        ref_seq_abunds = samsum_cmd.ref_sequence_abundances(aln_file=sam_file, seq_file=ts_abund.classified_nuc_seqs,
+                                                            min_aln=10, p_cov=50, map_qual=1, multireads=False)
         for ref_name, ref_seq in ref_seq_abunds.items():
             abundance_dict[re.sub(r"\|(.*){2,10}\|\d+_\d+$", '', ref_seq.name)] = ref_seq.fpkm
         ref_seq_abunds.clear()
@@ -1316,7 +1303,7 @@ def abundance(sys_args):
         assignments = file_parsers.read_classification_table(ts_abund.classifications)
         # Convert assignments to PQuery instances
         tree_saps = ts_phylo_seq.assignments_to_treesaps(assignments, refpkg_dict)
-        ts_assign_mod.summarize_placements_rpkm(tree_saps, abundance_dict, refpkg_dict, ts_abund.final_output_dir)
+        ts_assign_mod.summarize_placements_rpkm(tree_saps, abundance_dict)
         ts_assign_mod.write_classification_table(tree_saps, ts_abund.sample_prefix, ts_abund.classifications)
 
     return abundance_dict

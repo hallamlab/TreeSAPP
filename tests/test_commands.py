@@ -73,6 +73,7 @@ class TreesappTester(unittest.TestCase):
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(15, len(lines))
+        self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.faa"))
         return
 
     def test_assign_dna(self):
@@ -91,6 +92,7 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(6, len(lines))
         classified_seqs = [line[1] for line in lines]
         self.assertTrue("LYOS01000003.1:168824-170509_1 # 1 # 1686 # 1 # ID=3_1;partial=10;start_type=Edge;rbs_motif=None;rbs_spacer=None;gc_cont=0.493" in classified_seqs)
+        self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.fna"))
         return
 
     def test_colour(self):

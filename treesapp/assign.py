@@ -26,12 +26,12 @@ try:
     from numpy import array as np_array
     from sklearn import preprocessing
 
-    from treesapp.classy import CommandLineFarmer
+    from treesapp import classy
     from treesapp.phylo_seq import PhyloPlace, PQuery, TreeLeafReference
     from treesapp.refpkg import ReferencePackage
     from treesapp.treesapp_args import TreeSAPPArgumentParser
     from treesapp.fasta import get_headers, write_new_fasta, read_fasta_to_dict, FASTA,\
-        multiple_alignment_dimensions, Header
+        multiple_alignment_dimensions, Header, fastx_split
     from treesapp.entish import index_tree_edges, map_internal_nodes_leaves
     from treesapp.external_command_interface import launch_write_command
     from treesapp import lca_calculations as ts_lca
@@ -46,6 +46,224 @@ except ImportWarning:
     sys.stderr.write("Could not load some user defined module functions")
     sys.stderr.write(traceback.print_exc(10))
     sys.exit(3)
+
+
+class Assigner(classy.TreeSAPP):
+    def __init__(self):
+        """
+
+        """
+        super(Assigner, self).__init__("assign")
+        self.reference_tree = None
+        self.svc_filter = False
+        self.aa_orfs_file = ""
+        self.nuc_orfs_file = ""
+        self.classified_aa_seqs = ""
+        self.classified_nuc_seqs = ""
+        self.composition = ""
+        self.target_refpkgs = list()
+
+        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
+        self.stages = {0: classy.ModuleFunction("orf-call", 0, self.predict_orfs),
+                       1: classy.ModuleFunction("clean", 1, self.clean),
+                       2: classy.ModuleFunction("search", 2, self.search),
+                       3: classy.ModuleFunction("align", 3, self.align),
+                       4: classy.ModuleFunction("place", 4, self.place),
+                       5: classy.ModuleFunction("classify", 5, self.classify),
+                       6: classy.ModuleFunction("abundance", 6)}
+
+    def check_classify_arguments(self, args):
+        """
+        Ensures the command-line arguments returned by argparse are sensible.
+
+        :param args: object with parameters returned by argparse.parse_args()
+        :return: 'args', a summary of TreeSAPP settings.
+        """
+        self.aa_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.faa"
+        self.nuc_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.fna"
+        self.classified_aa_seqs = self.final_output_dir + self.sample_prefix + "_classified.faa"
+        self.classified_nuc_seqs = self.final_output_dir + self.sample_prefix + "_classified.fna"
+
+        if args.targets:
+            self.target_refpkgs = args.targets.split(',')
+        else:
+            self.target_refpkgs = []
+
+        self.validate_refpkg_dir(args.refpkg_dir)
+
+        if args.molecule == "prot":
+            self.query_sequences = self.input_sequences
+            self.change_stage_status("orf-call", False)
+            if args.rpkm:
+                logging.error("Unable to calculate RPKM values for protein sequences.\n")
+                sys.exit(3)
+
+        if args.svm:
+            self.svc_filter = True
+
+        # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
+        # Parameterizing the hmmsearch output parsing:
+        args.perc_aligned = 10
+        args.min_acc = 0.7
+        if args.stringency == "relaxed":
+            args.max_e = 1E-3
+            args.max_ie = 1E-1
+            args.min_score = 15
+        elif args.stringency == "strict":
+            args.max_e = 1E-5
+            args.max_ie = 1E-3
+            args.min_score = 30
+        else:
+            logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
+            sys.exit(3)
+
+        return args
+
+    def decide_stage(self, args) -> None:
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        :return: None
+        """
+        if args.molecule == "dna":
+            if os.path.isfile(self.aa_orfs_file) and os.path.isfile(self.nuc_orfs_file):
+                self.change_stage_status("orf-call", False)
+                self.query_sequences = self.aa_orfs_file
+        else:
+            self.change_stage_status("orf-call", False)
+
+        if args.rpkm and args.molecule == "dna":
+            if not args.reads:
+                if args.reverse:
+                    logging.error("File containing reverse reads provided but forward mates file missing!\n")
+                    sys.exit(3)
+                else:
+                    logging.error("At least one FASTQ file must be provided if -rpkm flag is active!\n")
+                    sys.exit(3)
+            elif args.reads and not os.path.isfile(args.reads):
+                logging.error("Path to forward reads ('%s') doesn't exist.\n" % args.reads)
+                sys.exit(3)
+            elif args.reverse and not os.path.isfile(args.reverse):
+                logging.error("Path to reverse reads ('%s') doesn't exist.\n" % args.reverse)
+                sys.exit(3)
+            else:
+                self.change_stage_status("abundance", True)
+        else:
+            self.change_stage_status("abundance", False)
+
+        self.validate_continue(args)
+        return
+
+    def get_info(self):
+        info_string = "Assigner instance summary:\n"
+        info_string += super(Assigner, self).get_info() + "\n\t"
+        info_string += "\n\t".join(["ORF protein sequences = " + self.aa_orfs_file,
+                                    "Target reference packages = " + str(self.target_refpkgs),
+                                    "Composition of input = " + self.composition]) + "\n"
+
+        return info_string
+
+    def predict_orfs(self, composition: str, num_threads: int) -> None:
+        """
+        Predict ORFs from the input FASTA file using Prodigal
+
+        :param composition: Sample composition being either a single organism or a metagenome [single | meta]
+        :param num_threads: The number of CPU threads to use
+        :return: None
+        """
+
+        logging.info("Predicting open-reading frames using Prodigal... ")
+
+        start_time = time.time()
+
+        if num_threads > 1 and composition == "meta":
+            # Split the input FASTA into num_threads files to run Prodigal in parallel
+            split_files = fastx_split(self.input_sequences, self.output_dir, num_threads)
+        else:
+            split_files = [self.input_sequences]
+
+        task_list = list()
+        for fasta_chunk in split_files:
+            chunk_prefix = self.var_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
+            prodigal_command = [self.executables["prodigal"]]
+            prodigal_command += ["-i", fasta_chunk]
+            prodigal_command += ["-p", composition]
+            prodigal_command += ["-a", chunk_prefix + "_ORFs.faa"]
+            prodigal_command += ["-d", chunk_prefix + "_ORFs.fna"]
+            prodigal_command += ["1>/dev/null", "2>/dev/null"]
+            task_list.append(prodigal_command)
+
+        num_tasks = len(task_list)
+        if num_tasks > 0:
+            cl_farmer = wrapper.CommandLineFarmer("Prodigal -p " + composition, num_threads)
+            cl_farmer.add_tasks_to_queue(task_list)
+
+            cl_farmer.task_queue.close()
+            cl_farmer.task_queue.join()
+
+        tmp_prodigal_aa_orfs = glob.glob(self.var_output_dir + self.sample_prefix + "*_ORFs.faa")
+        tmp_prodigal_nuc_orfs = glob.glob(self.var_output_dir + self.sample_prefix + "*_ORFs.fna")
+        if not tmp_prodigal_aa_orfs or not tmp_prodigal_nuc_orfs:
+            logging.error("Prodigal outputs were not generated:\n"
+                          "Amino acid ORFs: " + ", ".join(tmp_prodigal_aa_orfs) + "\n" +
+                          "Nucleotide ORFs: " + ", ".join(tmp_prodigal_nuc_orfs) + "\n")
+            sys.exit(5)
+
+        # Concatenate outputs
+        if not os.path.isfile(self.aa_orfs_file) and not os.path.isfile(self.nuc_orfs_file):
+            os.system("cat " + ' '.join(tmp_prodigal_aa_orfs) + " > " + self.aa_orfs_file)
+            os.system("cat " + ' '.join(tmp_prodigal_nuc_orfs) + " > " + self.nuc_orfs_file)
+            intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files)
+            for tmp_file in intermediate_files:
+                if tmp_file != self.input_sequences:
+                    os.remove(tmp_file)
+
+        logging.info("done.\n")
+
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        logging.debug("\tProdigal time required: " +
+                      ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+
+        self.query_sequences = self.aa_orfs_file
+        return
+
+    def clean(self):
+        return
+
+    def search(self):
+        return
+
+    def align(self):
+        return
+
+    def place(self):
+        return
+
+    def classify(self):
+        return
+
+    def write_classified_orfs(self, pqueries: dict, extracted_seqs: dict) -> None:
+        # Write the amino acid sequences
+        write_classified_sequences(pqueries, extracted_seqs, self.classified_aa_seqs)
+        # Write the nucleotide sequences
+        if os.path.isfile(self.nuc_orfs_file):
+            nuc_orfs = FASTA(self.nuc_orfs_file)
+            nuc_orfs.load_fasta()
+            nuc_orfs.change_dict_keys()
+            if not os.path.isfile(self.classified_nuc_seqs):
+                logging.info("Creating nucleotide FASTA file of classified sequences '{}'... "
+                             "".format(self.classified_nuc_seqs))
+                write_classified_sequences(pqueries, nuc_orfs.fasta_dict, self.classified_nuc_seqs)
+                logging.info("done.\n")
+        else:
+            logging.warning("Unable to read '" + self.nuc_orfs_file + "'.\n" +
+                            "Cannot create the nucleotide FASTA file of classified sequences!\n")
+        return
 
 
 def replace_contig_names(numeric_contig_index: dict, fasta: FASTA):
@@ -522,7 +740,7 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
                                                       query_fa_in, query_mfa_out))
 
     if len(task_list) > 0:
-        cl_farmer = CommandLineFarmer("cmalign/hmmalign --mapali", n_proc)
+        cl_farmer = wrapper.CommandLineFarmer("cmalign/hmmalign --mapali", n_proc)
         cl_farmer.add_tasks_to_queue(task_list)
 
         cl_farmer.task_queue.close()
@@ -799,7 +1017,7 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
     return sam_file
 
 
-def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, refpkg_dict: dict, final_output_dir: str):
+def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict):
     """
     Recalculates the percentages for each marker gene final output based on the RPKM values
     The abundance_dict contains RPKM values of contigs whereas tree_saps may be fragments of contigs,
@@ -807,8 +1025,6 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, refpkg_dict
 
     :param tree_saps: A dictionary of JPlace instances, indexed by their respective RefPkg codes (denominators)
     :param abundance_dict: A dictionary mapping predicted (not necessarily classified) seq_names to abundance values
-    :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
-    :param final_output_dir:
     :return: None
     """
     placement_rpkm_map = dict()  # Used to map the internal nodes to the total RPKM of all descendent nodes
@@ -856,31 +1072,6 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, refpkg_dict
             except ZeroDivisionError:
                 percentage = 0
             marker_rpkm_map[refpkg_name][placement] = percentage
-
-    # TODO: currently doesn't work as required files are missing. Fix or abandon?
-    for refpkg_name in marker_rpkm_map:
-        ref_pkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
-
-        final_output_file = final_output_dir + str(ref_pkg.prefix) + "_concatenated_RAxML_outputs.txt"
-        # Not all of the genes predicted will have made it to the RAxML stage
-        if os.path.isfile(final_output_file):
-            shutil.move(final_output_file, final_output_dir + ref_pkg.prefix + "_concatenated_counts.txt")
-            try:
-                cat_output = open(final_output_file, 'w')
-            except IOError:
-                raise IOError("Unable to open " + final_output_file + " for writing!")
-
-            description_text = '# ' + str(ref_pkg.kind) + '\n\n'
-            cat_output.write(description_text)
-
-            for placement in sorted(marker_rpkm_map[refpkg_name].keys(), reverse=True):
-                relative_weight = marker_rpkm_map[refpkg_name][placement]
-                if relative_weight > 0:
-                    cat_output.write('Placement weight ')
-                    cat_output.write('%.2f' % relative_weight + "%: ")
-                    cat_output.write(placement + "\n")
-
-            cat_output.close()
 
     return
 
