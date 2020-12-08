@@ -78,6 +78,21 @@ class PhyloClust:
             return True
         return False
 
+    @staticmethod
+    def build_edge_node_index(ete_tree: Tree) -> dict:
+        """ Maps node.name attributes to edge integers in DFS traversal order """
+        node_edge_map = {}
+        edge_name = 0
+        if len(ete_tree.children) > 2:
+            ete_tree.resolve_polytomy(recursive=False)
+        ete_tree = ete_tree.get_tree_root()
+        for node in ete_tree.traverse(strategy="postorder"):  # type: Tree
+            if len(node.children) > 2:
+                node.resolve_polytomy(recursive=False)
+            node_edge_map[node.name] = edge_name
+            edge_name += 1
+        return node_edge_map
+
     def group_rel_dists(self, tree: Tree, hierarchy: ts_taxonomy.TaxonomicHierarchy,
                         group_rank="species", norm=True) -> dict:
         """
@@ -169,14 +184,40 @@ class PhyloClust:
 
         return node_partitions
 
+    def split_node_partition_edges(self, node_partitions: dict) -> dict:
+        """
+        Prunes inner nodes that are part of a cluster when their accumulated distance exceeds alpha.
+        Therefore, clusters may be entirely comprised of internal nodes.
+
+        Distance is not accumulated within this function as this has been completed by self.partition_nodes()
+        """
+        inode_partitions = {}
+        index = 1
+        for subtree in node_partitions.values():  # type: TreeNode
+            for node in subtree.traverse(strategy="postorder"):
+                if len(subtree.children) == 0:
+                    break
+                if node is subtree:
+                    break
+                if node.dist > self.alpha:
+                    inode_partitions[index] = node
+                    node.up.remove_child(node)
+                    index += 1
+            inode_partitions[index] = subtree
+            index += 1
+        return inode_partitions
+
     def define_tree_clusters(self, tree: Tree) -> dict:
-        cluster_map = self.partition_nodes(tree)
+        node_edge_map = self.build_edge_node_index(tree)
+        cluster_nodes = self.partition_nodes(tree)
+        # Split the cluster nodes into internal nodes when necessary
+        cluster_nodes = self.split_node_partition_edges(cluster_nodes)
+        # Find the edges belonging to each cluster
+        edge_clusters = {}
+        for cluster_num, node_cluster in cluster_nodes.items():  # type: (int, TreeNode)
+            edge_clusters[cluster_num] = [node_edge_map[node.name] for node in node_cluster.traverse()]
 
-        # TODO: Find the edges belonging to each cluster
-
-        # TODO: Invert the dictionary to create the _edges_to_cluster_index
-
-        return cluster_map
+        return edge_clusters
 
 
 def cluster_phylogeny(sys_args: list) -> None:
@@ -195,8 +236,14 @@ def cluster_phylogeny(sys_args: list) -> None:
     if not p_clust.alpha:
         p_clust.calculate_distance_threshold(taxa_tree, p_clust.refpkg.taxa_trie)
 
-    # TODO: Perform maximum, mean, or median distance min-cut partitioning
+    # Perform maximum, mean, or median distance min-cut partitioning
     cluster_map = p_clust.define_tree_clusters(taxa_tree)
+
+    # Invert the dictionary to create the _edges_to_cluster_index
+    edge_clusters = {}
+    for i, edges in cluster_map.items():
+        for e in edges:
+            edge_clusters[e] = i
 
     # TODO: Map the PQueries (max_lwr or aelw?) to clusters
 

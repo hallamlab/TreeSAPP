@@ -39,6 +39,15 @@ def label_internal_nodes_ete(ete_tree: Tree) -> None:
 
 
 def edge_from_node_name(ete_tree: Tree, node_name) -> int:
+    """
+    Returns the number corresponding to a node's proximal edge (i.e. the edge connecting the node to its parent)
+
+    Note: this algorithm is only suitable for complete trees, not subtrees!
+
+    :param ete_tree: An ETE3 Tree instance where all nodes have names that can be matches
+    :param node_name: The name of the node to retrieve the edge of
+    :return: An integer representing the name of the node's edge
+    """
     edge_name = 0
     if len(ete_tree.children) > 2:
         ete_tree.resolve_polytomy(recursive=False)
