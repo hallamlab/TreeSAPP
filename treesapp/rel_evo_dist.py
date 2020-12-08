@@ -1,15 +1,16 @@
 import logging
 
 import collections
-
 from ete3 import Tree, TreeNode
 
+from treesapp import taxonomic_hierarchy as ts_taxonomy
+
 ##
-# The following code was adapted from https://github.com/dparks1134/PhyloRank/rel_dist.py
+# Much of the following code was adapted from https://github.com/dparks1134/PhyloRank/rel_dist.py
 ##
 
 
-class RelativeEvolutionaryDistance:
+class RedTree:
     def __init__(self):
         """ Initialize """
         self.logger = logging.getLogger()
@@ -64,8 +65,8 @@ class RelativeEvolutionaryDistance:
                 node.rel_dist = 1.0
             else:
                 a = node.dist
-                b = node.mean_dist
-                x = node.up.rel_dist
+                b = getattr(node, "mean_dist")
+                x = getattr(node.up, "rel_dist")
 
                 if (a + b) != 0:
                     rel_dist = x + (a / (a + b)) * (1.0 - x)
@@ -77,7 +78,7 @@ class RelativeEvolutionaryDistance:
                 node.rel_dist = rel_dist
         return
 
-    def rel_dist_to_named_clades(self, tree) -> dict:
+    def rel_dist_to_named_clades(self, tree: Tree) -> dict:
         """
         Determine relative distance to specific taxa.
 
@@ -90,19 +91,12 @@ class RelativeEvolutionaryDistance:
 
         # tabulate values for internal nodes with ranks
         rel_dists = collections.defaultdict(dict)
-        for node in tree.preorder_node_iter(lambda n: n != tree.seed_node):
-            if not node.label or node.is_leaf():
+        for node in tree.traverse("preorder"):  # type: TreeNode
+            if node.is_root():
                 continue
-
-            _support, taxon_name = parse_label(node.label)
-            if not taxon_name:
+            node_tax = getattr(node, "taxon")  # type: ts_taxonomy.Taxon
+            if not node_tax or node.is_leaf():
                 continue
-
-            # get most-specific rank if a node represents multiple ranks
-            if ';' in taxon_name:
-                taxon_name = taxon_name.split(';')[-1].strip()
-
-            most_specific_rank = taxon_name[0:3]
-            rel_dists[Taxonomy.rank_index[most_specific_rank]][taxon_name] = node.rel_dist
+            rel_dists[node_tax.rank][node_tax.name] = getattr(node, "rel_dist")
 
         return rel_dists
