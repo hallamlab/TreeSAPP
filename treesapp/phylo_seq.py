@@ -198,7 +198,13 @@ class PQuery:
     def name_placed_sequence(self) -> None:
         names = set()
         for pplace in self.placements:  # type: PhyloPlace
-            names.add(pplace.name)
+            # Handles different JPlace formats
+            try:
+                names.add(pplace.name)
+            except TypeError:
+                if type(pplace.name) is list:
+                    for n in pplace.name:
+                        names.add(n)
 
         if len(names) > 1:
             logging.error("Multiple names encountered for a single PQuery:\n{}\n".format(','.join(names)))

@@ -1,6 +1,7 @@
 import os
 import unittest
 import pytest
+import shutil
 
 from copy import deepcopy
 from ete3 import Tree, TreeNode
@@ -12,6 +13,11 @@ class PhyloClusterTester(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp.refpkg import ReferencePackage
         from treesapp.rel_evo_dist import RedTree
+        self.tmp_dir = os.path.join(os.getcwd(), "tests", "phyloclust_test_dir")
+        if os.path.isdir(self.tmp_dir):
+            shutil.rmtree(self.tmp_dir)
+        os.mkdir(self.tmp_dir)
+
         self.refpkg = ReferencePackage()
         self.refpkg.f__json = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.refpkg.slurp()
@@ -26,6 +32,11 @@ class PhyloClusterTester(unittest.TestCase):
             if not n.name:
                 n.name = str(x)
                 x += 1
+        return
+
+    def tearDown(self) -> None:
+        if os.path.isdir(self.tmp_dir):
+            shutil.rmtree(self.tmp_dir)
         return
 
     def test_partition_nodes(self):
@@ -86,24 +97,42 @@ class PhyloClusterTester(unittest.TestCase):
         rel_dists = p_clust.group_rel_dists(self.taxa_tree, self.refpkg.taxa_trie, group_rank="family", norm=False)
         return
 
+    def test_match_edges_to_clusters(self):
+        from treesapp.phylo_cluster import PhyloClust
+        p_clust = PhyloClust()
+        p_clust.alpha = 0.1
+        p_clust.match_edges_to_clusters(tree=deepcopy(self.taxa_tree))
+
+        # Ensure each edge number appears in only one cluster
+        self.assertEqual(len(p_clust._edges_to_cluster_index), (len(self.taxa_tree)*2)-1)
+        return
+
     def test_define_tree_clusters(self):
         from treesapp.phylo_cluster import PhyloClust
         p_clust = PhyloClust()
         p_clust.alpha = 0.1
-        cluster_map = p_clust.define_tree_clusters(tree=deepcopy(self.taxa_tree))
-        self.assertTrue(len(self.taxa_tree) <= len(cluster_map) <= sum([1 for _ in self.taxa_tree.traverse()]))
-
-        # Ensure each edge number appears in only one cluster
-        edge_names = []
-        for l in cluster_map.values():
-            edge_names += l
-        self.assertEqual(len(edge_names), len(set(edge_names)))
+        p_clust.define_tree_clusters(tree=deepcopy(self.taxa_tree))
+        self.assertTrue(len(self.taxa_tree) <= len(p_clust.cluster_index) <= sum([1 for _ in self.taxa_tree.traverse()]))
         return
 
     def test_cluster_phylogeny(self):
         from treesapp.phylo_cluster import cluster_phylogeny
+        # Should fail when multiple refpkgs provided
         with pytest.raises(SystemExit):
-            cluster_phylogeny([])
+            cluster_phylogeny(["--refpkg_path",
+                               self.refpkg.f__json, get_test_data(os.path.join("refpkgs", "McrB_build.pkl")),
+                               "--jplace", get_test_data("epa_result.jplace")])
+
+        # Test input is a single JPlace file
+        cluster_phylogeny(["--refpkg_path", self.refpkg.f__json,
+                           "--jplace", get_test_data("epa_result.jplace"),
+                           "--output", self.tmp_dir])
+
+        # Test input is a treesapp assign output directory
+        cluster_phylogeny(["--refpkg_path", self.refpkg.f__json,
+                           "--assign_output", get_test_data("test_output_TarA"),
+                           "--output", self.tmp_dir,
+                           "--alpha", str(0.4)])
         return
 
 

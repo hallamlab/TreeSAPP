@@ -52,11 +52,17 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.miscellany.add_argument('--delete', default=False, action="store_true",
                                      help='Delete all intermediate files to save disk space.')
 
-    def add_io(self):
+    def add_input_fastx(self):
         self.reqs.add_argument('-i', '--fastx_input', required=True, dest="input",
                                help='An input file containing DNA or protein sequences in either FASTA or FASTQ format')
+
+    def add_output_dir(self):
         self.optopt.add_argument('-o', '--output', default='./output/', required=False,
                                  help='Path to an output directory [DEFAULT = ./output/]')
+
+    def add_io(self):
+        self.add_input_fastx()
+        self.add_output_dir()
         self.add_delete()
         return
 
