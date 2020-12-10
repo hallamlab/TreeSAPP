@@ -94,7 +94,8 @@ class PhyloClusterTester(unittest.TestCase):
             self.assertTrue(1 > max(dists))
 
         # Test grouping by a deeper taxonomic relationship, family
-        rel_dists = p_clust.group_rel_dists(self.taxa_tree, self.refpkg.taxa_trie, group_rank="family", norm=False)
+        p_clust.tax_rank = "family"
+        p_clust.group_rel_dists(self.taxa_tree, self.refpkg.taxa_trie)
         return
 
     def test_match_edges_to_clusters(self):

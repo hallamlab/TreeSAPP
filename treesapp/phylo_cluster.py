@@ -34,7 +34,7 @@ class PhyloClust:
         self.arg_parser = TreeSAPPArgumentParser(description="A tool for sorting query sequences placed on a phylogeny"
                                                              " into phylogenetically-inferred clusters.")
         self.alpha = 0
-        self.part_metric = "max"
+        self.tax_rank = "species"
         self.normalize = False
         self.jplace_files = {}
         self.output_dir = ""
@@ -62,8 +62,8 @@ class PhyloClust:
             logging.error("Only a single reference package is accepted by treesapp phylotu.\n")
             sys.exit(3)
 
-        self.part_metric = args.partition_metric
         self.alpha = args.alpha
+        self.tax_rank = args.tax_rank
         self.refpkg.f__json = args.pkg_path.pop()
         self.refpkg.slurp()
 
@@ -82,13 +82,13 @@ class PhyloClust:
                 self.jplace_files[sample_id] = jplace_file
 
         # Determine whether to normalise the evolutionary distances or not
-        if args.evo_dist == "red":
-            self.normalize = True
-        elif args.evo_dist == "raw":
-            self.normalize = False
-        else:
-            logging.error("Unexpected distance normalisation method: '{}'.\n".format(args.evo_dist))
-            sys.exit(3)
+        # if args.evo_dist == "red":
+        #     self.normalize = True
+        # elif args.evo_dist == "raw":
+        #     self.normalize = False
+        # else:
+        #     logging.error("Unexpected distance normalisation method: '{}'.\n".format(args.evo_dist))
+        #     sys.exit(3)
         return
 
     def get_arguments(self, sys_args: list) -> None:
@@ -102,18 +102,23 @@ class PhyloClust:
         place_dat.add_argument("--assign_output", nargs='+', dest="ts_out",
                                help="Path to one or more output directories of treesapp assign.")
 
-        self.arg_parser.pplace_args.add_argument("-d", "--evo_dist",
-                                                 choices=["raw", "red"], default="red", required=False,
-                                                 help="The evolutionary distance normalisation method to use."
-                                                      " [ DEAULT = red ]")
-        self.arg_parser.optopt.add_argument("-m", "--partition_metric",
-                                            choices=["mean", "median", "max"], default="max", required=False,
-                                            help="The metric to use when deciding when to cut a cluster. "
-                                                 "[ DEFAULT = max ].")
+        self.arg_parser.optopt.add_argument("-t", "--tax_rank",
+                                            default="species", choices=["class", "order", "family", "genus", "species"],
+                                            help="The taxonomic rank the cluster radius should approximately represent."
+                                                 " [ DEFAULT = 'species' ].")
         self.arg_parser.optopt.add_argument("-a", "--alpha",
                                             default=0.0, required=False, type=float,
                                             help="The evolutionary distance threshold defining the cluster boundaries."
                                                  " [ DEFAULT = auto ].")
+        # TODO: Implement and validate these options
+        # self.arg_parser.pplace_args.add_argument("-d", "--evo_dist",
+        #                                          choices=["raw", "red"], default="red", required=False,
+        #                                          help="The evolutionary distance normalisation method to use."
+        #                                               " [ DEAULT = red ]")
+        # self.arg_parser.optopt.add_argument("-m", "--partition_metric",
+        #                                     choices=["mean", "median", "max"], default="max", required=False,
+        #                                     help="The metric to use when deciding when to cut a cluster."
+        #                                          " [ DEFAULT = max ].")
 
         # Parse the arguments
         self.load_args(self.arg_parser.parse_args(sys_args))
@@ -145,17 +150,15 @@ class PhyloClust:
             edge_name += 1
         return node_edge_map
 
-    def group_rel_dists(self, tree: Tree, hierarchy: ts_taxonomy.TaxonomicHierarchy,
-                        group_rank="species", norm=True) -> dict:
+    def group_rel_dists(self, tree: Tree, hierarchy: ts_taxonomy.TaxonomicHierarchy) -> dict:
         """
         Determine the mean RED values between each pair of leaves of the same genus,
         thereby defining the expected range of values for a species.
 
         :param tree: A phylogenetic ete3 Tree instance
-        :param hierarchy:
-        :param group_rank:
-        :param norm: Whether the returned distances are RED or raw, evolutionary distance (branch-length sums)
-        :return:
+        :param hierarchy: A TaxonomicHierarchy instance with an 'accepted_ranks_depths' attribute mapping
+         taxonomic ranks to their depth in the hierarchy, e.g. root -> 0, species -> 7
+        :return: A dictionary mapping taxa to their group's monophyletic leaf-to-leaf distances
         """
         rel_dists = {}
         for node in tree.traverse():
@@ -163,7 +166,7 @@ class PhyloClust:
                 logging.error("Node {} is not complete with RED and taxonomy attributes.\n".format(node.name))
                 sys.exit(17)
 
-        group_index = hierarchy.accepted_ranks_depths[group_rank]
+        group_index = hierarchy.accepted_ranks_depths[self.tax_rank]
 
         for r_leaf in tree.get_leaves():  # type: TreeNode
             r_tax = getattr(r_leaf, "taxon")  # type: ts_taxonomy.Taxon
@@ -188,7 +191,7 @@ class PhyloClust:
                 # Calculate the RED distance between the two monophyletic nodes
                 ca = r_leaf.get_common_ancestor(q_leaf)
                 if self.check_monophyly(ca, target_group):
-                    if norm:
+                    if self.normalize:
                         try:
                             rel_dists[target_group].add(1-ca.rel_dist)
                         except KeyError:
@@ -203,7 +206,7 @@ class PhyloClust:
 
     def calculate_distance_threshold(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy) -> None:
         # Find the 95% confidence interval for RED values between leaves of the same genus
-        grouped_rel_dists = self.group_rel_dists(taxa_tree, taxonomy, group_rank="species", norm=False)
+        grouped_rel_dists = self.group_rel_dists(taxa_tree, taxonomy)
         dists = []
         for group_dists in grouped_rel_dists.values():
             dists += group_dists
@@ -211,6 +214,14 @@ class PhyloClust:
         return
 
     def partition_nodes(self, tree: Tree) -> dict:
+        """
+        Linear-time solution for the Max-diameter min-cut partitioning problem, as published in:
+        Balaban, et al. (2019). TreeCluster: clustering biological sequences using phylogenetic trees.
+
+        :param tree: The root of an ete3 Tree instance.
+        :return: A dictionary mapping cluster names (integers) to TreeNode instances representing the root of clusters:
+          d[1] -> TreeNode, d[2] -> TreeNode
+        """
         node_partitions = {}
         i = 1
         for node in tree.traverse(strategy="postorder"):  # type: TreeNode
@@ -305,7 +316,7 @@ class PhyloClust:
         return
 
     def write_cluster_taxon_labels(self) -> None:
-        """Writes a two-column table mapping each cluster to its respective taxonomic lineage"""
+        """Writes a two-column table mapping each cluster to its respective taxonomic lineage."""
         tbl_string = ""
         output_table = os.path.join(self.output_dir, "phylotu_taxa.tsv")
         for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
@@ -317,7 +328,7 @@ class PhyloClust:
         return
 
     def write_otu_matrix(self, sample_abunds: dict, sep="\t") -> None:
-        """Writes a typical OTU matrix with OTU IDs for rows and samples for columns"""
+        """Writes a typical OTU matrix with OTU IDs for rows and samples for columns."""
         try:
             otu_mat = open(os.path.join(self.output_dir, "phylotu_matrix.tsv"), 'w')
         except IOError:
@@ -349,10 +360,15 @@ def cluster_phylogeny(sys_args: list) -> None:
     red_tree.decorate_rel_dist(taxa_tree)
 
     if not p_clust.alpha:
+        logging.info("Alpha threshold not provided. Estimating for '{}'... ".format(p_clust.tax_rank))
         p_clust.calculate_distance_threshold(taxa_tree, p_clust.refpkg.taxa_trie)
+        logging.info("done.\n")
+        logging.debug("Alpha estimated to be {}.\n".format(p_clust.alpha))
 
     # Perform maximum, mean, or median distance min-cut partitioning
+    logging.info("Defining phylogenetic clusters... ")
     p_clust.define_tree_clusters(p_clust.refpkg.taxonomically_label_tree())
+    logging.info("done.\n")
 
     # Find the edges belonging to each cluster and invert the dictionary to create the _edges_to_cluster_index
     p_clust.match_edges_to_clusters(tree=p_clust.refpkg.taxonomically_label_tree())
@@ -376,7 +392,8 @@ def cluster_phylogeny(sys_args: list) -> None:
             sample_mat[sample_id][num] = p_otu.cardinality
             if p_otu.cardinality >= 1:
                 occupancy += 1
-        logging.info("{}/{} pOTUs found in sample '{}'.\n".format(occupancy, len(p_clust.cluster_index), sample_id))
+        logging.info("{} classified sequences occupy {}/{} '{}' pOTUs in sample '{}'.\n"
+                     "".format(len(pqueries), occupancy, len(p_clust.cluster_index), p_clust.refpkg.prefix, sample_id))
 
     # Write a OTU table with the abundance of each PhylOTU for each JPlace
     p_clust.write_otu_matrix(sample_mat)
