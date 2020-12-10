@@ -1,7 +1,7 @@
 import unittest
 import pytest
 
-from .testing_utils import get_test_data
+from .testing_utils import get_test_data, get_treesapp_root
 
 
 class TreesappTester(unittest.TestCase):
@@ -10,8 +10,16 @@ class TreesappTester(unittest.TestCase):
         import os
         from . import testing_utils as utils
         refpkg_dir = utils.get_test_data(os.path.join("refpkgs"))
+        #
         refpkg_dict = gather_ref_packages(refpkg_data_dir=refpkg_dir, targets=["McrA"])
         self.assertEqual(1, len(refpkg_dict))
+
+        # Test to ensure all core reference packages are present in the main refpkg pkl directory
+        core = {"McrA", "McrB", "McrG", "DsrAB", "XmoA",
+                "NapA", "NxrA", "NifD", "NirK", "NirS", "NxrB", "NorB", "NosZ",
+                "HydA", "PilA"}
+        refpkg_dict = gather_ref_packages(refpkg_data_dir=os.path.join(get_treesapp_root(), "data"))
+        self.assertEqual(0, len(core.difference(set(refpkg_dict.keys()))))
         return
 
     def test_read_linclust_clusters(self):

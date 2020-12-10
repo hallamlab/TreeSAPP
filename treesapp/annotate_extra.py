@@ -154,7 +154,7 @@ def names_for_nodes(clusters: dict, node_map: dict, taxa_map: list) -> dict:
     return node_only_clusters
 
 
-def map_queries_to_annotations(marker_tree_info, master_dat):
+def map_queries_to_annotations(marker_tree_info: dict, master_dat: dict):
     """
 
     :param marker_tree_info:

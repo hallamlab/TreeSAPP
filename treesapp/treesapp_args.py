@@ -6,7 +6,7 @@ import logging
 from glob import glob
 from datetime import datetime as dt
 
-from treesapp.classy import Assigner, Evaluator, Creator, PhyTrainer, Updater, Purity
+from treesapp.classy import Evaluator, Creator, PhyTrainer, Updater, Purity
 from treesapp.utilities import available_cpu_count
 
 
@@ -52,11 +52,17 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.miscellany.add_argument('--delete', default=False, action="store_true",
                                      help='Delete all intermediate files to save disk space.')
 
-    def add_io(self):
+    def add_input_fastx(self):
         self.reqs.add_argument('-i', '--fastx_input', required=True, dest="input",
                                help='An input file containing DNA or protein sequences in either FASTA or FASTQ format')
+
+    def add_output_dir(self):
         self.optopt.add_argument('-o', '--output', default='./output/', required=False,
                                  help='Path to an output directory [DEFAULT = ./output/]')
+
+    def add_io(self):
+        self.add_input_fastx()
+        self.add_output_dir()
         self.add_delete()
         return
 
@@ -312,7 +318,6 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
 
 
 def add_abundance_arguments(parser: TreeSAPPArgumentParser):
-    parser.add_refpkg_opt()
     parser.add_rpkm_params()
     parser.add_compute_miscellany()
     parser.add_delete()
@@ -473,7 +478,7 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_annot_map()
 
     parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
-                               help="Flag indicating input sequences need to be purified using an HMM profile.")
+                               help="Input sequences will be purified with the reference package's profile HMM.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "clean", "search", "lineages", "place", "train", "update"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
@@ -595,54 +600,6 @@ def check_trainer_arguments(phy_trainer: PhyTrainer, args):
         phy_trainer.tsne_plot = os.path.join(phy_trainer.var_output_dir, "train", "tSNE.png")
 
     return
-
-
-def check_classify_arguments(assigner: Assigner, args):
-    """
-    Ensures the command-line arguments returned by argparse are sensible.
-
-    :param assigner: An instantiated Assigner object
-    :param args: object with parameters returned by argparse.parse_args()
-    :return: 'args', a summary of TreeSAPP settings.
-    """
-    assigner.aa_orfs_file = assigner.final_output_dir + assigner.sample_prefix + "_ORFs.faa"
-    assigner.nuc_orfs_file = assigner.final_output_dir + assigner.sample_prefix + "_ORFs.fna"
-    assigner.classified_aa_seqs = assigner.final_output_dir + assigner.sample_prefix + "_classified.faa"
-    assigner.classified_nuc_seqs = assigner.final_output_dir + assigner.sample_prefix + "_classified.fna"
-    
-    if args.targets:
-        assigner.target_refpkgs = args.targets.split(',')
-    else:
-        assigner.target_refpkgs = []
-
-    assigner.validate_refpkg_dir(args.refpkg_dir)
-
-    if args.molecule == "prot":
-        assigner.change_stage_status("orf-call", False)
-        if args.rpkm:
-            logging.error("Unable to calculate RPKM values for protein sequences.\n")
-            sys.exit(3)
-
-    if args.svm:
-        assigner.svc_filter = True
-
-    # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
-    # Parameterizing the hmmsearch output parsing:
-    args.perc_aligned = 10
-    args.min_acc = 0.7
-    if args.stringency == "relaxed":
-        args.max_e = 1E-3
-        args.max_ie = 1E-1
-        args.min_score = 15
-    elif args.stringency == "strict":
-        args.max_e = 1E-5
-        args.max_ie = 1E-3
-        args.min_score = 30
-    else:
-        logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
-        sys.exit(3)
-
-    return args
 
 
 def check_create_arguments(creator: Creator, args) -> None:

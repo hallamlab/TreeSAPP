@@ -5,11 +5,9 @@ import re
 import sys
 import subprocess
 import logging
-import time
-import joblib
+import shutil
 from glob import glob
 from csv import Sniffer
-from shutil import rmtree
 
 from pygtrie import StringTrie
 
@@ -18,19 +16,6 @@ from treesapp.external_command_interface import launch_write_command
 
 def base_file_prefix(file_path: str) -> str:
     return os.path.splitext(os.path.basename(file_path))[0]
-
-
-def load_pickle(filename: str):
-    if not os.path.isfile(filename):
-        logging.error("Pickled file '%s' does not exist!\n" % filename)
-    try:
-        pickled_handler = open(filename, 'rb')
-    except IOError:
-        logging.error("Unable to open pickled file '%s' for reading in binary.\n" % filename)
-        sys.exit(3)
-    pkl_dat = joblib.load(pickled_handler)
-    pickled_handler.close()
-    return pkl_dat
 
 
 def load_taxonomic_trie(lineages: list) -> StringTrie:
@@ -90,17 +75,6 @@ def rekey_dict(og_dict: dict, key_map: dict) -> dict:
     return updated_dict
 
 
-def reluctant_remove_replace(dir_path):
-    # DO NOT USE LOGGING - this function can (and does) appear before the logger is instantiated
-    # Warn user then remove all main output directories, leaving log in output
-    sys.stderr.write("WARNING:\nRemoving previous outputs in '" + dir_path + "'. " +
-                     "You have 10 seconds to hit Ctrl-C before this proceeds.\n")
-    time.sleep(10)
-    rmtree(dir_path)
-    os.mkdir(dir_path)
-    return
-
-
 def is_exe(fpath):
     return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
@@ -137,24 +111,6 @@ def match_file(glob_pattern) -> str:
         sys.exit(19)
     else:
         return file_matches.pop()
-
-
-def os_type():
-    """Return the operating system of the user."""
-    x = sys.platform
-    if x:
-
-        hits = re.search(r'darwin', x, re.I)
-        if hits:
-            return 'mac'
-
-        hits = re.search(r'win', x, re.I)
-        if hits:
-            return 'win'
-
-        hits = re.search(r'linux', x, re.I)
-        if hits:
-            return 'linux'
 
 
 def available_cpu_count():
@@ -330,35 +286,6 @@ def reformat_string(string):
     while string and string[-1] == '.':
         string = string[:-1]
     return string
-
-
-def remove_dashes_from_msa(fasta_in, fasta_out):
-    """
-    fasta_out is the new FASTA file written with no dashes (unaligned)
-    There are no line breaks in this file, whereas there may have been in fasta_in
-
-    :param fasta_in: Multiply-aligned FASTA file
-    :param fasta_out: FASTA file to write
-    :return:
-    """
-    dashed_fasta = open(fasta_in, 'r')
-    fasta = open(fasta_out, 'w')
-    sequence = ""
-
-    line = dashed_fasta.readline()
-    while line:
-        if line[0] == '>':
-            if sequence:
-                fasta.write(sequence + "\n")
-                sequence = ""
-            fasta.write(line)
-        else:
-            sequence += re.sub('[-.]', '', line.strip())
-        line = dashed_fasta.readline()
-    fasta.write(sequence + "\n")
-    dashed_fasta.close()
-    fasta.close()
-    return
 
 
 def median(num_list: list):
@@ -598,6 +525,22 @@ def hmm_pile(hmm_matches: dict) -> None:
         if low_cov_summary:
             logging.info("Low coverage " + marker + " profile windows (start-stop):\n" + low_cov_summary)
         logging.info("Maximum coverage for " + marker + " = " + str(maximum_coverage) + " sequences\n")
+    return
+
+
+def concatenate_files(input_files: list, output_path: str):
+    """A Pythonic replacement for UNIX's cat utility."""
+    try:
+        output_handler = open(output_path, 'wb')
+    except IOError:
+        logging.error("Unable to open output file '{}' for writing.\n".format(output_path))
+        sys.exit(17)
+
+    for input_f in input_files:
+        with open(input_f, 'rb') as fh:
+            shutil.copyfileobj(fh, output_handler)
+
+    output_handler.close()
     return
 
 

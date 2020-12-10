@@ -33,6 +33,7 @@ env:
       - PRODIGAL_VERSION="2.6.3"
       - VSEARCH_VERSION="2.15.0"
       - MAFFT_VERSION="7.471-1"
+      - MMSEQS_VERSION="12-113e3"
 
 jobs:
     include:
@@ -61,12 +62,16 @@ before_install:
         wget https://mafft.cbrc.jp/alignment/software/mafft_${MAFFT_VERSION}_amd64.deb;
         sudo dpkg -i mafft_${MAFFT_VERSION}_amd64.deb;
 
+        wget -O mmseqs-linux-sse41.tar.gz https://github.com/soedinglab/MMseqs2/releases/download/${MMSEQS_VERSION}/MMseqs2-Linux-SSE4_1.tar.gz;
+        tar xvzf mmseqs-linux-sse41.tar.gz;
+        sudo cp mmseqs/bin/mmseqs /usr/local/bin;
+
         wget https://github.com/hallamlab/TreeSAPP/raw/master/treesapp/sub_binaries/BMGE.jar;
         sudo mv BMGE.jar /usr/local/bin/;
 
         wget -O hmmer-${HMMER_VERSION}.tar.gz http://eddylab.org/software/hmmer/hmmer-${HMMER_VERSION}.tar.gz;
         tar -xzf hmmer-${HMMER_VERSION}.tar.gz; cd hmmer-${HMMER_VERSION}/; ./configure; make -f Makefile;
-        sudo cp src/hmmsearch src/hmmbuild src/hmmalign /usr/bin/;
+        sudo cp src/hmmsearch src/hmmbuild src/hmmalign /usr/local/bin/;
         cd -; rm hmmer-${HMMER_VERSION}.tar.gz;
 
         wget https://github.com/torognes/vsearch/archive/v${VSEARCH_VERSION}.tar.gz;
@@ -84,7 +89,7 @@ before_install:
       	ODSEQ_SOURCES="OD-Seq/AliReader.cpp OD-Seq/Bootstrap.cpp OD-Seq/DistCalc.cpp OD-Seq/DistMatReader.cpp
       	OD-Seq/DistWriter.cpp OD-Seq/FastaWriter.cpp OD-Seq/IQR.cpp OD-Seq/ODseq.cpp OD-Seq/PairwiseAl.cpp
       	OD-Seq/Protein.cpp OD-Seq/ResultWriter.cpp OD-Seq/runtimeargs.cpp OD-Seq/util.cpp";
-      	sudo g++ -fopenmp -o /usr/bin/OD-seq $ODSEQ_SOURCES;
+      	sudo g++ -fopenmp -o /usr/local/bin/OD-seq $ODSEQ_SOURCES;
       	rm od-seq.tar.gz;
 
         sudo wget -O /usr/local/bin/FastTree http://microbesonline.org/fasttree/FastTreeDbl;

@@ -1,7 +1,7 @@
 import unittest
 import pytest
 import os
-from shutil import rmtree
+from shutil import rmtree, copyfile
 
 
 class TreesappTester(unittest.TestCase):
@@ -37,6 +37,8 @@ class TreesappTester(unittest.TestCase):
         from treesapp.file_parsers import read_classification_table
         from .testing_utils import get_test_data
         classification_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
+        # Copy the classification table to replace after overwrite
+        copyfile(classification_table, os.path.join(self.ts_assign_output, "tmp.tsv"))
         pre_lines = read_classification_table(get_test_data(classification_table))
         abundance_command_list = ["--treesapp_output", self.ts_assign_output,
                                   "--reads", get_test_data("test_TarA.1.fq"),
@@ -44,9 +46,16 @@ class TreesappTester(unittest.TestCase):
                                   "--pairing", "pe",
                                   "--num_procs", str(self.num_procs),
                                   "--delete"]
-        abundance(abundance_command_list)
+        abund_dict = abundance(abundance_command_list)
         post_lines = read_classification_table(get_test_data(classification_table))
+        # Ensure no lines were removed
         self.assertEqual(len(pre_lines), len(post_lines))
+        # Ensure the name of the sample is substituted for the sample ID
+        self.assertEqual({"test_TarA.1"}, set([line[0] for line in post_lines]))
+        self.assertEqual(1773, round(sum(abund_dict.values())))
+        # Replace the classification table
+        copyfile(os.path.join(self.ts_assign_output, "tmp.tsv"), classification_table)
+        os.remove(os.path.join(self.ts_assign_output, "tmp.tsv"))
         return
 
     def test_assign_prot(self):
@@ -65,6 +74,7 @@ class TreesappTester(unittest.TestCase):
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(15, len(lines))
+        self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.faa"))
         return
 
     def test_assign_dna(self):
@@ -81,6 +91,10 @@ class TreesappTester(unittest.TestCase):
         assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(6, len(lines))
+        classified_seqs = [line[1] for line in lines]
+        self.assertTrue("LYOS01000003.1:168824-170509_1 # 1 # 1686 # 1 # ID=3_1;partial=10;start_type=Edge;rbs_motif=None;rbs_spacer=None;gc_cont=0.493" in classified_seqs)
+        self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.fna"))
+        return
 
     def test_colour(self):
         from treesapp.commands import colour
@@ -198,7 +212,8 @@ class TreesappTester(unittest.TestCase):
         from treesapp.commands import info
         with pytest.raises(SystemExit):
             info(["--verbose", "--refpkg_dir", "./"])
-        info([])
+        info(["--verbose"])
+        self.assertTrue(True)
         return
 
     def test_layer(self):
@@ -260,7 +275,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_mcc_calculator(self):
-        from treesapp import MCC_calculator
+        from treesapp import mcc_calculator
         from .testing_utils import get_test_data
         cmd = ["--fastx_input", get_test_data("EggNOG_McrA.faa"),
                "--annot_map", get_test_data("EggNOG_McrA_annot_map.tsv"),
@@ -271,7 +286,7 @@ class TreesappTester(unittest.TestCase):
                "--tool", "treesapp",
                "--num_procs", str(self.num_procs),
                "--delete", "--svm", "--overwrite"]
-        MCC_calculator.mcc_calculator(cmd)
+        mcc_calculator.mcc_calculator(cmd)
         self.assertEqual(True, True)
         return
 
@@ -286,6 +301,7 @@ class TreesappTester(unittest.TestCase):
                               "--output", output_dir_path,
                               "--refpkg_path", self.puha_pkl,
                               "--accession2lin", get_test_data("ENOG4111FIN_accession_id_lineage_map.tsv"),
+                              "--profile",
                               "--max_examples", str(max_ex),
                               "--num_proc", str(self.num_procs),
                               "--molecule", "prot",

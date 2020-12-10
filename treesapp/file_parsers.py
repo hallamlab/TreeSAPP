@@ -5,12 +5,14 @@ import os
 import re
 import logging
 from glob import glob
+
 from collections import namedtuple
+from pygtrie import StringTrie
 
 from treesapp.classy import Cluster, BlastAln
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import read_fasta_to_dict
-from treesapp import HMMER_domainTblParser
+from treesapp import hmmer_tbl_parser
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -214,8 +216,8 @@ def best_discrete_matches(matches: list) -> list:
         while j < len(len_sorted_matches):
             b_match = len_sorted_matches[j]  # type HmmMatch
             if a_match.target_hmm != b_match.target_hmm:
-                if HMMER_domainTblParser.detect_orientation(a_match.start, a_match.end,
-                                                            b_match.start, b_match.end) != "satellite":
+                if hmmer_tbl_parser.detect_orientation(a_match.start, a_match.end,
+                                                       b_match.start, b_match.end) != "satellite":
                     if a_match.full_score > b_match.full_score:
                         dropped_annotations.append(len_sorted_matches.pop(j))
                         j -= 1
@@ -248,11 +250,11 @@ def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
     :return: Dictionary of HmmMatch objects indexed by their reference package and/or HMM name
     """
     # Check if the HMM filtering thresholds have been set
-    thresholds = HMMER_domainTblParser.prep_args_for_parsing(args)
+    thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
 
     logging.info("Parsing HMMER domain tables for high-quality matches... ")
 
-    search_stats = HMMER_domainTblParser.HmmSearchStats()
+    search_stats = hmmer_tbl_parser.HmmSearchStats()
     hmm_matches = dict()
     orf_gene_map = dict()
     optional_matches = list()
@@ -260,12 +262,12 @@ def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
     # TODO: Capture multimatches across multiple domain table files
     for domtbl_file in hmm_domtbl_files:
         prefix, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
-        domain_table = HMMER_domainTblParser.DomainTableParser(domtbl_file)
+        domain_table = hmmer_tbl_parser.DomainTableParser(domtbl_file)
         domain_table.read_domtbl_lines()
-        distinct_hits = HMMER_domainTblParser.format_split_alignments(domain_table, search_stats)
-        purified_hits = HMMER_domainTblParser.filter_poor_hits(thresholds, distinct_hits, search_stats)
-        complete_hits = HMMER_domainTblParser.filter_incomplete_hits(thresholds, purified_hits, search_stats)
-        HMMER_domainTblParser.renumber_multi_matches(complete_hits)
+        distinct_hits = hmmer_tbl_parser.format_split_alignments(domain_table, search_stats)
+        purified_hits = hmmer_tbl_parser.filter_poor_hits(thresholds, distinct_hits, search_stats)
+        complete_hits = hmmer_tbl_parser.filter_incomplete_hits(thresholds, purified_hits, search_stats)
+        hmmer_tbl_parser.renumber_multi_matches(complete_hits)
 
         for match in complete_hits:
             match.genome = reference
@@ -825,3 +827,43 @@ def read_annotation_mapping_file(annot_map_file: str) -> dict:
 
     annot_map_handler.close()
     return annot_map
+
+
+def grab_graftm_taxa(tax_ids_file):
+    taxonomic_tree = StringTrie(separator='; ')
+    with open(tax_ids_file) as tax_ids:
+        header = tax_ids.readline().strip()
+        last_rank = int(header[-1])
+        final_index = 6 - last_rank
+        if not re.search("parent_id,rank,tax_name,root,rank_0,rank_1,rank_2,rank_3,rank_4,rank_5,rank_6", header):
+            logging.error("Unable to handle format of " + tax_ids_file + "!")
+            sys.exit(21)
+        line = tax_ids.readline().strip()
+        while line:
+            fields = line.split(',')
+            if final_index < 0:
+                fields = line.split(',')[:final_index]
+            try:
+                _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_, = fields
+            except (IndexError, ValueError):
+                logging.error("Unexpected format of line with %d fields in " % len(line.split(',')) +
+                              tax_ids_file + ":\n" + line)
+                sys.exit(21)
+            ranks = ["Root", k_, p_, c_, o_, f_, g_, s_]
+            lineage_list = []
+            # In case there are missing ranks... which is likely
+            for rank in ranks:
+                if rank:
+                    # GraftM seems to append an 'e1' to taxa that are duplicated in the taxonomic lineage.
+                    # For example: Bacteria; Aquificae; Aquificaee1; Aquificales
+                    lineage_list.append(re.sub(r'_graftm_\d+$', '', rank))
+                    # lineage_list.append(rank)
+            lineage = re.sub('_', ' ', '; '.join(lineage_list))
+            i = 0
+            ranks = len(lineage)
+            while i < len(lineage):
+                taxonomic_tree["; ".join(lineage.split("; ")[:ranks - i])] = True
+                i += 1
+
+            line = tax_ids.readline().strip()
+    return taxonomic_tree
