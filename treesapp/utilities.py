@@ -529,7 +529,7 @@ def hmm_pile(hmm_matches: dict) -> None:
 
 
 def concatenate_files(input_files: list, output_path: str):
-    """ A Pythonic replacement for UNIX's cat utility """
+    """A Pythonic replacement for UNIX's cat utility."""
     try:
         output_handler = open(output_path, 'wb')
     except IOError:

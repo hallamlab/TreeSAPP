@@ -44,7 +44,7 @@ class ClassifierTester(unittest.TestCase):
         # Ensure the number of lines is expected
         c = 0
         with open("cat_test.fasta", 'r') as out:
-            for l in out:
+            for _ in out:
                 c += 1
         self.assertEqual(215, c)
         os.remove("cat_test.fasta")

@@ -18,7 +18,7 @@ from treesapp import classy as ts_classy
 
 class PhylOTU:
     def __init__(self, name):
-        """Initialize a PhylOTU instance"""
+        """Initialize a PhylOTU instance."""
         self.number = name
         self.cardinality = 0
         self.edges = []
@@ -29,7 +29,7 @@ class PhylOTU:
 
 class PhyloClust:
     def __init__(self):
-        """Initialize a PhyloClust instance"""
+        """Initialize a PhyloClust instance."""
         # Parameters
         self.arg_parser = TreeSAPPArgumentParser(description="A tool for sorting query sequences placed on a phylogeny"
                                                              " into phylogenetically-inferred clusters.")
@@ -92,7 +92,7 @@ class PhyloClust:
         return
 
     def get_arguments(self, sys_args: list) -> None:
-        # Add the arguments to the argument parser
+        """Add arguments to the TreeSAPP ArgumentParser instance, then parse and load."""
         self.arg_parser.add_refpkg_file_param()
         self.arg_parser.add_output_dir()
         place_dat = self.arg_parser.reqs.add_mutually_exclusive_group()
@@ -132,7 +132,7 @@ class PhyloClust:
 
     @staticmethod
     def build_edge_node_index(ete_tree: Tree) -> dict:
-        """Maps node.name attributes to edge integers in DFS traversal order"""
+        """Maps node.name attributes to edge integers in DFS traversal order."""
         node_edge_map = {}
         edge_name = 0
         if len(ete_tree.children) > 2:

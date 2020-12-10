@@ -10,7 +10,7 @@ import ete3
 
 class RedTree:
     def __init__(self):
-        """Initialize"""
+        """Initialize and find the logger."""
         self.logger = logging.getLogger()
         return
 

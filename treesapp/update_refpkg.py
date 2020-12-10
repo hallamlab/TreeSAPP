@@ -173,7 +173,7 @@ def drop_queries_by_accession(query_seqs: list, ref_seq_leaves: list):
 
 
 def guided_header_lineage_map(header_registry: dict, entrez_records: dict) -> dict:
-    """Generate a dictionary mapping sequence names to lineages guided by a header registry"""
+    """Generate a dictionary mapping sequence names to lineages guided by a header registry."""
     seq_lineage_map = {}
     missing = []
     # Generate a dictionary between the EntrezRecord sequence names and lineages, for sequences in the header_registry
