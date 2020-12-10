@@ -1,53 +1,12 @@
 __author__ = 'Connor Morgan-Lang'
 
 
-import sys
 import re
 import logging
 
 from pygtrie import StringTrie
 
 from .utilities import median
-
-
-def grab_graftm_taxa(tax_ids_file):
-    taxonomic_tree = StringTrie(separator='; ')
-    with open(tax_ids_file) as tax_ids:
-        header = tax_ids.readline().strip()
-        last_rank = int(header[-1])
-        final_index = 6 - last_rank
-        if not re.search("parent_id,rank,tax_name,root,rank_0,rank_1,rank_2,rank_3,rank_4,rank_5,rank_6", header):
-            logging.error("Unable to handle format of " + tax_ids_file + "!")
-            sys.exit(21)
-        line = tax_ids.readline().strip()
-        while line:
-            fields = line.split(',')
-            if final_index < 0:
-                fields = line.split(',')[:final_index]
-            try:
-                _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_, = fields
-            except (IndexError, ValueError):
-                logging.error("Unexpected format of line with %d fields in " % len(line.split(',')) +
-                              tax_ids_file + ":\n" + line)
-                sys.exit(21)
-            ranks = ["Root", k_, p_, c_, o_, f_, g_, s_]
-            lineage_list = []
-            # In case there are missing ranks... which is likely
-            for rank in ranks:
-                if rank:
-                    # GraftM seems to append an 'e1' to taxa that are duplicated in the taxonomic lineage.
-                    # For example: Bacteria; Aquificae; Aquificaee1; Aquificales
-                    lineage_list.append(re.sub(r'_graftm_\d+$', '', rank))
-                    # lineage_list.append(rank)
-            lineage = re.sub('_', ' ', '; '.join(lineage_list))
-            i = 0
-            ranks = len(lineage)
-            while i < len(lineage):
-                taxonomic_tree["; ".join(lineage.split("; ")[:ranks - i])] = True
-                i += 1
-
-            line = tax_ids.readline().strip()
-    return taxonomic_tree
 
 
 def optimal_taxonomic_assignment(trie: StringTrie, query_taxon: str):
@@ -111,46 +70,6 @@ def identify_excluded_clade(assignment_dict: dict, trie: StringTrie, marker: str
     return rank_assigned_dict
 
 
-def disseminate_vote_weights(base_lca, taxonomic_counts, lineages_list):
-    lca_depth = 0
-    max_depth = max([len(lineage) for lineage in lineages_list])
-    nucleus = float(len(lineages_list)/taxonomic_counts[base_lca])
-    vote_weights = dict()
-    taxonomic_tree = dict()
-    subtree_taxonomic_counts = dict()
-    vote_weights[base_lca] = nucleus
-    taxonomic_tree[base_lca] = set()
-
-    # Find the depth of the LCA
-    while "; ".join(lineages_list[0][:lca_depth]) != base_lca:
-        lca_depth += 1
-
-    # Load the taxonomic subtree into a dictionary
-    while lca_depth < max_depth:
-        for lineage in lineages_list:
-            taxonomic_lineage = "; ".join(lineage[0:lca_depth+1])
-            parent = "; ".join(lineage[0:lca_depth])
-            if parent == taxonomic_lineage:
-                continue
-            if taxonomic_lineage not in taxonomic_tree:
-                taxonomic_tree[taxonomic_lineage] = set()
-            if taxonomic_lineage not in subtree_taxonomic_counts:
-                subtree_taxonomic_counts[taxonomic_lineage] = 0
-            subtree_taxonomic_counts[taxonomic_lineage] += 1
-            taxonomic_tree[parent].add(taxonomic_lineage)
-        lca_depth += 1
-
-    # Calculate the vote weights for each taxonomic lineage based on it's parent's and polyphyly
-    for node in sorted(taxonomic_tree, key=lambda x: x.count(';')):
-        children = taxonomic_tree[node]
-        n_taxa_split = len(children)
-        for child in children:
-            taxa_portion = float(subtree_taxonomic_counts[child]/taxonomic_counts[child])
-            vote_weights[child] = vote_weights[node] * float(taxa_portion/n_taxa_split)
-
-    return vote_weights, taxonomic_tree, nucleus/2
-
-
 def megan_lca(lineage_list: list):
     """
     Using the lineages of all leaves to which this sequence was mapped (n >= 1),
@@ -189,81 +108,6 @@ def megan_lca(lineage_list: list):
         lca_lineage_strings.append("Unclassified")
 
     return "; ".join(lca_lineage_strings)
-
-
-def lowest_common_taxonomy(children, base_lca, taxonomic_counts, algorithm="LCA*"):
-    """
-    Input is a list >= 2, potentially either a leaf string or NCBI lineage
-
-    :param children: Lineages of all leaves for this sequence
-    :param base_lca:
-    :param taxonomic_counts:
-    :param algorithm: A string indicating what lowest common ancestor algorithm should be used [ MEGAN | LCA* | LCAp ]
-    :return: string - represent the consensus lineage for that node
-    """
-    lineages_considered = list()
-    # Check that children have lineage information and discard those that don't have a known lineage
-    # (e.g. unclassified sequences; metagenomes; ecological metagenomes)
-    max_ranks = 0
-    for child in children:
-        ranks = child.split("; ")
-        num_ranks = len(ranks)
-        if num_ranks > 3:
-            lineages_considered.append(ranks)
-        if num_ranks > max_ranks:
-            max_ranks = num_ranks
-    # print("All children:", children)
-    # print("Lineages considered:", lineages_considered)
-    if len(lineages_considered) == 0:
-        lineages_considered = [child.split("; ") for child in children]
-
-    if algorithm == "MEGAN":
-        # Already calculated by tree_sap.megan_lca()
-        lineage_string = base_lca
-    elif algorithm == "LCA*":
-        # approximate LCA* (no entropy calculations):
-        hits = dict()
-        consensus = list()
-        i = 0  # The accumulator to guarantee the lineages are parsed from Kingdom -> Strain
-        while i < max_ranks:
-            hits.clear()
-            lineages_used = 0
-            elected = False
-            for ranks in lineages_considered:
-                # If the ranks of this hit has not been exhausted (i.e. if it has a depth of 4 and max_ranks >= 5)
-                if len(ranks) > i:
-                    taxonomy = ranks[i]
-                    if taxonomy not in hits.keys():
-                        hits[taxonomy] = 0
-                    hits[taxonomy] += 1
-                    lineages_used += 1
-            for taxonomy in hits.keys():
-                if hits[taxonomy] > float(len(lineages_considered)/2):
-                    consensus.append(str(taxonomy))
-                    elected = True
-
-            # If there is no longer a consensus, break the loop
-            if not elected:
-                i = max_ranks
-            i += 1
-        lineage_string = "; ".join(consensus)
-    elif algorithm == "LCAp":
-        lineage_string = base_lca
-        vote_weights, t_tree, majority = disseminate_vote_weights(base_lca, taxonomic_counts, lineages_considered)
-        for parent in sorted(t_tree, key=lambda x: x.count(';')):
-            if len(t_tree[parent]) == 0:
-                break
-            children = t_tree[parent]
-            for child in children:
-                if vote_weights[child] > majority:
-                    lineage_string = child
-                else:
-                    pass
-    else:
-        logging.error("Common ancestor algorithm '" + algorithm + "' is not known.\n")
-        sys.exit(33)
-
-    return lineage_string
 
 
 def weighted_taxonomic_distance(lineage_list, common_ancestor):

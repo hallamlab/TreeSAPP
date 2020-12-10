@@ -72,7 +72,10 @@ class EntishTester(unittest.TestCase):
     def test_map_internal_nodes_leaves(self):
         from treesapp.entish import map_internal_nodes_leaves
         node_map = map_internal_nodes_leaves(self.placement_tree)
-        self.assertEqual(489, len(node_map))
+        self.assertEqual(491, len(node_map))
+        # Ensure the root node is in the node map by ensuring a node maps to all leaves
+        self.assertEqual(len(self.test_ete_tree.get_leaves()),
+                         max([len(node_map[x]) for x in node_map]))
         return
 
     def test_verify_bifurcations(self):

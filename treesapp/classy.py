@@ -12,13 +12,13 @@ from glob import glob
 from collections import namedtuple
 from numpy import var
 
-from treesapp.phylo_seq import convert_entrez_to_tree_leaf_references, PQuery
+from treesapp import phylo_seq
 from treesapp.refpkg import ReferencePackage
-from treesapp.fasta import fastx_split, get_header_format, FASTA, load_fasta_header_regexes, sequence_info_groups
+from treesapp import fasta
 from treesapp.utilities import median, write_dict_to_table, validate_new_dir, fetch_executable_path
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
-from treesapp.wrapper import CommandLineFarmer, estimate_ml_model
+from treesapp.wrapper import estimate_ml_model
 
 
 class ModuleFunction:
@@ -75,13 +75,13 @@ def get_header_info(header_registry: dict, code_name=''):
     """
     logging.info("Extracting information from headers... ")
     ref_records = dict()
-    header_regexes = load_fasta_header_regexes(code_name)
+    header_regexes = fasta.load_fasta_header_regexes(code_name)
     # TODO: Fix parsing of combined EggNOG and custom headers such that the taxid is parsed from the "accession"
     for treesapp_id in sorted(header_registry.keys(), key=int):  # type: str
         original_header = header_registry[treesapp_id].original
-        header_format_re, header_db, header_molecule = get_header_format(original_header, header_regexes)
+        header_format_re, header_db, header_molecule = fasta.get_header_format(original_header, header_regexes)
         sequence_info = header_format_re.match(original_header)
-        seq_info_tuple = sequence_info_groups(sequence_info, header_db, original_header, header_regexes)
+        seq_info_tuple = fasta.sequence_info_groups(sequence_info, header_db, original_header, header_regexes)
 
         # Load the parsed sequences info into the EntrezRecord objects
         ref_seq = entrez_utils.EntrezRecord(seq_info_tuple.accession, seq_info_tuple.version)
@@ -98,7 +98,7 @@ def get_header_info(header_registry: dict, code_name=''):
     return ref_records
 
 
-def dedup_records(ref_seqs: FASTA, ref_seq_records: dict) -> dict:
+def dedup_records(ref_seqs: fasta.FASTA, ref_seq_records: dict) -> dict:
     """
     Entrez records with identical versioned accessions are grouped together and those grouped sequence records
     are compared further. The Entrez records in ref_seq_records are deduplicated based on:
@@ -495,9 +495,7 @@ class TreeSAPP:
         :return: None
         """
         for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
-            if not module.run:
-                continue
-            else:
+            if module.run:
                 return module.order
         return 0
 
@@ -618,7 +616,7 @@ class TreeSAPP:
 
         return exec_paths
 
-    def fetch_entrez_lineages(self, ref_seqs: FASTA, molecule: str, acc_to_taxid=None, seqs_to_lineage=None) -> dict:
+    def fetch_entrez_lineages(self, ref_seqs: fasta.FASTA, molecule: str, acc_to_taxid=None, seqs_to_lineage=None) -> dict:
         """
         The root function orchestrating download of taxonomic lineage information using BioPython's Entrez API.
         In addition to this, the function supports a couple different tables containing taxonomic lineage information
@@ -651,7 +649,7 @@ class TreeSAPP:
             # Add lineage information to entrez records for each reference sequence
             entrez_utils.fill_ref_seq_lineages(entrez_record_dict, lineage_map,
                                                complete=(len(refs_mapped) == ref_seqs.n_seqs()))
-            ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
+            ref_leaf_nodes = phylo_seq.convert_entrez_to_tree_leaf_references(entrez_record_dict)
             self.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
             entrez_utils.sync_record_and_hierarchy_lineages(ref_leaf_nodes, entrez_record_dict)
             self.ref_pkg.taxa_trie.validate_rank_prefixes()
@@ -681,7 +679,7 @@ class TreeSAPP:
             # Write the accession-lineage mapping file - essential for training too
             write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
             self.increment_stage_dir()
-        else:
+        elif self.stage_status("lineages") is False and os.path.isfile(self.acc_to_lin):
             logging.info("Reading cached lineages in '{}'... ".format(self.acc_to_lin))
             self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
             logging.info("done.\n")
@@ -974,7 +972,7 @@ class Purity(TreeSAPP):
         tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
         for leaf in tree_leaves:
             leaf_map[leaf.number + "_" + self.ref_pkg.prefix] = leaf.description
-        for p_query in p_queries:  # type: PQuery
+        for p_query in p_queries:  # type: phylo_seq.PQuery
             p_query.ref_name = self.ref_pkg.prefix
             if type(p_query.place_name) is list and len(p_query.place_name):
                 p_query.place_name = p_query.place_name[0]
@@ -1442,156 +1440,7 @@ class Abundance(TreeSAPP):
 
         if not os.path.isdir(self.var_output_dir):
             os.makedirs(self.var_output_dir)
-        self.validate_refpkg_dir(args.refpkg_dir)
 
-        return
-
-
-class Assigner(TreeSAPP):
-    def __init__(self):
-        """
-
-        """
-        super(Assigner, self).__init__("assign")
-        self.reference_tree = None
-        self.svc_filter = False
-        self.aa_orfs_file = ""
-        self.nuc_orfs_file = ""
-        self.classified_aa_seqs = ""
-        self.classified_nuc_seqs = ""
-        self.composition = ""
-        self.target_refpkgs = list()
-
-        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("orf-call", 0, self.predict_orfs),
-                       1: ModuleFunction("clean", 1, self.clean),
-                       2: ModuleFunction("search", 2, self.search),
-                       3: ModuleFunction("align", 3, self.align),
-                       4: ModuleFunction("place", 4, self.place),
-                       5: ModuleFunction("classify", 5, self.classify)}
-
-    def decide_stage(self, args) -> None:
-        """
-        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
-
-        This function ensures all the required inputs are present for beginning at the desired first stage,
-        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
-
-        :return: None
-        """
-        if args.molecule == "dna":
-            if os.path.isfile(self.aa_orfs_file) and os.path.isfile(self.nuc_orfs_file):
-                self.change_stage_status("orf-call", False)
-                self.query_sequences = self.aa_orfs_file
-
-        if args.rpkm:
-            if not args.reads:
-                if args.reverse:
-                    logging.error("File containing reverse reads provided but forward mates file missing!\n")
-                    sys.exit(3)
-                else:
-                    logging.error("At least one FASTQ file must be provided if -rpkm flag is active!\n")
-                    sys.exit(3)
-            elif args.reads and not os.path.isfile(args.reads):
-                logging.error("Path to forward reads ('%s') doesn't exist.\n" % args.reads)
-                sys.exit(3)
-            elif args.reverse and not os.path.isfile(args.reverse):
-                logging.error("Path to reverse reads ('%s') doesn't exist.\n" % args.reverse)
-                sys.exit(3)
-            else:
-                self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
-
-        self.validate_continue(args)
-        return
-
-    def get_info(self):
-        info_string = "Assigner instance summary:\n"
-        info_string += super(Assigner, self).get_info() + "\n\t"
-        info_string += "\n\t".join(["ORF protein sequences = " + self.aa_orfs_file,
-                                    "Target reference packages = " + str(self.target_refpkgs),
-                                    "Composition of input = " + self.composition]) + "\n"
-
-        return info_string
-
-    def predict_orfs(self, composition: str, num_threads: int) -> None:
-        """
-        Predict ORFs from the input FASTA file using Prodigal
-
-        :param composition: Sample composition being either a single organism or a metagenome [single | meta]
-        :param num_threads: The number of CPU threads to use
-        :return: None
-        """
-
-        logging.info("Predicting open-reading frames using Prodigal... ")
-
-        start_time = time.time()
-
-        if num_threads > 1 and composition == "meta":
-            # Split the input FASTA into num_threads files to run Prodigal in parallel
-            split_files = fastx_split(self.input_sequences, self.output_dir, num_threads)
-        else:
-            split_files = [self.input_sequences]
-
-        task_list = list()
-        for fasta_chunk in split_files:
-            chunk_prefix = self.var_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
-            prodigal_command = [self.executables["prodigal"]]
-            prodigal_command += ["-i", fasta_chunk]
-            prodigal_command += ["-p", composition]
-            prodigal_command += ["-a", chunk_prefix + "_ORFs.faa"]
-            prodigal_command += ["-d", chunk_prefix + "_ORFs.fna"]
-            prodigal_command += ["1>/dev/null", "2>/dev/null"]
-            task_list.append(prodigal_command)
-
-        num_tasks = len(task_list)
-        if num_tasks > 0:
-            cl_farmer = CommandLineFarmer("Prodigal -p " + composition, num_threads)
-            cl_farmer.add_tasks_to_queue(task_list)
-
-            cl_farmer.task_queue.close()
-            cl_farmer.task_queue.join()
-
-        tmp_prodigal_aa_orfs = glob(self.var_output_dir + self.sample_prefix + "*_ORFs.faa")
-        tmp_prodigal_nuc_orfs = glob(self.var_output_dir + self.sample_prefix + "*_ORFs.fna")
-        if not tmp_prodigal_aa_orfs or not tmp_prodigal_nuc_orfs:
-            logging.error("Prodigal outputs were not generated:\n"
-                          "Amino acid ORFs: " + ", ".join(tmp_prodigal_aa_orfs) + "\n" +
-                          "Nucleotide ORFs: " + ", ".join(tmp_prodigal_nuc_orfs) + "\n")
-            sys.exit(5)
-
-        # Concatenate outputs
-        if not os.path.isfile(self.aa_orfs_file) and not os.path.isfile(self.nuc_orfs_file):
-            os.system("cat " + ' '.join(tmp_prodigal_aa_orfs) + " > " + self.aa_orfs_file)
-            os.system("cat " + ' '.join(tmp_prodigal_nuc_orfs) + " > " + self.nuc_orfs_file)
-            intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files)
-            for tmp_file in intermediate_files:
-                if tmp_file != self.input_sequences:
-                    os.remove(tmp_file)
-
-        logging.info("done.\n")
-
-        end_time = time.time()
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        logging.debug("\tProdigal time required: " +
-                      ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-
-        self.query_sequences = self.aa_orfs_file
-        return
-
-    def clean(self):
-        return
-
-    def search(self):
-        return
-
-    def align(self):
-        return
-
-    def place(self):
-        return
-
-    def classify(self):
         return
 
 

@@ -111,15 +111,15 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
         tp[refpkg_name] = list()
         fp[refpkg_name] = set()
         fn[refpkg_name] = set()
-        for pquery in sorted(pqueries, key=lambda x: x.place_name):  # type: PQuery
+        for pquery in sorted(pqueries, key=lambda x: x.seq_name):  # type: PQuery
             # Populate the relevant information for the classified sequence
-            tp_inst = QuerySequence(pquery.place_name)
+            tp_inst = QuerySequence(pquery.seq_name)
             tp_inst.ref = refpkg_name
             tp_inst.assigned_lineage = pquery.recommended_lineage
             try:
-                e_record = entrez_query_dict[pquery.place_name]
+                e_record = entrez_query_dict[pquery.seq_name]
             except KeyError:
-                missing.add(pquery.place_name)
+                missing.add(pquery.seq_name)
                 continue
             if not e_record.lineage:
                 true_positives.add(tp_inst.place_name)  # So these queries are not classified as false negatives
@@ -356,7 +356,7 @@ a numpy array from each query's data:
                 ref_name = annot_map[pquery.ref_name]
             else:
                 ref_name = pquery.ref_name
-            if pquery.place_name in condition_names[ref_name]:
+            if pquery.seq_name in condition_names[ref_name]:
                 # Calculate the features
                 try:
                     distal, pendant, avg = placement.distal_length, placement.pendant_length, placement.mean_tip_length

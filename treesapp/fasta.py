@@ -236,16 +236,18 @@ class Header:
 
     def get_info(self):
         info_string = "TreeSAPP ID = '%s'\tPrefix = '%s'\n" % (str(self.treesapp_num_id), self.first_split)
-        info_string += "Original =  %s\nFormatted = %s\n" % (self.original, self.formatted)
-        if self.accession:
+        info_string += "Original =  %s\n" % self.original
+        if self.accession and self.version:
             info_string += "Accession = " + self.accession + "\n"
+            info_string += "Versioned accession = " + self.version + "\n"
         return info_string
 
     def find_accession(self, refpkg_name="") -> None:
         header_regexes = load_fasta_header_regexes(refpkg_name)
         header_format_re, header_db, header_molecule = get_header_format(self.original, header_regexes)
         sequence_info = header_format_re.match(self.original)
-        self.accession = sequence_info_groups(sequence_info, header_db, self.original, header_regexes).accession
+        seq_info = sequence_info_groups(sequence_info, header_db, self.original, header_regexes)
+        self.accession, self.version = seq_info.accession, seq_info.version
         return
 
 
@@ -314,7 +316,7 @@ class FASTA:
         self.fasta_dict = read_fasta_to_dict(self.file)
         self.header_registry = register_headers(get_headers(self.file), True)
         if len(self.fasta_dict) == 0 and len(self.header_registry) == 0:
-            logging.error("FASTA file '" + str(self.file) + "' is empty or corrupted - no sequences were found!\n")
+            logging.error("FASTA file '{}' is empty or corrupted - no sequences were found!\n".format(self.file))
             sys.exit(3)
 
     def add_accession_to_headers(self, refpkg_name=""):
@@ -339,21 +341,19 @@ class FASTA:
     def original_header_map(self):
         return {self.header_registry[index].original: [self.header_registry[index]] for index in self.header_registry}
 
-    def formatted_header_map(self):
-        header_map = dict()
-        for index in self.header_registry:
-            header = self.header_registry[index]
-            f_h = header.formatted
-            if f_h in header_map:
-                header_map[f_h].append(header)
-            else:
-                header_map[f_h] = [header]
-        return header_map
+    # def formatted_header_map(self):
+    #     header_map = dict()
+    #     for header in self.header_registry.values():  # type: Header
+    #         f_h = header.formatted
+    #         if f_h in header_map:
+    #             header_map[f_h].append(header)
+    #         else:
+    #             header_map[f_h] = [header]
+    #     return header_map
 
     def first_split_header_map(self):
         header_map = dict()
-        for index in self.header_registry:
-            header = self.header_registry[index]
+        for header in self.header_registry.values():  # type: Header
             fs_h = header.first_split
             if fs_h in header_map:
                 header_map[fs_h].append(header)
@@ -361,17 +361,17 @@ class FASTA:
                 header_map[fs_h] = [header]
         return header_map
 
-    def get_accession_header_map(self) -> dict:
+    def get_acc_ver_header_map(self) -> dict:
         accession_header_map = dict()
-        for index, header in self.header_registry.items():  # type: (str, Header)
-            if len(header.accession) == 0:
+        for header in self.header_registry.values():  # type: Header
+            if len(header.version) == 0:
                 header.find_accession()
             try:
-                accession_header_map[header.accession].append(header)
+                accession_header_map[header.version].append(header)
             except KeyError:
-                accession_header_map[header.accession] = [header]
+                accession_header_map[header.version] = [header]
             except TypeError:
-                if not header.accession:
+                if not header.version:
                     logging.error("Attempting to create an accession:header dictionary but"
                                   " accession could not be set for header '{}'.\n".format(header.original))
                     sys.exit(17)
@@ -476,7 +476,7 @@ class FASTA:
         """
         mapping_dict = dict()
         mapping_dict.update(self.original_header_map())
-        mapping_dict.update(self.formatted_header_map())
+        # mapping_dict.update(self.formatted_header_map())
         mapping_dict.update(self.first_split_header_map())
         return mapping_dict
 

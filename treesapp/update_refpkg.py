@@ -5,10 +5,11 @@ import logging
 from pygtrie import StringTrie
 
 from treesapp.utilities import load_taxonomic_trie
-from treesapp.classy import Cluster
+from treesapp.classy import Cluster, Updater
 from treesapp.entrez_utils import EntrezRecord
 from treesapp.fasta import FASTA
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+from treesapp import refpkg as ts_ref_pkg
 
 
 def reformat_ref_seq_descriptions(original_header_map):
@@ -118,10 +119,28 @@ def filter_by_lwr(classified_lines: list, min_lwr: float) -> set:
         else:
             num_filtered += 1
 
-    logging.debug(str(num_filtered) + " classified sequences did not meet minimum LWR of "
-                  + str(min_lwr) + " for updating\n")
+    logging.debug("{} classified sequences did not meet minimum LWR of {} for updating\n".format(num_filtered, min_lwr))
 
     return high_lwr_placements
+
+
+def decide_length_filter(refpkg: ts_ref_pkg.ReferencePackage, proposed_min_length=30, min_hmm_proportion=0.66) -> int:
+    # Ensure the HMM fraction provided is a proportion
+    if not 0 < min_hmm_proportion < 1:
+        logging.warning("Minimum HMM fraction provided ({}) isn't a proportion. Converting to {}.\n"
+                        "".format(min_hmm_proportion, min_hmm_proportion/100))
+        min_hmm_proportion = min_hmm_proportion/100
+
+    hmm_length = refpkg.hmm_length()
+    # Use the smaller of the minimum sequence length or some proportion of the profile HMM to remove sequence fragments
+    if proposed_min_length < min_hmm_proportion*hmm_length:
+        min_length = int(round(min_hmm_proportion*hmm_length))
+        logging.debug("New minimum sequence length threshold set to {}% of HMM length ({}) instead of {}\n"
+                      "".format(min_hmm_proportion*100, min_length, proposed_min_length))
+    else:
+        min_length = proposed_min_length
+
+    return min_length
 
 
 def intersect_incomparable_lists(superset, subset, name_map: dict) -> list:
@@ -153,6 +172,30 @@ def drop_queries_by_accession(query_seqs: list, ref_seq_leaves: list):
     return
 
 
+def guided_header_lineage_map(header_registry: dict, entrez_records: dict) -> dict:
+    """Generate a dictionary mapping sequence names to lineages guided by a header registry."""
+    seq_lineage_map = {}
+    missing = []
+    # Generate a dictionary between the EntrezRecord sequence names and lineages, for sequences in the header_registry
+    for treesapp_id in sorted(header_registry.keys(), key=int):
+        try:
+            record = entrez_records[treesapp_id]  # type: EntrezRecord
+        except KeyError:
+            # Log those that were not found
+            missing.append(treesapp_id)
+            continue
+        seq_lineage_map[record.versioned] = record.lineage
+    if missing:
+        logging.warning(str(len(missing)) + " sequences were not assigned a taxonomic lineage.\n" +
+                        "This should match the number of accessions deduplicated while fetching lineages.\n")
+        for treesapp_id in missing:
+            logging.debug("Unable to find '" + treesapp_id + "' in fasta records. More info:\n" +
+                          header_registry[treesapp_id].original + "\n")
+            header_registry.pop(treesapp_id)
+        missing.clear()
+    return seq_lineage_map
+
+
 def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict:
     """
     Creates new EntrezRecord instances for each sequence: lineage pair in seq_lineage_map.
@@ -164,7 +207,7 @@ def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict
     :return: A dictionary of EntrezRecord instances indexed by their respective TreeSAPP numerical IDs
     """
     entrez_records = dict()
-    header_map = fasta_records.get_accession_header_map()
+    header_map = fasta_records.get_acc_ver_header_map()
     for seq_accession in sorted(seq_lineage_map):
         er = EntrezRecord(seq_accession, "")
         er.lineage = seq_lineage_map[seq_accession]
@@ -214,7 +257,7 @@ def resolve_cluster_lineages(cluster_dict: dict, entrez_records: dict, taxa_trie
     return
 
 
-def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list, lineage_collapse=True) -> None:
+def prefilter_clusters(cluster_dict: dict, lineage_lookup: dict, priority: list, lineage_collapse=True) -> None:
     """
     Switches the representative sequence of a Cluster instance based on a priority list.
 
@@ -222,21 +265,19 @@ def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list,
     (including the representative) have identical taxonomic lineages.
 
     :param cluster_dict: Dictionary mapping unique cluster IDs to Cluster instances
-    :param entrez_records: Dictionary mapping numerical IDs to EntrezRecord instances
+    :param lineage_lookup: Dictionary mapping original sequence names to taxonomic lineages
     :param priority: List of sequences that should be centroids, if not already
     :param lineage_collapse: Flag indicating whether clusters whose members have identical lineages are removed
     :return: Sequence names in `priority` that were members of a cluster represented by another priority sequence.
     These can be used to identify which clusters should be broken such that all 'priority' sequences will be centroids
     """
-    # A temporary dictionary for rapid mapping of sequence names to lineages
-    lineage_lookup = {er.rebuild_header(): er.lineage for (num_id, er) in entrez_records.items()}
     # cluster_ids list is used for iterating through dictionary keys and allowing dict to change size with 'pop's
-    cluster_ids = list(cluster_dict.keys())
+    cluster_ids = sorted(list(cluster_dict.keys()), key=int)
     # Track the number of priority sequences that remained members of clusters
     guaranteed_redundant = []
     cluster_num = len(cluster_dict)
 
-    for cluster_id in sorted(cluster_ids, key=int):
+    for cluster_id in cluster_ids:
         cluster = cluster_dict[cluster_id]  # type: Cluster
         if len(cluster.members) == 0:
             continue
@@ -274,8 +315,41 @@ def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list,
                 cluster.members = []
 
     if guaranteed_redundant:
-        logging.warning("{} original reference sequences saved from clustering:\n\t"
-                        "{}\n".format(len(guaranteed_redundant),
-                                      "\n\t".join(clust.representative for clust in guaranteed_redundant)))
+        logging.debug("{} original reference sequences saved from clustering:\n\t"
+                      "{}\n".format(len(guaranteed_redundant),
+                                    "\n\t".join(clust.representative for clust in guaranteed_redundant)))
 
     return
+
+
+def formulate_create_command(ts_updater: Updater, args) -> list:
+    create_cmd = ["-i", ts_updater.combined_fasta,
+                  "-c", ts_updater.ref_pkg.prefix,
+                  "-p", str(ts_updater.prop_sim),
+                  "-m", ts_updater.molecule_type,
+                  "--guarantee", ts_updater.old_ref_fasta,
+                  "-o", ts_updater.output_dir,
+                  "--accession2lin", ts_updater.lineage_map_file,
+                  "--num_procs", str(args.num_threads),
+                  "--bootstraps", str(args.bootstraps)]
+    if args.trim_align:
+        create_cmd.append("--trim_align")
+    if args.od_seq:
+        create_cmd.append("--outdet_align")
+    if args.raxml_model:
+        create_cmd += ["--raxml_model", args.raxml_model]
+    if args.fast:
+        create_cmd.append("--fast")
+    if args.taxa_lca:
+        create_cmd.append("--taxa_lca")
+    if args.cluster:
+        create_cmd.append("--cluster")
+    if args.headless:
+        create_cmd.append("--headless")
+    if args.screen:
+        create_cmd += ["--screen", args.screen]
+    if args.filter:
+        create_cmd += ["--filter", args.filter]
+    if args.min_taxonomic_rank:
+        create_cmd += ["--min_taxonomic_rank", args.min_taxonomic_rank]
+    return create_cmd

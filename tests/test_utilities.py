@@ -1,6 +1,9 @@
 import unittest
+import pytest
 import re
+import os
 
+from .testing_utils import get_test_data
 
 class ClassifierTester(unittest.TestCase):
     def test_median(self):
@@ -24,6 +27,27 @@ class ClassifierTester(unittest.TestCase):
         self.assertEqual(12, len(get_file_lines(file_path=get_test_data("colours_file.txt"))))
         self.assertEqual(100, len(get_file_lines(file_path=get_test_data("create_test.faa"),
                                                  re_pattern=re.compile("^>.*"))))
+        return
+
+    def test_concatenate_files(self):
+        from treesapp import utilities
+        # Fail if output can't be opened
+        with pytest.raises(SystemExit):
+            utilities.concatenate_files([get_test_data("create_test.faa"),
+                                         get_test_data("fasta_parser_test.fasta")],
+                                        "bad/path/cat_test.fasta")
+
+        utilities.concatenate_files([get_test_data("create_test.faa"),
+                                     get_test_data("fasta_parser_test.fasta")],
+                                    "cat_test.fasta")
+        self.assertTrue(os.path.isfile("cat_test.fasta"))
+        # Ensure the number of lines is expected
+        c = 0
+        with open("cat_test.fasta", 'r') as out:
+            for _ in out:
+                c += 1
+        self.assertEqual(215, c)
+        os.remove("cat_test.fasta")
         return
 
 

@@ -8,6 +8,7 @@ import csv
 
 from Bio import Entrez
 from urllib import error
+from tqdm import tqdm
 
 from treesapp.utilities import get_list_positions, get_field_delimiter
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
@@ -258,31 +259,37 @@ def repair_conflict_lineages(t_hierarchy: TaxonomicHierarchy, ref_seq_dict: dict
 
     nodes_replaced_map = t_hierarchy.resolve_conflicts()  # return taxa whose nodes were merged
 
-    for old_taxon, new_taxon in nodes_replaced_map.items():  # type: (Taxon, Taxon)
-        taxon_name = old_taxon.prefix_taxon()
-        for record in ref_seq_lineage_scanner(ref_seq_dict, taxon_name):  # type: EntrezRecord
-            # Find the name of the organism to use for building the new taxonomic lineage
-            if t_hierarchy.canonical_prefix.match(record.organism):
-                organism_query = record.organism
-            elif t_hierarchy.canonical_prefix.match(record.lineage.split(t_hierarchy.lin_sep)[-1]):
-                organism_query = record.lineage.split(t_hierarchy.lin_sep)[-1]
-            else:
-                continue
+    for new_taxon, old_taxa in nodes_replaced_map.items():  # type: (Taxon, list)
+        for obsolete in old_taxa:  # type: Taxon
+            taxon_name = obsolete.prefix_taxon()
+            for record in ref_seq_lineage_scanner(ref_seq_dict, taxon_name):  # type: EntrezRecord
+                # Find the name of the organism to use for building the new taxonomic lineage
+                if t_hierarchy.canonical_prefix.match(record.organism):
+                    organism_query = record.organism
+                elif t_hierarchy.canonical_prefix.match(record.lineage.split(t_hierarchy.lin_sep)[-1]):
+                    organism_query = record.lineage.split(t_hierarchy.lin_sep)[-1]
+                else:
+                    continue
 
-            # If the current record's most resolved taxon has been substituted
-            # swap all taxonomic information to the new representative
-            if organism_query == taxon_name:
-                record.organism = new_taxon.prefix_taxon()
-                organism_query = record.organism
+                # If the current record's most resolved taxon has been substituted
+                # swap all taxonomic information to the new representative
+                if organism_query == taxon_name:
+                    record.organism = new_taxon.prefix_taxon()
+                    organism_query = record.organism
 
-            ref_taxon = t_hierarchy.get_taxon(organism_query)  # type: Taxon
-            try:
-                record.lineage = t_hierarchy.lin_sep.join([taxon.prefix_taxon() for taxon in ref_taxon.lineage()])
-                continue
-            except AttributeError:
-                logging.warning("Unable to repair the conflicted lineage of record {}, "
-                                "'{}'".format(record.accession, record.lineage))
-                continue
+                ref_taxon = t_hierarchy.get_taxon(organism_query)  # type: Taxon
+                for taxon in ref_taxon.lineage():
+                    if taxon.parent and taxon.coverage > taxon.parent.coverage:
+                        logging.error("Coverage of descendent {} ({}) is greater than that of ancestral taxon {} ({}).\n"
+                                      "".format(taxon.name, taxon.coverage, taxon.parent.name, taxon.parent.coverage))
+                        sys.exit(13)
+                try:
+                    record.lineage = t_hierarchy.lin_sep.join([taxon.prefix_taxon() for taxon in ref_taxon.lineage()])
+                    continue
+                except AttributeError:
+                    logging.warning("Unable to repair the conflicted lineage of record {}, "
+                                    "'{}'".format(record.accession, record.lineage))
+                    continue
     return
 
 
@@ -332,7 +339,7 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
                 to_repair.add(treesapp_id)
                 unprefixed_lineages.add(ref_seq.lineage)  # It only takes one rank without a prefix to add it
         else:
-            ref_seq.lineage = "r__Root"
+            ref_seq.lineage = t_hierarchy.root_taxon
 
     prep_for_entrez_query()
     # Build list of entrez queries for EntrezRecords with un-annotated lineages
@@ -374,7 +381,12 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     t_hierarchy.root_domains(root=t_hierarchy.find_root_taxon())
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         e_record = ref_seq_dict[treesapp_id]  # type: EntrezRecord
-        e_record.lineage = t_hierarchy.check_lineage(e_record.lineage, e_record.organism)
+        valid_lineage = t_hierarchy.check_lineage(e_record.lineage, e_record.organism)
+        if not valid_lineage:
+            logging.warning("{} lineage '{}' shall not pass! It will be labelled as {} instead.\n"
+                            "".format(e_record.versioned, e_record.lineage, t_hierarchy.root_taxon))
+            valid_lineage = t_hierarchy.root_taxon
+        e_record.lineage = valid_lineage
 
     return
 
@@ -600,9 +612,11 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
             lineage_ex += [{"ScientificName": tax_organism, "Rank": tax_rank}]
 
         taxon = t_hierarchy.feed(tax_lineage, lineage_ex)  # type: Taxon
-        # We don't want to begin accumulating coverage at this stage
-        for t in taxon.lineage():
-            t.coverage = 0
+        # Ensure all of the ranks in the lineage have been incremented,
+        # whether they're part of the NCBI taxonomy or not. Necessary for 'r__Root'.
+        for t in taxon.lineage():  # type: Taxon
+            if t.parent and t.coverage > t.parent.coverage:
+                t.parent.coverage += 1
         lineage_anno = t_hierarchy.emit(taxon.prefix_taxon(), True)
 
         try:
@@ -1226,55 +1240,51 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
     :param refpkg_name: The reference package's name
     :return: A dictionary mapping each classified sequence to a lineage and list of TreeSAPP IDs that were mapped
     """
-    logging.info("Mapping assigned sequences to provided taxonomic lineages... ")
+    logging.info("Mapping assigned sequences to provided taxonomic lineages:\n")
     seq_lineage_map = read_seq_taxa_table(seq_lineage_tbl)
     classified_seq_lineage_map = dict()
     treesapp_nums = list(header_registry.keys())
     mapped_treesapp_nums = []
-    for seq_name, lineage in seq_lineage_map.items():  # type: (str, Lineage)
+
+    pbar = tqdm(total=len(seq_lineage_map), ncols=100)
+
+    for seq_name in sorted(seq_lineage_map):  # type: (str, Lineage)
         # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
         # we can't use hash-based data structures to bring it to O(N)
         parent_re = re.compile(seq_name)
         x = 0
         while x < len(treesapp_nums):
             header = header_registry[treesapp_nums[x]]
-            original = header.original
-            assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(refpkg_name), '', original)
+            assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(refpkg_name), '', header.original)
             if parent_re.search(assigned_seq_name):
-                classified_seq_lineage_map[header.first_split] = lineage.build_lineage(add_organism=True)
-                mapped_treesapp_nums.append(treesapp_nums.pop(x))
-            else:
-                x += 1
-        if len(treesapp_nums) == 0:
-            logging.info("done.\n")
-            return classified_seq_lineage_map, mapped_treesapp_nums
+                curr_match = parent_re.search(assigned_seq_name)  # type: re.Match
+                if assigned_seq_name not in seq_name:
+                    # Prevent seq_lineage_tbl 'seq_name's that are incomplete words from matching header names
+                    if not re.match(string=assigned_seq_name[curr_match.end()], pattern=r"[_\-\.,;: |]"):
+                        x += 1
+                        continue
+                # Now ensure that this is the best+longest match
+                if header.first_split not in classified_seq_lineage_map:
+                    classified_seq_lineage_map[header.first_split] = seq_name
+                    mapped_treesapp_nums.append(treesapp_nums[x])
+                else:
+                    prev_match = re.search(classified_seq_lineage_map[header.first_split], assigned_seq_name)
+                    if curr_match.end() > prev_match.end():
+                        classified_seq_lineage_map[header.first_split] = seq_name
+            x += 1
+
+        pbar.update()
+    pbar.close()
+
+    # Swap the sequence name for its associated taxonomic lineage
+    for query_name, match_name in classified_seq_lineage_map.items():
+        classified_seq_lineage_map[query_name] = seq_lineage_map[match_name].build_lineage(add_organism=True)
+
     logging.debug("Unable to find parent for " + str(len(treesapp_nums)) + " ORFs in sequence-lineage map:\n" +
                   "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n")
-
-    logging.info("done.\n")
 
     if len(mapped_treesapp_nums) == 0:
         logging.error("Unable to match any sequence names in {}.\n".format(seq_lineage_tbl))
         sys.exit(13)
 
     return classified_seq_lineage_map, mapped_treesapp_nums
-
-
-def main():
-    th = TaxonomicHierarchy()
-    prep_for_entrez_query()
-    tolerant_entrez_query(['12968'])
-    er_vparadoxus = EntrezRecord(acc="WP_042579442", ver="WP_042579442.1")
-    er_pmarinus = EntrezRecord(acc="WP_075487081", ver="WP_075487081.1")
-    er_dict = {"1": er_vparadoxus, "2": er_pmarinus}
-    get_multiple_lineages(list(er_dict.values()), th, "prot")
-    alm = entrez_records_to_accession_lineage_map(list(er_dict.values()))
-    repair_lineages(er_dict, th)
-    verify_lineage_information(accession_lineage_map=alm, entrez_record_map=er_dict, t_hierarchy=th, taxa_searched=2)
-    print(er_vparadoxus.get_info(),
-          er_pmarinus.get_info())
-    return
-
-
-if __name__ == "__main__":
-    main()
