@@ -64,37 +64,37 @@ class MyTestCase(unittest.TestCase):
         return
 
     def test_map_accession2taxid(self):
-        from treesapp.entrez_utils import map_accession2taxid, EntrezRecord
+        from treesapp import entrez_utils as e_utils
         # Test failure if accession2taxid file doesn't exist
         with pytest.raises(SystemExit):
-            map_accession2taxid(self.test_entrez_records, "test_data/fake.accession2taxid")
+            e_utils.map_accession2taxid(self.test_entrez_records, "test_data/fake.accession2taxid")
 
         # Test normal operating conditions
-        er_acc_dict = map_accession2taxid(query_accessions=self.test_entrez_records,
-                                          accession2taxid_list=self.accession2taxid)
+        er_acc_dict = e_utils.map_accession2taxid(query_accessions=self.test_entrez_records,
+                                                  accession2taxid_list=self.accession2taxid)
         self.assertEqual(5, len(er_acc_dict))
         self.assertEqual('112509', er_acc_dict["BAJ94456"].pop().ncbi_tax)
         self.assertEqual('', er_acc_dict["XP_005707548.1"].pop().ncbi_tax)
 
         # Clear for other tests
-        for q in self.test_entrez_records:  # type: EntrezRecord
+        for q in self.test_entrez_records:  # type: e_utils.EntrezRecord
             q.lineage = ""
         return
 
     def test_map_accessions_to_lineages(self):
-        from treesapp.entrez_utils import map_accessions_to_lineages, EntrezRecord
+        from treesapp import entrez_utils as e_utils
         from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
         taxa_hrcy = TaxonomicHierarchy()
 
         # Test normal operating conditions
-        map_accessions_to_lineages(query_accession_list=self.test_entrez_records, t_hierarchy=taxa_hrcy,
-                                   accession_to_taxid=self.accession2taxid, molecule="prot")
+        e_utils.map_accessions_to_lineages(query_accession_list=self.test_entrez_records, t_hierarchy=taxa_hrcy,
+                                           accession_to_taxid=self.accession2taxid, molecule="prot")
         self.assertEqual(70, len(taxa_hrcy.hierarchy))
         self.assertEqual(5, taxa_hrcy.lineages_fed)
         self.assertTrue("d__Bacteria" in taxa_hrcy.hierarchy)
 
         # Clear for other tests
-        for q in self.test_entrez_records:  # type: EntrezRecord
+        for q in self.test_entrez_records:  # type: e_utils.EntrezRecord
             q.lineage = ""
         return
 

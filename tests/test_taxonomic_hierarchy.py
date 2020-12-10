@@ -339,9 +339,9 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         t2 = Taxon(name="Ethanoligenens", rank="genus")
         t2.coverage = 1
         taxonomy = TaxonomicHierarchy()
-        rep, obs = taxonomy.max_node_force(t1, t2)
+        rep, _ = taxonomy.max_node_force(t1, t2)
         self.assertEqual("Methanosphaerula", rep.name)
-        rep, obs = taxonomy.max_node_force(t2, t1)
+        rep, _ = taxonomy.max_node_force(t2, t1)
         self.assertEqual("Methanosphaerula", rep.name)
         return
 

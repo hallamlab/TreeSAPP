@@ -214,8 +214,8 @@ class Assigner(classy.TreeSAPP):
 
         # Concatenate outputs
         if not os.path.isfile(self.aa_orfs_file) and not os.path.isfile(self.nuc_orfs_file):
-            os.system("cat " + ' '.join(tmp_prodigal_aa_orfs) + " > " + self.aa_orfs_file)
-            os.system("cat " + ' '.join(tmp_prodigal_nuc_orfs) + " > " + self.nuc_orfs_file)
+            utilities.concatenate_files(tmp_prodigal_aa_orfs, self.aa_orfs_file)
+            utilities.concatenate_files(tmp_prodigal_nuc_orfs, self.nuc_orfs_file)
             intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files)
             for tmp_file in intermediate_files:
                 if tmp_file != self.input_sequences:

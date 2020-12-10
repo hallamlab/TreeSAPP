@@ -1,9 +1,7 @@
 import logging
 
 import collections
-from ete3 import Tree, TreeNode
-
-from treesapp import taxonomic_hierarchy as ts_taxonomy
+import ete3
 
 ##
 # Much of the following code was adapted from https://github.com/dparks1134/PhyloRank/rel_dist.py
@@ -12,7 +10,7 @@ from treesapp import taxonomic_hierarchy as ts_taxonomy
 
 class RedTree:
     def __init__(self):
-        """ Initialize """
+        """Initialize"""
         self.logger = logging.getLogger()
         return
 
@@ -31,7 +29,7 @@ class RedTree:
         """
 
         # calculate the mean branch length to extant taxa
-        for node in ete_tree.traverse(strategy="postorder"):  # type: TreeNode
+        for node in ete_tree.traverse(strategy="postorder"):  # type: ete3.TreeNode
             avg_div = 0
             if node.is_leaf():
                 node.mean_dist = 0.0
@@ -44,7 +42,7 @@ class RedTree:
             node.mean_dist = avg_div
         return
 
-    def decorate_rel_dist(self, ete_tree: Tree):
+    def decorate_rel_dist(self, ete_tree: ete3.Tree):
         """
         Calculate relative distance to each internal node.
 
@@ -58,7 +56,7 @@ class RedTree:
         """
 
         self._avg_descendant_rate(ete_tree)
-        for node in ete_tree.traverse("preorder"):  # type: TreeNode
+        for node in ete_tree.traverse("preorder"):  # type: ete3.TreeNode
             if node.is_root():
                 node.rel_dist = 0.0
             elif node.is_leaf():
@@ -78,7 +76,7 @@ class RedTree:
                 node.rel_dist = rel_dist
         return
 
-    def rel_dist_to_named_clades(self, tree: Tree) -> dict:
+    def rel_dist_to_named_clades(self, tree: ete3.Tree) -> dict:
         """
         Determine relative distance to specific taxa.
 
@@ -91,10 +89,10 @@ class RedTree:
 
         # tabulate values for internal nodes with ranks
         rel_dists = collections.defaultdict(dict)
-        for node in tree.traverse("preorder"):  # type: TreeNode
+        for node in tree.traverse("preorder"):  # type: ete3.TreeNode
             if node.is_root():
                 continue
-            node_tax = getattr(node, "taxon")  # type: ts_taxonomy.Taxon
+            node_tax = getattr(node, "taxon")
             if not node_tax or node.is_leaf():
                 continue
             rel_dists[node_tax.rank][node_tax.name] = getattr(node, "rel_dist")

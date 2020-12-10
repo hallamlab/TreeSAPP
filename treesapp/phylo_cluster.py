@@ -18,6 +18,7 @@ from treesapp import classy as ts_classy
 
 class PhylOTU:
     def __init__(self, name):
+        """Initialize a PhylOTU instance"""
         self.number = name
         self.cardinality = 0
         self.edges = []
@@ -28,6 +29,7 @@ class PhylOTU:
 
 class PhyloClust:
     def __init__(self):
+        """Initialize a PhyloClust instance"""
         # Parameters
         self.arg_parser = TreeSAPPArgumentParser(description="A tool for sorting query sequences placed on a phylogeny"
                                                              " into phylogenetically-inferred clusters.")
@@ -130,7 +132,7 @@ class PhyloClust:
 
     @staticmethod
     def build_edge_node_index(ete_tree: Tree) -> dict:
-        """ Maps node.name attributes to edge integers in DFS traversal order """
+        """Maps node.name attributes to edge integers in DFS traversal order"""
         node_edge_map = {}
         edge_name = 0
         if len(ete_tree.children) > 2:
@@ -303,7 +305,7 @@ class PhyloClust:
         return
 
     def write_cluster_taxon_labels(self) -> None:
-        """ Writes a two-column table mapping each cluster to its respective taxonomic lineage """
+        """Writes a two-column table mapping each cluster to its respective taxonomic lineage"""
         tbl_string = ""
         output_table = os.path.join(self.output_dir, "phylotu_taxa.tsv")
         for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
@@ -315,7 +317,7 @@ class PhyloClust:
         return
 
     def write_otu_matrix(self, sample_abunds: dict, sep="\t") -> None:
-        """ Writes a typical OTU matrix with OTU IDs for rows and samples for columns """
+        """Writes a typical OTU matrix with OTU IDs for rows and samples for columns"""
         try:
             otu_mat = open(os.path.join(self.output_dir, "phylotu_matrix.tsv"), 'w')
         except IOError:

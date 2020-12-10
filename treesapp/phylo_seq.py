@@ -202,7 +202,7 @@ class PQuery:
             try:
                 names.add(pplace.name)
             except TypeError:
-                if type(pplace.name) is list:
+                if isinstance(pplace.name, list):
                     for n in pplace.name:
                         names.add(n)
 

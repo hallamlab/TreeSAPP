@@ -387,7 +387,7 @@ class TaxonomicHierarchy:
             return node_two, node_one
 
     def order_conflict_taxa(self) -> list:
-        """ Arranges the conflicting taxon tuples from class to no rank """
+        """Arranges the conflicting taxon tuples from class to no rank"""
         ordered_conflicts = []
         self.conflicts = list(self.conflicts)
         i = 0

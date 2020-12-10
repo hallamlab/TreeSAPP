@@ -100,9 +100,9 @@ class MyTestCase(unittest.TestCase):
     def test_map_queries_to_annotations(self):
         from treesapp.annotate_extra import map_queries_to_annotations
         # Functional test
-        master_dat = map_queries_to_annotations(master_dat={"McrA": [self.cs1, self.cs2, self.cs3]},
-                                                marker_tree_info={"Function": {"McrA": {"SCO": {290, 289},
-                                                                                        "Aceticlastic": {340, 2}}}})
+        map_queries_to_annotations(master_dat={"McrA": [self.cs1, self.cs2, self.cs3]},
+                                   marker_tree_info={"Function": {"McrA": {"SCO": {290, 289},
+                                                                           "Aceticlastic": {340, 2}}}})
         self.assertEqual({"Function": "SCO"}, self.cs1.layers)
         self.assertEqual({"Function": "Unknown"}, self.cs2.layers)
         self.assertEqual({"Function": "Aceticlastic"}, self.cs3.layers)

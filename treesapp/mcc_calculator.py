@@ -658,7 +658,7 @@ def check_previous_output(output_dir: str, files: list, overwrite=False) -> None
 
 
 def filter_redundant_og(query_og_map: dict) -> set:
-    """ Returns the set of query names that were annotated as multiple different orthologous groups (OGs) """
+    """Returns the set of query names that were annotated as multiple different orthologous groups (OGs)"""
     redundants = set()
     ortho_counts = {}
     ortho_filters = {}
