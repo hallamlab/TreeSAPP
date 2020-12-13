@@ -9,6 +9,7 @@ from ete3 import Tree, TreeNode
 
 from treesapp.treesapp_args import TreeSAPPArgumentParser
 from treesapp.refpkg import ReferencePackage
+from treesapp import file_parsers
 from treesapp import jplace_utils
 from treesapp import rel_evo_dist
 from treesapp import phylo_seq
@@ -33,6 +34,8 @@ class PhyloClust:
         # Parameters
         self.arg_parser = TreeSAPPArgumentParser(description="A tool for sorting query sequences placed on a phylogeny"
                                                              " into phylogenetically-inferred clusters.")
+        self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+        self.refpkg_dir = self.treesapp_dir + 'data' + os.sep
         self.alpha = 0
         self.tax_rank = "species"
         self.normalize = False
@@ -57,15 +60,18 @@ class PhyloClust:
 
         self.prep_log(args)
 
-        # Load the arguments into class attributes
-        if len(args.pkg_path) > 1:
-            logging.error("Only a single reference package is accepted by treesapp phylotu.\n")
+        if args.pkg_target:
+            refpkg_dict = file_parsers.gather_ref_packages(self.refpkg_dir, [args.pkg_target])
+            self.refpkg = refpkg_dict[args.pkg_target]
+        elif args.pkg_path:
+            self.refpkg.f__json = args.pkg_path
+            self.refpkg.slurp()
+        else:
+            logging.error("A reference package must be provided to treesapp phylotu.\n")
             sys.exit(3)
 
         self.alpha = args.alpha
         self.tax_rank = args.tax_rank
-        self.refpkg.f__json = args.pkg_path.pop()
-        self.refpkg.slurp()
 
         # Format the JPlace files dictionary, mapping sample names to file paths
         if args.jplace:
@@ -93,7 +99,13 @@ class PhyloClust:
 
     def get_arguments(self, sys_args: list) -> None:
         """Add arguments to the TreeSAPP ArgumentParser instance, then parse and load."""
-        self.arg_parser.add_refpkg_file_param()
+        refpkg_arg = self.arg_parser.reqs.add_mutually_exclusive_group()
+        refpkg_arg.add_argument("--refpkg_path", dest="pkg_path",
+                                help="Path to the reference package pickle (.pkl) file.\n")
+        refpkg_arg.add_argument('--refpkg_name', dest="pkg_target",
+                                help="Name of the reference package to use, referenced by its 'prefix' attribute, "
+                                     "from the set packaged with TreeSAPP. "
+                                     "Use `treesapp info -v` to get the available list.")
         self.arg_parser.add_output_dir()
         place_dat = self.arg_parser.reqs.add_mutually_exclusive_group()
         place_dat.add_argument("-j", "--jplace", nargs='+',

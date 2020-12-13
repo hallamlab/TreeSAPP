@@ -37,7 +37,7 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
 
     refpkg_files = glob(refpkg_data_dir + os.sep + "*_build.pkl")
     if len(refpkg_files) == 0:
-        logging.error("No reference package files were found in {}".format(refpkg_data_dir))
+        logging.error("No reference package files were found in {}.\n".format(refpkg_data_dir))
         sys.exit(3)
 
     for rp_file in refpkg_files:
