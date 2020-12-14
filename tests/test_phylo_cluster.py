@@ -50,7 +50,7 @@ class PhyloClusterTester(unittest.TestCase):
             for _ in st.traverse():
                 count += 1
         self.assertEqual(count, (len(self.mock_tree)*2)-1)
-        self.assertEqual(4, len(node_paritions))
+        self.assertEqual(3, len(node_paritions))
 
         # Test each leaf in a separate cluster
         p_clust.alpha = 0.2
@@ -111,7 +111,7 @@ class PhyloClusterTester(unittest.TestCase):
     def test_define_tree_clusters(self):
         from treesapp.phylo_cluster import PhyloClust
         p_clust = PhyloClust()
-        p_clust.alpha = 0.1
+        p_clust.alpha = 0.05
         p_clust.define_tree_clusters(tree=deepcopy(self.taxa_tree))
         self.assertTrue(len(self.taxa_tree) <= len(p_clust.cluster_index) <= sum([1 for _ in self.taxa_tree.traverse()]))
         return

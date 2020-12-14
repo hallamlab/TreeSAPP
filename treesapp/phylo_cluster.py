@@ -240,18 +240,20 @@ class PhyloClust:
             if node.is_leaf():
                 continue
             u_l, u_r = node.get_children()  # type: TreeNode
-            if u_l.dist + node.get_distance(u_l) + u_r.dist + node.get_distance(u_r) > self.alpha:
-                if u_l.dist + node.get_distance(u_l) <= u_r.dist + node.get_distance(u_r):
+            b_ul, w_ul = node.get_distance(u_l), u_l.get_farthest_leaf()[1]
+            b_ur, w_ur = node.get_distance(u_r), u_r.get_farthest_leaf()[1]
+            if b_ul + w_ul + b_ur + w_ur > self.alpha:
+                if b_ul + w_ul <= b_ur + w_ur:
                     node_partitions[i] = u_r
                     node.remove_child(u_r)
-                    node.dist = u_l.dist + node.get_distance(u_l)
+                    node.dist += b_ul + w_ul
                 else:
                     node_partitions[i] = u_l
                     node.remove_child(u_l)
-                    node.dist = u_r.dist + node.get_distance(u_r)
+                    node.dist += b_ur + w_ur
                 i += 1
             else:
-                node.dist = max(u_l.dist + node.get_distance(u_l), u_r.dist + node.get_distance(u_r))
+                node.dist += max(b_ul + w_ul, b_ur + w_ur)
 
         # Capture the last leaf node, which should be the only one remaining in the tree
         if tree:
@@ -276,6 +278,7 @@ class PhyloClust:
                     break
                 if node.dist > self.alpha:
                     inode_partitions[index] = node
+                    node.up.dist -= node.dist
                     node.up.remove_child(node)
                     index += 1
             inode_partitions[index] = subtree
