@@ -251,18 +251,19 @@ class Assigner(classy.TreeSAPP):
         # Write the amino acid sequences
         write_classified_sequences(pqueries, extracted_seqs, self.classified_aa_seqs)
         # Write the nucleotide sequences
-        if os.path.isfile(self.nuc_orfs_file):
-            nuc_orfs = FASTA(self.nuc_orfs_file)
-            nuc_orfs.load_fasta()
-            nuc_orfs.change_dict_keys()
-            if not os.path.isfile(self.classified_nuc_seqs):
-                logging.info("Creating nucleotide FASTA file of classified sequences '{}'... "
-                             "".format(self.classified_nuc_seqs))
-                write_classified_sequences(pqueries, nuc_orfs.fasta_dict, self.classified_nuc_seqs)
-                logging.info("done.\n")
-        else:
-            logging.warning("Unable to read '" + self.nuc_orfs_file + "'.\n" +
-                            "Cannot create the nucleotide FASTA file of classified sequences!\n")
+        if self.molecule_type == "dna":
+            if os.path.isfile(self.nuc_orfs_file):
+                nuc_orfs = FASTA(self.nuc_orfs_file)
+                nuc_orfs.load_fasta()
+                nuc_orfs.change_dict_keys()
+                if not os.path.isfile(self.classified_nuc_seqs):
+                    logging.info("Creating nucleotide FASTA file of classified sequences '{}'... "
+                                 "".format(self.classified_nuc_seqs))
+                    write_classified_sequences(pqueries, nuc_orfs.fasta_dict, self.classified_nuc_seqs)
+                    logging.info("done.\n")
+            else:
+                logging.warning("Unable to read '" + self.nuc_orfs_file + "'.\n" +
+                                "Cannot create the nucleotide FASTA file of classified sequences!\n")
         return
 
 
