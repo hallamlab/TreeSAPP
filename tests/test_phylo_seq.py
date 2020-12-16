@@ -143,6 +143,13 @@ class PhyloSeqtests(unittest.TestCase):
         self.assertEqual(pplace.distal_length, 0.859)
         return
 
+    def test_name_placed_sequence(self):
+        # Test when the seq_name attribute is empty
+
+        # Test when the seq_name attribute is set - nothing should be changed
+
+        return
+
     def test_split_placements(self):
         from treesapp.phylo_seq import split_placements
         self.pquery_test_1.placements = split_placements(self.placement_dict)

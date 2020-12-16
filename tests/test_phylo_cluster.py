@@ -1,4 +1,5 @@
 import os
+import re
 import unittest
 import pytest
 import shutil
@@ -106,6 +107,17 @@ class PhyloClusterTester(unittest.TestCase):
 
         # Ensure each edge number appears in only one cluster
         self.assertEqual(len(p_clust._edges_to_cluster_index), (len(self.taxa_tree)*2)-1)
+        return
+
+    def test_set_pquery_sample_name(self):
+        from treesapp.phylo_cluster import PhyloClust
+        from treesapp.phylo_seq import PQuery
+        p_clust = PhyloClust()
+        test_pq = PQuery()
+        test_pq.seq_name = '3300019225.a:Ga0179949_11324471|McrA|1_124'
+        p_clust.sample_re = re.compile(r'^(\d+)\.a:.*')
+        p_clust.set_pquery_sample_name(test_pq, "test")
+        self.assertEqual("3300019225", getattr(test_pq, "sample_name"))
         return
 
     def test_define_tree_clusters(self):

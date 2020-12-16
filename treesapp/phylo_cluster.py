@@ -2,6 +2,7 @@
 
 import os
 import sys
+import re
 import logging
 
 import numpy as np
@@ -41,9 +42,11 @@ class PhyloClust:
         self.normalize = False
         self.jplace_files = {}
         self.output_dir = ""
+        self.sample_re = None
 
         # Objects for clustering
         self.refpkg = ReferencePackage()
+        self.sample_mat = {}
         self.cluster_index = {}
         self._edges_to_cluster_index = {}
         return
@@ -72,6 +75,7 @@ class PhyloClust:
 
         self.alpha = args.alpha
         self.tax_rank = args.tax_rank
+        self.sample_re = re.compile(args.sample_regex)
 
         # Format the JPlace files dictionary, mapping sample names to file paths
         if args.jplace:
@@ -122,6 +126,10 @@ class PhyloClust:
                                             default=0.0, required=False, type=float,
                                             help="The evolutionary distance threshold defining the cluster boundaries."
                                                  " [ DEFAULT = auto ].")
+        self.arg_parser.optopt.add_argument("-s", "--sample_regex",
+                                            default="", required=False, type=str,
+                                            help="A regular expression for parsing the sample name from a query "
+                                                 "sequence name. Example: '^(\d+)\.a:.*'. [ DEFAULT = None ].")
         # TODO: Implement and validate these options
         # self.arg_parser.pplace_args.add_argument("-d", "--evo_dist",
         #                                          choices=["raw", "red"], default="red", required=False,
@@ -327,7 +335,26 @@ class PhyloClust:
         for pquery in pqueries:  # type: phylo_seq.PQuery
             cluster = self._edges_to_cluster_index[pquery.consensus_placement.edge_num]
             pquery.p_otu = cluster
+            if getattr(pquery, "sample_name") not in self.sample_mat:
+                self.sample_mat[getattr(pquery, "sample_name")] = {n: 0 for n in self.cluster_index}
+            try:
+                self.sample_mat[getattr(pquery, "sample_name")][cluster] += 1
+            except KeyError:
+                self.sample_mat[getattr(pquery, "sample_name")][cluster] = 1
             self.cluster_index[cluster].cardinality += 1
+        return
+
+    def set_pquery_sample_name(self, pquery: phylo_seq.PQuery, default_sample: str) -> None:
+        """Uses a user-provided regular expression to parse the sample name from PQuery.seq_name attribute."""
+        if self.sample_re.pattern:
+            try:
+                pquery.__setattr__("sample_name", self.sample_re.match(pquery.seq_name).group(1))
+            except AttributeError:
+                logging.error("Regular expression {} did not match query sequence name '{}'.\n"
+                              "".format(self.sample_re.pattern, pquery.seq_name))
+                sys.exit(5)
+        else:
+            pquery.__setattr__("sample_name", default_sample)
         return
 
     def write_cluster_taxon_labels(self) -> None:
@@ -342,7 +369,7 @@ class PhyloClust:
             taxa_tbl.write(tbl_string)
         return
 
-    def write_otu_matrix(self, sample_abunds: dict, sep="\t") -> None:
+    def write_otu_matrix(self, sep="\t") -> None:
         """Writes a typical OTU matrix with OTU IDs for rows and samples for columns."""
         try:
             otu_mat = open(os.path.join(self.output_dir, "phylotu_matrix.tsv"), 'w')
@@ -351,12 +378,12 @@ class PhyloClust:
             sys.exit(13)
 
         # Write the header
-        otu_mat.write(sep.join(["#OTU_ID"] + [sid for sid in sorted(sample_abunds.keys())]) + "\n")
+        otu_mat.write(sep.join(["#OTU_ID"] + [sid for sid in sorted(self.sample_mat.keys())]) + "\n")
         buffer = []
         for cluster_num in sorted(self.cluster_index, key=int):
             buffer.append(cluster_num)
-            for sid in sorted(sample_abunds):
-                buffer.append(sample_abunds[sid][cluster_num])
+            for sid in sorted(self.sample_mat):
+                buffer.append(self.sample_mat[sid][cluster_num])
             otu_mat.write(sep.join([str(x) for x in buffer]) + "\n")
             buffer.clear()
 
@@ -388,13 +415,14 @@ def cluster_phylogeny(sys_args: list) -> None:
     # Find the edges belonging to each cluster and invert the dictionary to create the _edges_to_cluster_index
     p_clust.match_edges_to_clusters(tree=p_clust.refpkg.taxonomically_label_tree())
 
-    sample_mat = {}
+    logging.info("Assigning query sequences to clusters...\n")
     for sample_id, jplace_file in p_clust.jplace_files.items():
         # Load the JPlace file
         jplace_dat = jplace_utils.jplace_parser(jplace_file)
 
         pqueries = jplace_utils.demultiplex_pqueries(jplace_dat)
         for pquery in pqueries:  # type: phylo_seq.PQuery
+            p_clust.set_pquery_sample_name(pquery, sample_id)
             pquery.process_max_weight_placement(taxa_tree)
 
         # Map the PQueries (max_lwr or aelw?) to clusters
@@ -402,16 +430,14 @@ def cluster_phylogeny(sys_args: list) -> None:
 
         # Report the number of clusters occupied
         occupancy = 0
-        sample_mat[sample_id] = {}
         for num, p_otu in p_clust.cluster_index.items():
-            sample_mat[sample_id][num] = p_otu.cardinality
             if p_otu.cardinality >= 1:
                 occupancy += 1
         logging.info("{} classified sequences occupy {}/{} '{}' pOTUs in sample '{}'.\n"
                      "".format(len(pqueries), occupancy, len(p_clust.cluster_index), p_clust.refpkg.prefix, sample_id))
 
     # Write a OTU table with the abundance of each PhylOTU for each JPlace
-    p_clust.write_otu_matrix(sample_mat)
+    p_clust.write_otu_matrix()
 
     # Write a table mapping each OTU identifier to its taxonomy
     p_clust.write_cluster_taxon_labels()

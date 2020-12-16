@@ -1,5 +1,6 @@
 import logging
 import sys
+import re
 
 from ete3 import Tree
 
@@ -210,6 +211,11 @@ class PQuery:
             logging.error("Multiple names encountered for a single PQuery:\n{}\n".format(','.join(names)))
             raise AssertionError
         self.place_name = names.pop()
+
+        place_name_match = re.match(pattern=r"(.*)\|(\w+)\|(\d+)_(\d+)$", string=self.place_name)
+        if not self.seq_name and place_name_match:
+            self.seq_name, self.ref_name = place_name_match.groups()[0:2]
+            self.start, self.end = [int(x) for x in place_name_match.groups()[2:]]
         return
 
     def filter_min_weight_threshold(self, threshold=0.1) -> None:
