@@ -251,8 +251,6 @@ def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict,
 
     taxonomic_filter_stats["Unique_taxa"] += len(dereplicated_lineages)
 
-    logging.info("\t" + str(num_rep_seqs) + " representative sequences will be used for TreeSAPP evaluate analysis.\n")
-
     logging.debug("Representative sequence stats:\n\t" +
                   "Maximum representative sequences for a taxon " + str(taxonomic_filter_stats["Max"]) + "\n\t" +
                   "Minimum representative sequences for a taxon " + str(taxonomic_filter_stats["Min"]) + "\n\t" +

@@ -1435,16 +1435,17 @@ def evaluate(sys_args):
     ts_evaluate.ref_pkg.taxa_trie.validate_rank_prefixes()
     ts_evaluate.ref_pkg.taxa_trie.build_multifurcating_trie()
 
-    logging.info("Selecting representative sequences for each taxon.\n")
-
+    logging.info("Selecting representative sequences for each taxon... ")
     # Filter the sequences from redundant taxonomic lineages, picking up to 5 representative sequences
     representative_seqs, ts_evaluate.taxa_filter = ts_clade_ex.pick_taxonomic_representatives(fasta_records,
                                                                                               ts_evaluate.taxa_filter)
+    logging.info("done.\n")
+
+    logging.info("\t{} representative sequences will be used by TreeSAPP evaluate.\n".format(len(representative_seqs)))
+
     deduplicated_fasta_dict = ts_clade_ex.select_rep_seqs(representative_seqs, fasta_records)
     fasta.write_new_fasta(deduplicated_fasta_dict, ts_evaluate.test_rep_taxa_fasta)
     rep_accession_lineage_map = ts_clade_ex.map_seqs_to_lineages(ts_evaluate.seq_lineage_map, deduplicated_fasta_dict)
-
-    # TODO: create a taxonomic hierarchy for storing reference and query sequence lineages - for trimming and querying
 
     # Checkpoint three: We have accessions linked to taxa, and sequences to analyze with TreeSAPP, but not classified
     if ts_evaluate.stage_status("classify"):
@@ -1463,7 +1464,7 @@ def evaluate(sys_args):
                 tt_obj = ts_evaluate.new_taxa_test(lineage, args.tool)
                 tt_obj.queries = taxon_rep_seqs.keys()
 
-                logging.info("Classifications for '{}' put {}\n".format(rank, tt_obj.taxon, tt_obj.intermediates_dir))
+                logging.info("Classifications for '{}' put in {}\n".format(tt_obj.taxon, tt_obj.intermediates_dir))
 
                 if args.tool in ["graftm", "diamond"]:
                     if not os.path.isfile(tt_obj.classification_table):
