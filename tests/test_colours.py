@@ -19,7 +19,7 @@ class ColourTestCase(unittest.TestCase):
 
         leaf_map = map_taxa_to_leaf_nodes(leaf_names=["g__Methanothrix", "g__Methanosarcina"], refpkg=self.mcra_refpkg)
         self.assertEqual(4, len(leaf_map["g__Methanothrix"]))
-        self.assertEqual(11, len(leaf_map["g__Methanosarcina"]))
+        self.assertEqual(13, len(leaf_map["g__Methanosarcina"]))
         return
 
     def test_read_phenotypes_map(self):
@@ -37,7 +37,7 @@ class ColourTestCase(unittest.TestCase):
                                                         taxon_leaf_map=map_taxa_to_leaf_nodes(list(phenotypes.keys()),
                                                                                               self.mcra_refpkg))
         self.assertEqual(5, len(phenotype_leaf_map))
-        self.assertEqual(15, len(phenotype_leaf_map["Aceticlastic"]))
+        self.assertEqual(17, len(phenotype_leaf_map["Aceticlastic"]))
         return
 
     def test_filter_unwanted_taxa(self):

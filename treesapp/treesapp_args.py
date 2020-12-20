@@ -542,12 +542,17 @@ def check_purity_arguments(purity_instance: Purity, args):
     return
 
 
-def check_evaluate_arguments(evaluator_instance: Evaluator, args):
+def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
     for rank in args.taxon_rank:
         evaluator_instance.ranks.append(rank)
 
     evaluator_instance.ref_pkg.f__json = args.pkg_path
     evaluator_instance.ref_pkg.slurp()
+
+    if args.length:
+        evaluator_instance.min_seq_length = str(min(args.length - 10, 30))
+    else:
+        evaluator_instance.min_seq_length = str(30)
 
     if args.acc_to_lin:
         evaluator_instance.acc_to_lin = args.acc_to_lin

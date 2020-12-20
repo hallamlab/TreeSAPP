@@ -5,6 +5,8 @@ import os
 from collections import namedtuple
 from shutil import rmtree
 
+from .testing_utils import get_test_data
+
 
 @pytest.fixture(scope="class")
 def treesapp_instance(request):
@@ -22,7 +24,6 @@ def treesapp_instance(request):
 @pytest.mark.usefixtures("treesapp_instance")
 class TreeSAPPClassTester(unittest.TestCase):
     def setUp(self) -> None:
-        from .testing_utils import get_test_data
         from treesapp.fasta import FASTA
         self.output_dir = "./TreeSAPP_classy_test_dir"
         self.fasta = get_test_data("marker_test_suite.faa")
@@ -93,6 +94,7 @@ class TreeSAPPClassTester(unittest.TestCase):
         # Should make the file properly
         prep_logging(log_file="./test_log.txt", verbosity=True)
         self.assertTrue(os.path.isfile("./test_log.txt"))
+        os.remove("./test_log.txt")
 
         # Reset logging for tests
         logging.getLogger().handlers.clear()
@@ -100,6 +102,39 @@ class TreeSAPPClassTester(unittest.TestCase):
         with pytest.raises(SystemExit):
             prep_logging(log_file=os.path.join(os.getcwd(), "must", "fail", "test_log.txt"),
                          verbosity=False)
+        return
+
+
+class EvaluatorTester(unittest.TestCase):
+    def setUp(self) -> None:
+        from treesapp.classy import Evaluator
+        from treesapp.refpkg import ReferencePackage
+        self.output_dir = "./TreeSAPP_classy_test_dir"
+        self.eval = Evaluator()
+        # Set the basic attribtues
+        self.eval.var_output_dir = self.output_dir
+        # Set the instance's reference package
+        self.eval.ref_pkg = ReferencePackage()
+        self.eval.ref_pkg.f__json = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+        self.eval.ref_pkg.slurp()
+
+        return
+
+    def tearDown(self) -> None:
+        if os.path.isdir(self.output_dir):
+            rmtree(self.output_dir)
+        return
+
+    def test_new_taxa_test(self):
+        rpp = self.eval.ref_pkg.prefix
+        taxon = "p__Proteobacteria"
+        taxa_test = self.eval.new_taxa_test(lineage="r__Root; d__Bacteria; p__Proteobacteria", tool="treesapp")
+        self.assertEqual(taxon, taxa_test.taxon)
+        self.assertEqual(os.path.join(self.output_dir, rpp, taxon) + os.sep,
+                         taxa_test.intermediates_dir)
+        self.assertEqual(os.path.join(self.output_dir, rpp, taxon,
+                                      "treesapp_output", "final_outputs", "marker_contig_map.tsv"),
+                         taxa_test.classification_table)
         return
 
 

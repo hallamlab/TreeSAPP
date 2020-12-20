@@ -11,8 +11,8 @@ from treesapp.fasta import write_new_fasta, FASTA
 from treesapp.external_command_interface import launch_write_command
 from treesapp.classy import Evaluator
 from treesapp.refpkg import ReferencePackage
-from treesapp.phylo_dist import trim_lineages_to_rank
 from treesapp.entrez_utils import EntrezRecord
+from treesapp import taxonomic_hierarchy
 
 
 def parse_distances(classification_lines):
@@ -161,20 +161,24 @@ def get_unclassified_rank(pos, split_lineage):
     return pos
 
 
-def get_testable_lineages_for_rank(ref_lineage_map: dict, query_lineage_map: dict, rank: str) -> list:
+def get_testable_lineages_for_rank(ref_lineage_map: dict, query_lineage_map: dict, rank: str,
+                                   taxonomy: taxonomic_hierarchy.TaxonomicHierarchy) -> list:
     """
-
+    Clade exclusion analysis requires a set of query sequences that can be compared to the reference sequences at some
+    taxonomic rank. Critically, the query sequences need to be represented by the reference sequences at the rank.
+    This function determines which query lineages are represented and returns them as a list.
 
     :param ref_lineage_map: A dictionary mapping all reference sequences to their respective taxonomic lineages
     :param query_lineage_map: A dictionary mapping representative query sequences to taxonomic lineages
     :param rank: Name of a taxonomic rank to test and is used to guide taxonomic lineage trimming with
      {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
+    :param taxonomy: A TaxonomicHierarchy instance with all reference and query lineages loaded
     :return: List of lineages where the optimal rank exists in the reference tree after clade exclusion
     """
     lineages = []
-    leaf_trimmed_taxa_map = trim_lineages_to_rank(ref_lineage_map, rank)
+    leaf_trimmed_taxa_map = taxonomy.trim_lineages_to_rank(ref_lineage_map, rank)
     unique_ref_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
-    unique_query_lineages = sorted(set(trim_lineages_to_rank(query_lineage_map, rank).values()))
+    unique_query_lineages = sorted(set(taxonomy.trim_lineages_to_rank(query_lineage_map, rank).values()))
     for lineage in unique_query_lineages:
         # Is the optimal placement in the pruned reference tree?
         optimal_lca_taxonomy = "; ".join(lineage.split("; ")[:-1])

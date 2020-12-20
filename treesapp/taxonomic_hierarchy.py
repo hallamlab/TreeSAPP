@@ -1223,13 +1223,10 @@ class TaxonomicHierarchy:
         :return: Dictionary of keys mapped to trimmed lineages
         """
         trimmed_lineage_map = dict()
-        depth = 0
-        th_rank_name = ""
 
-        try:
-            depth = self.accepted_ranks_depths[rank]
-        except KeyError:
+        if rank not in self.accepted_ranks_depths:
             self.so_long_and_thanks_for_all_the_fish("Rank '{0}' is not in hierarchy's accepted names.\n".format(rank))
+            raise RuntimeError
         truncated = 0
 
         self.validate_rank_prefixes()
@@ -1257,34 +1254,6 @@ class TaxonomicHierarchy:
                     continue
             if lin:
                 trimmed_lineage_map[node_name] = self.lin_sep.join(reversed(lin))
-
-            # if base_taxon.prefix_taxon() == self.root_taxon:
-            #     modifier = 1
-            # elif base_taxon.rank != "domain":
-            #     logging.error("Lineage '{}' doesn't begin with a taxon representing either root or domain rank.\n")
-            #     sys.exit(17)
-            # else:
-            #     modifier = 0
-            #
-            # # Remove lineage from testing if the rank doesn't exist (unclassified at a high rank)
-            # if len(lineage) == 1 or len(lineage) < (depth+modifier):
-            #     truncated += 1
-            #     continue
-            #
-            # trimmed_lineage_map[node_name] = lineage[:(depth+modifier)]
-            #
-            # # Ensure the last taxon in the lineage has the expected rank-prefix
-            # taxon = trimmed_lineage_map[node_name][-1]
-            # try:
-            #     th_rank_name = self.rank_prefix_map[taxon[0]]
-            # except KeyError:
-            #     self.so_long_and_thanks_for_all_the_fish("Rank prefix {}"
-            #                                              " not found in rank prefix map.\n".format(taxon[0]))
-            # if rank != th_rank_name:
-            #     self.so_long_and_thanks_for_all_the_fish("Rank prefix '{}' doesn't match rank name '{}'"
-            #                                              " in trimmed lineage.\n".format(rank, th_rank_name))
-            #
-            # trimmed_lineage_map[node_name] = self.lin_sep.join(trimmed_lineage_map[node_name])
 
         logging.debug("{0} lineages truncated before '{1}' were removed during lineage trimming.\n".format(truncated,
                                                                                                            rank))

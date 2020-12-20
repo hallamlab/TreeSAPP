@@ -89,7 +89,7 @@ class EntishTester(unittest.TestCase):
 
         # Test for different formats with internal node identifiers
         rp_tree = verify_bifurcations(self.refpkg_tree)
-        self.assertEqual(246, len(Tree(rp_tree).get_leaves()))
+        self.assertEqual(249, len(Tree(rp_tree).get_leaves()))
         self.assertTrue(len(Tree(rp_tree).get_edges()) >= len(Tree(self.refpkg_tree).get_edges()))
 
         rf = Tree(rp_tree).robinson_foulds(Tree(self.refpkg_tree), unrooted_trees=True)

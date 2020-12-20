@@ -990,19 +990,27 @@ class Purity(TreeSAPP):
 
 
 class TaxonTest:
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.lineage = name
         self.taxon = name.split('; ')[-1]
+        self.classifier = ""
+        self.refpkg_path = ""
+
+        # Collections
         self.queries = list()
         self.classifieds = list()
         self.distances = dict()
         self.assignments = dict()
         self.taxonomic_tree = None
+
+        # Directories
         self.intermediates_dir = ""
-        self.temp_files_prefix = ""
+        self.classifications_root = ""
+
+        # Output files
         self.test_query_fasta = ""
-        self.test_tax_ids_file = ""
-        self.classifier_output = ""
+        self.classification_table = ""
+        return
 
     def get_optimal_assignment(self):
         if self.lineage.split('; ')[0] != "r__Root":
@@ -1049,12 +1057,41 @@ class TaxonTest:
                                 " sequences were classified as " + marker + ":\n" +
                                 "\t\n".join(off_targets[marker]) + "\n")
         return
+    
+    def clade_exclusion_outputs(self, rank: str, refpkg: ReferencePackage, output_dir: str, tool: str) -> None:
+        """
+        Creates a TaxonTest instance that stores file paths and settings relevant to a clade exclusion analysis
+
+        :param rank: The taxonomic rank (to which `lineage` belongs to) that is being excluded
+        :param refpkg: The ReferencePackage object that is to be used for clade exclusion
+        :param output_dir: Root directory for the various outputs for this TaxonTest
+        :param tool: Name of the tool used for classifying query sequences: 'graft', 'diamond' or 'treesapp'
+        :return: TaxonTest instance
+        """
+        taxon_path = re.sub(r"([ /])", '_', self.taxon)
+
+        self.intermediates_dir = os.path.join(output_dir, refpkg.prefix, taxon_path) + os.sep
+        if not os.path.isdir(self.intermediates_dir):
+            os.makedirs(self.intermediates_dir)
+
+        self.test_query_fasta = self.intermediates_dir + taxon_path + ".fa"
+        self.classifications_root = self.intermediates_dir + tool + "_output" + os.sep
+
+        if tool in ["graftm", "diamond"]:
+            self.classification_table = self.classifications_root + taxon_path + os.sep + taxon_path + "_read_tax.tsv"
+            self.refpkg_path = self.intermediates_dir + refpkg.prefix + '_' + taxon_path + ".gpkg"
+        else:
+            self.classification_table = self.classifications_root + "final_outputs" + os.sep + "marker_contig_map.tsv"
+            self.refpkg_path = os.path.join(self.intermediates_dir, refpkg.prefix + refpkg.refpkg_suffix)
+
+        return 
 
 
 class Evaluator(TreeSAPP):
     def __init__(self):
         super(Evaluator, self).__init__("evaluate")
         self.rank_depth_map = None
+        self.min_seq_length = 0
         self.ranks = list()
         self.markers = set()
         self.taxa_filter = dict()
@@ -1096,11 +1133,12 @@ class Evaluator(TreeSAPP):
 
         return info_string
 
-    def new_taxa_test(self, lineage) -> TaxonTest:
+    def new_taxa_test(self, lineage: str, tool: str) -> TaxonTest:
         """
         Creates a new TaxonTest instance for clade exclusion analysis
 
         :param lineage: The lineage being tested
+        :param tool: Name of the tool used for classifying query sequences: 'graft', 'diamond' or 'treesapp'
         :return: A TaxonTest instance specific to lineage
         """
         # Determine the rank
@@ -1113,6 +1151,10 @@ class Evaluator(TreeSAPP):
             self.taxa_tests[rank] = list()
         taxa_test_inst = TaxonTest(lineage)
         self.taxa_tests[rank].append(taxa_test_inst)
+
+        taxa_test_inst.clade_exclusion_outputs(output_dir=self.var_output_dir, refpkg=self.ref_pkg,
+                                               rank=rank, tool=tool)
+        
         return taxa_test_inst
 
     def delete_test(self, rank, lineage):
@@ -1378,31 +1420,6 @@ class Evaluator(TreeSAPP):
 
         output_handler.close()
         return
-
-    def clade_exclusion_outputs(self, lineage, rank, refpkg_name) -> TaxonTest:
-        """
-        Creates a TaxonTest instance that stores file paths and settings relevant to a clade exclusion analysis
-
-        :param lineage: Taxonomic lineage which is going to be used in this clade exclusion analysis
-        :param rank: The taxonomic rank (to which `lineage` belongs to) that is being excluded
-        :param refpkg_name: Name (not code) of the ReferencePackage object that is to be used for clade exclusion
-        :return: TaxonTest instance
-        """
-        # Refpkg input files in ts_evaluate.var_output_dir/refpkg_name/rank_tax/
-        # Refpkg built in ts_evaluate.var_output_dir/refpkg_name/rank_tax/{refpkg_name}_{rank_tax}.gpkg/
-        taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
-        rank_tax = rank[0] + '_' + taxon
-
-        test_obj = self.new_taxa_test(lineage)
-        test_obj.intermediates_dir = self.var_output_dir + refpkg_name + os.sep + rank_tax + os.sep
-        if not os.path.isdir(test_obj.intermediates_dir):
-            os.makedirs(test_obj.intermediates_dir)
-
-        logging.info("Classifications for the " + rank + " '" + taxon + "' put " + test_obj.intermediates_dir + "\n")
-        test_obj.test_query_fasta = test_obj.intermediates_dir + rank_tax + ".fa"
-        test_obj.test_tax_ids_file = test_obj.intermediates_dir + "tax_ids_" + refpkg_name + ".txt"
-        test_obj.classifier_output = test_obj.intermediates_dir + "TreeSAPP_output" + os.sep
-        return test_obj
 
 
 class Layerer(TreeSAPP):

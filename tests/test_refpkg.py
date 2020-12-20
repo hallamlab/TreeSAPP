@@ -19,6 +19,7 @@ def refpkg_class(request):
 class RefPkgTester(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp.utilities import fetch_executable_path
+        self.pkl_path = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.new_pkl_path = "./test_write_json" + self.db.refpkg_suffix
         self.disband_path = "_".join([self.db.prefix, self.db.refpkg_code, self.db.date])
         if os.path.isdir(self.disband_path):
@@ -45,14 +46,8 @@ class RefPkgTester(unittest.TestCase):
         return
 
     def test_band(self):
+        self.db.change_file_paths(new_dir=os.path.dirname(self.db.f__json))
         self.db.band()
-        return
-
-    def test_slurp(self):
-        from . import testing_utils as utils
-        self.db.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
-        self.db.slurp()
-        self.assertEqual("McrA", self.db.prefix)
         return
 
     def test_disband(self):
@@ -61,28 +56,29 @@ class RefPkgTester(unittest.TestCase):
 
     def test_remove_taxon_from_lineage_ids(self):
         # Ensure the initial state is as expected
-        self.assertEqual(246, self.db.num_seqs)
-        self.assertEqual(246, len(self.db.lineage_ids))
+        self.assertEqual(249, self.db.num_seqs)
+        self.assertEqual(249, len(self.db.lineage_ids))
 
         # Test
-        self.db.remove_taxon_from_lineage_ids("d__Archaea; p__Euryarchaeota; c__Methanobacteria; o__Methanobacteriales;"
-                                              " f__Methanobacteriaceae; g__Methanosphaera")
-        self.assertEqual(193, self.db.num_seqs)
-        self.db.remove_taxon_from_lineage_ids("d__Archaea; p__Euryarchaeota; c__Methanobacteria")
-        self.assertEqual(146, len(self.db.lineage_ids))
+        self.db.remove_taxon_from_lineage_ids("r__Root; d__Archaea; p__Euryarchaeota; c__Methanobacteria;"
+                                              " o__Methanobacteriales; f__Methanobacteriaceae; g__Methanosphaera")
+        self.assertEqual(191, self.db.num_seqs)
+        self.db.remove_taxon_from_lineage_ids("r__Root; d__Archaea; p__Euryarchaeota; c__Methanobacteria")
+        self.assertEqual(144, len(self.db.lineage_ids))
 
-        self.db.remove_taxon_from_lineage_ids("d__Archaea")
-        self.assertEqual(3, len(self.db.lineage_ids))
-        self.assertEqual(3, self.db.num_seqs)
+        self.db.remove_taxon_from_lineage_ids("r__Root; d__Archaea")
+        self.assertEqual(0, len(self.db.lineage_ids))
+        self.assertEqual(0, self.db.num_seqs)
 
     def test_get_fasta(self):
         refpkg_fa = self.db.get_fasta()
-        self.assertEqual(246, len(refpkg_fa.fasta_dict))
+        self.assertEqual(249, len(refpkg_fa.fasta_dict))
+        return
 
     def test_get_ete_tree(self):
         from treesapp.refpkg import ReferencePackage
         rt = self.db.get_ete_tree()
-        self.assertEqual(246, len(rt))
+        self.assertEqual(249, len(rt))
         blank = ReferencePackage()
         with pytest.raises(SystemExit):
             blank.get_ete_tree()
@@ -100,28 +96,11 @@ class RefPkgTester(unittest.TestCase):
         self.db.bail()
 
     def test_get_internal_node_leaf_map(self):
-        from . import testing_utils as utils
-        self.db.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        self.db.f__json = self.pkl_path
         self.db.slurp()
         node_map = self.db.get_internal_node_leaf_map()
         self.assertEqual(2*self.db.num_seqs, len(node_map))
         self.assertEqual(self.db.num_seqs, len(node_map[max(node_map.keys())]))
-        return
-
-    def test_pickle_package(self):
-        self.db.f__json = self.new_pkl_path
-        self.db.pickle_package()
-        self.db.slurp()
-        self.assertTrue("McrA" == self.db.prefix)
-
-    def test_taxonomically_label_tree(self):
-        from treesapp.taxonomic_hierarchy import Taxon
-        labelled_rt = self.db.taxonomically_label_tree()
-        self.assertEqual(246, len(labelled_rt))
-        self.assertTrue('taxon' in labelled_rt.features)
-        self.assertEqual('Root', labelled_rt.taxon.name)
-        self.assertEqual('root', labelled_rt.taxon.rank)
-        self.assertTrue(isinstance(labelled_rt.taxon, Taxon))
         return
 
     def test_enumerate_taxonomic_lineages(self):
@@ -144,11 +123,35 @@ class RefPkgTester(unittest.TestCase):
                                                    executables=self.exe_map, target_clade=ce_taxon)
 
         # Work as normal
-        ce_taxon = "d__Archaea; p__Euryarchaeota; c__Methanomicrobia; o__Methanosarcinales"
+        ce_taxon = "r__Root; d__Archaea; p__Euryarchaeota; c__Methanomicrobia; o__Methanosarcinales"
         ce_refpkg.exclude_clade_from_ref_files(tmp_dir=os.path.join(self.intermediates_dir, ce_taxon.split("; ")[-1]),
                                                executables=self.exe_map,
                                                target_clade=ce_taxon, fresh=True)
         self.assertEqual(144, ce_refpkg.num_seqs)
+        return
+
+    def test_pickle_package(self):
+        self.db.f__json = self.new_pkl_path
+        self.db.pickle_package()
+        self.db.slurp()
+        self.assertTrue("McrA" == self.db.prefix)
+        return
+
+    def test_slurp(self):
+        self.db.f__json = self.pkl_path
+        self.db.slurp()
+        self.assertEqual("McrA", self.db.prefix)
+        self.assertEqual(249, self.db.num_seqs)
+        return
+
+    def test_taxonomically_label_tree(self):
+        from treesapp.taxonomic_hierarchy import Taxon
+        labelled_rt = self.db.taxonomically_label_tree()
+        self.assertEqual(249, len(labelled_rt))
+        self.assertTrue('taxon' in labelled_rt.features)
+        self.assertEqual('Root', labelled_rt.taxon.name)
+        self.assertEqual('root', labelled_rt.taxon.rank)
+        self.assertTrue(isinstance(labelled_rt.taxon, Taxon))
         return
 
 

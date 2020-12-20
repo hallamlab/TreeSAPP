@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import sys
-import re
 import logging
 from ete3 import Tree
 
@@ -72,7 +71,7 @@ def regress_ranks(rank_distance_ranges: dict, taxonomic_ranks: dict) -> (float, 
 
     # For TreeSAPP predictions
     # opt_slope, intercept = [round(float(x), 4) for x in list(np.polyfit(dist_list, rank_depth_list, 1))]
-    intercept = 7.0
+    intercept = 8.0
     opt_slope = round(float(so.fmin(lambda m, x, y: ((m * x - y + intercept) ** 2).sum(),
                                     x0=-6.0,
                                     args=(dist_list, rank_depth_list))), 4)
@@ -101,59 +100,6 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_pfit: list):
     depth = int(round(phylo_dist*slope + intercept))
 
     return depth
-
-
-def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
-    """
-    Iterates a dictionary and trims the lineage string values to a specified rank.
-     Also removes lineages that are unclassified at the desired rank or higher (closer to root)
-
-    :param leaf_taxa_map: Maps indices to lineages
-    :param rank: The taxonomic rank lineages need to be trimmed to
-    :return: Dictionary of keys mapped to trimmed lineages
-    """
-    trimmed_lineage_map = dict()
-    # ranks is offset by 1 (e.g. Kingdom is the first index and therefore should be 1) for the final trimming step
-    ranks = {"domain": 1, "phylum": 2, "class": 3, "order": 4, "family": 5, "genus": 6, "species": 7}
-    unknowns_re = re.compile("unclassified|environmental sample", re.IGNORECASE)
-    depth = ranks[rank]
-    truncated = 0
-    unclassified = 0
-    for node_name in sorted(leaf_taxa_map):
-        c_lineage = leaf_taxa_map[node_name]
-        c_lineage_s = c_lineage.split("; ")
-
-        # Remove lineage from testing if the rank doesn't exist (unclassified at a high rank)
-        if len(c_lineage_s) < depth:
-            truncated += 1
-            continue
-
-        try:
-            unknowns_re.search(c_lineage)
-        except TypeError:
-            logging.error("Unexpected type (" + str(type(c_lineage)) + ") for '" + str(c_lineage) + "'\n")
-            sys.exit(33)
-
-        if unknowns_re.search(c_lineage):
-            i = 0
-            while i < depth:
-                try:
-                    taxon = c_lineage_s[i]
-                except IndexError:
-                    logging.error(rank + " position (" + str(depth) + ") unavailable in " + c_lineage + " ")
-                    break
-                if unknowns_re.search(taxon):
-                    i -= 1
-                    break
-                i += 1
-            if i < depth:
-                unclassified += 1
-                continue
-        trimmed_lineage_map[node_name] = "; ".join(c_lineage_s[:depth])
-
-    logging.debug(str(truncated) + " lineages truncated before " + rank + " were removed during lineage trimming.\n" +
-                  str(unclassified) + " lineages unclassified at or before " + rank + " also removed.\n")
-    return trimmed_lineage_map
 
 
 def parent_to_tip_distances(parent: Tree, children: Tree, estimate=False):

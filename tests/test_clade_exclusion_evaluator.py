@@ -36,6 +36,35 @@ class CladeExclusionTester(unittest.TestCase):
             shutil.rmtree(self.tmp_dir)
         return
 
+    def test_get_testable_lineages_for_rank(self):
+        from treesapp import clade_exclusion_evaluator
+        from treesapp.refpkg import ReferencePackage
+        # Generate the inputs
+        mcra_rp = ReferencePackage()
+        mcra_rp.f__json = get_test_data(get_test_data(os.path.join("refpkgs", "McrA_build.pkl")))
+        mcra_rp.slurp()
+        rlm = {leaf.number: leaf.lineage for leaf in mcra_rp.generate_tree_leaf_references_from_refpkg()}
+        qlm = {'q1': 'r__Root; d__Bacteria',
+               'q2': 'r__Root; d__Archaea; p__Euryarchaeota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae',
+               'q3': 'r__Root; d__Archaea; p__Euryarchaeota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium alcaliphilum',
+               'q4': 'r__Root; d__Archaea; p__Euryarchaeota',
+               'q5': 'r__Root; d__Archaea; p__Euryarchaeota; c__Methanococci; o__Methanococcales',
+               'q6': 'r__Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria'}
+
+        # Test when a lineage isn't in the taxonomic hierarchy
+        lineages = clade_exclusion_evaluator.get_testable_lineages_for_rank(ref_lineage_map=rlm, query_lineage_map=qlm,
+                                                                            rank="phylum",
+                                                                            taxonomy=mcra_rp.taxa_trie)
+        self.assertEqual(1, len(lineages))
+
+        # Test normal conditions
+        lineages = clade_exclusion_evaluator.get_testable_lineages_for_rank(ref_lineage_map=rlm, query_lineage_map=qlm,
+                                                                            rank="class",
+                                                                            taxonomy=mcra_rp.taxa_trie)
+        self.assertEqual(["r__Root; d__Archaea; p__Euryarchaeota; c__Methanobacteria",
+                          "r__Root; d__Archaea; p__Euryarchaeota; c__Methanococci"], lineages)
+        return
+
     def test_prep_graftm_ref_files(self):
         from treesapp.clade_exclusion_evaluator import prep_graftm_ref_files
         taxon_str = 'd__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhizobiales'

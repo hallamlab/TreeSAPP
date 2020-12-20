@@ -193,7 +193,7 @@ class ReferencePackage:
         """
         for a, v in self.__iter__():
             if a.startswith('f__'):
-                new_path = new_dir + os.path.basename(v)
+                new_path = os.path.join(new_dir, os.path.basename(v))
                 if move:
                     copy(v, new_path)
                     os.remove(v)

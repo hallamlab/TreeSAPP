@@ -19,7 +19,7 @@ class UpdaterTester(unittest.TestCase):
 
         # Ensure the incorrectly-provided percentage is converted to a proportion
         min_length = ts_update_mod.decide_length_filter(self.ref_pkg, min_hmm_proportion=80)
-        self.assertEqual(442, min_length)
+        self.assertEqual(443, min_length)
         return
 
 
