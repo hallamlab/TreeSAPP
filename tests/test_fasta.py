@@ -81,16 +81,15 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual({}, read_fasta_to_dict("./fake_file.fa"))
         return
 
-    def test_split_fa_size(self):
+    def test_split_fa(self):
         from treesapp.fasta import split_fa, read_fasta_to_dict
+        # Test splitting by number of files
         split_files = split_fa(fastx=self.test_fa, outdir="./", file_num=4)
         num_split_seqs = sum([len(read_fasta_to_dict(f)) for f in split_files])
         self.assertEqual(len(read_fasta_to_dict(self.test_fa)), num_split_seqs)
         self.assertEqual(4, len(split_files))
-        return
 
-    def test_split_fa_count(self):
-        from treesapp.fasta import split_fa, read_fasta_to_dict
+        # Test splitting by count
         split_files = split_fa(fastx=self.test_fa, outdir="./", file_num=1, max_seq_count=236)
         self.assertEqual(1, len(split_files))
         split_files = split_fa(fastx=self.test_fa, outdir="./", file_num=1, max_seq_count=24)
@@ -99,10 +98,29 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(10, len(split_files))
         return
 
+    def test_parameterize_sub_file_size(self):
+        from treesapp.fasta import parameterize_sub_file_size
+        fsize, nseqs = parameterize_sub_file_size(file_name=self.test_fq, num_files=4, max_seqs=0, record_len=4)
+        self.assertEqual(1032, fsize)
+        self.assertEqual(0, nseqs)
+        fsize, nseqs = parameterize_sub_file_size(file_name=self.test_fa, num_files=0, max_seqs=10)
+        self.assertEqual(10, nseqs)
+        self.assertEqual(0, fsize)
+        return
+
     def test_fq2fa(self):
         from treesapp.fasta import fq2fa
+        split_files = fq2fa(fastx=self.test_fq, outdir="./", file_num=4)
+        line_num = 0
+        for f in split_files:
+            with open(f, 'r') as f_handler:
+                line_num += len(f_handler.readlines())
+        self.assertEqual(24, line_num)
+        self.assertEqual(4, len(split_files))
         split_files = fq2fa(fastx=self.test_fq, outdir="./", max_seq_count=6)
-        self.assertEqual(2, len(split_files))
+        for f_path in split_files:
+            self.assertTrue(os.path.isfile(f_path))
+        return
 
     def test_format_read_fasta(self):
         from treesapp.fasta import format_read_fasta

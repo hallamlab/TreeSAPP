@@ -27,11 +27,9 @@ try:
     from sklearn import preprocessing
 
     from treesapp import classy
-    from treesapp.phylo_seq import PhyloPlace, PQuery, TreeLeafReference
+    from treesapp import phylo_seq
     from treesapp.refpkg import ReferencePackage
     from treesapp.treesapp_args import TreeSAPPArgumentParser
-    from treesapp.fasta import get_headers, write_new_fasta, read_fasta_to_dict, FASTA,\
-        multiple_alignment_dimensions, Header, fastx_split
     from treesapp.entish import index_tree_edges, map_internal_nodes_leaves
     from treesapp.external_command_interface import launch_write_command
     from treesapp import lca_calculations as ts_lca
@@ -40,6 +38,7 @@ try:
     from treesapp import phylo_dist
     from treesapp import utilities
     from treesapp import wrapper
+    from treesapp import fasta
     from treesapp.hmmer_tbl_parser import HmmMatch
 
 except ImportWarning:
@@ -181,19 +180,18 @@ class Assigner(classy.TreeSAPP):
 
         if num_threads > 1 and composition == "meta":
             # Split the input FASTA into num_threads files to run Prodigal in parallel
-            split_files = fastx_split(self.input_sequences, self.output_dir, num_threads)
+            split_files = fasta.fastx_split(self.input_sequences, self.stage_output_dir, num_threads)
         else:
             split_files = [self.input_sequences]
 
         task_list = list()
         for fasta_chunk in split_files:
             chunk_prefix = self.var_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
-            prodigal_command = [self.executables["prodigal"]]
+            prodigal_command = [self.executables["prodigal"], "-q"]
             prodigal_command += ["-i", fasta_chunk]
             prodigal_command += ["-p", composition]
             prodigal_command += ["-a", chunk_prefix + "_ORFs.faa"]
             prodigal_command += ["-d", chunk_prefix + "_ORFs.fna"]
-            prodigal_command += ["1>/dev/null", "2>/dev/null"]
             task_list.append(prodigal_command)
 
         num_tasks = len(task_list)
@@ -253,7 +251,7 @@ class Assigner(classy.TreeSAPP):
         # Write the nucleotide sequences
         if self.molecule_type == "dna":
             if os.path.isfile(self.nuc_orfs_file):
-                nuc_orfs = FASTA(self.nuc_orfs_file)
+                nuc_orfs = fasta.FASTA(self.nuc_orfs_file)
                 nuc_orfs.load_fasta()
                 nuc_orfs.change_dict_keys()
                 if not os.path.isfile(self.classified_nuc_seqs):
@@ -267,14 +265,14 @@ class Assigner(classy.TreeSAPP):
         return
 
 
-def replace_contig_names(numeric_contig_index: dict, fasta: FASTA):
+def replace_contig_names(numeric_contig_index: dict, fasta_obj: fasta.FASTA):
     for marker in numeric_contig_index:
         assign_re = re.compile(r"(.*)\|{0}\|(\d+_\d+)$".format(marker))
         for neg_num_id in numeric_contig_index[marker]:
             assign_name = numeric_contig_index[marker][neg_num_id]
             seq_name, coords = assign_re.match(assign_name).groups()
             try:
-                original_name = fasta.header_registry[seq_name].original
+                original_name = fasta_obj.header_registry[seq_name].original
             except KeyError:
                 logging.error("Unable to find TreeSAPP numerical ID '" + seq_name + "' in header registry.\n")
                 sys.exit(3)
@@ -282,7 +280,7 @@ def replace_contig_names(numeric_contig_index: dict, fasta: FASTA):
     return numeric_contig_index
 
 
-def load_pqueries(hmm_matches: dict, query_seq_fasta: FASTA) -> list:
+def load_pqueries(hmm_matches: dict, query_seq_fasta: fasta.FASTA) -> list:
     logging.debug("Instantiating the PQuery instances... ")
 
     pqueries = []
@@ -294,13 +292,13 @@ def load_pqueries(hmm_matches: dict, query_seq_fasta: FASTA) -> list:
             else:
                 seq_name = hmm_match.orf
             # Load the homology search data
-            qseq = PQuery()
+            qseq = phylo_seq.PQuery()
             qseq.ref_name = refpkg_name
             qseq.evalue, qseq.start, qseq.end = hmm_match.eval, hmm_match.start, hmm_match.end
             pqueries.append(qseq)
             # Load the query's sequence
             qseq.seq = query_seq_fasta.fasta_dict[seq_name]
-            header = query_seq_fasta.header_registry[seq_name]  # type: Header
+            header = query_seq_fasta.header_registry[seq_name]  # type: fasta.Header
             qseq.seq_name = header.original
             qseq.place_name = "{}|{}|{}_{}".format(qseq.seq_name, qseq.ref_name, qseq.start, qseq.end)
 
@@ -309,7 +307,7 @@ def load_pqueries(hmm_matches: dict, query_seq_fasta: FASTA) -> list:
     return pqueries
 
 
-def load_homologs(hmm_matches: dict, hmmsearch_query_fasta: str, query_seq_fasta: FASTA) -> None:
+def load_homologs(hmm_matches: dict, hmmsearch_query_fasta: str, query_seq_fasta: fasta.FASTA) -> None:
     """
     Loads the fasta_dict attribute in query_seq_fasta guided by the homologous sequences.
     This reduces the RAM usage when the query FASTA contains many non-homologous sequences, which would not be loaded.
@@ -442,12 +440,12 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, r
                     bin_fasta[str(num)] = group_sequences[num]
                     # Ensuring the number of query sequences doesn't exceed the number of reference sequences
                     if len(bin_fasta) >= refpkg.num_seqs:
-                        write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+                        fasta.write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
                         hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
                         f_acc += 1
                         bin_fasta.clear()
                 if len(bin_fasta) >= 1:
-                    write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+                    fasta.write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
                     hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
             f_acc += 1
             bin_fasta.clear()
@@ -455,7 +453,7 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, r
         # Now write a single FASTA file with all identified markers
         if len(bulk_marker_fasta) >= 1:
             trimmed_hits_fasta = output_dir + marker + "_hmm_purified.faa"
-            write_new_fasta(bulk_marker_fasta, trimmed_hits_fasta)
+            fasta.write_new_fasta(bulk_marker_fasta, trimmed_hits_fasta)
         bulk_marker_fasta.clear()
     logging.info("done.\n")
     return hmmalign_input_fastas
@@ -476,119 +474,6 @@ def subsequence(fasta_dictionary, contig_name, start, end):
     return subseq
 
 
-def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
-    """
-    Function to write the nucleotide sequences representing the BLAST alignment region for each hit in the fasta
-
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param gene_coordinates:
-    :param formatted_fasta_dict:
-    :return: None
-    """
-    # Header format:
-    # >contig_name|marker_gene|start_end
-    # input_multi_fasta = re.match(r'\A.*\/(.*)', args.fasta_input).group(1)
-    input_multi_fasta = path.basename(args.fasta_input)
-    orf_nuc_fasta = args.output_dir_var + '.'.join(input_multi_fasta.split('.')[:-1]) + "_genes.fna"
-    try:
-        fna_output = open(orf_nuc_fasta, 'w')
-    except IOError:
-        raise IOError("Unable to open " + orf_nuc_fasta + " for writing!")
-
-    output_fasta_string = ""
-
-    for contig_name in gene_coordinates:
-        for coords_start in sorted(gene_coordinates[contig_name].keys()):
-            start = coords_start
-            for coords_end in gene_coordinates[contig_name][coords_start].keys():
-                end = coords_end
-                cog = gene_coordinates[contig_name][coords_start][coords_end]
-                output_fasta_string += '>' + contig_name + '|' + cog + '|' + str(start) + '_' + str(end) + "\n"
-                output_fasta_string += subsequence(formatted_fasta_dict, contig_name, start, end) + "\n"
-
-    fna_output.write(output_fasta_string)
-    fna_output.close()
-
-    return
-
-
-def fprintf(opened_file, fmt, *args):
-    """
-    A helper function used to print to a specified file.
-    :param opened_file: A file object that has already been opened using open()
-    """
-    opened_file.write(fmt % args)
-
-
-def parse_infernal_table(infernal_table):
-    """
-    Function to parse the `--tblout` file from Infernal, generating a list of sequence names
-    that meet pre-defined thresholds and their start and end positions on their contig
-    :return: A dictionary containing contig names, and the start and end positions of an rRNA sequence (tuple)
-    """
-
-    rrna_seqs = dict()
-
-    return rrna_seqs
-
-
-def extract_rrna_sequences(rrna_seqs, rrna_marker, fasta_dictionary):
-    """
-    TEMPLATE
-    :param rrna_seqs:
-    :param rrna_marker:
-    :return:
-    """
-    rrna_fasta_dict = dict()
-    for contig_name in rrna_seqs:
-        for coordinates in sorted(rrna_seqs[contig_name].keys()):
-            start, end = coordinates
-            rrna_fasta_dict['>' + contig_name + '|' + str(start) + '_' + str(end)] = subsequence(fasta_dictionary,
-                                                                                                 contig_name,
-                                                                                                 start,
-                                                                                                 end)
-    return rrna_fasta_dict
-
-
-def detect_ribrna_sequences(args, cog_list, formatted_fasta_dict):
-    """
-
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param cog_list:
-    :param formatted_fasta_dict:
-    :return:
-    """
-    logging.info("Retrieving rRNA hits with Infernal... ")
-
-    function_start_time = time.time()
-
-    num_rrna = 0
-
-    for rrna_marker in cog_list["phylogenetic_cogs"]:
-        cov_model = ""
-        infernal_table = ""
-
-        cmsearch_command = [args.executables["cmsearch"]]
-        cmsearch_command += ["--tblout", infernal_table]
-        cmsearch_command += ["--noali", "--cpu", str(args.num_threads)]
-        cmsearch_command += [cov_model, args.input]
-
-        rrna_seqs = parse_infernal_table(infernal_table)
-        num_rrna += len(rrna_seqs.values())
-        extract_rrna_sequences(rrna_seqs, rrna_marker, formatted_fasta_dict)
-
-    logging.info("done.\n")
-
-    function_end_time = time.time()
-    hours, remainder = divmod(function_end_time - function_start_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    logging.debug("\trRNA-identification time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    logging.debug("\t" + str(num_rrna) + " rRNA sequences found.\n\n")
-
-    return
-
-
 def get_sequence_counts(concatenated_mfa_files: dict, ref_alignment_dimensions: dict, verbosity: bool, file_type: str):
     alignment_length_dict = dict()
     for refpkg_name in concatenated_mfa_files:
@@ -599,7 +484,7 @@ def get_sequence_counts(concatenated_mfa_files: dict, ref_alignment_dimensions: 
         ref_n_seqs, ref_seq_length = ref_alignment_dimensions[refpkg_name]
         for msa_file in concatenated_mfa_files[refpkg_name]:
             if file_type == "Fasta":
-                seq_dict = read_fasta_to_dict(msa_file)
+                seq_dict = fasta.read_fasta_to_dict(msa_file)
             elif file_type == "Phylip":
                 seq_dict = file_parsers.read_phylip_to_dict(msa_file)
             elif file_type == "Stockholm":
@@ -607,7 +492,7 @@ def get_sequence_counts(concatenated_mfa_files: dict, ref_alignment_dimensions: 
             else:
                 logging.error("File type '" + file_type + "' is not recognized.")
                 sys.exit(3)
-            num_seqs, sequence_length = multiple_alignment_dimensions(msa_file, seq_dict)
+            num_seqs, sequence_length = fasta.multiple_alignment_dimensions(msa_file, seq_dict)
             alignment_length_dict[msa_file] = sequence_length
 
             # Warn user if the multiple sequence alignment has grown significantly
@@ -688,7 +573,7 @@ def create_ref_phy_files(refpkgs: dict, output_dir: str, query_fasta_files: list
             continue
 
         num_ref_seqs, ref_align_len = ref_aln_dimensions[refpkg.prefix]
-        aligned_fasta_dict = read_fasta_to_dict(refpkg.f__msa)
+        aligned_fasta_dict = fasta.read_fasta_to_dict(refpkg.f__msa)
         phy_dict = utilities.reformat_fasta_to_phy(aligned_fasta_dict)
 
         utilities.write_phy_file(ref_alignment_phy, phy_dict, (num_ref_seqs, ref_align_len))
@@ -753,7 +638,7 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
         for query_mfa_out in mfa_out_dict[prefix]:
             mfa_file = re.sub(r"\.sto$", ".mfa", query_mfa_out)
             seq_dict = file_parsers.read_stockholm_to_dict(query_mfa_out)
-            write_new_fasta(seq_dict, mfa_file)
+            fasta.write_new_fasta(seq_dict, mfa_file)
             hmmalign_singlehit_files[prefix].append(mfa_file)
 
     end_time = time.time()
@@ -791,7 +676,7 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
         refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
         trimmed_away_seqs[refpkg.prefix] = 0
         # Create a set of the reference sequence names
-        ref_headers = get_headers(refpkg.f__msa)
+        ref_headers = fasta.get_headers(refpkg.f__msa)
         unique_refs = set([re.sub('_' + re.escape(refpkg.prefix), '', x)[1:] for x in ref_headers])
         msa_passed, msa_failed, summary_str = file_parsers.validate_alignment_trimming(trimmed_msa_files[refpkg.prefix],
                                                                                        unique_refs, True, min_len)
@@ -813,7 +698,7 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
             if pair:
                 if trimmed_msa_file in msa_failed:
                     untrimmed_msa_failed.append(pair)
-                trimmed_away_seqs[refpkg.prefix] += len(set(get_headers(pair)).difference(set(get_headers(trimmed_msa_file))))
+                trimmed_away_seqs[refpkg.prefix] += len(set(fasta.get_headers(pair)).difference(set(fasta.get_headers(trimmed_msa_file))))
             else:
                 logging.error("Unable to map trimmed MSA file '" + trimmed_msa_file + "' to its original MSA.\n")
                 sys.exit(5)
@@ -825,7 +710,7 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
                               "\n".format(len(msa_failed), len(trimmed_msa_files[refpkg.prefix])))
                 sys.exit(3)
             untrimmed_msa_passed, _, _ = file_parsers.validate_alignment_trimming(untrimmed_msa_failed, unique_refs,
-                                                                     True, min_len)
+                                                                                  True, min_len)
             msa_passed.update(untrimmed_msa_passed)
         num_successful_alignments += len(msa_passed)
         qc_ma_dict[refpkg.prefix] = msa_passed
@@ -866,7 +751,7 @@ def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenate
         for multi_align_file in qc_ma_dict[denominator]:
             file_type = multi_align_file.split('.')[-1]
             multi_align = qc_ma_dict[denominator][multi_align_file]
-            num_seqs, trimmed_seq_length = multiple_alignment_dimensions(multi_align_file, multi_align)
+            num_seqs, trimmed_seq_length = fasta.multiple_alignment_dimensions(multi_align_file, multi_align)
 
             original_multi_align = re.sub('-' + tool + '.' + file_type, '.' + of_ext, multi_align_file)
             raw_align_len = alignment_length_dict[original_multi_align]
@@ -917,45 +802,6 @@ def delete_files(clean_up, output_dir_var, section):
     for useless_file in files_to_be_deleted:
         if path.exists(useless_file):
             os.remove(useless_file)
-
-
-def num_sequences_fasta(fasta):
-    fasta_file_handle = open(fasta, "r")
-    fasta_lines = fasta_file_handle.readlines()
-    fasta_file_handle.close()
-
-    num_seqs = 0
-    for fasta_line in fasta_lines:
-        if re.search("^>", fasta_line):
-            num_seqs += 1
-
-    return num_seqs
-
-
-def filter_short_sequences(aa_dictionary, length_threshold):
-    """
-    Removes all sequences shorter than length_threshold from a dictionary
-    :param aa_dictionary: Dictionary containing all candidate reference sequences from a TreeSAPP analysis
-    :param length_threshold: Minimum number of AA a sequence must contain to be included in further analyses
-    :return: dictionary with sequences only longer than length_threshold
-    """
-    long_queries = dict()
-    short_seqs = 0
-    logging.info("Removing all sequences shorter than " + str(length_threshold) + " amino acids... ")
-
-    for seq in aa_dictionary:
-        if len(aa_dictionary[seq]) >= length_threshold:
-            long_queries[seq] = aa_dictionary[seq]
-        else:
-            short_seqs += 1
-
-    logging.info("done.\n")
-    logging.info("\t" + str(short_seqs) + " were removed.\n")
-    if len(long_queries.keys()) == 0:
-        logging.warning("No sequences passed the minimum length threshold! Skipping updating.\n")
-        return
-
-    return long_queries
 
 
 def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
@@ -1028,7 +874,7 @@ def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
     """
     abundance_mapped_acc = 0
     for placed_seqs in tree_saps.values():  # type: list
-        for pquery in placed_seqs:  # type: PQuery
+        for pquery in placed_seqs:  # type: phylo_seq.PQuery
             if not pquery.abundance:
                 # Filter out RPKMs for contigs not associated with the target marker
                 try:
@@ -1056,7 +902,7 @@ def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
     """
     leaf_rpkm_sums = dict()
 
-    for tree_sap in tree_protein_list:  # type: PQuery
+    for tree_sap in tree_protein_list:  # type: phylo_seq.PQuery
         if tree_sap.ref_name == target_marker and tree_sap.classified:
             leaf_rpkm_sums = tree_sap.sum_rpkms_per_node(leaf_rpkm_sums)
 
@@ -1104,7 +950,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
         unclassified_seqs[refpkg.prefix]["svm"] = list()
         svc_attempt = False
 
-        for tree_sap in sorted(pqueries, key=lambda x: x.seq_name):  # type: PQuery
+        for tree_sap in sorted(pqueries, key=lambda x: x.seq_name):  # type: phylo_seq.PQuery
             tree_sap.filter_min_weight_threshold(min_lwr)
             if not tree_sap.classified:
                 unclassified_seqs[refpkg.prefix]["low_lwr"].append(tree_sap)
@@ -1117,7 +963,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
                 tree_sap.classified = False
                 continue
 
-            pplace = tree_sap.consensus_placement  # type: PhyloPlace
+            pplace = tree_sap.consensus_placement  # type: phylo_seq.PhyloPlace
 
             leaf_children = tree_sap.node_map[int(pplace.edge_num)]
 
@@ -1177,7 +1023,7 @@ def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"
     for refpkg_code in pquery_dict:  # type: str
         refpkg = refpkg_dict[refpkg_code]  # type: ReferencePackage
         taxa_tree = refpkg.taxonomically_label_tree()
-        for pquery in pquery_dict[refpkg_code]:  # type: PQuery
+        for pquery in pquery_dict[refpkg_code]:  # type: phylo_seq.PQuery
             if mode == "max_lwr":
                 pquery.process_max_weight_placement(taxa_tree)
             elif mode == "aelw":
@@ -1245,7 +1091,7 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
             # Demultiplex all pqueries in jplace_data into individual PQuery objects
             jplace_data.pqueries = jplace_utils.demultiplex_pqueries(jplace_data, pquery_map)
             jplace_utils.calc_pquery_mean_tip_distances(jplace_data, internal_node_leaf_map)
-            for pquery in jplace_data.pqueries:  # type: PQuery
+            for pquery in jplace_data.pqueries:  # type: phylo_seq.PQuery
                 # Flesh out the internal-leaf node map
                 pquery.ref_name = refpkg.prefix
                 if not pquery.seq_name:
@@ -1299,7 +1145,7 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
         break
 
     for denominator in tree_saps:
-        for placed_sequence in tree_saps[denominator]:  # type: PQuery
+        for placed_sequence in tree_saps[denominator]:  # type: phylo_seq.PQuery
             if placed_sequence.classified:
                 output_fasta_dict[placed_sequence.place_name] = ""
                 try:
@@ -1322,7 +1168,7 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
                     len_parsing_problem = True
 
     if output_fasta_dict:
-        write_new_fasta(output_fasta_dict, fasta_file)
+        fasta.write_new_fasta(output_fasta_dict, fasta_file)
 
     if len_parsing_problem:
         logging.warning("Problem parsing homologous subsequence lengths from headers of classified sequences.\n")
@@ -1349,7 +1195,7 @@ def determine_confident_lineage(tree_saps: dict, refpkg_dict: dict) -> None:
         for leaf in ref_pkg.generate_tree_leaf_references_from_refpkg():
             leaf_taxa_map[leaf.number] = leaf.lineage
 
-        for pquery in tree_saps[refpkg_name]:  # type: PQuery
+        for pquery in tree_saps[refpkg_name]:  # type: phylo_seq.PQuery
             if not pquery.classified:
                 continue
 
@@ -1383,7 +1229,7 @@ def write_classification_table(tree_saps, sample_name, output_file):
                      "iNode\tE-value\tLWR\tEvoDist\tDistances\n"
 
     for refpkg_name in tree_saps:
-        for tree_sap in tree_saps[refpkg_name]:  # type: PQuery
+        for tree_sap in tree_saps[refpkg_name]:  # type: phylo_seq.PQuery
             if not tree_sap.classified:
                 continue
             pplace = tree_sap.consensus_placement
@@ -1480,4 +1326,3 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
                       "\n\t".join(strip_missing) + "\n")
 
     return
-
