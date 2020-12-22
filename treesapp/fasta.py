@@ -361,16 +361,6 @@ class FASTA:
     def original_header_map(self):
         return {self.header_registry[index].original: [self.header_registry[index]] for index in self.header_registry}
 
-    # def formatted_header_map(self):
-    #     header_map = dict()
-    #     for header in self.header_registry.values():  # type: Header
-    #         f_h = header.formatted
-    #         if f_h in header_map:
-    #             header_map[f_h].append(header)
-    #         else:
-    #             header_map[f_h] = [header]
-    #     return header_map
-
     def first_split_header_map(self):
         header_map = dict()
         for header in self.header_registry.values():  # type: Header

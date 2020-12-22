@@ -250,9 +250,14 @@ class Assigner(classy.TreeSAPP):
         write_classified_sequences(pqueries, extracted_seqs, self.classified_aa_seqs)
         # Write the nucleotide sequences
         if self.molecule_type == "dna":
+            # Create the set of classified sequence names to subset the fasta - prevent reading in entire file
+            classified_seq_names = set()
+            for refpkg_name in pqueries:
+                classified_seq_names.update({pq.seq_name for pq in pqueries[refpkg_name]})
             if os.path.isfile(self.nuc_orfs_file):
                 nuc_orfs = fasta.FASTA(self.nuc_orfs_file)
-                nuc_orfs.load_fasta()
+                nuc_orfs.fasta_dict = fasta.format_read_fasta(self.nuc_orfs_file, "dna", subset=classified_seq_names)
+                nuc_orfs.header_registry = fasta.register_headers(nuc_orfs.fasta_dict.keys())
                 nuc_orfs.change_dict_keys()
                 if not os.path.isfile(self.classified_nuc_seqs):
                     logging.info("Creating nucleotide FASTA file of classified sequences '{}'... "
