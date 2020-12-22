@@ -32,7 +32,7 @@ env:
       - HMMER_VERSION="3.3"
       - PRODIGAL_VERSION="2.6.3"
       - VSEARCH_VERSION="2.15.0"
-      - MAFFT_VERSION="7.471-1"
+      - MAFFT_VERSION="7.475-1"
       - MMSEQS_VERSION="12-113e3"
 
 jobs:
