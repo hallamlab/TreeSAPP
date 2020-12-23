@@ -40,6 +40,10 @@ To classify sequences in your genome of interest:
 treesapp assign -i my.fasta -o ~/path/to/output/directory/
 ```
 
+TreeSAPP comes installed with 33 reference packages involved in a variety of biogeochemical and cellular processes.
+We also have many more reference packages available on our [RefPkgs repository](https://github.com/hallamlab/RefPkgs)
+and you can view the complete list [here](https://github.com/hallamlab/RefPkgs/wiki/refpkgs).
+
 ## Tutorials
 
 All of our tutorials are available on the [GitHub wiki](https://github.com/hallamlab/TreeSAPP/wiki) page.
