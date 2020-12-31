@@ -600,7 +600,7 @@ class TreeSAPP:
         if self.command == "abundance":
             dependencies += ["bwa"]
 
-        if self.command in ["create", "update", "train", "evaluate"]:
+        if self.command in ["create", "update", "train", "evaluate", "info"]:
             dependencies += ["mmseqs", "mafft"]
             if hasattr(args, "fast") and args.fast:
                 dependencies.append("FastTree")
