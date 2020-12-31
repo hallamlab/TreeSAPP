@@ -138,11 +138,11 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
-        self.assertEqual(69, test_refpkg.num_seqs)
+        self.assertEqual(77, test_refpkg.num_seqs)
         self.assertEqual(2, len(test_refpkg.pfit))
         self.assertTrue(test_refpkg.pfit[0] < 0)
 
-        # Test with different header format (EggNOG) and skip training
+        # Test with different header format (EggNOG), infer phylogeny with RAxML-NG and skip training
         create_commands_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
                                 "--output", "./TreeSAPP_create",
                                 "--refpkg_name", "PuhA",

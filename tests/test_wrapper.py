@@ -44,7 +44,7 @@ class ExecutableWrapperTester(unittest.TestCase):
         # Ensure the necessary files exist and are not empty
         rep_fasta = prefix + "_rep_seq.fasta"
         self.assertTrue(os.path.exists(rep_fasta))
-        self.assertEqual(86, len(read_fasta_to_dict(rep_fasta)))
+        self.assertEqual(91, len(read_fasta_to_dict(rep_fasta)))
 
         aln_table = prefix + "_cluster_aln.tsv"
         self.assertTrue(os.path.exists(aln_table))

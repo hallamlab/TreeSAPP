@@ -25,7 +25,7 @@ class ClassifierTester(unittest.TestCase):
         from .testing_utils import get_test_data
         from treesapp.utilities import get_file_lines
         self.assertEqual(12, len(get_file_lines(file_path=get_test_data("colours_file.txt"))))
-        self.assertEqual(100, len(get_file_lines(file_path=get_test_data("create_test.faa"),
+        self.assertEqual(110, len(get_file_lines(file_path=get_test_data("create_test.faa"),
                                                  re_pattern=re.compile("^>.*"))))
         return
 
@@ -46,7 +46,7 @@ class ClassifierTester(unittest.TestCase):
         with open("cat_test.fasta", 'r') as out:
             for _ in out:
                 c += 1
-        self.assertEqual(215, c)
+        self.assertEqual(266, c)
         os.remove("cat_test.fasta")
         return
 
