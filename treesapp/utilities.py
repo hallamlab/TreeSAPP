@@ -272,22 +272,6 @@ def executable_dependency_versions(exe_dict: dict) -> str:
     return versions_string
 
 
-def reformat_string(string):
-    if string and string[0] == '>':
-        header = True
-    else:
-        header = False
-    string = re.sub(r"\[|\]|\(|\)|\/|\\\\|'|<|>", '', string)
-    if header:
-        string = '>' + string
-    string = re.sub(r"\s|;|,|\|", '_', string)
-    if len(string) > 110:
-        string = string[0:109]
-    while string and string[-1] == '.':
-        string = string[:-1]
-    return string
-
-
 def median(num_list: list):
     n = len(num_list)
     if n < 1:

@@ -1005,14 +1005,14 @@ def load_ref_seqs(fasta_dict: dict, header_registry: dict, ref_seq_dict: dict):
 
     for num_id in sorted(ref_seq_dict.keys(), key=int):
         ref_seq = ref_seq_dict[num_id]
-        formatted_header = header_registry[num_id].formatted
+        header = header_registry[num_id]
         try:
-            ref_seq.sequence = fasta_dict[formatted_header]
+            ref_seq.sequence = fasta_dict[header.original]
         except KeyError:
             if len(header_registry) == len(fasta_dict):
-                logging.error(formatted_header + " not found in FASTA records due to format incompatibilities.\n")
+                logging.error("{} not found in FASTA records due to format incompatibilities.\n".format(header.original))
                 sys.exit(21)
-            missing.append(str(header_registry[num_id].original))
+            missing.append(str(header.original))
     if len(missing) > 0:
         logging.debug("The following sequences have been removed from further analyses:\n\t" +
                       "\n\t".join(missing) + "\n")

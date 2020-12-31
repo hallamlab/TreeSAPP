@@ -633,7 +633,7 @@ class TreeSAPP:
         # Get the lineage information for the training/query sequences
         entrez_record_dict = get_header_info(ref_seqs.header_registry, self.ref_pkg.prefix)
         entrez_record_dict = dedup_records(ref_seqs, entrez_record_dict)
-        ref_seqs.change_dict_keys("formatted")
+        ref_seqs.change_dict_keys("original")
         entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, entrez_record_dict)
         logging.debug("\tNumber of input sequences = {}\n".format(len(entrez_record_dict)))
 

@@ -11,7 +11,7 @@ from pyfastx import Fasta, Fastq
 from pyfastxcli import fastx_format_check
 from collections import namedtuple
 
-from treesapp.utilities import median, reformat_string, rekey_dict
+from treesapp.utilities import median, rekey_dict
 
 
 def fastx_split(fastx: str, outdir: str, file_num=1) -> list:
@@ -248,7 +248,6 @@ class Header:
     def __init__(self, header):
         self.original = header
         self.treesapp_num_id = 0
-        self.formatted = ""
         self.post_align = ""
         self.first_split = ""
         self.accession = ""
@@ -294,7 +293,6 @@ def register_headers(header_list: list, drop=True) -> dict:
         else:
             dup_checker.add(header)
         new_header = Header(header)
-        new_header.formatted = reformat_string(header)
         new_header.first_split = header.split()[0]
         new_header.treesapp_num_id = str(acc)
         header_registry[str(acc)] = new_header
@@ -394,21 +392,12 @@ class FASTA:
             return [self.header_registry[index].original for index in sorted(self.header_registry, key=int)]
         elif name_format == "first_split":
             return [self.header_registry[index].first_split for index in sorted(self.header_registry, key=int)]
-        elif name_format == "formatted":
-            return [self.header_registry[index].formatted for index in sorted(self.header_registry, key=int)]
         elif name_format == "num":
             return [index for index in sorted(self.header_registry, key=int)]
         else:
             logging.error("Unrecognized Header format '" + name_format + "'." +
-                          " Options are 'original', 'formatted', 'first_split' and 'num'.\n")
+                          " Options are 'original', 'first_split' and 'num'.\n")
             sys.exit(5)
-
-    def create_header_mapping_table(self):
-        table_str = "\t".join(["TreeSAPP number", "Accession", "Original", "Formatted"]) + "\n"
-        for acc in sorted(self.header_registry):
-            header = self.header_registry[acc]  # type: Header
-            table_str += "\t".join([header.treesapp_num_id, header.accession, header.original, header.formatted]) + "\n"
-        return table_str
 
     def keep_only(self, header_subset: list, superset=False):
         """
@@ -486,7 +475,6 @@ class FASTA:
         """
         mapping_dict = dict()
         mapping_dict.update(self.original_header_map())
-        # mapping_dict.update(self.formatted_header_map())
         mapping_dict.update(self.first_split_header_map())
         return mapping_dict
 
@@ -505,8 +493,6 @@ class FASTA:
                 new_header = header.original
             elif index_replace == "first_split":
                 new_header = header.first_split
-            elif index_replace == "formatted":
-                new_header = header.formatted
             elif index_replace == "num":
                 new_header = acc
             elif index_replace == "accession":
@@ -518,8 +504,6 @@ class FASTA:
             # NOTE: Using .first_split may be lossy if duplicates exist. This will _not_ propagate under current scheme.
             if header.original in self.fasta_dict:
                 repl_fasta_dict[new_header] = self.fasta_dict[header.original]
-            elif header.formatted in self.fasta_dict:
-                repl_fasta_dict[new_header] = self.fasta_dict[header.formatted]
             elif acc in self.fasta_dict:
                 repl_fasta_dict[new_header] = self.fasta_dict[acc]
             elif header.first_split in self.fasta_dict:
@@ -841,19 +825,25 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
     :return: A Python dictionary with headers as keys and sequences as values
     """
     start = time()
+    formatted_fasta_dict = {}
+    bad_seqs = set()
 
     if molecule == "prot":
         bad_chars = re.compile(r"[OUou\d]")
     else:
         bad_chars = re.compile(r"[EFIJLOPQZefijlopqz\d]")
-    bad_seqs = set()
 
     if subset and type(subset) is not set:
         logging.error("Unexpected type of subset: {} instead of set.\n".format(type(subset)))
         sys.exit(13)
 
-    formatted_fasta_dict = {}
-    for name, seq in Fasta(fasta_input, build_index=False, full_name=True):  # type: (str, str)
+    try:
+        py_fa = Fasta(fasta_input, build_index=False, full_name=True)
+    except RuntimeError as error:
+        logging.debug(str(error)+"\n")
+        return formatted_fasta_dict
+
+    for name, seq in py_fa:  # type: (str, str)
         if len(seq) < min_seq_length:
             continue
         if subset:

@@ -212,7 +212,7 @@ def train(sys_args):
             train_seqs.file = ts_trainer.hmm_purified_seqs
             train_seqs.load_fasta()
         logging.info("Profile HMM homology search skipped. Using all sequences in {}.\n".format(train_seqs.file))
-        train_seqs.change_dict_keys("formatted")
+        train_seqs.change_dict_keys("original")
 
     training_utils.summarize_query_classes(set(ts_trainer.pkg_dbname_dict.keys()), set(train_seqs.fasta_dict.keys()))
 
@@ -444,7 +444,7 @@ def create(sys_args):
     ##
     if args.guarantee:
         ref_seqs.update(args.guarantee)
-        ref_seqs.change_dict_keys("formatted")
+        ref_seqs.change_dict_keys("original")
 
     ##
     # Save all sequence names in the header registry as EntrezRecord instances

@@ -122,11 +122,10 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None) -> 
     for rank in taxonomic_placement_distances:
         init_s = len(list(taxonomic_placement_distances[rank]))
         if init_s <= 3:
-            logging.warning("Insufficient placement distance samples (" + str(init_s) + ") for " + rank + ".\n")
+            logging.warning("Insufficient placement distance samples ({}) for {}.\n".format(init_s, rank))
             return []
-        # print(rank, "raw", np.median(list(taxonomic_placement_distances[rank])))
+
         filtered_pds[rank] = cull_outliers(list(taxonomic_placement_distances[rank]))
-        # print(rank, "filtered", np.median(list(filtered_pds[rank])))
         if len(filtered_pds[rank]) == 0:
             logging.warning("Ranks have 0 samples after filtering outliers.\n")
             return []

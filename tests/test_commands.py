@@ -141,12 +141,8 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(69, test_refpkg.num_seqs)
         self.assertEqual(2, len(test_refpkg.pfit))
         self.assertTrue(test_refpkg.pfit[0] < 0)
-        return
 
-    def test_create_eggnog(self):
-        from treesapp.commands import create
-        from treesapp.refpkg import ReferencePackage
-        from .testing_utils import get_test_data
+        # Test with different header format (EggNOG) and skip training
         create_commands_list = ["--fastx_input", get_test_data("ENOG4111FIN.txt"),
                                 "--output", "./TreeSAPP_create",
                                 "--refpkg_name", "PuhA",
@@ -167,12 +163,8 @@ class TreesappTester(unittest.TestCase):
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(39, test_refpkg.num_seqs)
         self.assertEqual("LG+F+R4", test_refpkg.sub_model)
-        return
 
-    def test_create_accession2lin(self):
-        from treesapp.commands import create
-        from treesapp.refpkg import ReferencePackage
-        from .testing_utils import get_test_data
+        # Test with another header format and the lineages are provided in an accession2lin table
         cmd_list = ["--fastx_input", get_test_data("PF01280_test.fasta"),
                     "--accession2lin", get_test_data("PF01280_test.tsv"),
                     "--output", "./TreeSAPP_create",
