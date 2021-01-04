@@ -21,7 +21,7 @@ class RefPkgTester(unittest.TestCase):
         from treesapp.utilities import fetch_executable_path
         self.pkl_path = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.new_pkl_path = "./test_write_json" + self.db.refpkg_suffix
-        self.disband_path = "_".join([self.db.prefix, self.db.refpkg_code, self.db.date])
+        self.disband_path = os.path.join("tests", "_".join([self.db.prefix, self.db.refpkg_code, self.db.date]))
         if os.path.isdir(self.disband_path):
             rmtree(self.disband_path)
         self.intermediates_dir = "refpkg_test_dir"
@@ -51,7 +51,7 @@ class RefPkgTester(unittest.TestCase):
         return
 
     def test_disband(self):
-        self.db.disband("./")
+        self.db.disband(output_dir="./tests/")
         self.assertTrue(os.path.isfile(os.path.join(self.disband_path, "McrA.fa")))
 
     def test_remove_taxon_from_lineage_ids(self):
@@ -153,6 +153,17 @@ class RefPkgTester(unittest.TestCase):
         self.assertEqual('root', labelled_rt.taxon.rank)
         self.assertTrue(isinstance(labelled_rt.taxon, Taxon))
         return
+
+    def test_rename(self):
+        from treesapp.refpkg import rename
+        self.assertEqual("McrA", self.db.prefix)
+        with pytest.raises(SystemExit):
+            rename(refpkg=self.db, attributes=['McrAA'], output_dir=self.disband_path, overwrite=False)
+        with pytest.raises(SystemExit):
+            rename(refpkg=self.db, attributes=['prefix', 'McrAA', 'no'], output_dir=self.disband_path, overwrite=False)
+
+        rename(refpkg=self.db, attributes=['prefix', 'McrA2'], output_dir=self.disband_path, overwrite=False)
+        self.assertEqual("McrA2", self.db.prefix)
 
 
 if __name__ == '__main__':

@@ -109,12 +109,15 @@ treesapp package <subcommand> <attributes> [<args>]
 ** Subcommands include:
 view        Print reference package attributes to the console
 edit        Change reference package attributes
+rename      Change the name (prefix attribute) of a reference package
 **
-Use '-h' to get subcommand-specific help, e.g.
+Use '-h' to get subcommand-specific help, e.g. 'treesapp package view -h'
 """
     parser = treesapp_args.TreeSAPPArgumentParser(description='Facilitate operations on reference packages')
-    parser.add_argument("subcommand", nargs='?', choices=["view", "edit"],
-                        help="A subcommand specifying the type of operation to perform")
+    parser.add_argument("subcommand", nargs='?', choices=["view", "edit", "rename"],
+                        help="A subcommand specifying the type of operation to perform. "
+                             "`treesapp package rename` must be followed only by 'prefix' and the new value. "
+                             "Example: `treesapp package rename prefix Xyz -r path/to/Xyz_build.pkl`")
     args = parser.parse_args(sys_args[0:1])
     if not args.subcommand:
         sys.stderr.write(pkg_usage)
@@ -138,6 +141,8 @@ Use '-h' to get subcommand-specific help, e.g.
             ts_ref_pkg.view(refpkg, args.attributes)
         elif args.subcommand == "edit":
             ts_ref_pkg.edit(refpkg, args.attributes, args.output, args.overwrite)
+        elif args.subcommand == "rename":
+            ts_ref_pkg.rename(refpkg, args.attributes, args.output, args.overwrite)
         else:
             logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
             sys.exit(1)

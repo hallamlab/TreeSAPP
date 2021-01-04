@@ -998,6 +998,16 @@ class ReferencePackage:
         return rt
 
 
+def write_edited_pkl(refpkg: ReferencePackage, output_dir: str, overwrite: bool) -> None:
+    if not overwrite:
+        refpkg.f__json = os.path.join(output_dir, os.path.basename(refpkg.f__json))
+        if os.path.isfile(refpkg.f__json):
+            logging.warning("RefPkg file '{}' already exists.\n".format(refpkg.f__json))
+            return
+    refpkg.pickle_package()
+    return
+
+
 def view(refpkg: ReferencePackage, attributes: list) -> None:
     view_dict = {}
     for attr in attributes:
@@ -1050,11 +1060,42 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool
             logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, refpkg.f__json))
             sys.exit(7)
     refpkg.__dict__[k] = v
-    if not overwrite:
-        refpkg.f__json = os.path.join(output_dir, os.path.basename(refpkg.f__json))
-        if os.path.isfile(refpkg.f__json):
-            logging.warning("RefPkg file '{}' already exists.\n".format(refpkg.f__json))
-            return
-    refpkg.pickle_package()
+
+    write_edited_pkl(refpkg, output_dir, overwrite)
+
+    return
+
+
+def rename(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrite: bool) -> None:
+    # Ensure that prefix is the first item in attributes
+    if attributes.pop(0) != 'prefix':
+        logging.error("Incorrect format of 'rename' command. Please follow the format provided in help description.\n")
+        sys.exit(3)
+    # Attributes can only be length of two - first item is 'prefix' and second is the new name
+    if len(attributes) > 1:
+        logging.error("Only one other argument should be provided to treesapp package rename - the new refpkg name.\n")
+        sys.exit(3)
+
+    new_prefix = attributes.pop()
+    edit_str_attrs = ["f__json",
+                      "f__msa",
+                      "f__profile", "f__search_profile",
+                      "f__tree", "f__boot_tree", "f__model_info", "tree"]
+    edit_iter_attrs = ["msa", "profile", "search_profile"]
+
+    # Rename all instances of the old prefix
+    for attr_name in edit_str_attrs:
+        refpkg.__dict__[attr_name] = re.sub(refpkg.prefix, new_prefix, refpkg.__dict__[attr_name])
+
+    for attr_name in edit_iter_attrs:
+        i = 0
+        while i < len(refpkg.__dict__[attr_name]):
+            refpkg.__dict__[attr_name][i] = re.sub(refpkg.prefix, new_prefix, refpkg.__dict__[attr_name][i])
+            i += 1
+
+    # Finally change the value of the prefix once all other attributes have been modified
+    refpkg.prefix = new_prefix
+
+    write_edited_pkl(refpkg, output_dir, overwrite)
 
     return
