@@ -1,11 +1,11 @@
 biopython >=1.78
 ete3 >=3.1.2
-joblib ==0.15.1
+joblib==1.0.0
 numpy >=1.19.2
 packaging >=20.4
-pyfastx >=0.7.0
+pyfastx >=0.8.2
 pygtrie >=2.3.3
-samsum >=0.1.2
+samsum >=0.1.3
 setuptools >=50.0.0
 scikit-learn ==0.23.1
 scipy >=1.5.2
