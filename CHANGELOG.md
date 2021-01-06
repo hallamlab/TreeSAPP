@@ -1,4 +1,4 @@
-## [v0.9.7] - 2021-01-06
+## [0.9.7] - 2021-01-06
 ### Added
 - New option in `treesapp package` called 'rename' to change the name of a reference package
 - MMSeqs2 and MAFFT versions included in `treesapp info` output
