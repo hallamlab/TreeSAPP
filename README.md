@@ -1,6 +1,6 @@
 # TreeSAPP: Tree-based Sensitive and Accurate Phylogenetic Profiler
 
-[![Build Status](https://travis-ci.org/hallamlab/TreeSAPP.svg?branch=master)](https://travis-ci.org/hallamlab/TreeSAPP)
+![tests](https://github.com/hallamlab/TreeSAPP/workflows/tests/badge.svg)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/b1937000c13040e8bba62f46e954796e)](https://www.codacy.com/gh/hallamlab/TreeSAPP?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hallamlab/TreeSAPP&amp;utm_campaign=Badge_Grade)
 [![codecov](https://codecov.io/gh/hallamlab/TreeSAPP/branch/master/graph/badge.svg)](https://codecov.io/gh/hallamlab/TreeSAPP)
 
