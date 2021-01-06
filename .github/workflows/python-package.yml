@@ -54,7 +54,7 @@ jobs:
           autotools-dev libtool flex bison cmake automake autoconf \
           python3-distutils python3-dev;
           sudo apt install python-six -y;
-      - name: Install system dependencies
+      - name: Install external dependencies
         if: ${{ matrix.os != 'macos-latest' }}
         run: |
           wget https://mafft.cbrc.jp/alignment/software/mafft_${MAFFT_VERSION}_amd64.deb;
@@ -71,10 +71,6 @@ jobs:
           tar -xzf hmmer-${HMMER_VERSION}.tar.gz; cd hmmer-${HMMER_VERSION}/; ./configure; make -f Makefile;
           sudo cp src/hmmsearch src/hmmbuild src/hmmalign /usr/local/bin/;
           cd -; rm hmmer-${HMMER_VERSION}.tar.gz;
-
-          wget https://github.com/torognes/vsearch/archive/v${VSEARCH_VERSION}.tar.gz;
-          tar xzf v${VSEARCH_VERSION}.tar.gz && cd vsearch-${VSEARCH_VERSION};
-          ./autogen.sh && ./configure && make && sudo make install && cd -;
 
           wget -O prodigal https://github.com/hyattpd/Prodigal/releases/download/v${PRODIGAL_VERSION}/prodigal.linux;
           sudo mv prodigal /usr/local/bin/ && chmod +x /usr/local/bin/prodigal;
@@ -106,4 +102,4 @@ jobs:
         if: ${{ matrix.os != 'macos-latest' }}
         run: |
           PYTHON_VERSION=$( echo ${{ matrix.python-version }} | sed 's/\.//g')
-          tox -e coverage-py${PYTHON_VERSION}-ss
+          tox -e coverage-py${PYTHON_VERSION}-ts

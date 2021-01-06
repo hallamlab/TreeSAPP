@@ -56,7 +56,12 @@ class ExecutableWrapperTester(unittest.TestCase):
     def test_cluster_sequences(self):
         from treesapp.utilities import fetch_executable_path
         from treesapp.wrapper import cluster_sequences
-        cluster_sequences(software_path=fetch_executable_path("vsearch", self.ts_dir), similarity=0.90,
+        # VSEARCH isn't required anymore so test if its installed
+        try:
+            vsearch = fetch_executable_path("vsearch", self.ts_dir)
+        except SystemExit:
+            return
+        cluster_sequences(software_path=vsearch, similarity=0.90,
                           fasta_input=self.test_fasta, output_prefix=os.path.join(self.tmp_dir, "vsearch_test"))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "vsearch_test.uc")))
         return

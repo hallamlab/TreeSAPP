@@ -264,7 +264,8 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.f__json = "./TreeSAPP_package/McrA_build.pkl"
         test_refpkg.slurp()
         self.assertFalse(test_refpkg.validate())
-        package(["rename", "-h"])
+        with pytest.raises(SystemExit):
+            package(["rename", "-h"])
         return
 
     def test_mcc_calculator(self):
