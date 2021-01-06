@@ -1159,7 +1159,7 @@ class TaxonomicHierarchy:
         :return: None
         """
         taxa_names = []
-        for e_record in entrez_records:  # type: entrez_utils.EntrezRecord
+        for e_record in entrez_records:
             # Find the prefixed names of the organisms to be removed
             if e_record.organism and not self.canonical_prefix.search(e_record.organism):
                 try:
