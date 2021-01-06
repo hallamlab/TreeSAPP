@@ -41,6 +41,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install flake8 pytest codecov tox
           if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Install system dependencies
         if: ${{ matrix.os != 'macos-latest' }}
         run: |
@@ -48,7 +54,9 @@ jobs:
           autotools-dev libtool flex bison cmake automake autoconf \
           python3-distutils python3-dev;
           sudo apt install python-six -y;
-
+      - name: Install system dependencies
+        if: ${{ matrix.os != 'macos-latest' }}
+        run: |
           wget https://mafft.cbrc.jp/alignment/software/mafft_${MAFFT_VERSION}_amd64.deb;
           sudo dpkg -i mafft_${MAFFT_VERSION}_amd64.deb;
 
@@ -94,12 +102,6 @@ jobs:
           tar -xzf epa-ng.tar.gz; cd epa-ng-${EPA_VERSION}/;
           make; sudo cp bin/epa-ng /usr/local/bin/; cd -;
           rm epa-ng.tar.gz;
-      - name: Lint with flake8
-        run: |
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Run tox
         if: ${{ matrix.os != 'macos-latest' }}
         run: |
