@@ -1,3 +1,10 @@
+## [v0.9.8] - 2021
+### Added
+
+### Fixed
+
+### Changed
+
 ## [v0.9.7] - 2021-01-06
 ### Added
 - New option in `treesapp package` called 'rename' to change the name of a reference package
