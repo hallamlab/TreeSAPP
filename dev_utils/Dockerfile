@@ -1,6 +1,6 @@
 FROM ubuntu:bionic
 
-ENV TREESAPP_VERSION="0.9.6"\
+ENV TREESAPP_VERSION="0.9.7"\
   MAFFT_VERSION="7.475-1"\
   BWA_VERSION="0.7.17"\
   PRODIGAL_VERSION="2.6.3"\
@@ -11,7 +11,7 @@ ENV TREESAPP_VERSION="0.9.6"\
   MMSEQS_VERSION="12-113e3"
 
 LABEL base.image="ubuntu:bionic"
-LABEL container.version="0.2"
+LABEL container.version="0.3"
 LABEL software="TreeSAPP"
 LABEL software.version=${TREESAPP_VERSION}
 LABEL description="A Python package for gene-centric taxonomic and functional classification using phylogenetic placement"

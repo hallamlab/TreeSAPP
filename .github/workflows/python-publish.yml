@@ -1,0 +1,129 @@
+# This workflows will upload a Python Package using Twine when a release is created
+
+name: build
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+jobs:
+  build-sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools numpy cython
+      - name: Build sdist
+        run: python setup.py sdist
+      - uses: actions/upload-artifact@v2
+        with:
+          name: dist
+          path: dist/*.tar.gz
+
+  build-linux-wheels:
+    name: Build manylinux wheels
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+    - name: Build manylinux wheels
+      uses: RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2014_x86_64
+      with:
+        python-versions: 'cp36-cp36m cp37-cp37m cp38-cp38'
+        build-requirements: 'setuptools cython'
+    - uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist/treesapp-*-manylinux*.whl
+
+  build-macos-wheels:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: [ 3.6, 3.7, 3.8 ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel numpy cython
+      - name: Build wheels
+        run: |
+          python setup.py bdist_wheel
+      - uses: actions/upload-artifact@v2
+        with:
+          name: dist
+          path: dist/treesapp-*-macosx*.whl
+
+  test-build:
+    needs: build-linux-wheels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: dist
+          path: dist
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+          if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+      - name: Test build
+        run: |
+          pip install dist/treesapp-*-cp38-cp38-manylinux*_x86_64.whl
+          pytest -v
+
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: dist
+          path: dist
+      - name: Create GitHub Release
+        uses: docker://antonyurchenko/git-release:v3.4.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRAFT_RELEASE: "false"
+          PRE_RELEASE: "false"
+          CHANGELOG_FILE: "CHANGELOG.md"
+          ALLOW_TAG_PREFIX: "true"
+        with:
+          args: |
+            dist/*
+
+  publish-to-pypi:
+    needs: [ build-sdist, build-linux-wheels, build-macos-wheels, test-build, create-release ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: dist
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true

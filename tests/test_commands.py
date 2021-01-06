@@ -52,7 +52,7 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(len(pre_lines), len(post_lines))
         # Ensure the name of the sample is substituted for the sample ID
         self.assertEqual({"test_TarA.1"}, set([line[0] for line in post_lines]))
-        self.assertEqual(1773, round(sum(abund_dict.values())))
+        self.assertEqual(148, round(sum(abund_dict.values())))
         # Replace the classification table
         copyfile(os.path.join(self.ts_assign_output, "tmp.tsv"), classification_table)
         os.remove(os.path.join(self.ts_assign_output, "tmp.tsv"))
