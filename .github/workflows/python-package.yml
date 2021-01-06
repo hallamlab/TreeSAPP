@@ -4,7 +4,7 @@ name: tests
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, dev ]
   pull_request:
     branches: [ master ]
 
@@ -26,11 +26,64 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install flake8 pytest codecov tox
           if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+      - name: Install system dependencies
+        if: ${{ matrix.os != 'macos-latest' }}
+        run: |
+          sudo apt -y install gcc dpkg-dev zip git libz-dev default-jdk time time libssl-dev libsqlite3-dev \
+          autotools-dev libtool flex bison cmake automake autoconf \
+          python3-distutils python3-dev;
+          sudo apt install python-six -y;
+
+          wget https://mafft.cbrc.jp/alignment/software/mafft_${MAFFT_VERSION}_amd64.deb;
+          sudo dpkg -i mafft_${MAFFT_VERSION}_amd64.deb;
+
+          wget -O mmseqs-linux-sse41.tar.gz https://github.com/soedinglab/MMseqs2/releases/download/${MMSEQS_VERSION}/MMseqs2-Linux-SSE4_1.tar.gz;
+          tar xvzf mmseqs-linux-sse41.tar.gz;
+          sudo cp mmseqs/bin/mmseqs /usr/local/bin;
+
+          wget https://github.com/hallamlab/TreeSAPP/raw/master/treesapp/sub_binaries/BMGE.jar;
+          sudo mv BMGE.jar /usr/local/bin/;
+
+          wget -O hmmer-${HMMER_VERSION}.tar.gz http://eddylab.org/software/hmmer/hmmer-${HMMER_VERSION}.tar.gz;
+          tar -xzf hmmer-${HMMER_VERSION}.tar.gz; cd hmmer-${HMMER_VERSION}/; ./configure; make -f Makefile;
+          sudo cp src/hmmsearch src/hmmbuild src/hmmalign /usr/local/bin/;
+          cd -; rm hmmer-${HMMER_VERSION}.tar.gz;
+
+          wget https://github.com/torognes/vsearch/archive/v${VSEARCH_VERSION}.tar.gz;
+          tar xzf v${VSEARCH_VERSION}.tar.gz && cd vsearch-${VSEARCH_VERSION};
+          ./autogen.sh && ./configure && make && sudo make install && cd -;
+
+          wget -O prodigal https://github.com/hyattpd/Prodigal/releases/download/v${PRODIGAL_VERSION}/prodigal.linux;
+          sudo mv prodigal /usr/local/bin/ && chmod +x /usr/local/bin/prodigal;
+
+          wget -O v${BWA_VERSION}.tar.gz https://github.com/lh3/bwa/archive/v${BWA_VERSION}.tar.gz;
+          tar -xzf v${BWA_VERSION}.tar.gz && cd bwa-${BWA_VERSION}/ && make && rm *.o && cd -;
+          sudo cp bwa-${BWA_VERSION}/bwa /usr/local/bin/bwa && rm v${BWA_VERSION}.tar.gz;
+
+          wget -O od-seq.tar.gz http://www.bioinf.ucd.ie/download/od-seq.tar.gz; tar -xzf od-seq.tar.gz;
+          ODSEQ_SOURCES="OD-Seq/AliReader.cpp OD-Seq/Bootstrap.cpp OD-Seq/DistCalc.cpp OD-Seq/DistMatReader.cpp
+          OD-Seq/DistWriter.cpp OD-Seq/FastaWriter.cpp OD-Seq/IQR.cpp OD-Seq/ODseq.cpp OD-Seq/PairwiseAl.cpp
+          OD-Seq/Protein.cpp OD-Seq/ResultWriter.cpp OD-Seq/runtimeargs.cpp OD-Seq/util.cpp";
+          sudo g++ -fopenmp -o /usr/local/bin/OD-seq $ODSEQ_SOURCES;
+          rm od-seq.tar.gz;
+
+          sudo wget -O /usr/local/bin/FastTree http://microbesonline.org/fasttree/FastTreeDbl;
+          sudo chmod +x /usr/local/bin/FastTree;
+
+          wget -O raxml-ng_v${RAXML_VERSION}.zip https://github.com/amkozlov/raxml-ng/releases/download/${RAXML_VERSION}/raxml-ng_v${RAXML_VERSION}_linux_x86_64.zip;
+          mkdir raxml-ng_v${RAXML_VERSION}; unzip raxml-ng_v${RAXML_VERSION}.zip -d raxml-ng_v${RAXML_VERSION};
+          sudo cp raxml-ng_v${RAXML_VERSION}/raxml-ng /usr/local/bin/;
+          rm -r raxml-ng_v${RAXML_VERSION}.zip raxml-ng_v${RAXML_VERSION};
+
+          wget -O epa-ng.tar.gz https://github.com/Pbdas/epa-ng/archive/v${EPA_VERSION}.tar.gz;
+          tar -xzf epa-ng.tar.gz; cd epa-ng-${EPA_VERSION}/;
+          make; sudo cp bin/epa-ng /usr/local/bin/; cd -;
+          rm epa-ng.tar.gz;
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
