@@ -20,6 +20,16 @@ jobs:
           - os: macos-latest
             python-version: 3.8
 
+    env:
+      RAXML_VERSION: "1.0.1"
+      EPA_VERSION: "0.3.8"
+      BWA_VERSION: "0.7.17"
+      HMMER_VERSION: "3.3"
+      PRODIGAL_VERSION: "2.6.3"
+      VSEARCH_VERSION: "2.15.0"
+      MAFFT_VERSION: "7.475-1"
+      MMSEQS_VERSION: "12-113e3"
+
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
