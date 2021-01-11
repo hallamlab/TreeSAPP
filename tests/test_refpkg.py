@@ -155,7 +155,7 @@ class RefPkgTester(unittest.TestCase):
         return
 
     def test_rename(self):
-        from treesapp.refpkg import rename
+        from treesapp.refpkg import rename, ReferencePackage
         self.assertEqual("McrA", self.db.prefix)
         with pytest.raises(SystemExit):
             rename(refpkg=self.db, attributes=['McrAA'], output_dir=self.disband_path, overwrite=False)
@@ -163,7 +163,19 @@ class RefPkgTester(unittest.TestCase):
             rename(refpkg=self.db, attributes=['prefix', 'McrAA', 'no'], output_dir=self.disband_path, overwrite=False)
 
         rename(refpkg=self.db, attributes=['prefix', 'McrA2'], output_dir=self.disband_path, overwrite=False)
-        self.assertEqual("McrA2", self.db.prefix)
+        # Load the edited reference package
+        renamed_refpkg = ReferencePackage()
+        renamed_refpkg.f__json = os.path.join(self.disband_path, "McrA2_build.pkl")
+        renamed_refpkg.slurp()
+        self.assertEqual("McrA2", renamed_refpkg.prefix)
+
+        # Test remaking in same directory
+        wd = os.getcwd()
+        os.chdir(self.disband_path)
+        rename(renamed_refpkg, attributes=["prefix", "TMP"], output_dir="./", overwrite=True)
+        # Move back
+        os.chdir(wd)
+        return
 
 
 if __name__ == '__main__':

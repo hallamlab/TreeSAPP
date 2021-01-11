@@ -125,8 +125,11 @@ class ReferencePackage:
             self.bail("ReferencePackage.f__json not set. ReferencePackage band() cannot be completed.\n")
             raise AttributeError
 
-        if not os.path.isdir(os.path.dirname(self.f__json)):
-            os.mkdir(os.path.dirname(self.f__json))
+        output_dir = os.path.dirname(self.f__json)
+        if not output_dir:
+            output_dir = "./"
+        if not os.path.isdir(output_dir):
+            os.mkdir(output_dir)
 
         try:
             refpkg_handler = open(self.f__json, 'wb')
@@ -1077,8 +1080,7 @@ def rename(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrit
         sys.exit(3)
 
     new_prefix = attributes.pop()
-    edit_str_attrs = ["f__json",
-                      "f__msa",
+    edit_str_attrs = ["f__msa",
                       "f__profile", "f__search_profile",
                       "f__tree", "f__boot_tree", "f__model_info", "tree"]
     edit_iter_attrs = ["msa", "profile", "search_profile"]
@@ -1095,6 +1097,7 @@ def rename(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrit
 
     # Finally change the value of the prefix once all other attributes have been modified
     refpkg.prefix = new_prefix
+    refpkg.f__json = refpkg.prefix + refpkg.refpkg_suffix
 
     write_edited_pkl(refpkg, output_dir, overwrite)
 
