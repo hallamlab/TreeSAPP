@@ -128,6 +128,22 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(5, len(fasta_dict))
         return
 
+    def test_remove_shorter_than(self):
+        from treesapp.fasta import FASTA
+        test_fa = FASTA(self.test_fa)
+        test_fa.load_fasta()
+        self.assertEqual(0, test_fa.remove_shorter_than(min_len=30))
+        self.assertEqual(1, test_fa.remove_shorter_than(min_len=1000))
+        return
+
+    def test_clear(self):
+        from treesapp.fasta import FASTA
+        test_fa = FASTA(self.test_fa)
+        test_fa.load_fasta()
+        test_fa.clear()
+        self.assertEqual({}, test_fa.fasta_dict)
+        return
+
 
 if __name__ == '__main__':
     unittest.main()

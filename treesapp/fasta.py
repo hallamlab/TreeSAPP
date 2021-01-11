@@ -330,6 +330,14 @@ class FASTA:
         self.index_form = fasta.index_form
         return
 
+    def clear(self):
+        self.file = ""
+        self.fasta_dict.clear()
+        self.header_registry.clear()
+        self.amendments.clear()
+        self.index_form = None
+        return
+
     def load_fasta(self):
         self.fasta_dict = read_fasta_to_dict(self.file)
         self.header_registry = register_headers(get_headers(self.file), True)
@@ -453,7 +461,7 @@ class FASTA:
 
         return
 
-    def remove_shorter_than(self, min_len: int):
+    def remove_shorter_than(self, min_len: int) -> int:
         long_seqs = list()
         dropped = 0
         for seq_name in self.fasta_dict:
@@ -461,10 +469,15 @@ class FASTA:
                 long_seqs.append(seq_name)
             else:
                 dropped += 1
-        if dropped >= 1:
+        if dropped == self.n_seqs():
+            logging.debug("All {} sequences were shorter than the minimum sequence length threshold ({}).\n"
+                          "".format(dropped, min_len))
+            self.clear()
+            return 1
+        elif dropped >= 1:
             logging.debug("{} sequences were found to be shorter than {} and removed.\n".format(dropped, min_len))
         self.keep_only(long_seqs)
-        return
+        return 0
 
     def get_header_mapping_dict(self) -> dict:
         """
