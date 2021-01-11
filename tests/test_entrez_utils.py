@@ -107,6 +107,8 @@ class MyTestCase(unittest.TestCase):
         h2.first_split = h2.original
         h3 = Header('P060081_orf_3')
         h3.first_split = h3.original
+        h4 = Header('AB-746_I02_AB-902_NODE_1_length_133761_cov_569.254_ID_1_26 # 25226 # 25834 # 1 # ID=10766_26;partial=00;start_type=ATG;rbs_motif=AGGAG(G)/GGAGG;rbs_spacer=13-15bp;gc_cont=0.335')
+        h4.first_split = h4.original.split()[0]
 
         with pytest.raises(SystemExit):
             map_orf_lineages(seq_lineage_tbl=utils.get_test_data("SwissProt_PuhA_seqs2lineage.txt"), header_registry={})
@@ -119,6 +121,11 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual("d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhodobacterales;"
                          " f__Rhodobacteraceae; g__Rhodobacter; s__Rhodobacter sphaeroides",
                          orf_lin_map[h1.first_split])
+
+        # Test a complicated header
+        orf_lin_map, found = map_orf_lineages(seq_lineage_tbl=utils.get_test_data("test_seqs2lineage.txt"),
+                                              header_registry={'1': h4})
+        self.assertEqual(1, len(found))
         return
 
     def test_repair_lineages(self):

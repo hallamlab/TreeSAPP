@@ -1251,7 +1251,7 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
     for seq_name in sorted(seq_lineage_map):  # type: (str, Lineage)
         # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
         # we can't use hash-based data structures to bring it to O(N)
-        parent_re = re.compile(seq_name)
+        parent_re = re.compile(re.escape(seq_name))
         x = 0
         while x < len(treesapp_nums):
             header = header_registry[treesapp_nums[x]]
@@ -1266,7 +1266,8 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
                 # Now ensure that this is the best+longest match
                 if header.first_split not in classified_seq_lineage_map:
                     classified_seq_lineage_map[header.first_split] = seq_name
-                    mapped_treesapp_nums.append(treesapp_nums[x])
+                    mapped_treesapp_nums.append(treesapp_nums.pop(x))
+                    continue
                 else:
                     prev_match = re.search(classified_seq_lineage_map[header.first_split], assigned_seq_name)
                     if curr_match.end() > prev_match.end():
@@ -1280,8 +1281,10 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
     for query_name, match_name in classified_seq_lineage_map.items():
         classified_seq_lineage_map[query_name] = seq_lineage_map[match_name].build_lineage(add_organism=True)
 
-    logging.debug("Unable to find parent for " + str(len(treesapp_nums)) + " ORFs in sequence-lineage map:\n" +
-                  "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n")
+    if treesapp_nums:
+        logging.debug("Unable to find parent sequence for {} ORFs in {} map:\n{}\n".format(
+            len(treesapp_nums), seq_lineage_tbl,
+            "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n"))
 
     if len(mapped_treesapp_nums) == 0:
         logging.error("Unable to match any sequence names in {}.\n".format(seq_lineage_tbl))
