@@ -299,8 +299,8 @@ def register_headers(header_list: list, drop=True) -> dict:
         acc += 1
 
     if len(dups) > 0:
-        logging.warning(str(len(dups)) + " duplicate sequence headers found:\n" +
-                        ", ".join(dups) + "\n" +
+        logging.warning("{} duplicate sequence headers found:\n{}"
+                        "\n".format(len(dups), ", ".join(dups)) +
                         "TreeSAPP will proceed as if these duplicate sequences were never seen in 5 seconds or"
                         " you can stop it here with Ctrl-c... the choice is yours.\n")
         sleep(5)
@@ -556,12 +556,14 @@ class FASTA:
                     excluded_headers.append(self.header_registry[num_id].original)
                 except KeyError:
                     logging.error("Unable to find TreeSAPP ID '%s' in header_registry.\n" % num_id)
-                    sys.exit()
+                    sys.exit(3)
             self.header_registry = sync_header_registry
             self.fasta_dict = sync_fasta_dict
+
+        # Writing the individual headers leads to massive log files...
         if len(excluded_headers) >= 1:
-            logging.debug("The following sequences were excluded after synchronizing FASTA:\n\t" +
-                          "\n\t".join(excluded_headers) + "\n")
+            logging.debug("{} sequences were excluded after synchronizing FASTA.\n".format(len(excluded_headers)))
+
         if len(self.header_registry) == 0:
             logging.error("All sequences were discarded during header_registry and fasta_dict synchronization.\n")
             sys.exit(-1)
