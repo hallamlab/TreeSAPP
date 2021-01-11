@@ -209,10 +209,10 @@ def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict
     entrez_records = dict()
     header_map = fasta_records.get_acc_ver_header_map()
     for seq_accession in sorted(seq_lineage_map):
-        er = EntrezRecord(seq_accession, "")
-        er.lineage = seq_lineage_map[seq_accession]
-        er.organism = er.lineage.split("; ")[-1]
         for header in header_map[seq_accession]:
+            er = EntrezRecord(seq_accession, "")
+            er.lineage = seq_lineage_map[seq_accession]
+            er.organism = er.lineage.split("; ")[-1]
             er.description = " ".join(header.original.split(" ")[1:])
             er.versioned = header.original.split(" ")[0]
             er.sequence = fasta_records.fasta_dict[str(header.treesapp_num_id)]
