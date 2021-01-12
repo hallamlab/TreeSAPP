@@ -1181,7 +1181,7 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
     return
 
 
-def determine_confident_lineage(tree_saps: dict, refpkg_dict: dict) -> None:
+def determine_confident_lineage(tree_saps: dict, refpkg_dict: dict, mode="max_lwr") -> None:
     """
     Determines the best taxonomic lineage for classified sequences based on their
 
@@ -1191,6 +1191,7 @@ def determine_confident_lineage(tree_saps: dict, refpkg_dict: dict) -> None:
 
     :param tree_saps: A dictionary containing PQuery objects
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
+    :param mode: The phylogenetic placement and taxonomic assignment setting, either 'max_lwr' or 'aelw'
     :return: None
     """
     leaf_taxa_map = dict()
@@ -1211,12 +1212,16 @@ def determine_confident_lineage(tree_saps: dict, refpkg_dict: dict) -> None:
             if status > 0:
                 pquery.summarize()
 
-            # Based on the calculated distance from the leaves, what rank is most appropriate?
             recommended_rank = phylo_dist.rank_recommender(pquery.avg_evo_dist, refpkg_dict[refpkg_name].pfit)
             if pquery.lct.split(ref_pkg.taxa_trie.lin_sep)[0] != "r__Root":
                 pquery.lct = "r__Root; " + pquery.lct
                 recommended_rank += 1
-            pquery.recommended_lineage = pquery.lowest_confident_taxonomy(recommended_rank)
+
+            if mode in ["max_lwr"]:
+                # Based on the calculated distance from the leaves, what rank is most appropriate?
+                pquery.recommended_lineage = pquery.lowest_confident_taxonomy(recommended_rank)
+            else:
+                pquery.recommended_lineage = pquery.lct
         leaf_taxa_map.clear()
     return
 

@@ -295,6 +295,9 @@ class PQuery:
             logging.error("Unable to find placement edge '{}'"
                           " in the PhyloPlace's node_map.\n".format(self.consensus_placement.edge_num))
             sys.exit(13)
+        except AttributeError:
+            logging.error("Pquery.consensus_placement was not instantiated.\n")
+            sys.exit(15)
 
         for leaf_node in tree_leaves:
             try:
