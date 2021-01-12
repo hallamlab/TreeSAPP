@@ -49,6 +49,39 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(98, len(cluster_dict))
         return
 
+    def test_read_graftm_classifications(self):
+        from treesapp.file_parsers import read_graftm_classifications
+        return
+
+    def test_grab_graftm_taxa(self):
+        from treesapp.file_parsers import grab_graftm_taxa
+        return
+
+    def test_best_discrete_matches(self):
+        from treesapp.file_parsers import best_discrete_matches
+        return
+
+    def test_read_phylip_to_dict(self):
+        from treesapp.file_parsers import read_phylip_to_dict
+        from .testing_utils import get_test_data
+        with pytest.raises(SystemExit):
+            read_phylip_to_dict("test.phy")
+
+        phy_dict = read_phylip_to_dict(get_test_data("test.phy"))
+        self.assertEqual(5, len(phy_dict))
+        self.assertEqual(76, len(phy_dict["cox2_leita"]))
+        return
+
+    def test_read_stockholm_to_dict(self):
+        from treesapp.file_parsers import read_stockholm_to_dict
+        from .testing_utils import get_test_data
+        with pytest.raises(SystemExit):
+            read_stockholm_to_dict("test.sto")
+        sto_dict = read_stockholm_to_dict(get_test_data("test.sto"))
+        self.assertEqual(236, len(sto_dict))
+        self.assertEqual(680, len(sto_dict["KKH90701"]))
+        return
+
 
 if __name__ == '__main__':
     unittest.main()

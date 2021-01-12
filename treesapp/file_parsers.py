@@ -442,7 +442,7 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> dict:
     return clusters
 
 
-def read_phylip_to_dict(phylip_input):
+def read_phylip_to_dict(phylip_input: str) -> dict:
     header_dict = dict()
     tmp_seq_dict = dict()
     seq_dict = dict()
@@ -490,17 +490,16 @@ def read_phylip_to_dict(phylip_input):
 
     # Check that the alignment length matches that in the header line
     if num_sequences != len(tmp_seq_dict):
-        logging.error("Number of lines declared in Phylip header (" + str(num_sequences) +
-                      ") does not match number of sequences parsed (" + str(len(tmp_seq_dict)) + ")!\n")
+        logging.error("Number of lines declared in Phylip header ({}) does not match number of sequences parsed ({})!\n"
+                      "".format(num_sequences, len(tmp_seq_dict)))
         sys.exit(5)
 
     x = 0
     while x < num_sequences-1:
         if len(tmp_seq_dict[x]) != aln_length:
-            logging.error(header_dict[x] +
-                          " sequence length exceeds the stated multiple alignment length (according to header)!\n" +
-                          "sequence length = " + str(len(tmp_seq_dict[x])) +
-                          ", alignment length = " + str(aln_length) + "\n")
+            logging.error("{} sequence length exceeds the stated multiple alignment length (according to header)!\n"
+                          "sequence length = {}, alignment length = {}\n"
+                          "".format(header_dict[x], len(tmp_seq_dict[x]), aln_length))
             sys.exit(5)
         else:
             pass
