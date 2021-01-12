@@ -59,6 +59,20 @@ class TreesappTester(unittest.TestCase):
 
     def test_best_discrete_matches(self):
         from treesapp.file_parsers import best_discrete_matches
+        from treesapp.hmmer_tbl_parser import HmmMatch
+        # Create test HmmMatch instances
+        m1 = HmmMatch()
+        m2 = HmmMatch()
+        m3 = HmmMatch()
+        m1.start, m1.end, m1.target_hmm = 80, 200, "NorB"
+        m2.start, m2.end, m2.target_hmm = 15, 220, "NorC"
+        m3.start, m3.end, m3.target_hmm = 240, 391, "NorB"
+
+        test_matches = [m1, m2, m3]
+        best_matches = best_discrete_matches(test_matches)
+        self.assertEqual(2, len(best_matches))
+        self.assertEqual(3, len(test_matches))
+        self.assertTrue(m2 in best_matches and m3 in best_matches)
         return
 
     def test_read_phylip_to_dict(self):

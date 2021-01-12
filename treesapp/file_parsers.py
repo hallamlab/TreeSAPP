@@ -202,6 +202,7 @@ def best_discrete_matches(matches: list) -> list:
     """
     Function for finding the best alignment in a list of HmmMatch() objects
     The best match is based off of the full sequence score
+
     :param matches: A list of HmmMatch() objects
     :return: List of the best HmmMatch's
     """
