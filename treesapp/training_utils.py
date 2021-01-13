@@ -116,21 +116,21 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
             tp_inst = QuerySequence(pquery.seq_name)
             tp_inst.ref = refpkg_name
             tp_inst.assigned_lineage = pquery.recommended_lineage
-            try:
-                e_record = entrez_query_dict[pquery.seq_name]
-            except KeyError:
-                missing.add(pquery.seq_name)
-                continue
-            if not e_record.lineage:
-                true_positives.add(tp_inst.place_name)  # So these queries are not classified as false negatives
-                continue
-            tp_inst.ncbi_tax = e_record.ncbi_tax
             tp_inst.rank = pquery.rank
             # Bin it if the mapping_dict is present, otherwise classify it as a TP
             if tp_inst.place_name in positives:
-                # Add the True Positive to the relevant collections
-                tp[refpkg_name].append(tp_inst)
-                true_positives.add(tp_inst.place_name)
+                try:
+                    e_record = entrez_query_dict[pquery.seq_name]
+                except KeyError:
+                    missing.add(pquery.seq_name)
+                    continue
+                tp_inst.ncbi_tax = e_record.ncbi_tax
+                if not e_record.lineage:
+                    true_positives.add(tp_inst.place_name)  # So these queries are not classified as false negatives
+                else:
+                    # Add the True Positive to the relevant collections
+                    tp[refpkg_name].append(tp_inst)
+                    true_positives.add(tp_inst.place_name)
             else:
                 fp[refpkg_name].add(tp_inst)
 

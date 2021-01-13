@@ -1,9 +1,22 @@
-## [0.9.8] - 2021
+## [0.9.8] - 2021-01
 ### Added
+- More unit tests for file parsers and functions for `treesapp assign`
+- More rigorous integrative test for `mcc_calculator.py` with higher coverage.
 
 ### Fixed
+- A KeyError in `treesapp update` caused when ORFs on the same sequence classified to the same refpkg.
+  Their dictionary keys were overwritten in simulate_entrez_records().
+- Mapping sequence names to lineages provided in a seqs2lineage file.
+  ORF names containing parentheses were not being escaped, messing up regular expression matching.
+- (#64) Able to overwrite reference packages in the same directory
+- `mcc_calculator.py` was not calculating TP, TN and FP correctly.
 
 ### Changed
+- Only `max_lwr` mode in `treesapp assign` will use the linear model for taxonomic rank recommendation
+- Warning in `treesapp update` if all query sequences are shorter than the minimum sequence length threshold
+- Log files don't contain the sequence names removed from FASTA objects at various steps,
+  potentially significantly reducing the size of these files.
+- `mcc_calculator.py` summarizes the number of queries with missing taxonomic lineages in a single warning.
 
 ## [0.9.7] - 2021-01-06
 ### Added
@@ -27,7 +40,7 @@ This release is for version 0.9.0 and covers many new features. It is strongly r
 There is __no__ backwards compatability of between this and older versions.
 All reference packages built using older versions will need to be remade from scratch.
 
-## Added
+### Added
 - Uses EPA-NG and RAxML-NG for phylogenetic placement and inference, respectively. Using EPA-NG drops the runtime drastically.
 - (#48) Reference packages are stored as a single, pickled file.
 - The subcommand treesapp package has been specifically designed to allow users to still interact with this binary file.
@@ -38,10 +51,10 @@ All reference packages built using older versions will need to be remade from sc
 - The subcommand treesapp train fully supports checkpointing. Checkpointing in other subcommands is still to come (but well on its way).
 - We finally have some sort of a test suite.
 
-## Fixed
+### Fixed
 - (#51) Error while parsing some alignments from hmmsearch
 
-## Changed
+### Changed
 - Format of the classification table (final_outputs/marker_contig_map.tsv) has been changed. Only a single column for the recommended taxonomy and the hmmsearch-derived E-value is reported.
 - Reference trees are automatically rooted using ETE3's 'set_outgroup' function with the farthest node. Polytomies are also automatically resolved when the tree is built using FastTree.
 - In treesapp create (and therefore treesapp update) reference sequence outlier detection and removal using OD-Seq has been made optional and can be requested using the '--outdet_align' flag.

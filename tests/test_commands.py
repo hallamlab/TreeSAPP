@@ -270,7 +270,7 @@ class TreesappTester(unittest.TestCase):
 
     def test_mcc_calculator(self):
         from treesapp import mcc_calculator
-        from fasta import read_fasta_to_dict
+        from treesapp.fasta import read_fasta_to_dict
         from .testing_utils import get_test_data
         output_dir = "./TreeSAPP_MCC"
         test_fa = get_test_data("EggNOG_McrA.faa")
