@@ -189,8 +189,9 @@ class ConfusionTest:
                 info_string += "\t".join([marker, tp_inst.place_name, str(tp_inst.tax_dist), "True",
                                           tp_inst.true_lineage, tp_inst.assigned_lineage,
                                           tp_inst.optimal_lineage]) + "\n"
-            for pquery in self.unlabelled_tp_query_names[marker]:
-                info_string += "\t".join([marker, pquery.seq_name, "NA", "True", "NA", "NA", "NA"]) + "\n"
+            if marker in self.unlabelled_tp_query_names:
+                for pquery in self.unlabelled_tp_query_names[marker]:
+                    info_string += "\t".join([marker, pquery.seq_name, "NA", "True", "NA", "NA", "NA"]) + "\n"
         for marker in self.fn:
             for tp_inst in self.fn[marker]:  # type: QuerySequence
                 # TODO: Support headers from databases other than EggNOG
