@@ -86,7 +86,7 @@ jobs:
           sudo g++ -fopenmp -o /usr/local/bin/OD-seq $ODSEQ_SOURCES;
           rm od-seq.tar.gz;
 
-          sudo wget -O /usr/local/bin/FastTree http://microbesonline.org/fasttree/FastTreeDbl;
+          sudo wget -O /usr/local/bin/FastTree http://www.microbesonline.org/fasttree/FastTreeDbl;
           sudo chmod +x /usr/local/bin/FastTree;
 
           wget -O raxml-ng_v${RAXML_VERSION}.zip https://github.com/amkozlov/raxml-ng/releases/download/${RAXML_VERSION}/raxml-ng_v${RAXML_VERSION}_linux_x86_64.zip;
