@@ -33,6 +33,7 @@ class ConfusionTest:
         self.fn = {key: [] for key in gene_list}
         self.fp = {key: set() for key in gene_list}
         self.tp = {key: [] for key in gene_list}  # This will be a list of QuerySequence instances
+        self.unlabelled_tp_query_names = {}  # These are to be added to the table at distance seven
         self.redundant_queries = set()
         self.tax_lineage_map = {}
         self.tp_lineage_map = {}
@@ -149,16 +150,26 @@ class ConfusionTest:
         """
         # Gather the unique taxonomy IDs and store in EntrezRecord instances
         t_hierarchy = TaxonomicHierarchy()
+        unknowns = {}
         entrez_records = [self.entrez_query_dict[index] for index in self.entrez_query_dict]
         # Query the Entrez database for these unique taxonomy IDs
         get_multiple_lineages(entrez_records, t_hierarchy, "prot")
 
         for e_record in entrez_records:  # type: EntrezRecord
             if not e_record.lineage:
-                logging.warning("Lineage information unavailable for taxonomy ID '" + e_record.ncbi_tax + "'\n")
+                try:
+                    unknowns[e_record.ncbi_tax] += 1
+                except KeyError:
+                    unknowns[e_record.ncbi_tax] = 1
                 self.tax_lineage_map[e_record.ncbi_tax] = ''
             else:
                 self.tax_lineage_map[e_record.ncbi_tax] = "r__Root; " + e_record.lineage
+
+        if unknowns:
+            warn_str = ""
+            for taxid in unknowns:
+                warn_str += "\t{} query sequences with unknown taxid '{}'\n".format(unknowns[taxid], taxid)
+            logging.warning("Lineage information unavailable for taxonomy IDs:\n" + warn_str)
         return
 
     def map_true_lineages(self) -> None:
@@ -178,6 +189,8 @@ class ConfusionTest:
                 info_string += "\t".join([marker, tp_inst.place_name, str(tp_inst.tax_dist), "True",
                                           tp_inst.true_lineage, tp_inst.assigned_lineage,
                                           tp_inst.optimal_lineage]) + "\n"
+            for pquery in self.unlabelled_tp_query_names[marker]:
+                info_string += "\t".join([marker, pquery.seq_name, "NA", "True", "NA", "NA", "NA"]) + "\n"
         for marker in self.fn:
             for tp_inst in self.fn[marker]:  # type: QuerySequence
                 # TODO: Support headers from databases other than EggNOG
@@ -335,7 +348,32 @@ class ConfusionTest:
                 unique_fn.update(qseq.place_name for qseq in self.fn[marker])
             return unique_fn
 
+    def gather_unlabelled_queries(self, assignments: dict, positives: set) -> None:
+        """
+        Finds all query sequences that were not assigned a lineage by Entrez.
+        This is not uncommon and typically caused by NCBI merging taxid labels.
+
+        :param assignments: A dictionary mapping ReferencePackage.prefix to a list of PQuery instances that were
+         assigned to that reference package.
+        :param positives: Names of the positive class query sequences
+        :return: A list of all PQuery instances that were not assigned a lineage from self.entrez_query_dict
+        """
+        for refpkg_name, pqueries in assignments.items():  # type: (str, list)
+            for pquery in sorted(pqueries, key=lambda x: x.seq_name):
+                try:
+                    e_record = self.entrez_query_dict[pquery.seq_name]
+                except KeyError:
+                    continue
+                if not e_record.lineage:
+                    if pquery.seq_name in positives:
+                        try:
+                            self.unlabelled_tp_query_names[refpkg_name].append(pquery)
+                        except KeyError:
+                            self.unlabelled_tp_query_names[refpkg_name] = [pquery]
+        return
+
     def bin_headers(self, assignments: dict, annot_map: dict) -> None:
+        self.gather_unlabelled_queries(assignments, set(annot_map.keys()))
         binned_tp, binned_fp, binned_fn = bin_headers(assignments, annot_map, self.entrez_query_dict, self.ref_packages)
 
         self.tp.update(binned_tp)
@@ -357,9 +395,11 @@ class ConfusionTest:
                 seq_name = qseq.place_name
                 if seq_name[0] == '>':
                     seq_name = seq_name[1:]
-                if seq_name not in tp_names:
+                if seq_name not in tp_names and seq_name in self.all_queries:
                     validated_fp.add(qseq)
-            self.fp[marker] = self.all_queries.intersection(validated_fp)
+
+            # Ensure the FP queries are in the set of unique queries from the input fasta
+            self.fp[marker] = validated_fp
         return
 
     def validate_false_negatives(self, refpkg_dbname_dict: dict):
@@ -416,7 +456,7 @@ class ConfusionTest:
             if header in self.fp[refpkg_map[refpkg_name]]:
                 distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
                 # hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 0)
-                descendents = len(internal_nodes_dict[refpkg_name][i_node])
+                descendents = len(internal_nodes_dict[refpkg_name][int(i_node)])
                 if descendents not in summary_dict["leaves"]:
                     summary_dict["leaves"][descendents] = 0
                 summary_dict["leaves"][descendents] += 1
@@ -482,6 +522,31 @@ class ConfusionTest:
             lineage_count_dict.clear()
 
         return summary_string
+
+    def tabularise_mcc_stats(self, mcc_table_file: str) -> None:
+        d = 0
+        mcc_string = "Tax.dist\tMCC\tTrue.Pos\tTrue.Neg\tFalse.Pos\tFalse.Neg\n"
+        while d < 8:
+            self._MAX_TAX_DIST = d
+            tp, remainder = self.get_true_positives_at_dist()
+            num_tp = len(tp)
+            num_fp = len(self.get_false_positives()) + len(remainder)
+            num_fn = len(self.get_false_negatives())
+            num_tn = self.get_true_negatives()
+
+            # Use the query sequences lacking taxonomic lineage labels at this point
+            if d == 7:
+                n_unlabelled = sum([len(rp_queries) for rp_queries in self.unlabelled_tp_query_names.values()])
+                num_tp += n_unlabelled
+                num_tn -= n_unlabelled
+
+            mcc = calculate_matthews_correlation_coefficient(num_tp, num_fp, num_fn, num_tn)
+            mcc_string += "\t".join([str(x) for x in [d, mcc, num_tp, num_tn, num_fp, num_fn]]) + "\n"
+            d += 1
+        logging.info(mcc_string)
+        with open(mcc_table_file, 'w') as mcc_handler:
+            mcc_handler.write(mcc_string)
+        return
 
 
 def map_lineages(qseq_collection: set, tax_lineage_map: dict) -> None:
@@ -637,7 +702,7 @@ def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: in
     numerator = float((tp * tn) - (fp * fn))
     denominator = float((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
     if numerator == 0 or denominator == 0:
-        return 0
+        return 0.0
     else:
         return round(numerator/sqrt(denominator), 3)
 
@@ -903,21 +968,7 @@ def mcc_calculator(sys_args):
     ##
     test_obj._MAX_TAX_DIST = 6
     logging.debug(test_obj.get_info(True))
-    d = 0
-    mcc_string = "Tax.dist\tMCC\tTrue.Pos\tTrue.Neg\tFalse.Pos\tFalse.Neg\n"
-    while d < 8:
-        test_obj._MAX_TAX_DIST = d
-        tp, remainder = test_obj.get_true_positives_at_dist()
-        num_tp = len(tp)
-        num_fp = len(test_obj.get_false_positives()) + len(remainder)
-        num_fn = len(test_obj.get_false_negatives())
-        num_tn = test_obj.get_true_negatives()
-        mcc = calculate_matthews_correlation_coefficient(num_tp, num_fp, num_fn, num_tn)
-        mcc_string += "\t".join([str(x) for x in [d, mcc, num_tp, num_tn, num_fp, num_fn]]) + "\n"
-        d += 1
-    logging.info(mcc_string)
-    with open(mcc_file, 'w') as mcc_handler:
-        mcc_handler.write(mcc_string)
+    test_obj.tabularise_mcc_stats(mcc_file)
     return
 
 

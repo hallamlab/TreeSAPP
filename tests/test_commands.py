@@ -270,10 +270,20 @@ class TreesappTester(unittest.TestCase):
 
     def test_mcc_calculator(self):
         from treesapp import mcc_calculator
+        from fasta import read_fasta_to_dict
         from .testing_utils import get_test_data
-        cmd = ["--fastx_input", get_test_data("EggNOG_McrA.faa"),
-               "--annot_map", get_test_data("EggNOG_McrA_annot_map.tsv"),
-               "--output", "./TreeSAPP_MCC",
+        output_dir = "./TreeSAPP_MCC"
+        test_fa = get_test_data("EggNOG_McrA.faa")
+        annotations_map = get_test_data("EggNOG_McrA_annot_map.tsv")
+
+        # Ensure the number of sequences in test fasta and annotations map are as expected
+        self.assertEqual(54, len(read_fasta_to_dict(test_fa)))
+        with open(annotations_map) as annotations:
+            self.assertEqual(52, len(annotations.readlines()))
+
+        cmd = ["--fastx_input", test_fa,
+               "--annot_map", annotations_map,
+               "--output", output_dir,
                "--refpkg_dir", self.refpkg_dir,
                "--targets", "McrA",
                "--molecule", "prot",
@@ -281,7 +291,36 @@ class TreesappTester(unittest.TestCase):
                "--num_procs", str(self.num_procs),
                "--delete", "--svm", "--overwrite"]
         mcc_calculator.mcc_calculator(cmd)
-        self.assertEqual(True, True)
+
+        # Compare the number of MCC classifications to number of TP and FN
+        with open(os.path.join(output_dir, "EggNOG_McrA_MCC_table.tsv")) as mcc_tbl:
+            tbl_lines = mcc_tbl.readlines()
+            tbl_lines.pop(0)
+            cls_counts = [line.split()[2:] for line in tbl_lines]
+            for dist in cls_counts:
+                tp, tn, fp, fn = [int(x) for x in dist]
+                self.assertTrue(fp >= 2)
+                self.assertTrue(fn == 0)
+                self.assertEqual(54, sum([tp, tn, fp]))
+
+        # Read MCC_table.tsv to ensure the correct number of sequences were classified
+        n_lines = 0
+        tp = 0
+        fn = 0
+        with open(os.path.join(output_dir, "EggNOG_McrA_classifications.tsv")) as mcc_classified:
+            mcc_classified.readline()
+            line = mcc_classified.readline()
+            while line:
+                if line.split()[3] == "True":
+                    tp += 1
+                else:
+                    fn += 1
+                line = mcc_classified.readline()
+                n_lines += 1
+        self.assertEqual(52, n_lines)
+        self.assertEqual(52, tp)
+        self.assertEqual(0, fn)
+
         return
 
     def test_train(self):
