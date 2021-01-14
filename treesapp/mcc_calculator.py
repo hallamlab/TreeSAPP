@@ -12,11 +12,12 @@ from glob import glob
 from numpy import sqrt
 
 from treesapp import file_parsers
+from treesapp import wrapper
+from treesapp import utilities
 from treesapp.phylo_seq import assignments_to_treesaps
 from treesapp.refpkg import ReferencePackage
 from treesapp.commands import assign
 from treesapp.fasta import get_headers, register_headers
-from treesapp.external_command_interface import launch_write_command
 from treesapp.classy import prep_logging, get_header_info
 from treesapp.entrez_utils import EntrezRecord, get_multiple_lineages
 from treesapp import lca_calculations as ts_lca
@@ -751,6 +752,7 @@ def mcc_calculator(sys_args):
     mcc_file = output_prefix + "_MCC_table.tsv"
     taxa_dist_output = output_prefix + '_' + summary_rank + "_dist.tsv"
     classification_info_output = output_prefix + "_classifications.tsv"
+    graftm_exe = ""
 
     # Instantiate the logging instance and write the log
     prep_logging(log_name, args.verbose)
@@ -791,6 +793,7 @@ def mcc_calculator(sys_args):
     if args.tool == "treesapp":
         test_obj.ref_packages = refpkg_dict
     elif args.tool in ["graftm", "diamond"]:
+        graftm_exe = utilities.fetch_executable_path("graftM", test_obj.treesapp_dir)
         for gpkg in glob(args.refpkg_dir + "*gpkg"):
             gpkg_name = str(os.path.basename(gpkg).split('.')[0])
             if gpkg_name in test_obj.ref_packages:
@@ -841,21 +844,10 @@ def mcc_calculator(sys_args):
                 logging.warning("'{}' not in {} and will be skipped...\n".format(pkg_name, args.annot_map))
                 continue
             output_dir = test_obj.data_dir + pkg_name + os.sep
-            if not os.path.isdir(output_dir):
-                os.makedirs(output_dir)
             classification_table = output_dir + test_fa_prefix + os.sep + test_fa_prefix + "_read_tax.tsv"
             if not os.path.isfile(classification_table):
-                classify_call = ["graftM", "graft",
-                                 "--forward", args.input,
-                                 "--graftm_package", gpkg,
-                                 "--input_sequence_type", "aminoacid",
-                                 "--threads", str(args.num_threads),
-                                 "--output_directory", output_dir,
-                                 "--force"]
-                if args.tool == "diamond":
-                    classify_call += ["--assignment_method", "diamond"]
-                    classify_call += ["--search_method", "diamond"]
-                launch_write_command(classify_call, False)
+                wrapper.run_graftm_graft(graftm_exe, args.input, output_dir,
+                                         gpkg_path=gpkg, classifier=args.tool, num_threads=args.num_threads)
 
             # TODO: Figure out how to convert GraftM classifications into JPlace objects
             assignments[pkg_name] = file_parsers.read_graftm_classifications(classification_table)

@@ -8,6 +8,7 @@ from .testing_utils import get_test_data, get_treesapp_root
 
 class ExecutableWrapperTester(unittest.TestCase):
     def setUp(self) -> None:
+        self.num_procs = 2
         self.ts_dir = get_treesapp_root()
         self.tmp_dir = os.path.join(os.getcwd(), "tests", "wrapper_test_dir")
         if os.path.isdir(self.tmp_dir):
@@ -64,6 +65,41 @@ class ExecutableWrapperTester(unittest.TestCase):
         cluster_sequences(software_path=vsearch, similarity=0.90,
                           fasta_input=self.test_fasta, output_prefix=os.path.join(self.tmp_dir, "vsearch_test"))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "vsearch_test.uc")))
+        return
+
+    def test_support_tree_raxml(self):
+        from treesapp.utilities import fetch_executable_path
+        from treesapp.wrapper import support_tree_raxml
+        tree = get_test_data("PuhA.raxml.bestTree")
+        msa = get_test_data("PuhA.phy")
+        f_support = support_tree_raxml(raxml_exe=fetch_executable_path(exe_name="raxml-ng", treesapp_dir=self.ts_dir),
+                                       ref_tree=tree, ref_msa=msa,
+                                       model="LG", tree_prefix=os.path.join(self.tmp_dir, "PuhA"),
+                                       n_bootstraps=4, num_threads=self.num_procs, mre=False)
+        self.assertTrue(os.path.isfile(f_support))
+        return
+
+    def test_run_graftm_graft(self):
+        from treesapp.utilities import fetch_executable_path
+        from treesapp.wrapper import run_graftm_graft
+        try:
+            graftm_exe = fetch_executable_path("graftM", self.ts_dir)
+        except SystemExit:
+            return
+        classification_tbl = os.path.join(self.tmp_dir, "EggNOG_McrA", "EggNOG_McrA_read_tax.tsv")
+
+        # Run graftM graft
+        run_graftm_graft(graftm_exe,
+                         input_path=get_test_data("EggNOG_McrA.faa"),
+                         output_dir=self.tmp_dir,
+                         gpkg_path=get_test_data(os.path.join("refpkgs", "7.27_mcrA.gpkg")),
+                         classifier="graftm",
+                         num_threads=self.num_procs)
+
+        self.assertTrue(os.path.isfile(classification_tbl))
+        with open(classification_tbl) as tbl_handler:
+            tbl_lines = tbl_handler.readlines()
+        self.assertEqual(54, len(tbl_lines))
         return
 
 

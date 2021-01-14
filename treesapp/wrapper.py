@@ -92,6 +92,11 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
 
 def bootstrap_tree_raxml(raxml_exe: str, multiple_alignment: str, model: str, tree_prefix: str,
                          mre=True, bootstraps=1000, num_threads=2) -> str:
+    if mre and bootstraps < 100:
+        logging.warning("With fewer than 100 bootstraps specified ({})"
+                        "MRE-based bootstrap convergence criterion in not going to be used.".format(bootstraps))
+        mre = False
+
     bootstrap_cmd = [raxml_exe, "--bootstrap"]
     bootstrap_cmd += ["--msa", multiple_alignment]
     bootstrap_cmd += ["--model", model]
@@ -125,7 +130,7 @@ def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, 
     support_cmd += ["--prefix", tree_prefix]
     support_cmd += ["--threads", str(num_threads)]
 
-    logging.info("Calculating bootstrap support for node in reference tree with RAxML-NG... ")
+    logging.info("Calculating bootstrap support for nodes in reference tree with RAxML-NG... ")
     launch_write_command(support_cmd)
     logging.info("done.\n")
 
@@ -823,3 +828,22 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict,
     logging.debug("\t" + tool + " time required: " +
                   ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
     return trimmed_output_files
+
+
+def run_graftm_graft(graftm_exe: str, input_path: str, output_dir: str, gpkg_path: str,
+                     classifier="graftm", seq_type="aminoacid", num_threads=4) -> None:
+    """Wrapper for GraftM"""
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+    classify_call = [graftm_exe, "graft",
+                     "--forward", input_path,
+                     "--graftm_package", gpkg_path,
+                     "--input_sequence_type", seq_type,
+                     "--threads", str(num_threads),
+                     "--output_directory", output_dir,
+                     "--force"]
+    if classifier == "diamond":
+        classify_call += ["--assignment_method", "diamond"]
+        classify_call += ["--search_method", "diamond"]
+    launch_write_command(classify_call, False)
+    return

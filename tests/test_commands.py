@@ -147,6 +147,7 @@ class TreesappTester(unittest.TestCase):
                                 "--output", "./TreeSAPP_create",
                                 "--refpkg_name", "PuhA",
                                 "--similarity", "0.90",
+                                "--bootstraps", str(4),
                                 "--profile", get_test_data("PuhA_search.hmm"),
                                 "--molecule", "prot",
                                 "--screen", "Bacteria,Archaea",

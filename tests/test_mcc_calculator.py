@@ -1,4 +1,5 @@
 import unittest
+import pytest
 import shutil
 import os
 
@@ -74,6 +75,19 @@ class MccTester(unittest.TestCase):
         self.assertEqual(52, tp)
         self.assertEqual(0, fn)
 
+        ##
+        # Test MCC calculator with GraftM
+        ##
+        cmd = ["--fastx_input", test_fa,
+               "--annot_map", annotations_map,
+               "--tool", "graftm",
+               "--output", self.gm_test_dir,
+               "--targets", "McrA",
+               "--molecule", "prot",
+               "--num_procs", str(self.num_procs),
+               "--overwrite"]
+        with pytest.raises(SystemExit):
+            mcc_calculator.mcc_calculator(cmd)
         return
 
 

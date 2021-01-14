@@ -669,7 +669,7 @@ def create(sys_args):
         # Perform non-parametric bootstrapping with RAxML-NG and calculate branch support values from bootstraps
         wrapper.support_tree_raxml(raxml_exe=ts_create.executables["raxml-ng"], model=ts_create.ref_pkg.sub_model,
                                    ref_tree=best_tree, ref_msa=ts_create.phylip_file,
-                                   tree_prefix=ts_create.phy_dir + ts_create.ref_pkg.prefix,
+                                   tree_prefix=os.path.join(ts_create.phy_dir, ts_create.ref_pkg.prefix),
                                    mre=True, n_bootstraps=args.bootstraps, num_threads=args.num_threads)
         ts_create.ref_pkg.recover_raxmlng_supports(ts_create.phy_dir)
 
