@@ -17,6 +17,7 @@
 - Log files don't contain the sequence names removed from FASTA objects at various steps,
   potentially significantly reducing the size of these files.
 - `mcc_calculator.py` summarizes the number of queries with missing taxonomic lineages in a single warning.
+- Log writes to stderr while `treesapp package view` writes reference package data to sys.stdout.
 
 ## [0.9.7] - 2021-01-06
 ### Added

@@ -8,9 +8,8 @@ import sys
 import logging
 from time import sleep
 from glob import glob
-from numpy import sqrt
 
-from ete3 import Tree
+from numpy import sqrt
 
 from treesapp import file_parsers
 from treesapp.phylo_seq import assignments_to_treesaps
@@ -103,36 +102,6 @@ class ConfusionTest:
         summary_string += "\tFalse negatives\t\t" + str(len(self.get_false_negatives(refpkg_name))) + "\n"
         summary_string += "\tTrue negatives\t\t" + str(self.get_true_negatives(refpkg_name)) + "\n"
         return summary_string
-
-    def populate_tax_lineage_map(self, entrez_record_dict: dict) -> None:
-        """
-        Used for pulling the NCBI taxid from a sequence name (header). This is most effective for handling
-        EggNOG-formatted headers where the NCBI taxid is the first part, followed by a period, then the organism name
-
-        :param entrez_record_dict: A dictionary mapping unique numerical TreeSAPP identifiers to EntrezRecord instances
-        :return: None
-        """
-        for ts_id in entrez_record_dict:  # type: str
-            e_record = entrez_record_dict[ts_id]  # type: EntrezRecord
-            if not e_record.description:
-                logging.error("No description for the following EntrezRecord:\n{}\n".format(e_record.get_info()))
-                sys.exit(3)
-
-            # Only make Entrez records for new NCBI taxonomy IDs
-            if e_record.description not in self.tax_lineage_map:
-                if not e_record.lineage:
-                    logging.warning("Lineage information unavailable for accession '{}'\n".format(e_record.accession))
-                    self.tax_lineage_map[e_record.description] = ''
-                else:
-                    self.tax_lineage_map[e_record.description] = e_record.lineage
-
-        return
-
-    def populate_true_positive_lineage_map(self) -> None:
-        for refpkg_code in self.ref_packages:
-            self.tp_lineage_map[refpkg_code] = {tp_inst.ref_name: tp_inst.true_lineage
-                                                for tp_inst in self.tp[refpkg_code]}
-        return
 
     def generate_entrez_queries(self) -> None:
         entrez_record_dict = get_header_info(self.header_registry)
@@ -250,36 +219,6 @@ class ConfusionTest:
                 except KeyError:
                     self.dist_wise_tp[marker][tp_inst.tax_dist] = [tp_inst.place_name]
         return
-
-    def enumerate_optimal_rank_distances(self) -> dict:
-        """
-        Calculates the number of query sequences representing an excluded rank.
-
-        For each query sequence in self.tp (so just the true positives), the optimal taxonomy is identified based on
-        the query's true taxonomic lineage and all the taxonomic lineages in the ReferencePackage.taxa_trie.
-        The optimal taxonomic assignment's depth (i.e. numerical description of a rank where domain = 1,
-         phylum = 2, etc.) is found by determining the length of the list after splitting the lineage string by '; '.
-
-        :return: Dictionary mapping the numerical description of a taxonomic rank (i.e. depth) to the number of queries
-        that represent that rank.
-        """
-        rank_representation = dict()
-        for marker in self.tp:
-            refpkg = self.ref_packages[marker]  # type: ReferencePackage
-            refpkg.taxa_trie.trie_check()
-
-            for tp_inst in self.tp[marker]:  # type: QuerySequence
-                # Find the optimal taxonomic assignment
-                optimal_taxon = ts_lca.optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
-                if not optimal_taxon:
-                    logging.debug("Optimal taxonomic assignment '{}' for {} "
-                                  "not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.place_name))
-                    continue
-                try:
-                    rank_representation[len(optimal_taxon.split("; "))] += 1
-                except KeyError:
-                    rank_representation[len(optimal_taxon.split("; "))] = 1
-        return rank_representation
 
     def check_dist(self):
         if self._MAX_TAX_DIST < 0:
@@ -644,24 +583,6 @@ def get_arguments(sys_args):
     if args.output[-1] != os.sep:
         args.output += os.sep
     return args
-
-
-def internal_node_leaf_map(tree: str) -> dict:
-    """
-    Loads a Newick-formatted tree with internal nodes into a dictionary of
-    all internal nodes (keys) and a list of child leaves (values).
-
-    :param tree: Path to a Newick tree file.
-    :return: Dictionary of all internal nodes (keys) and a list of child leaves (values)
-    """
-    node_map = dict()
-    x = 0
-    ete_tree = Tree(tree)
-    for node in ete_tree.traverse(strategy="postorder"):
-        node_map[str(x)] = node.get_leaf_names()
-        x += 1
-
-    return node_map
 
 
 def validate_command(args, sys_args):

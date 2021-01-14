@@ -1021,11 +1021,13 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
             sys.exit(1)
 
     for k, v in view_dict.items():
+        logging.info("{}:\t".format(k))
         if type(v) is list and k not in ["pfit"]:
             v = ''.join(v)
         if type(v) is dict:
             v = "\n" + "\n".join([sk + "\t" + sv for sk, sv in v.items()])
-        logging.info("{}\t{}\n".format(k, v))
+        sys.stdout.write(v.strip() + "\n")
+        logging.info("\n")
 
     # TODO: optionally use ReferencePackage.write_refpkg_component
     return
