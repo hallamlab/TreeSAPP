@@ -13,7 +13,6 @@
 
 [![Docker Repository on Quay](https://quay.io/repository/hallamlab/treesapp/status "Docker Repository on Quay")](https://quay.io/repository/hallamlab/treesapp)
 
-
 ## Overview
 
 TreeSAPP is a python package for functional and taxonomic annotation of proteins
@@ -62,12 +61,6 @@ If you are working with a particularly complex reference package, from an orthol
  phylogenetic information you'd like to include in your classifications,
  try [annotating extra features](https://github.com/hallamlab/TreeSAPP/wiki/Layering-annotations-onto-classifications) with `treesapp layer`.
 
-### Yet to come
--   [Interpreting `treesapp assign` results]()
--   [Evaluating classification accuracy]()
--   [Taxonomically decorating trees for iTOL]()
--   [Terraform](https://github.com/hallamlab/TreeSAPP/wiki/Running-TreeSAPP-on-Google-Cloud-Platform)
-
 ## Citation
 
 If you found TreeSAPP useful in your work, please cite the following paper:
@@ -78,18 +71,18 @@ Bioinformatics, 1–8.
 
 This was brought to you by the team:
 
-* Connor Morgan-Lang ([cmorganl](https://github.com/cmorganl), maintainer)
-* Ryan McLaughlin ([McGlock](https://github.com/McGlock))
-* Grace Zhang ([grace72](https://github.com/gracez72))
-* Kevin Chan ([kevinxchan](https://github.com/kevinxchan))
-* Zachary Armstrong
-* Steven J. Hallam
+- Connor Morgan-Lang ([cmorganl](https://github.com/cmorganl), maintainer)
+- Ryan McLaughlin ([McGlock](https://github.com/McGlock))
+- Grace Zhang ([grace72](https://github.com/gracez72))
+- Kevin Chan ([kevinxchan](https://github.com/kevinxchan))
+- Zachary Armstrong
+- Steven J. Hallam
 
 ### References
 
 If you're feeling extra citation-happy, please consider citing the following works as well:
 
-  - Eddy, S. R. (1998). Profile hidden Markov models. Bioinformatics (Oxford, England), 14(9), 755–763.
-  - Criscuolo, A., & Gribaldo, S. (2010). BMGE (Block Mapping and Gathering with Entropy): A new software for selection of phylogenetic informative regions from multiple sequence alignments. BMC Evolutionary Biology, 10(1).
-  - Kozlov, A. M., Darriba, D., Flouri, T., Morel, B., & Stamatakis, A. (2019). RAxML-NG: a fast, scalable and user-friendly tool for maximum likelihood phylogenetic inference. Bioinformatics, 35(21), 4453–4455.
-  - Barbera, P., Kozlov, A. M., Czech, L., Morel, B., & Stamatakis, A. (2018). EPA-ng: Massively Parallel Evolutionary Placement of Genetic Sequences. Systematic Biology, 0(0), 291658.
+- Eddy, S. R. (1998). Profile hidden Markov models. Bioinformatics (Oxford, England), 14(9), 755–763.
+- Criscuolo, A., & Gribaldo, S. (2010). BMGE (Block Mapping and Gathering with Entropy): A new software for selection of phylogenetic informative regions from multiple sequence alignments. BMC Evolutionary Biology, 10(1).
+- Kozlov, A. M., Darriba, D., Flouri, T., Morel, B., & Stamatakis, A. (2019). RAxML-NG: a fast, scalable and user-friendly tool for maximum likelihood phylogenetic inference. Bioinformatics, 35(21), 4453–4455.
+- Barbera, P., Kozlov, A. M., Czech, L., Morel, B., & Stamatakis, A. (2018). EPA-ng: Massively Parallel Evolutionary Placement of Genetic Sequences. Systematic Biology, 0(0), 291658.

@@ -5,7 +5,6 @@ __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL-3.0"
 
 try:
-    import profile
     import sys
     import os
     import shutil
@@ -15,14 +14,9 @@ try:
     import traceback
     import subprocess
     import logging
-    from os import path
-    from os import listdir
-    from os.path import isfile, join
     from time import gmtime, strftime
 
     import pyfastx
-    from ete3 import Tree
-    from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
     from numpy import array as np_array
     from sklearn import preprocessing
 
@@ -805,7 +799,7 @@ def delete_files(clean_up, output_dir_var, section):
             # files_to_be_deleted += glob.glob(output_dir_var + '*.jplace')
 
     for useless_file in files_to_be_deleted:
-        if path.exists(useless_file):
+        if os.path.exists(useless_file):
             os.remove(useless_file)
 
 
