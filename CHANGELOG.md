@@ -1,4 +1,4 @@
-## [0.9.8] - 2021-01
+## [0.9.8] - 2021-01-15
 ### Added
 - More unit tests for file parsers and functions for `treesapp assign`
 - More rigorous integrative test for `mcc_calculator.py` with higher coverage.
