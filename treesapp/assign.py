@@ -43,9 +43,7 @@ except ImportWarning:
 
 class Assigner(classy.TreeSAPP):
     def __init__(self):
-        """
-
-        """
+        """Instantiate a class instance used by `treesapp assign`."""
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
         self.svc_filter = False
@@ -56,7 +54,6 @@ class Assigner(classy.TreeSAPP):
         self.composition = ""
         self.target_refpkgs = list()
 
-        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: classy.ModuleFunction("orf-call", 0, self.predict_orfs),
                        1: classy.ModuleFunction("clean", 1, self.clean),
                        2: classy.ModuleFunction("search", 2, self.search),
@@ -64,6 +61,8 @@ class Assigner(classy.TreeSAPP):
                        4: classy.ModuleFunction("place", 4, self.place),
                        5: classy.ModuleFunction("classify", 5, self.classify),
                        6: classy.ModuleFunction("abundance", 6)}
+        self.current_stage = self.stages[0]
+        return
 
     def check_classify_arguments(self, args):
         """
@@ -72,8 +71,6 @@ class Assigner(classy.TreeSAPP):
         :param args: object with parameters returned by argparse.parse_args()
         :return: 'args', a summary of TreeSAPP settings.
         """
-        self.aa_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.faa"
-        self.nuc_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.fna"
         self.classified_aa_seqs = self.final_output_dir + self.sample_prefix + "_classified.faa"
         self.classified_nuc_seqs = self.final_output_dir + self.sample_prefix + "_classified.fna"
 
@@ -84,7 +81,7 @@ class Assigner(classy.TreeSAPP):
 
         self.validate_refpkg_dir(args.refpkg_dir)
 
-        if args.molecule == "prot":
+        if self.molecule_type == "prot":
             self.query_sequences = self.input_sequences
             self.change_stage_status("orf-call", False)
             if args.rpkm:
@@ -121,14 +118,15 @@ class Assigner(classy.TreeSAPP):
 
         :return: None
         """
-        if args.molecule == "dna":
+        self.set_stage_dir()
+        if self.stage_status("orf-call"):
+            self.aa_orfs_file = self.stage_output_dir + self.sample_prefix + "_ORFs.faa"
+            self.nuc_orfs_file = self.stage_output_dir + self.sample_prefix + "_ORFs.fna"
             if os.path.isfile(self.aa_orfs_file) and os.path.isfile(self.nuc_orfs_file):
                 self.change_stage_status("orf-call", False)
                 self.query_sequences = self.aa_orfs_file
-        else:
-            self.change_stage_status("orf-call", False)
 
-        if args.rpkm and args.molecule == "dna":
+        if args.rpkm and self.molecule_type == "dna":
             if not args.reads:
                 if args.reverse:
                     logging.error("File containing reverse reads provided but forward mates file missing!\n")
@@ -180,7 +178,7 @@ class Assigner(classy.TreeSAPP):
 
         task_list = list()
         for fasta_chunk in split_files:
-            chunk_prefix = self.var_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
+            chunk_prefix = self.stage_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
             prodigal_command = [self.executables["prodigal"], "-q"]
             prodigal_command += ["-i", fasta_chunk]
             prodigal_command += ["-p", composition]
@@ -196,8 +194,8 @@ class Assigner(classy.TreeSAPP):
             cl_farmer.task_queue.close()
             cl_farmer.task_queue.join()
 
-        tmp_prodigal_aa_orfs = glob.glob(self.var_output_dir + self.sample_prefix + "*_ORFs.faa")
-        tmp_prodigal_nuc_orfs = glob.glob(self.var_output_dir + self.sample_prefix + "*_ORFs.fna")
+        tmp_prodigal_aa_orfs = glob.glob(self.stage_output_dir + self.sample_prefix + "*_ORFs.faa")
+        tmp_prodigal_nuc_orfs = glob.glob(self.stage_output_dir + self.sample_prefix + "*_ORFs.fna")
         if not tmp_prodigal_aa_orfs or not tmp_prodigal_nuc_orfs:
             logging.error("Prodigal outputs were not generated:\n"
                           "Amino acid ORFs: " + ", ".join(tmp_prodigal_aa_orfs) + "\n" +
@@ -222,6 +220,7 @@ class Assigner(classy.TreeSAPP):
                       ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
         self.query_sequences = self.aa_orfs_file
+        self.increment_stage_dir()
         return
 
     def clean(self):
@@ -773,7 +772,7 @@ def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenate
     return
 
 
-def delete_files(clean_up, output_dir_var, section):
+def delete_files(clean_up: bool, output_dir_var: str, section: int) -> None:
     files_to_be_deleted = []
     if clean_up:
         if section == 1:
@@ -801,6 +800,7 @@ def delete_files(clean_up, output_dir_var, section):
     for useless_file in files_to_be_deleted:
         if os.path.exists(useless_file):
             os.remove(useless_file)
+    return
 
 
 def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,

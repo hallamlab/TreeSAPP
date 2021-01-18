@@ -555,7 +555,8 @@ class TreeSAPP:
         # TODO: Summarise the steps to be taken and write to log
         for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
             if os.path.isdir(os.path.join(self.var_output_dir, module.name)):
-                module.run = False
+                if len(os.listdir(os.path.join(self.var_output_dir, module.name))) > 0:
+                    module.run = False
 
         if args.overwrite:
             last_valid_stage = self.first_stage()
