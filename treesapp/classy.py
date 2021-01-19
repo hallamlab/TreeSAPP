@@ -32,6 +32,7 @@ class ModuleFunction:
         """
         self.order = order
         self.name = name
+        self.dir_path = ""
         self.function = func
         self.run = True
 
@@ -374,7 +375,6 @@ class TreeSAPP:
                 if suffix1 == ".gz":
                     file_name, suffix2 = os.path.splitext(file_name)
                 self.sample_prefix = file_name
-                self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
 
         if self.command != "colour" and "pkg_path" in vars(args):
             if len(args.pkg_path) > 1:
@@ -421,6 +421,9 @@ class TreeSAPP:
         for output_dir in main_output_dirs:
             if not os.path.isdir(output_dir):
                 os.mkdir(output_dir)
+
+        for stage_order, stage in self.stages.items():  # type: (int, ModuleFunction)
+            stage.dir_path = self.var_output_dir + stage.name + os.sep
         return
 
     def log_progress(self):
@@ -500,7 +503,7 @@ class TreeSAPP:
         return 0
 
     def set_stage_dir(self) -> None:
-        self.stage_output_dir = os.path.join(self.var_output_dir, self.current_stage.name) + os.sep
+        self.stage_output_dir = self.current_stage.dir_path
         if not os.path.isdir(self.stage_output_dir):
             os.mkdir(self.stage_output_dir)
         return

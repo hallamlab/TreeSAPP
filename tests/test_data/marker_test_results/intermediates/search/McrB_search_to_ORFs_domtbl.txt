@@ -1,0 +1,15 @@
+#                                                                            --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name        accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+31                   -            434 McrB                 -            437  1.7e-217  714.6   6.1   1   1    5e-219  1.9e-217  714.4   6.1     1   436     1   433     1   434 0.99 -
+55                   -            554 McrB                 -            437   0.00014   12.9   0.0   1   1   5.3e-06    0.0002   12.4   0.0    23   217    86   316    79   344 0.70 -
+#
+# Program:         hmmsearch
+# Version:         3.3.2 (Nov 2020)
+# Pipeline mode:   SEARCH
+# Query file:      /home/connor/Desktop/marker_test_results/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB_search.hmm
+# Target file:     /home/connor/Desktop/marker_test_results/intermediates/clean/marker_test_suite_formatted.fasta
+# Option settings: /usr/local/bin/hmmsearch --domtblout /home/connor/Desktop/marker_test_results/intermediates/search/McrB_search_to_ORFs_domtbl.txt --noali -E 0.001 --cpu 2 /home/connor/Desktop/marker_test_results/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB_search.hmm /home/connor/Desktop/marker_test_results/intermediates/clean/marker_test_suite_formatted.fasta 
+# Current dir:     /home/connor/Bioinformatics/Hallam_projects/TreeSAPP
+# Date:            Tue Jan 19 18:41:19 2021
+# [ok]

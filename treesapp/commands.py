@@ -1124,6 +1124,7 @@ def assign(sys_args):
     treesapp_args.check_parser_arguments(args, sys_args)
     ts_assign.check_classify_arguments(args)
     ts_assign.decide_stage(args)
+    n_proc = args.num_threads
 
     refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
     ts_assign_mod.prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
@@ -1133,7 +1134,7 @@ def assign(sys_args):
     # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
     ##
     if ts_assign.stage_status("orf-call"):
-        ts_assign.predict_orfs(args.composition, args.num_threads)
+        ts_assign.predict_orfs(args.composition, n_proc)
 
     query_seqs = fasta.FASTA(ts_assign.query_sequences)
     # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
@@ -1143,9 +1144,10 @@ def assign(sys_args):
                                                         output_fasta=ts_assign.formatted_input)
         logging.info("done.\n")
     else:
-        ts_assign.formatted_input = ts_assign.query_sequences
-        query_seqs.load_fasta()
+        query_seqs.file = ts_assign.formatted_input
+        query_seqs.header_registry = fasta.register_headers(fasta.get_headers(query_seqs.file))
     logging.info("\tTreeSAPP will analyze the " + str(len(query_seqs.header_registry)) + " sequences found in input.\n")
+    ts_assign.increment_stage_dir()
 
     ##
     # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
@@ -1153,28 +1155,36 @@ def assign(sys_args):
     if ts_assign.stage_status("search"):
         hmm_domtbl_files = wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"],
                                                   refpkg_dict, ts_assign.formatted_input,
-                                                  ts_assign.var_output_dir, args.num_threads, args.max_e)
-        hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
-        ts_assign_mod.load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
-        pqueries = ts_assign_mod.load_pqueries(hmm_matches, query_seqs)
-        query_seqs.change_dict_keys("num")
-        extracted_seq_dict, numeric_contig_index = ts_assign_mod.bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
-        numeric_contig_index = ts_assign_mod.replace_contig_names(numeric_contig_index, query_seqs)
-        homolog_seq_files = ts_assign_mod.write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
-                                                               refpkg_dict, ts_assign.var_output_dir)
-        # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
-        extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
-        ts_assign_mod.delete_files(args.delete, ts_assign.var_output_dir, 1)
+                                                  ts_assign.stage_output_dir, n_proc, args.max_e)
+    else:
+        hmm_domtbl_files = ts_assign.fetch_hmmsearch_outputs()
+
+    # Load alignment information
+    hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
+    ts_assign_mod.load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
+    pqueries = ts_assign_mod.load_pqueries(hmm_matches, query_seqs)
+    query_seqs.change_dict_keys("num")
+    extracted_seq_dict, numeric_contig_index = ts_assign_mod.bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
+    numeric_contig_index = ts_assign_mod.replace_contig_names(numeric_contig_index, query_seqs)
+    homolog_seq_files = ts_assign_mod.write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
+                                                           refpkg_dict, ts_assign.stage_output_dir)
+    # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
+    extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
+    ts_assign_mod.delete_files(args.delete, ts_assign.stage_output_dir, 1)
+    ts_assign.increment_stage_dir()
+
     ##
     # STAGE 4: Run hmmalign, and optionally BMGE, to produce the MSAs for phylogenetic placement
     ##
-    combined_msa_files = dict()
-    split_msa_files = dict()
+    MSAs = namedtuple("MSAs", "ref query")
     if ts_assign.stage_status("align"):
-        ts_assign_mod.create_ref_phy_files(refpkg_dict, ts_assign.var_output_dir,
+        combined_msa_files = {}
+        split_msa_files = {}
+        ts_assign_mod.create_ref_phy_files(refpkg_dict, ts_assign.stage_output_dir,
                                            homolog_seq_files, ref_alignment_dimensions)
         concatenated_msa_files = ts_assign_mod.multiple_alignments(ts_assign.executables, homolog_seq_files,
-                                                                   refpkg_dict, "hmmalign", args.num_threads)
+                                                                   refpkg_dict, "hmmalign",
+                                                                   ts_assign.stage_output_dir, num_proc=n_proc)
         file_type = utilities.find_msa_type(concatenated_msa_files)
         alignment_length_dict = ts_assign_mod.get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
                                                                   args.verbose, file_type)
@@ -1182,7 +1192,7 @@ def assign(sys_args):
         if args.trim_align:
             tool = "BMGE"
             trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
-                                                                   refpkg_dict, args.num_threads, tool)
+                                                                   refpkg_dict, n_proc, tool)
             qc_ma_dict = ts_assign_mod.check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files,
                                                                    refpkg_dict, args.min_seq_length)
             ts_assign_mod.evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
@@ -1191,30 +1201,33 @@ def assign(sys_args):
             combined_msa_files.update(concatenated_msa_files)
 
         # Subset the multiple alignment of reference sequences and queries to just contain query sequences
-        MSAs = namedtuple("MSAs", "ref query")
-        for denominator in combined_msa_files:
-            split_msa_files[denominator] = []
-            for combined_msa in combined_msa_files[denominator]:
+        for refpkg_name in combined_msa_files:
+            split_msa_files[refpkg_name] = []
+            for combined_msa in combined_msa_files[refpkg_name]:
                 split_msa = MSAs(os.path.dirname(combined_msa) + os.sep +
                                  os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa",
                                  os.path.dirname(combined_msa) + os.sep +
                                  os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa")
                 fasta.split_combined_ref_query_fasta(combined_msa, split_msa.query, split_msa.ref)
-                split_msa_files[denominator].append(split_msa)
+                split_msa_files[refpkg_name].append(split_msa)
         combined_msa_files.clear()
-        ts_assign_mod.delete_files(args.delete, ts_assign.var_output_dir, 3)
+        ts_assign_mod.delete_files(args.delete, ts_assign.stage_lookup("search").dir_path, 2)
+    else:
+        split_msa_files = ts_assign_mod.gather_split_msa(list(refpkg_dict.keys()), ts_assign.stage_output_dir)
+    ts_assign.increment_stage_dir()
 
     ##
     # STAGE 5: Run EPA-ng to compute the ML estimations
     ##
     if ts_assign.stage_status("place"):
         wrapper.launch_evolutionary_placement_queries(ts_assign.executables, split_msa_files, refpkg_dict,
-                                                      ts_assign.var_output_dir, args.num_threads)
-        jplace_utils.sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, refpkg_dict)
+                                                      ts_assign.stage_output_dir, n_proc)
+        jplace_utils.sub_indices_for_seq_names_jplace(ts_assign.stage_output_dir, numeric_contig_index, refpkg_dict)
+        ts_assign_mod.delete_files(args.delete, ts_assign.stage_lookup("align").dir_path, 3)
 
     if ts_assign.stage_status("classify"):
-        itol_out_dir = ts_assign.output_dir + 'iTOL_output' + os.sep
-        tree_saps, itol_data = ts_assign_mod.parse_raxml_output(ts_assign.var_output_dir, refpkg_dict, pqueries)
+        tree_saps, itol_data = ts_assign_mod.parse_raxml_output(ts_assign.stage_output_dir, refpkg_dict, pqueries)
+        ts_assign.increment_stage_dir()
         # Set PQuery.consensus_placement attributes
         ts_assign_mod.select_query_placements(tree_saps, refpkg_dict, mode=args.p_sum)
         ts_assign_mod.filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr)
@@ -1231,7 +1244,7 @@ def assign(sys_args):
             abundance_args = ["--treesapp_output", ts_assign.output_dir,
                               "--reads", args.reads,
                               "--pairing", args.pairing,
-                              "--num_procs", str(args.num_threads),
+                              "--num_procs", str(n_proc),
                               "--report", "nothing"]
             if args.reverse:
                 abundance_args += ["--reverse", args.reverse]
@@ -1239,11 +1252,12 @@ def assign(sys_args):
         ts_assign_mod.abundify_tree_saps(tree_saps, abundance_dict)
 
         ts_assign_mod.write_classification_table(tree_saps, ts_assign.sample_prefix,
-                                                 output_file=ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv")
+                                                 output_file=ts_assign.classification_table)
 
-        ts_assign_mod.produce_itol_inputs(tree_saps, refpkg_dict, itol_data, itol_out_dir, ts_assign.refpkg_dir)
-        ts_assign_mod.delete_files(args.delete, ts_assign.var_output_dir, 4)
+        ts_assign_mod.produce_itol_inputs(tree_saps, refpkg_dict, itol_data, ts_assign.itol_out, ts_assign.refpkg_dir)
+        ts_assign_mod.delete_files(args.delete, ts_assign.stage_lookup("place").dir_path, 4)
 
+    # Clear out the rest of the intermediates
     ts_assign_mod.delete_files(args.delete, ts_assign.var_output_dir, 5)
 
     return

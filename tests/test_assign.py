@@ -135,6 +135,39 @@ class AssignerTester(unittest.TestCase):
         self.assertTrue(ts_assigner.stage_status("abundance"))
         return
 
+    def test_fetch_hmmsearch_outputs(self):
+        from treesapp import assign
+        ts_assigner = assign.Assigner()
+        ts_assigner.output_dir = get_test_data("marker_test_results")
+        ts_assigner.var_output_dir = os.path.join(ts_assigner.output_dir, "intermediates")
+
+        # Fail due to wrong stage
+        ts_assigner.current_stage = ts_assigner.stages[0]
+        with pytest.raises(SystemExit):
+            ts_assigner.fetch_hmmsearch_outputs()
+
+        ts_assigner.current_stage = ts_assigner.stage_lookup("search")
+        # Reference package targets don't match
+        ts_assigner.target_refpkgs = ["DsrAB"]
+        self.assertEqual([], ts_assigner.fetch_hmmsearch_outputs())
+
+        # Intended functionality test
+        ts_assigner.target_refpkgs = ["McrA", "McrB", "DsrAB"]
+        hmm_domtbls = ts_assigner.fetch_hmmsearch_outputs()
+        self.assertEqual(3, len(hmm_domtbls))
+
+        return
+
+    def test_gather_split_msa(self):
+        from treesapp import assign
+        test_refpkg_names = ["McrA", "McrB", "DsrAB"]
+        split_msa_files = assign.gather_split_msa(align_dir=get_test_data(os.path.join("")),
+                                                  refpkg_names=test_refpkg_names)
+        self.assertEqual(["McrA", "McrB"], list(split_msa_files.keys()))
+        self.assertEqual(get_test_data("McrA_hmm_purified_group0-BMGE_references.mfa"), split_msa_files["McrA"][0].ref)
+        self.assertEqual(get_test_data("McrA_hmm_purified_group0-BMGE_queries.mfa"), split_msa_files["McrA"][0].query)
+        return
+
 
 if __name__ == '__main__':
     unittest.main()

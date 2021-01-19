@@ -15,6 +15,7 @@ try:
     import subprocess
     import logging
     from time import gmtime, strftime
+    from collections import namedtuple
 
     import pyfastx
     from numpy import array as np_array
@@ -51,6 +52,8 @@ class Assigner(classy.TreeSAPP):
         self.nuc_orfs_file = ""
         self.classified_aa_seqs = ""
         self.classified_nuc_seqs = ""
+        self.classification_table = ""
+        self.itol_out = ""
         self.composition = ""
         self.target_refpkgs = list()
 
@@ -71,6 +74,8 @@ class Assigner(classy.TreeSAPP):
         :param args: object with parameters returned by argparse.parse_args()
         :return: 'args', a summary of TreeSAPP settings.
         """
+        self.classification_table = self.final_output_dir + os.sep + "marker_contig_map.tsv"
+        self.itol_out = self.output_dir + 'iTOL_output' + os.sep
         self.classified_aa_seqs = self.final_output_dir + self.sample_prefix + "_classified.faa"
         self.classified_nuc_seqs = self.final_output_dir + self.sample_prefix + "_classified.fna"
 
@@ -87,6 +92,8 @@ class Assigner(classy.TreeSAPP):
             if args.rpkm:
                 logging.error("Unable to calculate RPKM values for protein sequences.\n")
                 sys.exit(3)
+
+        self.formatted_input = self.stage_lookup("clean").dir_path + self.sample_prefix + "_formatted.fasta"
 
         if args.svm:
             self.svc_filter = True
@@ -261,6 +268,23 @@ class Assigner(classy.TreeSAPP):
                 logging.warning("Unable to read '" + self.nuc_orfs_file + "'.\n" +
                                 "Cannot create the nucleotide FASTA file of classified sequences!\n")
         return
+
+    def fetch_hmmsearch_outputs(self) -> list:
+        if self.current_stage.name != "search":
+            logging.error("Unable to fetch hmmsearch outputs as the current stage ({}) is incorrect.\n"
+                          "".format(self.current_stage.name))
+            sys.exit(3)
+
+        # Collect all files from output directory
+        hmm_domtbls = glob.glob(self.stage_output_dir + "*_search_to_ORFs_domtbl.txt")
+
+        # Ensure all of the domain tables are present compared to the reference packages
+        searched = set([os.path.basename(f_path).split('_')[0] for f_path in hmm_domtbls])
+        targets = set(self.target_refpkgs)
+        if searched.difference(targets):
+            return []
+        else:
+            return hmm_domtbls
 
 
 def replace_contig_names(numeric_contig_index: dict, fasta_obj: fasta.FASTA):
@@ -529,8 +553,8 @@ def get_alignment_dims(refpkg_dict: dict):
     return alignment_dimensions_dict
 
 
-def multiple_alignments(executables: dict, single_query_sequence_files: list,
-                        refpkg_dict: dict, tool="hmmalign", num_proc=4) -> dict:
+def multiple_alignments(executables: dict, single_query_sequence_files: list, refpkg_dict: dict,
+                        tool="hmmalign", output_dir="", num_proc=4) -> dict:
     """
     Wrapper function for the multiple alignment functions - only purpose is to make an easy decision at this point...
 
@@ -538,12 +562,13 @@ def multiple_alignments(executables: dict, single_query_sequence_files: list,
     :param single_query_sequence_files: List of unaligned query sequences in FASTA format
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their respective prefix
     :param tool: Tool to use for aligning query sequences to a reference multiple alignment [hmmalign|papara]
+    :param output_dir: Path to write the new MSA files
     :param num_proc: The number of alignment jobs to run in parallel
     :return: Dictionary of multiple sequence alignment (FASTA) files indexed by denominator
     """
     if tool == "hmmalign":
         concatenated_msa_files = prepare_and_run_hmmalign(executables, single_query_sequence_files, refpkg_dict,
-                                                          num_proc)
+                                                          output_dir, num_proc)
     else:
         logging.error("Unrecognized tool '" + str(tool) + "' for multiple sequence alignment.\n")
         sys.exit(3)
@@ -578,13 +603,15 @@ def create_ref_phy_files(refpkgs: dict, output_dir: str, query_fasta_files: list
     return
 
 
-def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg_dict: dict, n_proc=2) -> dict:
+def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg_dict: dict,
+                             output_dir="", n_proc=2) -> dict:
     """
     Runs `hmmalign` to add the query sequences into the reference FASTA multiple alignments
 
     :param execs: Dictionary of executable file paths indexed by the software names
     :param single_query_fasta_files: List of unaligned query sequences in FASTA format
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their respective prefix attributes
+    :param output_dir: Where to write the multiple alignment files containing reference and query sequences
     :param n_proc: The number of alignment jobs to run in parallel
     :return: Dictionary of multiple sequence alignment (FASTA) files generated by hmmalign indexed by denominator
     """
@@ -605,7 +632,8 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
             logging.error("Unable to parse information from file name:" + "\n" + str(query_fa_in) + "\n")
             sys.exit(3)
 
-        query_mfa_out = re.sub('.' + re.escape(extension) + r"$", ".sto", query_fa_in)
+        query_mfa_out = os.path.join(output_dir,
+                                     re.sub('.' + re.escape(extension) + r"$", ".sto", os.path.basename(query_fa_in)))
 
         refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
         if refpkg.prefix not in hmmalign_singlehit_files:
@@ -646,6 +674,29 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
                   ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return hmmalign_singlehit_files
+
+
+def gather_split_msa(refpkg_names: list, align_dir: str) -> dict:
+    """
+    Collects the multiple sequence alignment files (FASTA format) in a directory and orders them into a namedtuple.
+    The resulting dictionary is used by launch_evolutionary_placement_queries().
+
+    :param refpkg_names: A list of reference package prefix attributes to look for in the align_dir
+    :param align_dir: Dictionary path containing the
+    :return: A dictionary containing paired reference and query multiple alignments:
+        d = {refpkg.prefix: MSA(ref.mfa, query.mfa)}
+    """
+    split_msa_map = {}
+    MSAs = namedtuple("MSAs", "ref query")
+    for refpkg_name in refpkg_names:
+        split_msa_map[refpkg_name] = []
+        if not glob.glob(align_dir + re.escape(refpkg_name) + "*"):
+            continue
+        for ref_msa, query_msa in dict(zip(glob.glob(align_dir + re.escape(refpkg_name) + "*_references.mfa"),
+                                           glob.glob(align_dir + re.escape(refpkg_name) + "*_queries.mfa"))).items():
+            split_msa = MSAs(ref_msa, query_msa)
+            split_msa_map[refpkg_name].append(split_msa)
+    return split_msa_map
 
 
 def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg_dict: dict, min_len=10):
@@ -772,30 +823,27 @@ def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenate
     return
 
 
-def delete_files(clean_up: bool, output_dir_var: str, section: int) -> None:
+def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
     files_to_be_deleted = []
     if clean_up:
-        if section == 1:
-            files_to_be_deleted += glob.glob(output_dir_var + '*_search_to_ORFs_domtbl.txt')
-        if section == 2:
-            files_to_be_deleted += glob.glob(output_dir_var + '*_sequence.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + '*sequence_shortened.txt')
-        if section == 3:
-            files_to_be_deleted += glob.glob(output_dir_var + '*_hmm_purified*.faa')
-            files_to_be_deleted += glob.glob(output_dir_var + '*_hmm_purified*.fna')
-        if section == 4:
-            files_to_be_deleted += glob.glob(output_dir_var + '*.mfa')
-            files_to_be_deleted += glob.glob(output_dir_var + '*.sto')
-            files_to_be_deleted += glob.glob(output_dir_var + "*.sam")
-        if section == 5:
-            files_to_be_deleted += glob.glob(output_dir_var + "*_formatted.fasta")
-            files_to_be_deleted += glob.glob(output_dir_var + '*_hmm_purified*.fasta')
-            files_to_be_deleted += glob.glob(output_dir_var + '*_EPA.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + '*EPA_info.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + '*.phy')
-            files_to_be_deleted += glob.glob(output_dir_var + '*.phy.reduced')
+        if section == 1:  # search
+            files_to_be_deleted += glob.glob(root_dir + '*_search_to_ORFs_domtbl.txt')
+        if section == 2:  # search
+            files_to_be_deleted += glob.glob(root_dir + '*_hmm_purified*.faa')
+            files_to_be_deleted += glob.glob(root_dir + '*_hmm_purified*.fna')
+        if section == 3:  # align
+            files_to_be_deleted += glob.glob(root_dir + '*.mfa')
+            files_to_be_deleted += glob.glob(root_dir + '*.sto')
+            files_to_be_deleted += glob.glob(root_dir + '*_hmm_purified*.fasta')
+            files_to_be_deleted += glob.glob(root_dir + '*.phy')
+        if section == 4:  # place
+            files_to_be_deleted += glob.glob(root_dir + '*_EPA.txt')
+            files_to_be_deleted += glob.glob(root_dir + '*EPA_info.txt')
+        if section == 5:  # intermediates
+            files_to_be_deleted += glob.glob(root_dir + "**/*_formatted.fasta", recursive=True)
+            files_to_be_deleted += glob.glob(root_dir + "**/*.sam", recursive=True)
             # Need this for annotate_extra_treesapp.py
-            # files_to_be_deleted += glob.glob(output_dir_var + '*.jplace')
+            # files_to_be_deleted += glob.glob(root_dir + '*.jplace')
 
     for useless_file in files_to_be_deleted:
         if os.path.exists(useless_file):
