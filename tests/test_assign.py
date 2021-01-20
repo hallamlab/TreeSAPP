@@ -3,7 +3,6 @@ import shutil
 import unittest
 import pytest
 
-from collections import namedtuple
 from .testing_utils import get_test_data
 
 
@@ -11,10 +10,14 @@ class AssignerTester(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp import refpkg
         from treesapp import phylo_seq
+        from treesapp import treesapp_args
         from .testing_utils import get_test_data
         self.output_dir = "./tests/assigner_test/"
-        self.mock_args = namedtuple('args', ['reads', 'reverse', 'paired', 'rpkm',
-                                             'molecule', 'overwrite', 'stage', 'output'])
+
+        # Simulate the treesapp assign arguments
+        self.mock_parser = treesapp_args.TreeSAPPArgumentParser()
+        treesapp_args.add_classify_arguments(self.mock_parser)
+
         # Reference packages
         puha_rp = refpkg.ReferencePackage()
         puha_rp.f__json = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
@@ -103,11 +106,16 @@ class AssignerTester(unittest.TestCase):
         from treesapp import assign
         ts_assigner = assign.Assigner()
         ts_assigner.output_dir = self.output_dir
-        ts_assigner.var_output_dir = self.output_dir
-        ts_assigner.final_output_dir = self.output_dir
+
         # Test normal condition for protein
-        ts_assigner.decide_stage(self.mock_args(molecule="prot", overwrite=False, stage="continue",
-                                                output=self.output_dir, reads="", reverse="", rpkm=False, paired="pe"))
+        args = self.mock_parser.parse_args(["--fastx_input", get_test_data("marker_test_suite.faa"),
+                                            "--molecule", "prot",
+                                            "--refpkg_dir", self.output_dir,
+                                            "--output", self.output_dir])
+        ts_assigner.furnish_with_arguments(args)
+        ts_assigner.check_previous_output(overwrite=False)
+        ts_assigner.check_classify_arguments(args)
+        ts_assigner.decide_stage(args)
         self.assertTrue(ts_assigner.stage_status("clean"))
         self.assertFalse(ts_assigner.stage_status("orf-call"))
         self.assertFalse(ts_assigner.stage_status("abundance"))
@@ -115,23 +123,35 @@ class AssignerTester(unittest.TestCase):
         # Test a nucleotide input but with no rpkm
         ts_assigner.change_stage_status("orf-call", True)
         ts_assigner.change_stage_status("abundance", True)
-        ts_assigner.decide_stage(self.mock_args(molecule="dna", overwrite=False, stage="continue",
-                                                output=self.output_dir, reads="", reverse="", rpkm=False, paired="pe"))
+        args = self.mock_parser.parse_args(["--fastx_input", get_test_data("marker_test_suite.faa"),
+                                            "--molecule", "dna",
+                                            "--refpkg_dir", self.output_dir,
+                                            "--output", self.output_dir])
+        ts_assigner.furnish_with_arguments(args)
+        ts_assigner.decide_stage(args)
         self.assertTrue(ts_assigner.stage_status("orf-call"))
         self.assertFalse(ts_assigner.stage_status("abundance"))
 
         # Test an RPKM run with bad fastq files
         with pytest.raises(SystemExit):
-            ts_assigner.decide_stage(
-                self.mock_args(molecule="dna", overwrite=False, stage="continue", output=self.output_dir,
-                               reads="test_TarA.1.fq", reverse="", rpkm=True, paired="pe"))
+            args = self.mock_parser.parse_args(["--fastx_input", get_test_data("marker_test_suite.faa"),
+                                                "--molecule", "dna",
+                                                "--refpkg_dir", self.output_dir,
+                                                "--output", self.output_dir,
+                                                "--reads", "test_TarA.1.fq", "--rpkm"])
+            ts_assigner.furnish_with_arguments(args)
+            ts_assigner.decide_stage(args)
 
         # Test a successful RPKM run
-        ts_assigner.decide_stage(self.mock_args(molecule="dna", overwrite=False,
-                                                stage="continue", output=self.output_dir,
-                                                reads=get_test_data("test_TarA.1.fq"),
-                                                reverse=get_test_data("test_TarA.2.fq"),
-                                                rpkm=True, paired="pe"))
+        args = self.mock_parser.parse_args(["--fastx_input", get_test_data("marker_test_suite.faa"),
+                                            "--molecule", "dna",
+                                            "--refpkg_dir", self.output_dir,
+                                            "--output", self.output_dir,
+                                            "--reads", get_test_data("test_TarA.1.fq"),
+                                            "--reverse", get_test_data("test_TarA.2.fq"),
+                                            "--rpkm", "--pairing", "pe"])
+        ts_assigner.furnish_with_arguments(args)
+        ts_assigner.decide_stage(args)
         self.assertTrue(ts_assigner.stage_status("abundance"))
         return
 
@@ -140,32 +160,38 @@ class AssignerTester(unittest.TestCase):
         ts_assigner = assign.Assigner()
         ts_assigner.output_dir = get_test_data("marker_test_results")
         ts_assigner.var_output_dir = os.path.join(ts_assigner.output_dir, "intermediates")
+        for stage_order, stage in ts_assigner.stages.items():
+            stage.dir_path = ts_assigner.var_output_dir + os.sep + stage.name + os.sep
 
         # Fail due to wrong stage
         ts_assigner.current_stage = ts_assigner.stages[0]
         with pytest.raises(SystemExit):
-            ts_assigner.fetch_hmmsearch_outputs()
+            ts_assigner.fetch_hmmsearch_outputs({"McrA"})
 
         ts_assigner.current_stage = ts_assigner.stage_lookup("search")
+        ts_assigner.stage_output_dir = ts_assigner.current_stage.dir_path
         # Reference package targets don't match
-        ts_assigner.target_refpkgs = ["DsrAB"]
-        self.assertEqual([], ts_assigner.fetch_hmmsearch_outputs())
+        self.assertEqual([], ts_assigner.fetch_hmmsearch_outputs({"DsrAB"}))
 
         # Intended functionality test
-        ts_assigner.target_refpkgs = ["McrA", "McrB", "DsrAB"]
-        hmm_domtbls = ts_assigner.fetch_hmmsearch_outputs()
-        self.assertEqual(3, len(hmm_domtbls))
+        hmm_domtbls = ts_assigner.fetch_hmmsearch_outputs({"McrA", "McrB"})
+        self.assertEqual(2, len(hmm_domtbls))
 
         return
 
     def test_gather_split_msa(self):
         from treesapp import assign
         test_refpkg_names = ["McrA", "McrB", "DsrAB"]
-        split_msa_files = assign.gather_split_msa(align_dir=get_test_data(os.path.join("")),
+        aln_path = os.path.join("marker_test_results", "intermediates", "align") + os.sep
+
+        split_msa_files = assign.gather_split_msa(align_dir=get_test_data(aln_path),
                                                   refpkg_names=test_refpkg_names)
+
         self.assertEqual(["McrA", "McrB"], list(split_msa_files.keys()))
-        self.assertEqual(get_test_data("McrA_hmm_purified_group0-BMGE_references.mfa"), split_msa_files["McrA"][0].ref)
-        self.assertEqual(get_test_data("McrA_hmm_purified_group0-BMGE_queries.mfa"), split_msa_files["McrA"][0].query)
+        self.assertEqual("McrA_hmm_purified_group0-BMGE_references.mfa",
+                         os.path.basename(split_msa_files["McrA"][0].ref))
+        self.assertEqual("McrA_hmm_purified_group0-BMGE_queries.mfa",
+                         os.path.basename(split_msa_files["McrA"][0].query))
         return
 
 

@@ -98,23 +98,21 @@ class Assigner(classy.TreeSAPP):
         if args.svm:
             self.svc_filter = True
 
-        # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
+        return args
+
+    @staticmethod
+    def define_hmm_domtbl_thresholds(args):
+        thresholds_nt = namedtuple("thresholds", ["perc_aligned", "min_acc", "max_e", "max_ie", "min_score"])
+
         # Parameterizing the hmmsearch output parsing:
-        args.perc_aligned = 10
-        args.min_acc = 0.7
         if args.stringency == "relaxed":
-            args.max_e = 1E-3
-            args.max_ie = 1E-1
-            args.min_score = 15
+            domtbl_thresholds = thresholds_nt(perc_aligned=10, min_acc=0.7, max_e=1E-3, max_ie=1E-1, min_score=15)
         elif args.stringency == "strict":
-            args.max_e = 1E-5
-            args.max_ie = 1E-3
-            args.min_score = 30
+            domtbl_thresholds = thresholds_nt(perc_aligned=10, min_acc=0.7, max_e=1E-5, max_ie=1E-3, min_score=30)
         else:
             logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
             sys.exit(3)
-
-        return args
+        return domtbl_thresholds
 
     def decide_stage(self, args) -> None:
         """
@@ -269,7 +267,7 @@ class Assigner(classy.TreeSAPP):
                                 "Cannot create the nucleotide FASTA file of classified sequences!\n")
         return
 
-    def fetch_hmmsearch_outputs(self) -> list:
+    def fetch_hmmsearch_outputs(self, target_refpkg_prefixes: set) -> list:
         if self.current_stage.name != "search":
             logging.error("Unable to fetch hmmsearch outputs as the current stage ({}) is incorrect.\n"
                           "".format(self.current_stage.name))
@@ -280,8 +278,7 @@ class Assigner(classy.TreeSAPP):
 
         # Ensure all of the domain tables are present compared to the reference packages
         searched = set([os.path.basename(f_path).split('_')[0] for f_path in hmm_domtbls])
-        targets = set(self.target_refpkgs)
-        if searched.difference(targets):
+        if not searched or target_refpkg_prefixes.difference(searched):
             return []
         else:
             return hmm_domtbls
@@ -689,9 +686,9 @@ def gather_split_msa(refpkg_names: list, align_dir: str) -> dict:
     split_msa_map = {}
     MSAs = namedtuple("MSAs", "ref query")
     for refpkg_name in refpkg_names:
-        split_msa_map[refpkg_name] = []
-        if not glob.glob(align_dir + re.escape(refpkg_name) + "*"):
+        if not glob.glob(align_dir + refpkg_name + "*"):
             continue
+        split_msa_map[refpkg_name] = []
         for ref_msa, query_msa in dict(zip(glob.glob(align_dir + re.escape(refpkg_name) + "*_references.mfa"),
                                            glob.glob(align_dir + re.escape(refpkg_name) + "*_queries.mfa"))).items():
             split_msa = MSAs(ref_msa, query_msa)

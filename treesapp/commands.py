@@ -1123,6 +1123,7 @@ def assign(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     ts_assign.check_classify_arguments(args)
+    hmm_parsing_thresholds = ts_assign.define_hmm_domtbl_thresholds(args)
     ts_assign.decide_stage(args)
     n_proc = args.num_threads
 
@@ -1155,12 +1156,12 @@ def assign(sys_args):
     if ts_assign.stage_status("search"):
         hmm_domtbl_files = wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"],
                                                   refpkg_dict, ts_assign.formatted_input,
-                                                  ts_assign.stage_output_dir, n_proc, args.max_e)
+                                                  ts_assign.stage_output_dir, n_proc, hmm_parsing_thresholds.max_e)
     else:
-        hmm_domtbl_files = ts_assign.fetch_hmmsearch_outputs()
+        hmm_domtbl_files = ts_assign.fetch_hmmsearch_outputs(set(refpkg_dict.keys()))
 
     # Load alignment information
-    hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
+    hmm_matches = file_parsers.parse_domain_tables(hmm_parsing_thresholds, hmm_domtbl_files)
     ts_assign_mod.load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
     pqueries = ts_assign_mod.load_pqueries(hmm_matches, query_seqs)
     query_seqs.change_dict_keys("num")
