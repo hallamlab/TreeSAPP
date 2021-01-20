@@ -1289,6 +1289,7 @@ def abundance(sys_args):
 
     ts_abund = classy.Abundance()
     ts_abund.furnish_with_arguments(args)
+    ts_abund.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_abundance_log.txt"
     classy.prep_logging(log_file_name, args.verbose)
@@ -1296,24 +1297,27 @@ def abundance(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     ts_abund.check_arguments(args)
-    # TODO: Implement check-pointing for abundance
-    # ts_abund.decide_stage(args)
+    ts_abund.decide_stage(args)
 
-    sam_file = ts_assign_mod.align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.classified_nuc_seqs,
-                                                 ts_abund.var_output_dir, args.reads, args.pairing, args.reverse,
-                                                 args.num_threads)
-    ts_abund.sample_prefix = ts_abund.fq_suffix_re.sub('', '.'.join(os.path.basename(args.reads).split('.')[:-1]))
+    if ts_abund.stage_status("align_map"):
+        ts_assign_mod.align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.classified_nuc_seqs,
+                                          ts_abund.stage_output_dir, args.reads, args.pairing, args.reverse,
+                                          args.num_threads)
+        ts_abund.increment_stage_dir()
 
-    if os.path.isfile(sam_file):
-        ref_seq_abunds = samsum_cmd.ref_sequence_abundances(aln_file=sam_file, seq_file=ts_abund.classified_nuc_seqs,
-                                                            min_aln=10, p_cov=50, map_qual=1, multireads=False)
-        abundance_dict = {ref_seq.name: ref_seq.fpkm for ref_seq in ref_seq_abunds.values()}
-        ref_seq_abunds.clear()
-    else:
-        logging.warning("SAM file '%s' was not generated.\n" % sam_file)
-        return {}
+    if ts_abund.stage_status("sam_sum"):
+        if os.path.isfile(ts_abund.aln_file):
+            ref_seq_abunds = samsum_cmd.ref_sequence_abundances(aln_file=ts_abund.aln_file,
+                                                                seq_file=ts_abund.classified_nuc_seqs,
+                                                                min_aln=10, p_cov=50, map_qual=1, multireads=False)
+            abundance_dict = {ref_seq.name: ref_seq.fpkm for ref_seq in ref_seq_abunds.values()}
+            ref_seq_abunds.clear()
+        else:
+            logging.warning("SAM file '%s' was not generated.\n" % ts_abund.aln_file)
+            return {}
+        ts_abund.increment_stage_dir()
 
-    ts_assign_mod.delete_files(args.delete, ts_abund.var_output_dir, 4)
+    ts_abund.delete_intermediates(args.delete)
 
     # TODO: Index each PQuery's abundance by the dataset name, write a new row for each dataset's abundance
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):

@@ -329,6 +329,10 @@ def add_abundance_arguments(parser: TreeSAPPArgumentParser):
                                help="What should be done with the abundance values? The TreeSAPP classification table "
                                     "can be overwritten (update) or left unchanged. "
                                     "[ DEFAULT = update ]")
+    parser.optopt.add_argument("--stage", default="continue", required=False,
+                               choices=["continue", "align_map", "sam_sum", "summarise"],
+                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    return
 
 
 def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
