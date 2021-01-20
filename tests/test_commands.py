@@ -132,6 +132,7 @@ class TreesappTester(unittest.TestCase):
                                 "--min_taxonomic_rank", 'p',
                                 "--output", "./TreeSAPP_create",
                                 "--num_procs", str(self.num_procs),
+                                "--max_examples", str(100),
                                 "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()

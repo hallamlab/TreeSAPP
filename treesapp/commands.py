@@ -507,8 +507,7 @@ def create(sys_args):
                                       similarity=ts_create.ref_pkg.pid, num_threads=args.num_threads)
             ts_create.clusters_table = ts_create.clusters_prefix + "_cluster.tsv"
             cluster_alignments = ts_create.clusters_prefix + "_cluster_aln.tsv"
-        # Read the uc file if present
-        if ts_create.clusters_table and cluster_alignments:
+
             cluster_dict = file_parsers.create_mmseqs_clusters(ts_create.clusters_table, cluster_alignments)
 
             # Revert headers in cluster_dict from 'formatted' back to 'original'
@@ -656,6 +655,8 @@ def create(sys_args):
         ts_create.determine_model(ts_create.ref_pkg)
         best_tree = ts_create.ref_pkg.infer_phylogeny(ts_create.phylip_file, ts_create.executables, ts_create.phy_dir,
                                                       args.num_threads)
+    else:
+        best_tree = "{}{}.{}.nwk".format(ts_create.phy_dir, ts_create.ref_pkg.prefix, ts_create.ref_pkg.tree_tool)
 
     if ts_create.stage_status("evaluate"):
         # Evaluate the model parameters with RAxML-NG. Output is required by EPA-NG
@@ -680,7 +681,9 @@ def create(sys_args):
                    "-o", ts_create.training_dir,
                    "-m", ts_create.ref_pkg.molecule,
                    "-a", ts_create.acc_to_lin,
-                   "-n", str(args.num_threads)]
+                   "--num_procs", str(args.num_threads),
+                   "--max_examples", str(args.max_examples),
+                   "--svm_kernel", args.kernel]
     if args.trim_align:
         trainer_cmd.append("--trim_align")
 
@@ -1316,6 +1319,9 @@ def abundance(sys_args):
             logging.warning("SAM file '%s' was not generated.\n" % ts_abund.aln_file)
             return {}
         ts_abund.increment_stage_dir()
+    else:
+        abundance_dict = {}
+        logging.warning("Skipping samsum normalized relative abundance calculation in treesapp abundance.\n")
 
     ts_abund.delete_intermediates(args.delete)
 

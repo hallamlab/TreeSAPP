@@ -731,7 +731,7 @@ class ReferencePackage:
 
     def recover_raxmlng_tree_outputs(self, phylogeny_dir: str) -> None:
         # Find the best tree file
-        raw_newick_tree = match_file(phylogeny_dir + "*.bestTree")
+        raw_newick_tree = match_file("{}{}.{}.nwk".format(phylogeny_dir, self.prefix, self.tree_tool))
 
         # Import the tree files into the reference package
         copy(raw_newick_tree, self.f__tree)
