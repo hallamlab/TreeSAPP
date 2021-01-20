@@ -32,6 +32,7 @@ class ModuleFunction:
         """
         self.order = order
         self.name = name
+        self.dir_path = ""
         self.function = func
         self.run = True
 
@@ -374,7 +375,6 @@ class TreeSAPP:
                 if suffix1 == ".gz":
                     file_name, suffix2 = os.path.splitext(file_name)
                 self.sample_prefix = file_name
-                self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
 
         if self.command != "colour" and "pkg_path" in vars(args):
             if len(args.pkg_path) > 1:
@@ -421,6 +421,9 @@ class TreeSAPP:
         for output_dir in main_output_dirs:
             if not os.path.isdir(output_dir):
                 os.mkdir(output_dir)
+
+        for stage_order, stage in self.stages.items():  # type: (int, ModuleFunction)
+            stage.dir_path = self.var_output_dir + stage.name + os.sep
         return
 
     def log_progress(self):
@@ -469,23 +472,6 @@ class TreeSAPP:
         logging.error("No stages are set to run!\n")
         sys.exit(3)
 
-    # def read_progress_log(self):
-    #     """
-    #     Read the object's 'stage_file' and determine the completed stage
-    #
-    #     :return: An integer corresponding to the last completed stage's rank in 'stage_order'
-    #     """
-    #     completed_int = self.first_stage()
-    #     try:
-    #         progress_handler = open(self.stage_file)
-    #     except IOError:
-    #         logging.debug("Unable to open stage file '" + self.stage_file +
-    #                       "' for reading. Defaulting to stage " + str(completed_int) + ".\n")
-    #         return completed_int
-    #     # TODO: Finish this to enable continuing part-way through an analysis
-    #     progress_handler.close()
-    #     return completed_int
-
     def find_stage_dirs(self) -> int:
         """
         Selects the earliest checkpoint that the workflow can be started from.
@@ -500,7 +486,7 @@ class TreeSAPP:
         return 0
 
     def set_stage_dir(self) -> None:
-        self.stage_output_dir = os.path.join(self.var_output_dir, self.current_stage.name) + os.sep
+        self.stage_output_dir = self.current_stage.dir_path
         if not os.path.isdir(self.stage_output_dir):
             os.mkdir(self.stage_output_dir)
         return
@@ -554,8 +540,9 @@ class TreeSAPP:
         """
         # TODO: Summarise the steps to be taken and write to log
         for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
-            if os.path.isdir(os.path.join(self.var_output_dir, module.name)):
-                module.run = False
+            if os.path.isdir(module.dir_path):
+                if len(os.listdir(module.dir_path)) > 0:
+                    module.run = False
 
         if args.overwrite:
             last_valid_stage = self.first_stage()
@@ -894,14 +881,35 @@ class Creator(TreeSAPP):
 
 class Purity(TreeSAPP):
     def __init__(self):
+        """Class instance for validating a reference package's purity with a reference sequence database"""
         super(Purity, self).__init__("purity")
-        self.assign_dir = ""
         self.classifications = ""
-        self.summarize_dir = ""
         self.metadata_file = ""
         self.assignments = None
-        self.stages = {0: ModuleFunction("assign", 0),
-                       1: ModuleFunction("summarize", 1)}
+        self.assign_jplace_file = ""
+        self.stages = {0: ModuleFunction("clean", 0),
+                       1: ModuleFunction("assign", 1),
+                       2: ModuleFunction("summarize", 2)}
+
+    def check_purity_arguments(self, args):
+        self.ref_pkg.f__json = args.pkg_path
+        self.ref_pkg.slurp()
+        self.refpkg_dir = os.path.dirname(self.ref_pkg.f__json)
+
+        self.formatted_input = self.stage_lookup("clean").dir_path + self.sample_prefix + "_formatted.fasta"
+
+        ##
+        # Define locations of files TreeSAPP outputs
+        ##
+        self.classifications = self.stage_lookup("assign").dir_path + "final_outputs" + os.sep + "marker_contig_map.tsv"
+        self.assign_jplace_file = os.path.join(self.stage_lookup("assign").dir_path, "iTOL_output",
+                                               self.ref_pkg.prefix, self.ref_pkg.prefix + "_complete_profile.jplace")
+        self.metadata_file = args.extra_info
+
+        if not os.path.isdir(self.var_output_dir):
+            os.makedirs(self.var_output_dir)
+
+        return
 
     def decide_stage(self, args):
         """
@@ -910,7 +918,6 @@ class Purity(TreeSAPP):
         This function ensures all the required inputs are present for beginning at the desired first stage,
         otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
 
-        If a
         :return: None
         """
         self.validate_continue(args)
@@ -1437,11 +1444,15 @@ class Layerer(TreeSAPP):
 class Abundance(TreeSAPP):
     def __init__(self):
         super(Abundance, self).__init__("abundance")
-        self.stages = {}
         self.target_refpkgs = list()
         self.classified_nuc_seqs = ""
         self.classifications = ""
+        self.aln_file = ""
         self.fq_suffix_re = re.compile(r"([._-])+(pe|fq|fastq|fwd|R1)$")
+        self.stages = {0: ModuleFunction("align_map", 0),
+                       1: ModuleFunction("sam_sum", 1),
+                       2: ModuleFunction("summarise", 2)}
+        return
 
     def check_arguments(self, args):
         ##
@@ -1451,13 +1462,39 @@ class Abundance(TreeSAPP):
             logging.error("Unable to find classified ORF nucleotide sequences in '{}'.\n".format(self.final_output_dir))
             sys.exit(5)
         self.classified_nuc_seqs = glob(self.final_output_dir + "*_classified.fna")[0]
-        if not os.path.isfile(self.classified_nuc_seqs):
-            logging.error("Unable to find classified sequences FASTA file in %s.\n" % self.final_output_dir)
+
         self.classifications = self.output_dir + "final_outputs" + os.sep + "marker_contig_map.tsv"
 
         if not os.path.isdir(self.var_output_dir):
             os.makedirs(self.var_output_dir)
 
+        self.sample_prefix = self.fq_suffix_re.sub('', '.'.join(os.path.basename(args.reads).split('.')[:-1]))
+        self.aln_file = self.stage_lookup("align_map").dir_path + \
+                        '.'.join(os.path.basename(self.classified_nuc_seqs).split('.')[0:-1]) + ".sam"
+        return
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        :return: None
+        """
+        self.validate_continue(args)
+        return
+
+    def delete_intermediates(self, clean_up: bool) -> None:
+        if not clean_up:
+            return
+
+        files_to_be_deleted = [self.aln_file]
+        files_to_be_deleted += glob(self.stage_lookup("align_map").dir_path + "*.stderr")
+
+        for file_path in files_to_be_deleted:
+            if os.path.exists(file_path):
+                os.remove(file_path)
         return
 
 

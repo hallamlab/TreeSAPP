@@ -22,7 +22,7 @@ CLASSIFIERS = [
 SETUP_METADATA = \
     {
         "name": "treesapp",
-        "version": "0.9.8",
+        "version": "0.9.9",
         "description": "TreeSAPP is a functional and taxonomic annotation tool for genomes and metagenomes.",
         "long_description": LONG_DESCRIPTION,
         "long_description_content_type": "text/markdown",
@@ -36,12 +36,7 @@ SETUP_METADATA = \
         "classifiers": CLASSIFIERS,
         "ext_modules": [Extension("_tree_parser",
                                   sources=["treesapp/extensions/tree_parsermodule.cpp"],
-                                  language="c++"),
-                        Extension("_fasta_reader",
-                                  sources=["treesapp/extensions/fasta_reader.cpp"],
-                                  depends=["treesapp/include/fasta_reader.hpp"],
-                                  language="c++",
-                                  include_dirs=["./treesapp/include"])
+                                  language="c++")
                         ],
         "install_requires": ["samsum", "pyfastx",
                              "pygtrie", "six",

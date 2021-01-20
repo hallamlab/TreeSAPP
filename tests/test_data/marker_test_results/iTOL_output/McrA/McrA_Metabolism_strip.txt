@@ -1,0 +1,37 @@
+DATASET_COLORSTRIP
+SEPARATOR TAB
+DATASET_LABEL	Metabolism
+STRIP_WIDTH	75
+MARGIN	0
+SHOW_INTERNAL	1
+DATA
+# 143_McrA|146_McrA #774508 Methanomicrobia
+# 168_McrA|163_McrA #774508 Methanomicrobia
+# 171_McrA|173_McrA #774508 Methanomicrobia
+2	#d9f0d3	CH3-dependent hydrogenotrophic
+8	#d9f0d3	CH3-dependent hydrogenotrophic
+148|149	#d9f0d3	CH3-dependent hydrogenotrophic
+181|147	#762a83	Short-chain alkane oxidation
+145|164	#9970ab	Methanotrophic
+174|206	#9970ab	Methanotrophic
+5|117	#9970ab	Methanotrophic
+73|79	#5aae61	CO2-dependent hydrogenotrophic
+153	#5aae61	CO2-dependent hydrogenotrophic
+172|184	#5aae61	CO2-dependent hydrogenotrophic
+55|49	#5aae61	CO2-dependent hydrogenotrophic
+173	#5aae61	CO2-dependent hydrogenotrophic
+65|67	#5aae61	CO2-dependent hydrogenotrophic
+40|31	#5aae61	CO2-dependent hydrogenotrophic
+33|42	#5aae61	CO2-dependent hydrogenotrophic
+27	#5aae61	CO2-dependent hydrogenotrophic
+69|34	#5aae61	CO2-dependent hydrogenotrophic
+225|150	#5aae61	CO2-dependent hydrogenotrophic
+62|64	#d9f0d3	CH3-dependent hydrogenotrophic
+151|182	#d9f0d3	CH3-dependent hydrogenotrophic
+23|20	#d9f0d3	CH3-dependent hydrogenotrophic
+158|14	#d9f0d3	CH3-dependent hydrogenotrophic
+155|9	#d9f0d3	CH3-dependent hydrogenotrophic
+121|220	#1b7837	Aceticlastic
+141|134	#1b7837	Aceticlastic
+162	#e7d4e8	Methylotrophic
+131|129	#e7d4e8	Methylotrophic

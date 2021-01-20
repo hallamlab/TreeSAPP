@@ -15,6 +15,7 @@ try:
     import subprocess
     import logging
     from time import gmtime, strftime
+    from collections import namedtuple
 
     import pyfastx
     from numpy import array as np_array
@@ -43,9 +44,7 @@ except ImportWarning:
 
 class Assigner(classy.TreeSAPP):
     def __init__(self):
-        """
-
-        """
+        """Instantiate a class instance used by `treesapp assign`."""
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
         self.svc_filter = False
@@ -53,10 +52,11 @@ class Assigner(classy.TreeSAPP):
         self.nuc_orfs_file = ""
         self.classified_aa_seqs = ""
         self.classified_nuc_seqs = ""
+        self.classification_table = ""
+        self.itol_out = ""
         self.composition = ""
         self.target_refpkgs = list()
 
-        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: classy.ModuleFunction("orf-call", 0, self.predict_orfs),
                        1: classy.ModuleFunction("clean", 1, self.clean),
                        2: classy.ModuleFunction("search", 2, self.search),
@@ -64,6 +64,8 @@ class Assigner(classy.TreeSAPP):
                        4: classy.ModuleFunction("place", 4, self.place),
                        5: classy.ModuleFunction("classify", 5, self.classify),
                        6: classy.ModuleFunction("abundance", 6)}
+        self.current_stage = self.stages[0]
+        return
 
     def check_classify_arguments(self, args):
         """
@@ -72,8 +74,8 @@ class Assigner(classy.TreeSAPP):
         :param args: object with parameters returned by argparse.parse_args()
         :return: 'args', a summary of TreeSAPP settings.
         """
-        self.aa_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.faa"
-        self.nuc_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.fna"
+        self.classification_table = self.final_output_dir + os.sep + "marker_contig_map.tsv"
+        self.itol_out = self.output_dir + 'iTOL_output' + os.sep
         self.classified_aa_seqs = self.final_output_dir + self.sample_prefix + "_classified.faa"
         self.classified_nuc_seqs = self.final_output_dir + self.sample_prefix + "_classified.fna"
 
@@ -84,33 +86,33 @@ class Assigner(classy.TreeSAPP):
 
         self.validate_refpkg_dir(args.refpkg_dir)
 
-        if args.molecule == "prot":
+        if self.molecule_type == "prot":
             self.query_sequences = self.input_sequences
             self.change_stage_status("orf-call", False)
             if args.rpkm:
                 logging.error("Unable to calculate RPKM values for protein sequences.\n")
                 sys.exit(3)
 
+        self.formatted_input = self.stage_lookup("clean").dir_path + self.sample_prefix + "_formatted.fasta"
+
         if args.svm:
             self.svc_filter = True
 
-        # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
+        return args
+
+    @staticmethod
+    def define_hmm_domtbl_thresholds(args):
+        thresholds_nt = namedtuple("thresholds", ["perc_aligned", "min_acc", "max_e", "max_ie", "min_score"])
+
         # Parameterizing the hmmsearch output parsing:
-        args.perc_aligned = 10
-        args.min_acc = 0.7
         if args.stringency == "relaxed":
-            args.max_e = 1E-3
-            args.max_ie = 1E-1
-            args.min_score = 15
+            domtbl_thresholds = thresholds_nt(perc_aligned=10, min_acc=0.7, max_e=1E-3, max_ie=1E-1, min_score=15)
         elif args.stringency == "strict":
-            args.max_e = 1E-5
-            args.max_ie = 1E-3
-            args.min_score = 30
+            domtbl_thresholds = thresholds_nt(perc_aligned=10, min_acc=0.7, max_e=1E-5, max_ie=1E-3, min_score=30)
         else:
             logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
             sys.exit(3)
-
-        return args
+        return domtbl_thresholds
 
     def decide_stage(self, args) -> None:
         """
@@ -121,14 +123,15 @@ class Assigner(classy.TreeSAPP):
 
         :return: None
         """
-        if args.molecule == "dna":
+        self.set_stage_dir()
+        if self.stage_status("orf-call"):
+            self.aa_orfs_file = self.stage_output_dir + self.sample_prefix + "_ORFs.faa"
+            self.nuc_orfs_file = self.stage_output_dir + self.sample_prefix + "_ORFs.fna"
             if os.path.isfile(self.aa_orfs_file) and os.path.isfile(self.nuc_orfs_file):
                 self.change_stage_status("orf-call", False)
                 self.query_sequences = self.aa_orfs_file
-        else:
-            self.change_stage_status("orf-call", False)
 
-        if args.rpkm and args.molecule == "dna":
+        if args.rpkm and self.molecule_type == "dna":
             if not args.reads:
                 if args.reverse:
                     logging.error("File containing reverse reads provided but forward mates file missing!\n")
@@ -180,7 +183,7 @@ class Assigner(classy.TreeSAPP):
 
         task_list = list()
         for fasta_chunk in split_files:
-            chunk_prefix = self.var_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
+            chunk_prefix = self.stage_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
             prodigal_command = [self.executables["prodigal"], "-q"]
             prodigal_command += ["-i", fasta_chunk]
             prodigal_command += ["-p", composition]
@@ -196,8 +199,8 @@ class Assigner(classy.TreeSAPP):
             cl_farmer.task_queue.close()
             cl_farmer.task_queue.join()
 
-        tmp_prodigal_aa_orfs = glob.glob(self.var_output_dir + self.sample_prefix + "*_ORFs.faa")
-        tmp_prodigal_nuc_orfs = glob.glob(self.var_output_dir + self.sample_prefix + "*_ORFs.fna")
+        tmp_prodigal_aa_orfs = glob.glob(self.stage_output_dir + self.sample_prefix + "*_ORFs.faa")
+        tmp_prodigal_nuc_orfs = glob.glob(self.stage_output_dir + self.sample_prefix + "*_ORFs.fna")
         if not tmp_prodigal_aa_orfs or not tmp_prodigal_nuc_orfs:
             logging.error("Prodigal outputs were not generated:\n"
                           "Amino acid ORFs: " + ", ".join(tmp_prodigal_aa_orfs) + "\n" +
@@ -222,6 +225,7 @@ class Assigner(classy.TreeSAPP):
                       ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
         self.query_sequences = self.aa_orfs_file
+        self.increment_stage_dir()
         return
 
     def clean(self):
@@ -262,6 +266,22 @@ class Assigner(classy.TreeSAPP):
                 logging.warning("Unable to read '" + self.nuc_orfs_file + "'.\n" +
                                 "Cannot create the nucleotide FASTA file of classified sequences!\n")
         return
+
+    def fetch_hmmsearch_outputs(self, target_refpkg_prefixes: set) -> list:
+        if self.current_stage.name != "search":
+            logging.error("Unable to fetch hmmsearch outputs as the current stage ({}) is incorrect.\n"
+                          "".format(self.current_stage.name))
+            sys.exit(3)
+
+        # Collect all files from output directory
+        hmm_domtbls = glob.glob(self.stage_output_dir + "*_search_to_ORFs_domtbl.txt")
+
+        # Ensure all of the domain tables are present compared to the reference packages
+        searched = set([os.path.basename(f_path).split('_')[0] for f_path in hmm_domtbls])
+        if not searched or target_refpkg_prefixes.difference(searched):
+            return []
+        else:
+            return hmm_domtbls
 
 
 def replace_contig_names(numeric_contig_index: dict, fasta_obj: fasta.FASTA):
@@ -530,8 +550,8 @@ def get_alignment_dims(refpkg_dict: dict):
     return alignment_dimensions_dict
 
 
-def multiple_alignments(executables: dict, single_query_sequence_files: list,
-                        refpkg_dict: dict, tool="hmmalign", num_proc=4) -> dict:
+def multiple_alignments(executables: dict, single_query_sequence_files: list, refpkg_dict: dict,
+                        tool="hmmalign", output_dir="", num_proc=4) -> dict:
     """
     Wrapper function for the multiple alignment functions - only purpose is to make an easy decision at this point...
 
@@ -539,12 +559,13 @@ def multiple_alignments(executables: dict, single_query_sequence_files: list,
     :param single_query_sequence_files: List of unaligned query sequences in FASTA format
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their respective prefix
     :param tool: Tool to use for aligning query sequences to a reference multiple alignment [hmmalign|papara]
+    :param output_dir: Path to write the new MSA files
     :param num_proc: The number of alignment jobs to run in parallel
     :return: Dictionary of multiple sequence alignment (FASTA) files indexed by denominator
     """
     if tool == "hmmalign":
         concatenated_msa_files = prepare_and_run_hmmalign(executables, single_query_sequence_files, refpkg_dict,
-                                                          num_proc)
+                                                          output_dir, num_proc)
     else:
         logging.error("Unrecognized tool '" + str(tool) + "' for multiple sequence alignment.\n")
         sys.exit(3)
@@ -579,13 +600,15 @@ def create_ref_phy_files(refpkgs: dict, output_dir: str, query_fasta_files: list
     return
 
 
-def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg_dict: dict, n_proc=2) -> dict:
+def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg_dict: dict,
+                             output_dir="", n_proc=2) -> dict:
     """
     Runs `hmmalign` to add the query sequences into the reference FASTA multiple alignments
 
     :param execs: Dictionary of executable file paths indexed by the software names
     :param single_query_fasta_files: List of unaligned query sequences in FASTA format
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their respective prefix attributes
+    :param output_dir: Where to write the multiple alignment files containing reference and query sequences
     :param n_proc: The number of alignment jobs to run in parallel
     :return: Dictionary of multiple sequence alignment (FASTA) files generated by hmmalign indexed by denominator
     """
@@ -606,7 +629,8 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
             logging.error("Unable to parse information from file name:" + "\n" + str(query_fa_in) + "\n")
             sys.exit(3)
 
-        query_mfa_out = re.sub('.' + re.escape(extension) + r"$", ".sto", query_fa_in)
+        query_mfa_out = os.path.join(output_dir,
+                                     re.sub('.' + re.escape(extension) + r"$", ".sto", os.path.basename(query_fa_in)))
 
         refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
         if refpkg.prefix not in hmmalign_singlehit_files:
@@ -647,6 +671,29 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
                   ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return hmmalign_singlehit_files
+
+
+def gather_split_msa(refpkg_names: list, align_dir: str) -> dict:
+    """
+    Collects the multiple sequence alignment files (FASTA format) in a directory and orders them into a namedtuple.
+    The resulting dictionary is used by launch_evolutionary_placement_queries().
+
+    :param refpkg_names: A list of reference package prefix attributes to look for in the align_dir
+    :param align_dir: Dictionary path containing the
+    :return: A dictionary containing paired reference and query multiple alignments:
+        d = {refpkg.prefix: MSA(ref.mfa, query.mfa)}
+    """
+    split_msa_map = {}
+    MSAs = namedtuple("MSAs", "ref query")
+    for refpkg_name in refpkg_names:
+        if not glob.glob(align_dir + refpkg_name + "*"):
+            continue
+        split_msa_map[refpkg_name] = []
+        for ref_msa, query_msa in dict(zip(glob.glob(align_dir + re.escape(refpkg_name) + "*_references.mfa"),
+                                           glob.glob(align_dir + re.escape(refpkg_name) + "*_queries.mfa"))).items():
+            split_msa = MSAs(ref_msa, query_msa)
+            split_msa_map[refpkg_name].append(split_msa)
+    return split_msa_map
 
 
 def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg_dict: dict, min_len=10):
@@ -773,34 +820,32 @@ def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenate
     return
 
 
-def delete_files(clean_up, output_dir_var, section):
+def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
     files_to_be_deleted = []
     if clean_up:
-        if section == 1:
-            files_to_be_deleted += glob.glob(output_dir_var + '*_search_to_ORFs_domtbl.txt')
-        if section == 2:
-            files_to_be_deleted += glob.glob(output_dir_var + '*_sequence.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + '*sequence_shortened.txt')
-        if section == 3:
-            files_to_be_deleted += glob.glob(output_dir_var + '*_hmm_purified*.faa')
-            files_to_be_deleted += glob.glob(output_dir_var + '*_hmm_purified*.fna')
-        if section == 4:
-            files_to_be_deleted += glob.glob(output_dir_var + '*.mfa')
-            files_to_be_deleted += glob.glob(output_dir_var + '*.sto')
-            files_to_be_deleted += glob.glob(output_dir_var + "*.sam")
-        if section == 5:
-            files_to_be_deleted += glob.glob(output_dir_var + "*_formatted.fasta")
-            files_to_be_deleted += glob.glob(output_dir_var + '*_hmm_purified*.fasta')
-            files_to_be_deleted += glob.glob(output_dir_var + '*_EPA.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + '*EPA_info.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + '*.phy')
-            files_to_be_deleted += glob.glob(output_dir_var + '*.phy.reduced')
+        if section == 1:  # search
+            files_to_be_deleted += glob.glob(root_dir + '*_search_to_ORFs_domtbl.txt')
+        if section == 2:  # search
+            files_to_be_deleted += glob.glob(root_dir + '*_hmm_purified*.faa')
+            files_to_be_deleted += glob.glob(root_dir + '*_hmm_purified*.fna')
+        if section == 3:  # align
+            files_to_be_deleted += glob.glob(root_dir + '*.mfa')
+            files_to_be_deleted += glob.glob(root_dir + '*.sto')
+            files_to_be_deleted += glob.glob(root_dir + '*_hmm_purified*.fasta')
+            files_to_be_deleted += glob.glob(root_dir + '*.phy')
+        if section == 4:  # place
+            files_to_be_deleted += glob.glob(root_dir + '*_EPA.txt')
+            files_to_be_deleted += glob.glob(root_dir + '*EPA_info.txt')
+        if section == 5:  # intermediates
+            files_to_be_deleted += glob.glob(root_dir + "**/*_formatted.fasta", recursive=True)
+            files_to_be_deleted += glob.glob(root_dir + "**/*.sam", recursive=True)
             # Need this for annotate_extra_treesapp.py
-            # files_to_be_deleted += glob.glob(output_dir_var + '*.jplace')
+            # files_to_be_deleted += glob.glob(root_dir + '*.jplace')
 
     for useless_file in files_to_be_deleted:
         if os.path.exists(useless_file):
             os.remove(useless_file)
+    return
 
 
 def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,

@@ -822,10 +822,6 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_len
                       "\n".join(bad_seqs) + "\n")
 
     header_registry = register_headers(headers, True)
-    # if len(header_registry) != seq_acc:
-    #     logging.error("The number of sequences read ({}) does not equal"
-    #                   " the number of sequence names registered ({}).\n".format(seq_acc, len(header_registry)))
-    #     sys.exit(13)
 
     return header_registry
 
