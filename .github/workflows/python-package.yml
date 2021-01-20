@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.8
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
@@ -31,6 +31,7 @@ jobs:
 
   test:
     name: Run unit and integrative tests
+    needs: [lint]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -118,6 +119,7 @@ jobs:
           PYTHON_VERSION=$( echo ${{ matrix.python-version }} | sed 's/\.//g')
           tox -e coverage-py${PYTHON_VERSION}-ts
       - name: Upload coverage to Codecov
+        if: ${{ matrix.os != 'macos-latest' }}
         uses: codecov/codecov-action@v1
         with:
             files: .tox/coverage
