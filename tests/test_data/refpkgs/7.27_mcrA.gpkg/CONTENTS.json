@@ -1,0 +1,1 @@
+{"unaligned_sequence_database": "KO:K00399.filtered.protein.filtered.faa", "align_hmm": "graftmUSxN3T_align.hmm", "range": 819.0, "refpkg": "KO:K00399.gpkg.refpkg", "trusted_cutoff": false, "diamond_database": "KO:K00399.dmnd", "graftm_package_version": 3, "search_hmms": ["graftmVaGxqZ_search.hmm"]}
