@@ -68,6 +68,7 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     """
     output_prefix += "_evaluate"
     model_params_file = output_prefix + ".raxml.bestModel"
+    ml_tree = output_prefix + ".raxml.bestTree"
     model_eval_cmd = [raxml_exe, "--evaluate"]
     model_eval_cmd += ["--msa", ref_msa]
     model_eval_cmd += ["--tree", tree_file]
@@ -82,6 +83,9 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     stdout, returncode = launch_write_command(model_eval_cmd)
     logging.debug("done.\n")
 
+    # Overwrite the original tree with the RAxML-NG evaluated tree
+    os.rename(ml_tree, tree_file)
+
     if returncode != 0:
         logging.error("{} did not complete successfully! Look in {}_info.txt for an error message.\n"
                       "RAxML-NG command used:\n{}\n".format(raxml_exe, output_prefix, ' '.join(model_eval_cmd)))
@@ -93,7 +97,7 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
 def bootstrap_tree_raxml(raxml_exe: str, multiple_alignment: str, model: str, tree_prefix: str,
                          mre=True, bootstraps=1000, num_threads=2) -> str:
     if mre and bootstraps < 100:
-        logging.warning("With fewer than 100 bootstraps specified ({})"
+        logging.warning("With fewer than 100 bootstraps specified ({}) "
                         "MRE-based bootstrap convergence criterion in not going to be used.".format(bootstraps))
         mre = False
 
@@ -160,8 +164,8 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
 
     # Decide on the command to build the tree, make some directories and files when necessary
     logging.info("Building phylogenetic tree with " + tree_builder + "... ")
+    best_tree = "{}{}.{}.nwk".format(tree_output_dir, tree_prefix, tree_builder)
     if tree_builder == "FastTree":
-        best_tree = tree_output_dir + tree_prefix + ".FastTree.nwk"
         tree_build_cmd = [executables["FastTree"]]
         if re.search(r"GTR", evo_model):
             tree_build_cmd += ["-nt", "-gtr"]
@@ -174,17 +178,17 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
         with open(tree_output_dir + tree_prefix + ".FastTree.log", 'w') as fast_info:
             fast_info.write(stdout + "\n")
     elif tree_builder == "RAxML-NG":
-        best_tree = tree_output_dir + tree_prefix + ".raxml.bestTree"
         tree_build_cmd = [executables["raxml-ng"], "--search"]
         tree_build_cmd += ["--prefix", tree_output_dir + tree_prefix]
         tree_build_cmd += ["--msa", multiple_alignment_file]
         tree_build_cmd += ["--model", evo_model]
-        # tree_build_cmd += ["--msa-format", "PHYLIP"]  # File isn't read properly with this parameter, use auto-detect
         tree_build_cmd += ["--seed", str(12345)]
         tree_build_cmd += ["--threads", str(num_threads)]
         # tree_build_cmd += ["--tree", "rand{1},pars{1}"]  # For debugging, alternatively could use '--search1'
 
         stdout, returncode = launch_write_command(tree_build_cmd)
+        # Rename the file using the standardised naming scheme
+        os.rename(tree_output_dir + tree_prefix + ".raxml.bestTree", best_tree)
     else:
         logging.error("Unrecognized software '{}'.\n".format(tree_builder))
         sys.exit(5)

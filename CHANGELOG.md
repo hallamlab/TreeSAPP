@@ -1,3 +1,15 @@
+## [0.9.9] - 2021
+### Added
+- Checkpointing to all major (i.e. time-consuming) subcommands: `abundance`, `assign`, `create`, `purity`, `train`
+- `stages` argument to `treesapp abundance` to control checkpoint
+- Able to control the maximum number of examples used and SVC kernel for training through `treesapp create`
+
+### Fixed
+
+
+### Changed
+
+
 ## [0.9.8] - 2021-01-15
 ### Added
 - More unit tests for file parsers and functions for `treesapp assign`

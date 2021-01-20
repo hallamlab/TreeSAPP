@@ -1,0 +1,24 @@
+INFO Selected: Output dir: /home/connor/Desktop/marker_test_results/intermediates/place/
+INFO Selected: Query file: /home/connor/Desktop/marker_test_results/intermediates/align/McrA_hmm_purified_group0-BMGE_queries.mfa
+INFO Selected: Tree file: /home/connor/Desktop/marker_test_results/intermediates/McrA_RefPkg/McrA_M0701_2020-12-16/McrA.nwk
+INFO Selected: Reference MSA: /home/connor/Desktop/marker_test_results/intermediates/align/McrA_hmm_purified_group0-BMGE_references.mfa
+INFO Selected: Filtering by minimum threshold: 0.01
+INFO Selected: Prescoring by accumulated LWR threshold: 0.9
+INFO Selected: Disabling pre-masking. (repeats enabled!)
+INFO Selected: Automatic switching of use of per rate scalers
+INFO Selected: Preserving the root of the input tree
+INFO Selected: Specified model file: /home/connor/Desktop/marker_test_results/intermediates/McrA_RefPkg/McrA_M0701_2020-12-16/McrA_epa.model
+INFO Selected: Using threads: 2
+INFO     ______ ____   ___           _   __ ______
+        / ____// __ \ /   |         / | / // ____/
+       / __/  / /_/ // /| | ______ /  |/ // / __  
+      / /___ / ____// ___ |/_____// /|  // /_/ /  
+     /_____//_/    /_/  |_|      /_/ |_/ \____/ (v0.3.8)
+INFO Using model parameters:
+INFO    Rate heterogeneity: GAMMA (4 cats, mean),  alpha: 1.11096 (user),  weights&rates: (0.25,0.158547) (0.25,0.507739) (0.25,1.0162) (0.25,2.31751) 
+        Base frequencies (model): 0.079066 0.055941 0.041977 0.053052 0.012937 0.040767 0.071586 0.057337 0.022355 0.062157 0.099081 0.0646 0.022951 0.042302 0.04404 0.061197 0.053287 0.012066 0.034155 0.069147 
+        Substitution rates (model): 0.425093 0.276818 0.395144 2.48908 0.969894 1.03855 2.06604 0.358858 0.14983 0.395337 0.536518 1.12403 0.253701 1.17765 4.72718 2.1395 0.180717 0.218959 2.54787 0.751878 0.123954 0.534551 2.80791 0.36397 0.390192 2.4266 0.126991 0.301848 6.32607 0.484133 0.052722 0.332533 0.858151 0.578987 0.593607 0.31444 0.170887 5.07615 0.528768 1.69575 0.541712 1.43765 4.50924 0.191503 0.068427 2.14508 0.371004 0.089525 0.161787 4.00836 2.00068 0.045376 0.612025 0.083688 0.062556 0.523386 5.24387 0.844926 0.927114 0.01069 0.015076 0.282959 0.025548 0.017416 0.394456 1.24028 0.42586 0.02989 0.135107 0.037967 0.084808 0.003499 0.569265 0.640543 0.320627 0.594007 0.013266 0.89368 1.10525 0.075382 2.78448 1.14348 0.670128 1.16553 1.95929 4.12859 0.267959 4.81351 0.072854 0.582457 3.23429 1.67257 0.035855 0.624294 1.22383 1.08014 0.236199 0.257336 0.210332 0.348847 0.423881 0.044265 0.069673 1.80718 0.173735 0.018811 0.419409 0.611973 0.604545 0.077852 0.120037 0.245034 0.311484 0.008705 0.044261 0.296636 0.139538 0.089586 0.196961 1.73999 0.129836 0.268491 0.054679 0.076701 0.108882 0.366317 0.697264 0.442472 0.682139 0.508851 0.990012 0.584262 0.597054 5.30683 0.119013 4.14507 0.159069 4.27361 1.11273 0.078281 0.064105 1.03374 0.11166 0.232523 10.6491 0.1375 6.31236 2.59269 0.24906 0.182287 0.302936 0.619632 0.299648 1.70274 0.656604 0.023918 0.390322 0.748683 1.13686 0.049906 0.131932 0.185202 1.79885 0.099849 0.34696 2.02037 0.696175 0.481306 1.89872 0.094464 0.361819 0.165001 2.45712 7.8039 0.654683 1.33813 0.571468 0.095131 0.089613 0.296501 6.47228 0.248862 0.400547 0.098369 0.140825 0.245841 2.18816 3.15182 0.18951 0.249313
+INFO Output file: /home/connor/Desktop/marker_test_results/intermediates/place/epa_result.jplace
+INFO 12 Sequences done!
+INFO Time spent placing: 1s
+INFO Elapsed Time: 1s

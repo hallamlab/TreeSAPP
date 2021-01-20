@@ -1,0 +1,232 @@
+19/01 18:41:18 INFO:
+
+##				Assigning sequences with TreeSAPP				##
+
+
+19/01 18:41:18 INFO:
+Arguments used:
+-i tests/test_data/marker_test_suite.faa -m prot -o /home/connor/Desktop/marker_test_results/ -t McrA,McrB --trim_align
+
+19/01 18:41:18 DEBUG:
+Continuing with stage 'clean'
+
+19/01 18:41:18 DEBUG:
+Gathering reference package files... 
+19/01 18:41:19 DEBUG:
+done.
+
+19/01 18:41:19 INFO:
+Reading and formatting tests/test_data/marker_test_suite.faa... 
+19/01 18:41:19 DEBUG:
+tests/test_data/marker_test_suite.faa read by pyfastx in 0.0 seconds.
+
+19/01 18:41:19 INFO:
+done.
+
+19/01 18:41:19 INFO:
+	TreeSAPP will analyze the 76 sequences found in input.
+
+19/01 18:41:19 INFO:
+Searching for marker proteins in ORFs using hmmsearch.
+
+19/01 18:41:19 DEBUG:
+Filtering HMM alignments using the following thresholds:
+	Maximum E-value = 0.001
+	Maximum i-Evalue = 0.1
+	Minimum acc = 0.7
+	Minimum score = 15
+	Minimum percentage of the HMM covered = 10%
+
+19/01 18:41:19 INFO:
+Parsing HMMER domain tables for high-quality matches... 
+19/01 18:41:19 INFO:
+done.
+
+19/01 18:41:19 DEBUG:
+	Initial alignments:	18
+	Alignments discarded:	2
+	Fragmented alignments:	6
+	Inversions detected:	1
+	Alignments scaffolded:	2
+	Multi-alignments:	0
+	Sequences identified:	13
+
+	Number of markers identified:
+		McrA	12
+		McrB	1
+
+19/01 18:41:19 INFO:
+Loading homologous sequences identified... 
+19/01 18:41:19 DEBUG:
+63 sequences were excluded after synchronizing FASTA.
+
+19/01 18:41:19 INFO:
+done.
+
+19/01 18:41:19 DEBUG:
+Instantiating the PQuery instances... 
+19/01 18:41:19 DEBUG:
+done.
+
+19/01 18:41:19 INFO:
+Extracting and grouping the quality-controlled sequences... 
+19/01 18:41:19 INFO:
+done.
+
+19/01 18:41:19 DEBUG:
+Number of query sequences in each marker's group:
+McrB	0	1
+McrA	0	12
+
+
+19/01 18:41:19 INFO:
+Writing the grouped sequences to FASTA files... 
+19/01 18:41:19 INFO:
+done.
+
+19/01 18:41:19 INFO:
+Running hmmalign... 
+19/01 18:41:19 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/usr/local/bin/hmmalign --mapali /home/connor/Desktop/marker_test_results/intermediates/McrA_RefPkg/McrA_M0701_2020-12-16/McrA.fa --outformat Stockholm /home/connor/Desktop/marker_test_results/intermediates/McrA_RefPkg/McrA_M0701_2020-12-16/McrA.hmm /home/connor/Desktop/marker_test_results/intermediates/search/McrA_hmm_purified_group0.faa > /home/connor/Desktop/marker_test_results/intermediates/align/McrA_hmm_purified_group0.sto
+
+19/01 18:41:19 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/usr/local/bin/hmmalign --mapali /home/connor/Desktop/marker_test_results/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.fa --outformat Stockholm /home/connor/Desktop/marker_test_results/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.hmm /home/connor/Desktop/marker_test_results/intermediates/search/McrB_hmm_purified_group0.faa > /home/connor/Desktop/marker_test_results/intermediates/align/McrB_hmm_purified_group0.sto
+
+19/01 18:41:19 INFO:
+done.
+
+19/01 18:41:19 DEBUG:
+	hmmalign time required: 0.0:0.0:0.06
+
+19/01 18:41:19 INFO:
+Running BMGE... 
+19/01 18:41:19 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/marker_test_results/intermediates/align/McrB_hmm_purified_group0.mfa -of /home/connor/Desktop/marker_test_results/intermediates/align/McrB_hmm_purified_group0-BMGE.fasta
+
+19/01 18:41:19 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/marker_test_results/intermediates/align/McrA_hmm_purified_group0.mfa -of /home/connor/Desktop/marker_test_results/intermediates/align/McrA_hmm_purified_group0-BMGE.fasta
+
+19/01 18:41:19 INFO:
+done.
+
+19/01 18:41:19 DEBUG:
+	BMGE time required: 0.0:0.0:0.42
+
+19/01 18:41:19 DEBUG:
+Validating trimmed multiple sequence alignment files... 
+19/01 18:41:19 DEBUG:
+Read 249 headers from FASTA file '/home/connor/Desktop/marker_test_results/intermediates/McrA_RefPkg/McrA_M0701_2020-12-16/McrA.fa'.
+
+19/01 18:41:19 DEBUG:
+Read 261 headers from FASTA file '/home/connor/Desktop/marker_test_results/intermediates/align/McrA_hmm_purified_group0.mfa'.
+
+19/01 18:41:19 DEBUG:
+Read 261 headers from FASTA file '/home/connor/Desktop/marker_test_results/intermediates/align/McrA_hmm_purified_group0-BMGE.fasta'.
+
+19/01 18:41:19 DEBUG:
+Read 110 headers from FASTA file '/home/connor/Desktop/marker_test_results/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.fa'.
+
+19/01 18:41:19 DEBUG:
+Read 111 headers from FASTA file '/home/connor/Desktop/marker_test_results/intermediates/align/McrB_hmm_purified_group0.mfa'.
+
+19/01 18:41:19 DEBUG:
+Read 111 headers from FASTA file '/home/connor/Desktop/marker_test_results/intermediates/align/McrB_hmm_purified_group0-BMGE.fasta'.
+
+19/01 18:41:19 DEBUG:
+done.
+
+19/01 18:41:19 DEBUG:
+	Sequences removed during trimming:
+		McrA: 0
+		McrB: 0
+
+19/01 18:41:19 DEBUG:
+	Sequences <30 characters removed after trimming:
+		/home/connor/Desktop/marker_test_results/intermediates/align/McrA_hmm_purified_group0-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/marker_test_results/intermediates/align/McrB_hmm_purified_group0-BMGE.fasta = 0 (retained)
+
+19/01 18:41:19 DEBUG:
+	Average columns removed:
+		McrA	364.0
+		McrB	177.0
+
+
+19/01 18:41:19 DEBUG:
+Read 261 headers from FASTA file '/home/connor/Desktop/marker_test_results/intermediates/align/McrA_hmm_purified_group0-BMGE.fasta'.
+
+19/01 18:41:19 DEBUG:
+Read 111 headers from FASTA file '/home/connor/Desktop/marker_test_results/intermediates/align/McrB_hmm_purified_group0-BMGE.fasta'.
+
+19/01 18:41:19 INFO:
+Running EPA... 
+19/01 18:41:21 INFO:
+done.
+
+19/01 18:41:21 DEBUG:
+	EPA-ng time required: 0.0:0.0:1.73
+
+19/01 18:41:21 DEBUG:
+	EPA-ng was called 2 times.
+
+19/01 18:41:21 INFO:
+Parsing the EPA-NG outputs... 
+19/01 18:41:21 INFO:
+done.
+
+19/01 18:41:21 DEBUG:
+	JPlace parsing time required: 0.0:0.0:0.02
+
+19/01 18:41:21 DEBUG:
+	2 JPlace files.
+
+19/01 18:41:21 INFO:
+Selecting the optimal query placements... 
+19/01 18:41:21 DEBUG:
+No taxa at rank 'root' were present in reference package hierarchy - adding now.
+
+19/01 18:41:21 INFO:
+done.
+
+19/01 18:41:21 DEBUG:
+	PQuery parsing time required: 0.0:0.0:0.16
+
+19/01 18:41:21 DEBUG:
+	13 sequences placed into trees by EPA-NG.
+
+19/01 18:41:21 INFO:
+Filtering low-quality placements... 
+19/01 18:41:21 INFO:
+done.
+
+19/01 18:41:21 DEBUG:
+McrA	low_lwr	0
+McrA	np	0
+McrA	svm	0
+McrB	low_lwr	0
+McrB	np	0
+McrB	svm	0
+
+19/01 18:41:21 INFO:
+Generating inputs for iTOL... 
+19/01 18:41:21 INFO:
+done.
+
+19/01 18:41:21 DEBUG:
+A colours_style.txt file does not yet exist for markers:
+	McrB
+
+19/01 18:41:21 DEBUG:
+A colours_strip.txt file does not yet exist for markers:
+	McrB
+
+19/01 18:41:21 INFO:
+TreeSAPP has finished successfully.
+

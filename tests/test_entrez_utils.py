@@ -1,5 +1,6 @@
 import os
 import pytest
+import shutil
 import unittest
 
 from Bio import Entrez
@@ -19,8 +20,12 @@ class MyTestCase(unittest.TestCase):
         self.test_fa.keep_only(self.test_fa.get_seq_names()[0:18])
 
         self.create_inst = Creator()
+        self.create_inst.output_dir = "./tests/entrez_utils_test/"
+        self.create_inst.final_output_dir = self.create_inst.output_dir + "final_outputs" + os.sep
+        self.create_inst.var_output_dir = self.create_inst.output_dir + "intermediates" + os.sep
+        self.create_inst.check_previous_output()
         self.create_inst.current_stage = self.create_inst.stages[1]
-        self.create_inst.acc_to_lin = "./test_create_acc_to_lin.tsv"
+        self.create_inst.acc_to_lin = os.path.join(self.create_inst.output_dir, "test_create_acc_to_lin.tsv")
 
         self.accession2taxid = utils.get_test_data("create_test.accession2taxid")
         self.test_entrez_records = []
@@ -30,8 +35,9 @@ class MyTestCase(unittest.TestCase):
         return
 
     def tearDown(self) -> None:
-        if os.path.isfile(self.create_inst.acc_to_lin):
-            os.remove(self.create_inst.acc_to_lin)
+        if os.path.isdir(self.create_inst.output_dir):
+            shutil.rmtree(self.create_inst.output_dir)
+        return
 
     def test_fetch_entrez_lineages(self):
         entrez_record_dict = self.create_inst.fetch_entrez_lineages(self.test_fa, 'prot')

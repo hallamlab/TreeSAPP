@@ -246,6 +246,7 @@ def read_fasta_to_dict(fasta_file: str) -> dict:
 
 class Header:
     def __init__(self, header):
+        """Header class for storing typical features of biological sequence headers in FASTA files"""
         self.original = header
         self.treesapp_num_id = 0
         self.post_align = ""
@@ -310,6 +311,7 @@ def register_headers(header_list: list, drop=True) -> dict:
 
 class FASTA:
     def __init__(self, file_name):
+        """Instantiate a new class instance for storing and interacting with FASTA files"""
         self.file = file_name
         self.fasta_dict = dict()
         self.header_registry = dict()  # A dictionary of Header instances indexed by a unique numerical identifier
@@ -820,10 +822,6 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_len
                       "\n".join(bad_seqs) + "\n")
 
     header_registry = register_headers(headers, True)
-    # if len(header_registry) != seq_acc:
-    #     logging.error("The number of sequences read ({}) does not equal"
-    #                   " the number of sequence names registered ({}).\n".format(seq_acc, len(header_registry)))
-    #     sys.exit(13)
 
     return header_registry
 

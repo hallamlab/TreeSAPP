@@ -579,8 +579,8 @@ def remove_outlier_sequences(fasta_record_objects: dict, od_seq_exe: str, mafft_
 def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:
     """
     Ensures all "guaranteed sequences" are representative sequences, swapping non-guaranteed sequences for the
-    Cluster.representative where necessary.
-    Also makes sure all guaranteed sequences are accounted for.
+    Cluster.representative where necessary. Also makes sure all guaranteed sequences are accounted for.
+
     :param cluster_dict:
     :param important_seqs:
     :return:

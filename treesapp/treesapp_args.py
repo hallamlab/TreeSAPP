@@ -6,7 +6,7 @@ import logging
 from glob import glob
 from datetime import datetime as dt
 
-from treesapp.classy import Evaluator, Creator, PhyTrainer, Updater, Purity
+from treesapp.classy import Evaluator, Creator, PhyTrainer, Updater
 from treesapp.utilities import available_cpu_count
 
 
@@ -34,6 +34,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.aes = self.add_argument_group("Aesthetic options")
         self.optopt = self.add_argument_group("Optional options")
         self.taxa_args = self.add_argument_group("Taxonomic-lineage arguments")
+        self.svc_opts = self.add_argument_group("Classifier arguments")
         self.miscellany = self.add_argument_group("Miscellaneous options")
 
         self.miscellany.add_argument("-v", "--verbose", action="store_true", default=False,
@@ -195,21 +196,25 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       " [ DEFAULT = class species ]",
                                  choices=["domain", "phylum", "class", "order", "family", "genus", "species"])
 
-    def add_classifier_model_params(self):
-        self.optopt.add_argument("--max_examples", required=False, default=1E3, type=int,
-                                 help="Limits the number of examples used for training models. [ DEFAULT = 1E3 ]")
-        self.optopt.add_argument("-k", "--svm_kernel", required=False, default="lin",
-                                 choices=["lin", "rbf", "poly"], dest="kernel",
-                                 help="Specifies the kernel type to be used in the SVM algorithm. "
-                                      "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
-        self.optopt.add_argument("--grid_search", default=False, required=False, action="store_true",
-                                 help="Perform a grid search across hyperparameters. Binary classifier only.")
-        self.optopt.add_argument("--tsne", default=False, required=False, action="store_true",
-                                 help="Generate a tSNE plot. Output will be in the same directory as the model file. "
-                                      "Binary classifier only.")
-        self.optopt.add_argument("--classifier", required=False, choices=["occ", "bin"], default="occ",
-                                 help="Specify the kind of classifier to be trained: one-class classifier (OCC) or "
-                                      "a binary classifier (bin). [ DEFAULT = occ ]")
+    def add_basic_classifier_model_params(self):
+        self.svc_opts.add_argument("--max_examples", required=False, default=1E3, type=int,
+                                   help="Limits the number of examples used for training models. [ DEFAULT = 1E3 ]")
+        self.svc_opts.add_argument("-k", "--svm_kernel", required=False, default="lin",
+                                   choices=["lin", "rbf", "poly"], dest="kernel",
+                                   help="Specifies the kernel type to be used in the SVM algorithm. "
+                                        "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
+        return
+
+    def add_advanced_classifier_params(self):
+        self.svc_opts.add_argument("--grid_search", default=False, required=False, action="store_true",
+                                   help="Perform a grid search across hyperparameters. Binary classifier only.")
+        self.svc_opts.add_argument("--tsne", default=False, required=False, action="store_true",
+                                   help="Generate a tSNE plot. Output will be in the same directory as the model file. "
+                                        "Binary classifier only.")
+        self.svc_opts.add_argument("--classifier", required=False, choices=["occ", "bin"], default="occ",
+                                   help="Specify the kind of classifier to be trained: one-class classifier (OCC) or "
+                                        "a binary classifier (bin). [ DEFAULT = occ ]")
+        return
 
 
 def add_info_arguments(parser: TreeSAPPArgumentParser):
@@ -329,6 +334,10 @@ def add_abundance_arguments(parser: TreeSAPPArgumentParser):
                                help="What should be done with the abundance values? The TreeSAPP classification table "
                                     "can be overwritten (update) or left unchanged. "
                                     "[ DEFAULT = update ]")
+    parser.optopt.add_argument("--stage", default="continue", required=False,
+                               choices=["continue", "align_map", "sam_sum", "summarise"],
+                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    return
 
 
 def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
@@ -345,6 +354,7 @@ def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_phylogeny_params()
     parser.add_accession_params()
     parser.add_compute_miscellany()
+    parser.add_basic_classifier_model_params()
 
     parser.reqs.add_argument("-c", "--refpkg_name",
                              help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
@@ -474,7 +484,8 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_accession_params()
     parser.add_taxa_ranks_param()
     parser.add_compute_miscellany()
-    parser.add_classifier_model_params()
+    parser.add_basic_classifier_model_params()
+    parser.add_advanced_classifier_params()
     parser.add_annot_map()
 
     parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
@@ -519,25 +530,6 @@ def check_parser_arguments(args, sys_args):
         logging.warning("Number of threads specified is greater than those available! "
                         "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
         args.num_threads = available_cpu_count()
-
-    return
-
-
-def check_purity_arguments(purity_instance: Purity, args):
-    purity_instance.ref_pkg.f__json = args.pkg_path
-    purity_instance.ref_pkg.slurp()
-    purity_instance.refpkg_dir = os.path.dirname(purity_instance.ref_pkg.f__json)
-
-    ##
-    # Define locations of files TreeSAPP outputs
-    ##
-    purity_instance.assign_dir = purity_instance.var_output_dir + "assign" + os.sep
-    purity_instance.summarize_dir = purity_instance.var_output_dir + "summarize" + os.sep
-    purity_instance.classifications = purity_instance.assign_dir + "final_outputs" + os.sep + "marker_contig_map.tsv"
-    purity_instance.metadata_file = args.extra_info
-
-    if not os.path.isdir(purity_instance.var_output_dir):
-        os.makedirs(purity_instance.var_output_dir)
 
     return
 
