@@ -118,11 +118,12 @@ jobs:
         run: |
           PYTHON_VERSION=$( echo ${{ matrix.python-version }} | sed 's/\.//g')
           tox -e coverage-py${PYTHON_VERSION}-ts
+          if [ ${{ matrix.python-version }} == "3.7" ]; then tox -e coverage_report; fi
       - name: Upload coverage to Codecov
         if: ${{ matrix.os != 'macos-latest' }}
         uses: codecov/codecov-action@v1
         with:
-            files: .tox/coverage
+            files: ./coverage.xml
             name: codecov-umbrella
             fail_ci_if_error: false
             path_to_write_report: ./codecov_report.txt
