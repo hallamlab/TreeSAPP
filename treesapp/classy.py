@@ -898,14 +898,35 @@ class Creator(TreeSAPP):
 
 class Purity(TreeSAPP):
     def __init__(self):
+        """Class instance for validating a reference package's purity with a reference sequence database"""
         super(Purity, self).__init__("purity")
-        self.assign_dir = ""
         self.classifications = ""
-        self.summarize_dir = ""
         self.metadata_file = ""
         self.assignments = None
-        self.stages = {0: ModuleFunction("assign", 0),
-                       1: ModuleFunction("summarize", 1)}
+        self.assign_jplace_file = ""
+        self.stages = {0: ModuleFunction("clean", 0),
+                       1: ModuleFunction("assign", 1),
+                       2: ModuleFunction("summarize", 2)}
+
+    def check_purity_arguments(self, args):
+        self.ref_pkg.f__json = args.pkg_path
+        self.ref_pkg.slurp()
+        self.refpkg_dir = os.path.dirname(self.ref_pkg.f__json)
+
+        self.formatted_input = self.stage_lookup("clean").dir_path + self.sample_prefix + "_formatted.fasta"
+
+        ##
+        # Define locations of files TreeSAPP outputs
+        ##
+        self.classifications = self.stage_lookup("assign").dir_path + "final_outputs" + os.sep + "marker_contig_map.tsv"
+        self.assign_jplace_file = os.path.join(self.stage_lookup("assign").dir_path, "iTOL_output",
+                                               self.ref_pkg.prefix, self.ref_pkg.prefix + "_complete_profile.jplace")
+        self.metadata_file = args.extra_info
+
+        if not os.path.isdir(self.var_output_dir):
+            os.makedirs(self.var_output_dir)
+
+        return
 
     def decide_stage(self, args):
         """
@@ -914,7 +935,6 @@ class Purity(TreeSAPP):
         This function ensures all the required inputs are present for beginning at the desired first stage,
         otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
 
-        If a
         :return: None
         """
         self.validate_continue(args)

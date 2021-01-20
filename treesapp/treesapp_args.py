@@ -523,25 +523,6 @@ def check_parser_arguments(args, sys_args):
     return
 
 
-def check_purity_arguments(purity_instance: Purity, args):
-    purity_instance.ref_pkg.f__json = args.pkg_path
-    purity_instance.ref_pkg.slurp()
-    purity_instance.refpkg_dir = os.path.dirname(purity_instance.ref_pkg.f__json)
-
-    ##
-    # Define locations of files TreeSAPP outputs
-    ##
-    purity_instance.assign_dir = purity_instance.var_output_dir + "assign" + os.sep
-    purity_instance.summarize_dir = purity_instance.var_output_dir + "summarize" + os.sep
-    purity_instance.classifications = purity_instance.assign_dir + "final_outputs" + os.sep + "marker_contig_map.tsv"
-    purity_instance.metadata_file = args.extra_info
-
-    if not os.path.isdir(purity_instance.var_output_dir):
-        os.makedirs(purity_instance.var_output_dir)
-
-    return
-
-
 def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
     for rank in args.taxon_rank:
         evaluator_instance.ranks.append(rank)

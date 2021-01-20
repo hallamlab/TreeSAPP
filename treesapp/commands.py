@@ -1345,18 +1345,20 @@ def purity(sys_args):
     logging.info("\n##\t\t\tBeginning purity analysis\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
-    treesapp_args.check_purity_arguments(ts_purity, args)
+    ts_purity.check_purity_arguments(args)
     ts_purity.decide_stage(args)
 
     # Load FASTA data
-    ref_seqs = fasta.FASTA(ts_purity.input_sequences)
-    ref_seqs.load_fasta()
-    ref_seqs.change_dict_keys()
-    ref_seqs.unalign()
-    fasta.write_new_fasta(ref_seqs.fasta_dict, ts_purity.formatted_input)
+    if ts_purity.stage_status("clean"):
+        ref_seqs = fasta.FASTA(ts_purity.input_sequences)
+        ref_seqs.load_fasta()
+        ref_seqs.change_dict_keys()
+        ref_seqs.unalign()
+        fasta.write_new_fasta(ref_seqs.fasta_dict, ts_purity.formatted_input)
+        ts_purity.increment_stage_dir()
 
     if ts_purity.stage_status("assign"):
-        assign_args = ["-i", ts_purity.formatted_input, "-o", ts_purity.assign_dir,
+        assign_args = ["-i", ts_purity.formatted_input, "-o", ts_purity.stage_output_dir,
                        "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
                        "-t", ts_purity.ref_pkg.prefix, "--refpkg_dir", ts_purity.refpkg_dir,
                        "--overwrite", "--delete"]
@@ -1367,6 +1369,7 @@ def purity(sys_args):
             assign(assign_args)
         except:  # Just in case treesapp assign fails, just continue
             logging.error("TreeSAPP failed.\n")
+        ts_purity.increment_stage_dir()
 
     if ts_purity.stage_status("summarize"):
         metadat_dict = dict()
@@ -1385,9 +1388,7 @@ def purity(sys_args):
         if ts_purity.metadata_file:
             metadat_dict.update(ts_purity.load_metadata())
         # Identify the number of sequences that are descendents of each orthologous group
-        jplace_file = os.sep.join([ts_purity.assign_dir, "iTOL_output", ts_purity.ref_pkg.prefix,
-                                   ts_purity.ref_pkg.prefix + "_complete_profile.jplace"])
-        jplace_data = jplace_utils.jplace_parser(jplace_file)
+        jplace_data = jplace_utils.jplace_parser(ts_purity.assign_jplace_file)
         jplace_data.pqueries = jplace_utils.demultiplex_pqueries(jplace_data)
         node_map = entish.map_internal_nodes_leaves(jplace_data.tree)
         labelled_ref_tree = ts_purity.ref_pkg.taxonomically_label_tree()
