@@ -404,11 +404,16 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
                        "--overwrite", "--delete"]
         if trim_align:
             assign_args.append("--trim_align")
+
+        # TODO: Pause logging just to console and continue writing to log file
+        # Option 1. No logging to console or file
+        cl_log = logging.getLogger()
+        cl_log.disabled = True
         try:
             assign.assign(assign_args)
         except:  # Just in case treesapp assign fails, just continue
             pass
-
+        cl_log.disabled = False
         if not os.path.isfile(tt_obj.classification_table):
             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
             logging.warning("TreeSAPP did not generate output for '{}'. Skipping.\n".format(tt_obj.lineage))
