@@ -7,6 +7,8 @@ import logging
 
 import treesapp.commands as ts_commands
 import treesapp.phylo_cluster as phyclust
+import treesapp.assign as ts_assign
+import treesapp.abundance as ts_abundance
 
 usage = """
 treesapp <command> [<args>]
@@ -32,8 +34,8 @@ def main(sys_args=None) -> int:
     commands = {
         "create": ts_commands.create,
         "evaluate": ts_commands.evaluate,
-        "abundance": ts_commands.abundance,
-        "assign": ts_commands.assign,
+        "abundance": ts_abundance.abundance,
+        "assign": ts_assign.assign,
         "update": ts_commands.update,
         "info": ts_commands.info,
         "train": ts_commands.train,

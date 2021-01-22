@@ -14,9 +14,9 @@ from numpy import sqrt
 from treesapp import file_parsers
 from treesapp import wrapper
 from treesapp import utilities
+from treesapp import assign
 from treesapp.phylo_seq import assignments_to_treesaps
 from treesapp.refpkg import ReferencePackage
-from treesapp.commands import assign
 from treesapp.fasta import get_headers, register_headers
 from treesapp.classy import prep_logging, get_header_info
 from treesapp.entrez_utils import EntrezRecord, get_multiple_lineages
@@ -830,7 +830,7 @@ def mcc_calculator(sys_args):
                 classify_args.append("--trim_align")
             if args.svm:
                 classify_args.append("--svm")
-            assign(classify_args)
+            assign.assign(classify_args)
         classification_lines = file_parsers.read_classification_table(classification_table)
         assignments = assignments_to_treesaps(classification_lines)
     else:
