@@ -17,15 +17,13 @@ def optimal_taxonomic_assignment(trie: StringTrie, query_taxon: str):
     return query_taxon
 
 
-def identify_excluded_clade(assignment_dict: dict, trie: StringTrie, marker: str) -> dict:
+def identify_excluded_clade(assignment_dict: dict, trie: StringTrie) -> dict:
     """
     Using the taxonomic information from the sequence headers and the lineages of the reference sequence,
     this function determines the rank at which each sequence's clade is excluded.
-    These data are returned and sorted in the form of a dictionary.
 
-    :param assignment_dict:
+    :param assignment_dict: A dictionary mapping assigned taxonomic lineages to a list of true query lineages
     :param trie: A pygtrie.StringTrie object containing all reference sequence lineages
-    :param marker: Name of the marker gene being tested
 
     :return: rank_assigned_dict; key is rank, values are dictionaries with assigned (reference) lineage as key and
       tuples of (optimal assignment, actual assignment) as values.
@@ -36,27 +34,19 @@ def identify_excluded_clade(assignment_dict: dict, trie: StringTrie, marker: str
                        2: "phylum", 3: "class", 4: "order",
                        5: "family", 6: "genus", 7: "species", 8: "strain"}
 
-    if marker not in assignment_dict:
-        logging.debug("No sequences assigned as " + marker + "\n")
-        return rank_assigned_dict
-
     for depth in _RANK_DEPTH_MAP:
         rank_assigned_dict[_RANK_DEPTH_MAP[depth]] = list()
-    log_stats = "Number of unique taxonomies that sequences were assigned to = " + \
-                str(len(assignment_dict[marker].keys())) + "\n"
+    log_stats = "Number of unique taxa that sequences were assigned to = {}\n".format(len(assignment_dict.keys()))
 
-    for ref_lineage in assignment_dict[marker]:
+    for ref_lineage in assignment_dict:
         log_stats += "Assigned reference lineage: " + ref_lineage + "\n"
-        for query_lineage in assignment_dict[marker][ref_lineage]:  # type: str
+        for query_lineage in assignment_dict[ref_lineage]:  # type: str
             if query_lineage.split('; ')[0] != "r__Root":
                 query_lineage = "; ".join(["r__Root"] + query_lineage.split("; "))
-            # if query_lineage == ref_lineage:
-            #     logging.debug("\tQuery lineage: " + query_lineage + ", " +
-            #                   "Optimal lineage: " + ref_lineage + "\n")
-            # While the query_lineage contains clades which are not in the reference trie,
-            # remove the taxonomic rank and traverse again. Complexity: O(ln(n))
+
+            # While the query_lineage contains clades which are not in the reference trie, remove last rank and repeat.
             contained_taxonomy = optimal_taxonomic_assignment(trie, query_lineage)
-            if len(contained_taxonomy.split("; ")) <= 7:
+            if len(contained_taxonomy.split("; ")) <= len(_RANK_DEPTH_MAP):
                 rank_excluded = _RANK_DEPTH_MAP[len(contained_taxonomy.split("; "))]
                 if contained_taxonomy != ref_lineage:
                     log_stats += "\tRank excluded: " + rank_excluded + "\n"

@@ -78,6 +78,8 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     model_eval_cmd += ["--seed", str(12345)]
     model_eval_cmd += ["--workers", "auto{{{}}}".format(threads)]
     model_eval_cmd.append("--force")
+    if glob.glob(output_prefix + "*"):
+        model_eval_cmd.append("--redo")
 
     logging.debug("Evaluating phylogenetic tree with RAxML-NG... ")
     stdout, returncode = launch_write_command(model_eval_cmd)

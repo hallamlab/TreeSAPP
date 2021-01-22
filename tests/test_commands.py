@@ -197,9 +197,12 @@ class TreesappTester(unittest.TestCase):
                                  "-m", "prot",
                                  "--taxonomic_ranks", "class", "order",
                                  "-n", str(self.num_procs),
-                                 "--trim_align", "--overwrite", "--delete"]
+                                 "--trim_align"]
         evaluate(evaluate_command_list)
-        self.assertEqual(True, True)
+
+        # Test rerunning of already processed data
+        evaluate(evaluate_command_list)
+        self.assertTrue(True)
         return
 
     def test_info(self):

@@ -1536,11 +1536,9 @@ def evaluate(sys_args):
                     tt_obj.assignments = {ts_evaluate.ref_pkg.prefix: graftm_assignments}
                     tt_obj.filter_assignments(ts_evaluate.ref_pkg.prefix)
                 else:
-                    ce_refpkg = ts_evaluate.ref_pkg.clone(tt_obj.refpkg_path)
-
                     if not os.path.isfile(tt_obj.classification_table):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-
+                        ce_refpkg = ts_evaluate.ref_pkg.clone(tt_obj.refpkg_path)
                         ce_refpkg.exclude_clade_from_ref_files(tt_obj.intermediates_dir, lineage,
                                                                ts_evaluate.executables, args.fresh)
                         # Write the query sequences
@@ -1564,7 +1562,11 @@ def evaluate(sys_args):
                             continue
                     else:
                         # Valid number of queries and these sequences have already been classified
-                        pass
+                        ce_refpkg = ts_ref_pkg.ReferencePackage()
+                        ce_refpkg.f__json = os.path.join(tt_obj.intermediates_dir,
+                                                         '_'.join([ts_evaluate.ref_pkg.prefix, ts_evaluate.ref_pkg.refpkg_code, ts_evaluate.ref_pkg.date]),
+                                                         ts_evaluate.ref_pkg.prefix + ts_evaluate.ref_pkg.refpkg_suffix)
+                        ce_refpkg.slurp()
 
                     tt_obj.taxonomic_tree = ce_refpkg.all_possible_assignments()
                     if os.path.isfile(tt_obj.classification_table):
@@ -1593,9 +1595,15 @@ def evaluate(sys_args):
 
                     for marker in marker_assignments:
                         ts_evaluate.markers.add(marker)
-                    rank_assignments = lca_calculations.identify_excluded_clade(marker_assignments,
-                                                                                tt_obj.taxonomic_tree,
-                                                                                ts_evaluate.ref_pkg.prefix)
+
+                    if ts_evaluate.ref_pkg.prefix not in marker_assignments:
+                        logging.debug("No sequences assigned as " + ts_evaluate.ref_pkg.prefix + "\n")
+                        rank_assignments = {}
+                    else:
+                        rank_assignments = lca_calculations.identify_excluded_clade(
+                            marker_assignments[ts_evaluate.ref_pkg.prefix],
+                            tt_obj.taxonomic_tree)
+
                     for a_rank in rank_assignments:
                         if a_rank != rank and len(rank_assignments[a_rank]) > 0:
                             logging.warning("{}-level clade excluded but optimal classification found to be {}-level.\n"
