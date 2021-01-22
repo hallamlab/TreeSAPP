@@ -50,6 +50,7 @@ jobs:
       VSEARCH_VERSION: "2.15.0"
       MAFFT_VERSION: "7.475-1"
       MMSEQS_VERSION: "12-113e3"
+      PY_COV_VERSION: "3.7"
 
     steps:
       - uses: actions/checkout@v2
@@ -118,9 +119,9 @@ jobs:
         run: |
           PYTHON_VERSION=$( echo ${{ matrix.python-version }} | sed 's/\.//g')
           tox -e coverage-py${PYTHON_VERSION}-ts
-          if [ ${{ matrix.python-version }} == "3.7" ]; then tox -e coverage_report; fi
+          if [ ${{ matrix.python-version }} == $PY_COV_VERSION ]; then tox -e coverage_report; fi
       - name: Upload coverage to Codecov
-        if: ${{ matrix.os != 'macos-latest' }}
+        if: ${{ matrix.python-version == env.PY_COV_VERSION }}  && ${{ matrix.os != 'macos-latest' }}
         uses: codecov/codecov-action@v1
         with:
             files: ./coverage.xml
