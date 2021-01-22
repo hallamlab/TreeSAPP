@@ -1222,13 +1222,18 @@ def evaluate(sys_args):
     query_fasta = fasta.FASTA(args.input)
     query_fasta.fasta_dict = fasta.format_read_fasta(query_fasta.file, args.molecule)
     if args.length:
+        too_short = []
         for seq_id in query_fasta.fasta_dict:
             if len(query_fasta.fasta_dict[seq_id]) < args.length:
-                logging.warning(seq_id + " sequence is shorter than " + str(args.length) + "\n")
+                too_short.append(seq_id)
             else:
                 max_stop = len(query_fasta.fasta_dict[seq_id]) - args.length
                 random_start = randint(0, max_stop)
                 query_fasta.fasta_dict[seq_id] = query_fasta.fasta_dict[seq_id][random_start:random_start + args.length]
+        logging.debug("The following sequences were shorter than the length threshold of {}:\n{}\n"
+                      "".format(args.length, "\n".join(too_short)))
+        logging.warning("{} sequences were shorter than {} and will not be used\n".format(len(too_short), args.length))
+        too_short.clear()
     query_fasta.header_registry = fasta.register_headers(fasta.get_headers(query_fasta.file))
 
     fasta_records = ts_evaluate.fetch_entrez_lineages(query_fasta, args.molecule, args.acc_to_taxid)
@@ -1264,6 +1269,7 @@ def evaluate(sys_args):
                 # Decide whether to continue analyzing taxon based on number of query sequences
                 if len(taxon_rep_seqs.keys()) == 0:
                     logging.debug("No query sequences for {}.\n".format(lineage))
+                    p_bar.update()
                     continue
 
                 # Continuing with classification
