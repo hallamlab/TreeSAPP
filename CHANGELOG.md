@@ -1,14 +1,17 @@
 ## [0.9.9] - 2021
 ### Added
-- Checkpointing to all major (i.e. time-consuming) subcommands: `abundance`, `assign`, `create`, `purity`, `train`
+- (#33) Checkpointing to all major (i.e. time-consuming) subcommands: `abundance`, `assign`, `create`, `purity`, `train`
 - `stages` argument to `treesapp abundance` to control checkpoint
 - Able to control the maximum number of examples used and SVC kernel for training through `treesapp create`
+- (#66) Documentation for `treesapp evaluate`
 
 ### Fixed
-
+- (#71) Ability to rerun and append results from `treesapp evaluate` has been restored
+- File paths with square brackets and parentheses no longer trip up HMMER or RAxML-NG in various modules.
+  Some single-quotes were needed.
 
 ### Changed
-
+- `treesapp evaluate` uses a tqdm progress bar instead of printing updates to stdout when classifying
 
 ## [0.9.8] - 2021-01-15
 ### Added

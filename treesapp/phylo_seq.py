@@ -512,6 +512,33 @@ def split_placements(placements: dict) -> list:
     return phylo_places
 
 
+def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
+    """
+    Add abundance (RPKM or presence count) values to the PQuery instances (abundance variable)
+
+    :param tree_saps: Dictionary mapping refpkg codes to all PQuery instances for classified sequences
+    :param abundance_dict: Dictionary mapping sequence names to floats
+    :return: None
+    """
+    abundance_mapped_acc = 0
+    for placed_seqs in tree_saps.values():  # type: list
+        for pquery in placed_seqs:  # type: PQuery
+            if not pquery.abundance:
+                # Filter out RPKMs for contigs not associated with the target marker
+                try:
+                    pquery.abundance = abundance_dict[pquery.place_name]
+                    abundance_mapped_acc += 1
+                except KeyError:
+                    pquery.abundance = 0.0
+            else:
+                abundance_mapped_acc += 1
+
+    if abundance_mapped_acc == 0:
+        logging.warning("No placed sequences with abundances identified.\n")
+
+    return
+
+
 class TreeLeafReference:
     """
     Objects for each leaf in a tree

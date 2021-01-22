@@ -6,13 +6,16 @@ import os
 import logging
 import sys
 import re
+import shutil
 
-from treesapp.fasta import write_new_fasta, FASTA
 from treesapp.external_command_interface import launch_write_command
-from treesapp.classy import Evaluator
-from treesapp.refpkg import ReferencePackage
+from treesapp import refpkg
 from treesapp.entrez_utils import EntrezRecord
+from treesapp import fasta
+from treesapp import classy
 from treesapp import taxonomic_hierarchy
+from treesapp import assign
+from treesapp import file_parsers
 
 
 def parse_distances(classification_lines):
@@ -28,7 +31,7 @@ def parse_distances(classification_lines):
     return distances
 
 
-def determine_containment(marker_eval_inst: Evaluator):
+def determine_containment(marker_eval_inst: classy.Evaluator):
     """
     Determines the accuracy of sequence classifications of all sequences contained at different taxonomic ranks
 
@@ -349,43 +352,131 @@ def map_seqs_to_lineages(accession_lineage_map, deduplicated_fasta_dict):
     return seq_taxa_map
 
 
-def filter_queries_by_taxonomy(taxonomic_lineages):
-    """
-    Removes queries with duplicate taxa - to prevent the taxonomic composition of the input
-    from biasing the accuracy to over- or under-perform by classifying many sequences from very few groups.
-    Also removes taxonomies with "*nclassified" in their lineage
+# def filter_queries_by_taxonomy(taxonomic_lineages):
+#     """
+#     Removes queries with duplicate taxa - to prevent the taxonomic composition of the input
+#     from biasing the accuracy to over- or under-perform by classifying many sequences from very few groups.
+#     Also removes taxonomies with "*nclassified" in their lineage
+#
+#     :param taxonomic_lineages: A list of lineages that need to be filtered
+#     :return: A list that contains no more than 3 of each query taxonomy (arbitrarily normalized) and counts
+#     """
+#     unclassifieds = 0
+#     classified = 0
+#     unique_query_taxonomies = 0
+#     lineage_enumerator = dict()
+#     normalized_lineages = list()
+#     for query_taxonomy in sorted(taxonomic_lineages):
+#         can_classify = True
+#         if re.search("unclassified", query_taxonomy, re.IGNORECASE):
+#             # Remove taxonomic lineages that are unclassified at the Phylum level or higher
+#             unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
+#             if unclassified_depth <= 3:
+#                 can_classify = False
+#
+#         if can_classify:
+#             if query_taxonomy not in lineage_enumerator:
+#                 lineage_enumerator[query_taxonomy] = 0
+#                 classified += 1
+#             if lineage_enumerator[query_taxonomy] < 3:
+#                 normalized_lineages.append(query_taxonomy)
+#             lineage_enumerator[query_taxonomy] += 1
+#         else:
+#             unclassifieds += 1
+#     unique_query_taxonomies += len(lineage_enumerator)
+#
+#     return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
 
-    :param taxonomic_lineages: A list of lineages that need to be filtered
-    :return: A list that contains no more than 3 of each query taxonomy (arbitrarily normalized) and counts
-    """
-    unclassifieds = 0
-    classified = 0
-    unique_query_taxonomies = 0
-    lineage_enumerator = dict()
-    normalized_lineages = list()
-    for query_taxonomy in sorted(taxonomic_lineages):
-        can_classify = True
-        if re.search("unclassified", query_taxonomy, re.IGNORECASE):
-            # Remove taxonomic lineages that are unclassified at the Phylum level or higher
-            unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
-            if unclassified_depth <= 3:
-                can_classify = False
 
-        if can_classify:
-            if query_taxonomy not in lineage_enumerator:
-                lineage_enumerator[query_taxonomy] = 0
-                classified += 1
-            if lineage_enumerator[query_taxonomy] < 3:
-                normalized_lineages.append(query_taxonomy)
-            lineage_enumerator[query_taxonomy] += 1
-        else:
-            unclassifieds += 1
-    unique_query_taxonomies += len(lineage_enumerator)
+def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_pkg, num_threads, executables,
+                                 trim_align=False, fresh=False, molecule_type="prot", min_seq_length=30) -> None:
+    if not os.path.isfile(tt_obj.classification_table):
+        # Copy reference files, then exclude all clades belonging to the taxon being tested
+        ce_refpkg = ref_pkg.clone(tt_obj.refpkg_path)
+        ce_refpkg.exclude_clade_from_ref_files(tt_obj.intermediates_dir, tt_obj.lineage,
+                                               executables, fresh)
+        # Write the query sequences
+        fasta.write_new_fasta(taxon_rep_seqs, tt_obj.test_query_fasta)
+        assign_args = ["-i", tt_obj.test_query_fasta, "-o", tt_obj.classifications_root,
+                       "--refpkg_dir", os.path.dirname(ce_refpkg.f__json),
+                       "-m", molecule_type, "-n", str(num_threads),
+                       "--min_seq_length", str(min_seq_length),
+                       "--overwrite", "--delete"]
+        if trim_align:
+            assign_args.append("--trim_align")
+        try:
+            assign.assign(assign_args)
+        except:  # Just in case treesapp assign fails, just continue
+            pass
 
-    return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
+        if not os.path.isfile(tt_obj.classification_table):
+            # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
+            logging.warning("TreeSAPP did not generate output for '{}'. Skipping.\n".format(tt_obj.lineage))
+            shutil.rmtree(tt_obj.classifications_root)
+            return
+    else:
+        # Valid number of queries and these sequences have already been classified
+        ce_refpkg = refpkg.ReferencePackage()
+        ce_refpkg.f__json = os.path.join(tt_obj.intermediates_dir,
+                                         '_'.join([ref_pkg.prefix, ref_pkg.refpkg_code,
+                                                   ref_pkg.date]),
+                                         ref_pkg.prefix + ref_pkg.refpkg_suffix)
+        ce_refpkg.slurp()
+
+    tt_obj.taxonomic_tree = ce_refpkg.all_possible_assignments()
+    if os.path.isfile(tt_obj.classification_table):
+        assigned_lines = file_parsers.read_classification_table(tt_obj.classification_table)
+        tt_obj.assignments = file_parsers.parse_assignments(assigned_lines)
+        tt_obj.filter_assignments(ref_pkg.prefix)
+        tt_obj.distances = parse_distances(assigned_lines)
+    else:
+        logging.error("marker_contig_map.tsv is missing from output directory '" +
+                      os.path.dirname(tt_obj.classification_table) + "'\n" +
+                      "Please remove this directory and re-run.\n")
+        sys.exit(21)
+    return
 
 
-def prep_graftm_ref_files(refpkg: ReferencePackage, tmp_dir: str, target_clade: str, executables: dict) -> dict:
+def run_clade_exclusion_graftm(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_pkg: refpkg.ReferencePackage,
+                               graftm_classifier: str, num_threads: int, executables: dict) -> None:
+    # GraftM refpkg output files:
+    gpkg_refpkg_path = os.path.join(tt_obj.refpkg_path,
+                                    ref_pkg.prefix +
+                                    '_' + re.sub(' ', '_', tt_obj.taxon) + ".gpkg.refpkg") + os.sep
+    gpkg_tax_ids_file = gpkg_refpkg_path + ref_pkg.prefix + "_taxonomy.csv"
+    if not os.path.isfile(tt_obj.classification_table):
+        # Copy reference files, then exclude all clades belonging to the taxon being tested
+        output_paths = prep_graftm_ref_files(tmp_dir=tt_obj.intermediates_dir,
+                                             target_clade=tt_obj.lineage,
+                                             ref_pkg=ref_pkg,
+                                             executables=executables)
+
+        if not os.path.isdir(tt_obj.refpkg_path):
+            build_graftm_package(gpkg_path=tt_obj.refpkg_path,
+                                 tax_file=output_paths["filtered_tax_ids"],
+                                 mfa_file=output_paths["filtered_mfa"],
+                                 fa_file=output_paths["filtered_fasta"],
+                                 threads=num_threads)
+        # Write the query sequences
+        fasta.write_new_fasta(taxon_rep_seqs, tt_obj.test_query_fasta)
+
+        graftm_classify(tt_obj.test_query_fasta, tt_obj.refpkg_path, tt_obj.classifications_root,
+                        num_threads, graftm_classifier)
+
+        if not os.path.isfile(tt_obj.classification_table):
+            # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
+            logging.warning("GraftM did not generate output for " + tt_obj.lineage + ". Skipping.\n")
+            shutil.rmtree(tt_obj.intermediates_dir)
+
+    tt_obj.taxonomic_tree = file_parsers.grab_graftm_taxa(gpkg_tax_ids_file)
+    graftm_assignments = file_parsers.read_graftm_classifications(tt_obj.classification_table)
+    tt_obj.assignments = {ref_pkg.prefix: graftm_assignments}
+    tt_obj.filter_assignments(ref_pkg.prefix)
+
+    return
+
+
+def prep_graftm_ref_files(ref_pkg: refpkg.ReferencePackage, tmp_dir: str, target_clade: str, executables: dict) -> dict:
     """
     From the original TreeSAPP reference package files, the necessary GraftM create input files are generated
     with all reference sequences related to the target_taxon removed from the multiple sequence alignment,
@@ -393,17 +484,17 @@ def prep_graftm_ref_files(refpkg: ReferencePackage, tmp_dir: str, target_clade: 
 
     :param tmp_dir:  Path to write the intermediate files with target references removed
     :param target_clade: Taxonomic lineage of the clade that is being excluded from the reference package.
-    :param refpkg: A ReferencePackage instance for the reference package being tested
+    :param ref_pkg: A ReferencePackage instance for the reference package being tested
     :param executables: Dictionary of paths to dependency executables indexed by their names. Must include:
          'hmmbuild', 'FastTree' and 'raxml-ng'.
     :return: A dictionary providing paths to output files
     """
     # GraftM refpkg input paths:
-    output_paths = {"filtered_tax_ids": os.path.join(tmp_dir, refpkg.prefix + "_lineage_ids.txt"),
-                    "filtered_mfa": os.path.join(tmp_dir, refpkg.prefix + ".mfa"),
-                    "filtered_fasta": os.path.join(tmp_dir, refpkg.prefix + ".fa")}
+    output_paths = {"filtered_tax_ids": os.path.join(tmp_dir, ref_pkg.prefix + "_lineage_ids.txt"),
+                    "filtered_mfa": os.path.join(tmp_dir, ref_pkg.prefix + ".mfa"),
+                    "filtered_fasta": os.path.join(tmp_dir, ref_pkg.prefix + ".fa")}
 
-    ce_refpkg = refpkg.clone(clone_path=tmp_dir + refpkg.prefix + refpkg.refpkg_suffix)
+    ce_refpkg = ref_pkg.clone(clone_path=tmp_dir + ref_pkg.prefix + ref_pkg.refpkg_suffix)
 
     ce_refpkg.exclude_clade_from_ref_files(tmp_dir=tmp_dir, executables=executables, target_clade=target_clade)
 
@@ -416,10 +507,10 @@ def prep_graftm_ref_files(refpkg: ReferencePackage, tmp_dir: str, target_clade: 
         taxa_handler.write("\n".join(lineage_info) + "\n")
 
     # Create and write the unaligned fasta file
-    ce_fasta = ce_refpkg.get_fasta()  # type: FASTA
-    write_new_fasta(fasta_dict=ce_fasta.fasta_dict, fasta_name=output_paths["filtered_mfa"])
+    ce_fasta = ce_refpkg.get_fasta()  # type: fasta.FASTA
+    fasta.write_new_fasta(fasta_dict=ce_fasta.fasta_dict, fasta_name=output_paths["filtered_mfa"])
     ce_fasta.unalign()
-    write_new_fasta(fasta_dict=ce_fasta.fasta_dict, fasta_name=output_paths["filtered_fasta"])
+    fasta.write_new_fasta(fasta_dict=ce_fasta.fasta_dict, fasta_name=output_paths["filtered_fasta"])
     return output_paths
 
 

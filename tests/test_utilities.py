@@ -1,9 +1,11 @@
 import unittest
 import pytest
+import shutil
 import re
 import os
 
 from .testing_utils import get_test_data
+
 
 class ClassifierTester(unittest.TestCase):
     def test_median(self):
@@ -48,6 +50,21 @@ class ClassifierTester(unittest.TestCase):
                 c += 1
         self.assertEqual(266, c)
         os.remove("cat_test.fasta")
+        return
+
+    def test_match_file(self):
+        from treesapp.utilities import match_file
+        test_dir = "./tests/test_data/s__[Mycobacterium]_[s]tephanolepidis/"
+        test_file_one = test_dir + "tree_data_evaluate.raxml.bestModel"
+
+        os.makedirs(test_dir, exist_ok=True)
+        tmp_fh = open(test_file_one, 'w')
+        tmp_fh.close()
+        tmp_path = match_file(test_file_one)
+        self.assertTrue(os.path.exists(tmp_path))
+
+        if os.path.isdir(test_dir):
+            shutil.rmtree(test_dir)
         return
 
 

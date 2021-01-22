@@ -7,9 +7,11 @@ import logging
 from shutil import copy, rmtree
 
 from tqdm import tqdm
+import subprocess
 
 from treesapp.external_command_interface import launch_write_command, CommandLineFarmer
 from treesapp.fasta import read_fasta_to_dict
+from treesapp import utilities
 
 
 def estimate_ml_model(modeltest_exe: str, msa: str, output_prefix: str, molecule: str, threads=1) -> str:
@@ -70,15 +72,15 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     model_params_file = output_prefix + ".raxml.bestModel"
     ml_tree = output_prefix + ".raxml.bestTree"
     model_eval_cmd = [raxml_exe, "--evaluate"]
-    model_eval_cmd += ["--msa", ref_msa]
-    model_eval_cmd += ["--tree", tree_file]
-    model_eval_cmd += ["--prefix", output_prefix]
+    model_eval_cmd += ["--msa", "'" + ref_msa + "'"]
+    model_eval_cmd += ["--tree", "'" + tree_file + "'"]
+    model_eval_cmd += ["--prefix", "'" + output_prefix + "'"]
     model_eval_cmd += ["--model", model]
     model_eval_cmd += ["--threads", "auto{{{}}}".format(threads)]
     model_eval_cmd += ["--seed", str(12345)]
     model_eval_cmd += ["--workers", "auto{{{}}}".format(threads)]
     model_eval_cmd.append("--force")
-    if glob.glob(output_prefix + "*"):
+    if glob.glob(utilities.globify_path(output_prefix) + "*"):
         model_eval_cmd.append("--redo")
 
     logging.debug("Evaluating phylogenetic tree with RAxML-NG... ")
@@ -611,7 +613,7 @@ def build_hmm_profile(hmmbuild_exe: str, msa_in: str, output_hmm: str, name=None
     hmm_build_command = [hmmbuild_exe]
     if name:
         hmm_build_command += ["-n", str(name)]
-    hmm_build_command += [output_hmm, msa_in]
+    hmm_build_command += ["'" + output_hmm + "'", "'" + msa_in + "'"]
     stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
     logging.debug("done.\n")
 
@@ -645,8 +647,8 @@ def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output
     hmmsearch_command_base += ["-E", str(e_value)]
     hmmsearch_command_base.append("--noali")
     # Customize the command for this input and HMM
-    final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", domtbl]
-    final_hmmsearch_command += [hmm_profile, query_fasta]
+    final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", "'" + domtbl + "'"]
+    final_hmmsearch_command += ["'" + hmm_profile + "'", "'" + query_fasta + "'"]
     stdout, ret_code = launch_write_command(final_hmmsearch_command)
 
     # Check to ensure the job finished properly
@@ -697,6 +699,66 @@ def hmmsearch_orfs(hmmsearch_exe: str, refpkg_dict: dict, fasta_file: str, outpu
         pbar.close()
 
     return hmm_domtbl_files
+
+
+def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
+                        reads: str, pairing: str, reverse=None, num_threads=2) -> str:
+    """
+    Align the predicted ORFs to the reads using BWA MEM
+
+    :param bwa_exe: Path to the BWA executable
+    :param reference_fasta: A FASTA file containing the sequences to be aligned to
+    :param aln_output_dir: Path to the directory to write the index and SAM files
+    :param reads: FASTQ file containing reads to be aligned to the reference FASTA file
+    :param pairing: Either 'se' or 'pe' indicating the reads are single-end or paired-end, respectively
+    :param reverse: Path to reverse-orientation mate pair reads [OPTIONAL]
+    :param num_threads: Number of threads for BWA MEM to use
+    :return: Path to the SAM file
+    """
+    if not os.path.exists(aln_output_dir):
+        try:
+            os.makedirs(aln_output_dir)
+        except OSError:
+            if os.path.exists(aln_output_dir):
+                logging.warning("Overwriting files in " + aln_output_dir + ".\n")
+            else:
+                raise OSError("Unable to make " + aln_output_dir + "!\n")
+
+    logging.info("Aligning reads to ORFs with BWA MEM... ")
+
+    sam_file = aln_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
+    if os.path.isfile(sam_file):
+        logging.info("Alignment map file {} found.\n".format(sam_file))
+        return sam_file
+    index_command = [bwa_exe, "index"]
+    index_command += [reference_fasta]
+    index_command += ["1>", "/dev/null", "2>", aln_output_dir + "treesapp_bwa_index.stderr"]
+
+    launch_write_command(index_command)
+
+    bwa_command = [bwa_exe, "mem"]
+    bwa_command += ["-t", str(num_threads)]
+    if pairing == "pe" and not reverse:
+        bwa_command.append("-p")
+        logging.debug("FASTQ file containing reverse mates was not provided - assuming the reads are interleaved!\n")
+    elif pairing == "se":
+        bwa_command += ["-S", "-P"]
+
+    bwa_command.append(reference_fasta)
+    bwa_command.append(reads)
+    if pairing == "pe" and reverse:
+        bwa_command.append(reverse)
+    bwa_command += ["1>", sam_file, "2>", aln_output_dir + "treesapp_bwa_mem.stderr"]
+
+    p_bwa = subprocess.Popen(' '.join(bwa_command), shell=True, preexec_fn=os.setsid)
+    p_bwa.wait()
+    if p_bwa.returncode != 0:
+        logging.error("bwa mem did not complete successfully for:\n" +
+                      str(' '.join(bwa_command)) + "\n")
+
+    logging.info("done.\n")
+
+    return sam_file
 
 
 def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads) -> None:

@@ -33,7 +33,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_abundance(self):
-        from treesapp.commands import abundance
+        from treesapp.abundance import abundance
         from treesapp.file_parsers import read_classification_table
         from .testing_utils import get_test_data
         classification_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
@@ -60,7 +60,7 @@ class TreesappTester(unittest.TestCase):
 
     def test_assign_prot(self):
         ref_pkgs = ["McrA", "M0702", "S0001"]
-        from treesapp.commands import assign
+        from treesapp.assign import assign
         from treesapp.file_parsers import read_classification_table
         assign_commands_list = ["--fastx_input", self.aa_test_fa,
                                 "--targets", ','.join(ref_pkgs),
@@ -79,7 +79,7 @@ class TreesappTester(unittest.TestCase):
 
     def test_assign_dna(self):
         ref_pkgs = ["M0701", "M0702"]
-        from treesapp.commands import assign
+        from treesapp import assign
         from treesapp.file_parsers import read_classification_table
         assign_commands_list = ["--fastx_input", self.nt_test_fa,
                                 "--targets", ','.join(ref_pkgs),
@@ -88,7 +88,7 @@ class TreesappTester(unittest.TestCase):
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "strict",
                                 "--trim_align", "--overwrite", "--delete"]
-        assign(assign_commands_list)
+        assign.assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(6, len(lines))
         classified_seqs = [line[1].split()[0] for line in lines]

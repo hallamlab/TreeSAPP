@@ -21,10 +21,11 @@ try:
     from numpy import array as np_array
     from sklearn import preprocessing
 
+    from treesapp import abundance
     from treesapp import classy
     from treesapp import phylo_seq
     from treesapp.refpkg import ReferencePackage
-    from treesapp.treesapp_args import TreeSAPPArgumentParser
+    from treesapp import treesapp_args
     from treesapp.entish import index_tree_edges, map_internal_nodes_leaves
     from treesapp.external_command_interface import launch_write_command
     from treesapp import lca_calculations as ts_lca
@@ -848,93 +849,6 @@ def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
     return
 
 
-def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
-                        reads: str, pairing: str, reverse=None, num_threads=2) -> str:
-    """
-    Align the predicted ORFs to the reads using BWA MEM
-
-    :param bwa_exe: Path to the BWA executable
-    :param reference_fasta: A FASTA file containing the sequences to be aligned to
-    :param aln_output_dir: Path to the directory to write the index and SAM files
-    :param reads: FASTQ file containing reads to be aligned to the reference FASTA file
-    :param pairing: Either 'se' or 'pe' indicating the reads are single-end or paired-end, respectively
-    :param reverse: Path to reverse-orientation mate pair reads [OPTIONAL]
-    :param num_threads: Number of threads for BWA MEM to use
-    :return: Path to the SAM file
-    """
-    if not os.path.exists(aln_output_dir):
-        try:
-            os.makedirs(aln_output_dir)
-        except OSError:
-            if os.path.exists(aln_output_dir):
-                logging.warning("Overwriting files in " + aln_output_dir + ".\n")
-            else:
-                raise OSError("Unable to make " + aln_output_dir + "!\n")
-
-    logging.info("Aligning reads to ORFs with BWA MEM... ")
-
-    sam_file = aln_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
-    if os.path.isfile(sam_file):
-        logging.info("Alignment map file {} found.\n".format(sam_file))
-        return sam_file
-    index_command = [bwa_exe, "index"]
-    index_command += [reference_fasta]
-    index_command += ["1>", "/dev/null", "2>", aln_output_dir + "treesapp_bwa_index.stderr"]
-
-    launch_write_command(index_command)
-
-    bwa_command = [bwa_exe, "mem"]
-    bwa_command += ["-t", str(num_threads)]
-    if pairing == "pe" and not reverse:
-        bwa_command.append("-p")
-        logging.debug("FASTQ file containing reverse mates was not provided - assuming the reads are interleaved!\n")
-    elif pairing == "se":
-        bwa_command += ["-S", "-P"]
-
-    bwa_command.append(reference_fasta)
-    bwa_command.append(reads)
-    if pairing == "pe" and reverse:
-        bwa_command.append(reverse)
-    bwa_command += ["1>", sam_file, "2>", aln_output_dir + "treesapp_bwa_mem.stderr"]
-
-    p_bwa = subprocess.Popen(' '.join(bwa_command), shell=True, preexec_fn=os.setsid)
-    p_bwa.wait()
-    if p_bwa.returncode != 0:
-        logging.error("bwa mem did not complete successfully for:\n" +
-                      str(' '.join(bwa_command)) + "\n")
-
-    logging.info("done.\n")
-
-    return sam_file
-
-
-def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
-    """
-    Add abundance (RPKM or presence count) values to the PQuery instances (abundance variable)
-
-    :param tree_saps: Dictionary mapping refpkg codes to all PQuery instances for classified sequences
-    :param abundance_dict: Dictionary mapping sequence names to floats
-    :return: None
-    """
-    abundance_mapped_acc = 0
-    for placed_seqs in tree_saps.values():  # type: list
-        for pquery in placed_seqs:  # type: phylo_seq.PQuery
-            if not pquery.abundance:
-                # Filter out RPKMs for contigs not associated with the target marker
-                try:
-                    pquery.abundance = abundance_dict[pquery.place_name]
-                    abundance_mapped_acc += 1
-                except KeyError:
-                    pquery.abundance = 0.0
-            else:
-                abundance_mapped_acc += 1
-
-    if abundance_mapped_acc == 0:
-        logging.warning("No placed sequences with abundances identified.\n")
-
-    return
-
-
 def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
     """
     From the basic RPKM output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
@@ -1265,47 +1179,6 @@ def determine_confident_lineage(tree_saps: dict, refpkg_dict: dict, mode="max_lw
     return
 
 
-def write_classification_table(tree_saps, sample_name, output_file):
-    """
-    Write the final classification table
-
-    :param tree_saps: A dictionary containing PQuery objects
-    :param sample_name: String representing the name of the sample (i.e. Assign.sample_prefix)
-    :param output_file: Path to write the classification table
-    :return: None
-    """
-    tab_out_string = "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\t" \
-                     "iNode\tE-value\tLWR\tEvoDist\tDistances\n"
-
-    for refpkg_name in tree_saps:
-        for tree_sap in tree_saps[refpkg_name]:  # type: phylo_seq.PQuery
-            if not tree_sap.classified:
-                continue
-            pplace = tree_sap.consensus_placement
-            tab_out_string += '\t'.join([sample_name,
-                                         re.sub(r"\|{0}\|\d+_\d+$".format(tree_sap.ref_name), '', tree_sap.place_name),
-                                         tree_sap.ref_name,
-                                         str(tree_sap.start),
-                                         str(tree_sap.end),
-                                         tree_sap.recommended_lineage,
-                                         str(tree_sap.abundance),
-                                         str(pplace.edge_num),
-                                         str(tree_sap.evalue),
-                                         str(pplace.like_weight_ratio),
-                                         str(tree_sap.avg_evo_dist),
-                                         tree_sap.distances]) + "\n"
-    try:
-        tab_out = open(output_file, 'w')
-    except IOError:
-        logging.error("Unable to open " + output_file + " for writing!\n")
-        sys.exit(3)
-
-    tab_out.write(tab_out_string)
-    tab_out.close()
-
-    return
-
-
 def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
                         itol_base_dir: str, treesapp_data_dir: str) -> None:
     """
@@ -1373,5 +1246,162 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
     if strip_missing:
         logging.debug("A colours_strip.txt file does not yet exist for markers:\n\t" +
                       "\n\t".join(strip_missing) + "\n")
+
+    return
+
+
+def assign(sys_args):
+    # STAGE 1: Prompt the user and prepare files and lists for the pipeline
+    parser = treesapp_args.TreeSAPPArgumentParser(description='Classify sequences through evolutionary placement.')
+    treesapp_args.add_classify_arguments(parser)
+    args = parser.parse_args(sys_args)
+
+    ts_assign = Assigner()
+    ts_assign.furnish_with_arguments(args)
+    ts_assign.check_previous_output(args.overwrite)
+
+    log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
+    classy.prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
+
+    treesapp_args.check_parser_arguments(args, sys_args)
+    ts_assign.check_classify_arguments(args)
+    hmm_parsing_thresholds = ts_assign.define_hmm_domtbl_thresholds(args)
+    ts_assign.decide_stage(args)
+    n_proc = args.num_threads
+
+    refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
+    prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
+    ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
+
+    ##
+    # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
+    ##
+    if ts_assign.stage_status("orf-call"):
+        ts_assign.predict_orfs(args.composition, n_proc)
+
+    query_seqs = fasta.FASTA(ts_assign.query_sequences)
+    # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
+    if ts_assign.stage_status("clean"):
+        logging.info("Reading and formatting {}... ".format(ts_assign.query_sequences))
+        query_seqs.header_registry = fasta.format_fasta(fasta_input=ts_assign.query_sequences, molecule="prot",
+                                                        output_fasta=ts_assign.formatted_input)
+        logging.info("done.\n")
+    else:
+        query_seqs.file = ts_assign.formatted_input
+        query_seqs.header_registry = fasta.register_headers(fasta.get_headers(query_seqs.file))
+    logging.info("\tTreeSAPP will analyze the " + str(len(query_seqs.header_registry)) + " sequences found in input.\n")
+    ts_assign.increment_stage_dir()
+
+    ##
+    # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
+    ##
+    if ts_assign.stage_status("search"):
+        hmm_domtbl_files = wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"],
+                                                  refpkg_dict, ts_assign.formatted_input,
+                                                  ts_assign.stage_output_dir, n_proc, hmm_parsing_thresholds.max_e)
+    else:
+        hmm_domtbl_files = ts_assign.fetch_hmmsearch_outputs(set(refpkg_dict.keys()))
+
+    # Load alignment information
+    hmm_matches = file_parsers.parse_domain_tables(hmm_parsing_thresholds, hmm_domtbl_files)
+    load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
+    pqueries = load_pqueries(hmm_matches, query_seqs)
+    query_seqs.change_dict_keys("num")
+    extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
+    numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)
+    homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
+                                             refpkg_dict, ts_assign.stage_output_dir)
+    # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
+    extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
+    delete_files(args.delete, ts_assign.stage_output_dir, 1)
+    ts_assign.increment_stage_dir()
+
+    ##
+    # STAGE 4: Run hmmalign, and optionally BMGE, to produce the MSAs for phylogenetic placement
+    ##
+    MSAs = namedtuple("MSAs", "ref query")
+    if ts_assign.stage_status("align"):
+        combined_msa_files = {}
+        split_msa_files = {}
+        create_ref_phy_files(refpkg_dict, ts_assign.stage_output_dir,
+                             homolog_seq_files, ref_alignment_dimensions)
+        concatenated_msa_files = multiple_alignments(ts_assign.executables, homolog_seq_files,
+                                                     refpkg_dict, "hmmalign",
+                                                     ts_assign.stage_output_dir, num_proc=n_proc)
+        file_type = utilities.find_msa_type(concatenated_msa_files)
+        alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
+                                                    args.verbose, file_type)
+
+        if args.trim_align:
+            tool = "BMGE"
+            trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
+                                                                   refpkg_dict, n_proc, tool)
+            qc_ma_dict = check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files,
+                                                     refpkg_dict, args.min_seq_length)
+            evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
+            combined_msa_files.update(qc_ma_dict)
+        else:
+            combined_msa_files.update(concatenated_msa_files)
+
+        # Subset the multiple alignment of reference sequences and queries to just contain query sequences
+        for refpkg_name in combined_msa_files:
+            split_msa_files[refpkg_name] = []
+            for combined_msa in combined_msa_files[refpkg_name]:
+                split_msa = MSAs(os.path.dirname(combined_msa) + os.sep +
+                                 os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa",
+                                 os.path.dirname(combined_msa) + os.sep +
+                                 os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa")
+                fasta.split_combined_ref_query_fasta(combined_msa, split_msa.query, split_msa.ref)
+                split_msa_files[refpkg_name].append(split_msa)
+        combined_msa_files.clear()
+        delete_files(args.delete, ts_assign.stage_lookup("search").dir_path, 2)
+    else:
+        split_msa_files = gather_split_msa(list(refpkg_dict.keys()), ts_assign.stage_output_dir)
+    ts_assign.increment_stage_dir()
+
+    ##
+    # STAGE 5: Run EPA-ng to compute the ML estimations
+    ##
+    if ts_assign.stage_status("place"):
+        wrapper.launch_evolutionary_placement_queries(ts_assign.executables, split_msa_files, refpkg_dict,
+                                                      ts_assign.stage_output_dir, n_proc)
+        jplace_utils.sub_indices_for_seq_names_jplace(ts_assign.stage_output_dir, numeric_contig_index, refpkg_dict)
+        delete_files(args.delete, ts_assign.stage_lookup("align").dir_path, 3)
+
+    if ts_assign.stage_status("classify"):
+        tree_saps, itol_data = parse_raxml_output(ts_assign.stage_output_dir, refpkg_dict, pqueries)
+        ts_assign.increment_stage_dir()
+        # Set PQuery.consensus_placement attributes
+        select_query_placements(tree_saps, refpkg_dict, mode=args.p_sum)
+        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr)
+        determine_confident_lineage(tree_saps, refpkg_dict)
+
+        ts_assign.write_classified_orfs(tree_saps, extracted_seq_dict)
+        abundance_dict = dict()
+        for refpkg_code in tree_saps:
+            for placed_seq in tree_saps[refpkg_code]:  # type: phylo_seq.PQuery
+                abundance_dict[placed_seq.place_name] = 1.0
+
+        # Run the abundance subcommand on the classified sequences
+        if ts_assign.stage_status("abundance"):
+            abundance_args = ["--treesapp_output", ts_assign.output_dir,
+                              "--reads", args.reads,
+                              "--pairing", args.pairing,
+                              "--num_procs", str(n_proc),
+                              "--report", "nothing"]
+            if args.reverse:
+                abundance_args += ["--reverse", args.reverse]
+            abundance_dict = abundance.abundance(abundance_args)
+        phylo_seq.abundify_tree_saps(tree_saps, abundance_dict)
+
+        file_parsers.write_classification_table(tree_saps, ts_assign.sample_prefix,
+                                                output_file=ts_assign.classification_table)
+
+        produce_itol_inputs(tree_saps, refpkg_dict, itol_data, ts_assign.itol_out, ts_assign.refpkg_dir)
+        delete_files(args.delete, ts_assign.stage_lookup("place").dir_path, 4)
+
+    # Clear out the rest of the intermediates
+    delete_files(args.delete, ts_assign.var_output_dir, 5)
 
     return

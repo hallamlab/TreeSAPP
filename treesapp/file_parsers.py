@@ -13,6 +13,7 @@ from treesapp.classy import Cluster, BlastAln
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import read_fasta_to_dict
 from treesapp import hmmer_tbl_parser
+from treesapp import phylo_seq
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -106,6 +107,47 @@ def read_graftm_classifications(assignment_file):
             sys.exit(21)
 
     return assignments
+
+
+def write_classification_table(tree_saps, sample_name, output_file):
+    """
+    Write the final classification table
+
+    :param tree_saps: A dictionary containing PQuery objects
+    :param sample_name: String representing the name of the sample (i.e. Assign.sample_prefix)
+    :param output_file: Path to write the classification table
+    :return: None
+    """
+    tab_out_string = "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\t" \
+                     "iNode\tE-value\tLWR\tEvoDist\tDistances\n"
+
+    for refpkg_name in tree_saps:
+        for tree_sap in tree_saps[refpkg_name]:  # type: phylo_seq.PQuery
+            if not tree_sap.classified:
+                continue
+            pplace = tree_sap.consensus_placement
+            tab_out_string += '\t'.join([sample_name,
+                                         re.sub(r"\|{0}\|\d+_\d+$".format(tree_sap.ref_name), '', tree_sap.place_name),
+                                         tree_sap.ref_name,
+                                         str(tree_sap.start),
+                                         str(tree_sap.end),
+                                         tree_sap.recommended_lineage,
+                                         str(tree_sap.abundance),
+                                         str(pplace.edge_num),
+                                         str(tree_sap.evalue),
+                                         str(pplace.like_weight_ratio),
+                                         str(tree_sap.avg_evo_dist),
+                                         tree_sap.distances]) + "\n"
+    try:
+        tab_out = open(output_file, 'w')
+    except IOError:
+        logging.error("Unable to open " + output_file + " for writing!\n")
+        sys.exit(3)
+
+    tab_out.write(tab_out_string)
+    tab_out.close()
+
+    return
 
 
 def parse_assignments(classified_lines: list) -> dict:

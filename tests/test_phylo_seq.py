@@ -1,5 +1,6 @@
 import unittest
 import pytest
+import os
 from .testing_utils import get_test_data
 
 
@@ -16,7 +17,7 @@ def test_pquery(request):
 
 
 @pytest.mark.usefixtures("test_pquery")
-class PhyloSeqtests(unittest.TestCase):
+class PhyloSeqTests(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp.phylo_seq import PQuery
         from treesapp.refpkg import ReferencePackage
@@ -43,11 +44,42 @@ class PhyloSeqtests(unittest.TestCase):
                                                [393, -56289.2785075033, 0.0189423138, 0.0153064082, 0.0729607682],
                                                [388, -56285.7632899202, 0.6369020189, 0.0103030924, 0.0686955093]],
                                          'n': ['AFD09581.1']}
+        # Reference packages
+        puha_rp = ReferencePackage()
+        puha_rp.f__json = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+        puha_rp.slurp()
+        node_map = puha_rp.get_internal_node_leaf_map()
+
+        # PQueries
+        pquery_1 = PQuery()
+        pquery_2 = PQuery()
+        pquery_1.seq_name, pquery_1.start, pquery_1.end, pquery_1.ref_name, pquery_1.node_map = "seq1", 1, 112, "PuhA", node_map
+        pquery_2.seq_name, pquery_2.start, pquery_2.end, pquery_2.ref_name, pquery_2.node_map = "seq2", 3, 184, "PuhA", node_map
+        self.pqueries = {"PuhA": [pquery_1, pquery_2]}
 
         # Prepare the reference package
         self.refpkg = ReferencePackage(refpkg_name="McrA")
         self.refpkg.f__json = get_test_data("refpkgs/McrA_build.pkl")
         self.refpkg.slurp()
+        return
+
+    def test_abundify_tree_saps(self):
+        from treesapp import phylo_seq
+        # Set up the input data
+        abund_dict = {"seq1|PuhA|1_112": 100,
+                      "seq2|PuhA|3_184": 120,
+                      "seq2|NxrA|2_210": 80}
+        pquery_1, pquery_2 = self.pqueries["PuhA"]
+
+        # Test when no names map
+        phylo_seq.abundify_tree_saps(tree_saps=self.pqueries, abundance_dict=abund_dict)
+        self.assertEqual(0.0, pquery_2.abundance)
+
+        # Set the place name so the names now match
+        pquery_1.place_name = "{}|{}|{}_{}".format(pquery_1.seq_name, pquery_1.ref_name, pquery_1.start, pquery_1.end)
+        phylo_seq.abundify_tree_saps(tree_saps=self.pqueries, abundance_dict=abund_dict)
+        self.assertEqual(100, pquery_1.abundance)
+
         return
 
     def test_calc_mean_tip_length(self):

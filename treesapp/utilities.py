@@ -93,7 +93,19 @@ def which(program: str):
     return None
 
 
-def match_file(glob_pattern) -> str:
+def globify_path(path_name: str) -> str:
+    """Ensures the path name is compatible with glob.glob()."""
+    # Properly escape square brackets for glob.glob()
+    i = 0
+    while i < 10 and re.search(r'\w\[\w', path_name):
+        re_m = re.search(r'\w(\[)\w', path_name)
+        s, e = re_m.regs[1]
+        path_name = path_name[0:s] + '[[]' + path_name[e:]
+        i += 1
+    return path_name
+
+
+def match_file(glob_pattern: str) -> str:
     """
     Using a valid glob pattern, glob.glob is used to find a single file and
     return the path to the file that matches the pattern.
@@ -101,6 +113,8 @@ def match_file(glob_pattern) -> str:
     :param glob_pattern: A string representing a glob pattern. Used to search for files.
     :return: Path to the single file matching the glob pattern
     """
+    glob_pattern = globify_path(glob_pattern)
+
     file_matches = glob(glob_pattern)
 
     if len(file_matches) > 1:

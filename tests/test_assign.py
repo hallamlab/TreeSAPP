@@ -43,25 +43,6 @@ class AssignerTester(unittest.TestCase):
         if os.path.isdir(self.output_dir):
             shutil.rmtree(self.output_dir)
 
-    def test_abundify_tree_saps(self):
-        from treesapp import assign
-        # Set up the input data
-        abund_dict = {"seq1|PuhA|1_112": 100,
-                      "seq2|PuhA|3_184": 120,
-                      "seq2|NxrA|2_210": 80}
-        pquery_1, pquery_2 = self.pqueries["PuhA"]
-
-        # Test when no names map
-        assign.abundify_tree_saps(tree_saps=self.pqueries, abundance_dict=abund_dict)
-        self.assertEqual(0.0, pquery_2.abundance)
-
-        # Set the place name so the names now match
-        pquery_1.place_name = "{}|{}|{}_{}".format(pquery_1.seq_name, pquery_1.ref_name, pquery_1.start, pquery_1.end)
-        assign.abundify_tree_saps(tree_saps=self.pqueries, abundance_dict=abund_dict)
-        self.assertEqual(100, pquery_1.abundance)
-
-        return
-
     def test_select_consensus_placements(self):
         from treesapp.assign import select_query_placements
         with pytest.raises(ValueError):

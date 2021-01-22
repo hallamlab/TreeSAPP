@@ -70,7 +70,7 @@ class CladeExclusionTester(unittest.TestCase):
         taxon_str = 'd__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhizobiales'
         ce_dir = os.path.join(self.tmp_dir, taxon_str.split("; ")[-1])
         prep_graftm_ref_files(tmp_dir=ce_dir, target_clade=taxon_str,
-                              refpkg=self.ref_pkg, executables=self.exe_map)
+                              ref_pkg=self.ref_pkg, executables=self.exe_map)
         self.assertTrue(os.path.exists(os.path.join(ce_dir, "PuhA_lineage_ids.txt")))
         self.assertTrue(os.path.exists(os.path.join(ce_dir, "PuhA.fa")))
         self.assertTrue(os.path.exists(os.path.join(ce_dir, "PuhA.mfa")))

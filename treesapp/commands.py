@@ -6,10 +6,9 @@ import os
 import shutil
 from random import randint
 
+import tqdm
 from joblib import dump as jdump
 from joblib import load as jload
-from collections import namedtuple
-from samsum import commands as samsum_cmd
 
 from treesapp import entrez_utils
 from treesapp import file_parsers
@@ -281,7 +280,7 @@ def train(sys_args):
             assign_params.append("--trim_align")
 
         try:
-            assign(assign_params)
+            ts_assign_mod.assign(assign_params)
             plain_pqueries = ts_phylo_seq.assignments_to_treesaps(file_parsers.read_classification_table(
                 os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")))
         except (SystemExit, IOError):
@@ -1110,232 +1109,6 @@ def layer(sys_args):
     return
 
 
-def assign(sys_args):
-    # STAGE 1: Prompt the user and prepare files and lists for the pipeline
-    parser = treesapp_args.TreeSAPPArgumentParser(description='Classify sequences through evolutionary placement.')
-    treesapp_args.add_classify_arguments(parser)
-    args = parser.parse_args(sys_args)
-
-    ts_assign = ts_assign_mod.Assigner()
-    ts_assign.furnish_with_arguments(args)
-    ts_assign.check_previous_output(args.overwrite)
-
-    log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
-
-    treesapp_args.check_parser_arguments(args, sys_args)
-    ts_assign.check_classify_arguments(args)
-    hmm_parsing_thresholds = ts_assign.define_hmm_domtbl_thresholds(args)
-    ts_assign.decide_stage(args)
-    n_proc = args.num_threads
-
-    refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
-    ts_assign_mod.prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
-    ref_alignment_dimensions = ts_assign_mod.get_alignment_dims(refpkg_dict)
-
-    ##
-    # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
-    ##
-    if ts_assign.stage_status("orf-call"):
-        ts_assign.predict_orfs(args.composition, n_proc)
-
-    query_seqs = fasta.FASTA(ts_assign.query_sequences)
-    # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
-    if ts_assign.stage_status("clean"):
-        logging.info("Reading and formatting {}... ".format(ts_assign.query_sequences))
-        query_seqs.header_registry = fasta.format_fasta(fasta_input=ts_assign.query_sequences, molecule="prot",
-                                                        output_fasta=ts_assign.formatted_input)
-        logging.info("done.\n")
-    else:
-        query_seqs.file = ts_assign.formatted_input
-        query_seqs.header_registry = fasta.register_headers(fasta.get_headers(query_seqs.file))
-    logging.info("\tTreeSAPP will analyze the " + str(len(query_seqs.header_registry)) + " sequences found in input.\n")
-    ts_assign.increment_stage_dir()
-
-    ##
-    # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
-    ##
-    if ts_assign.stage_status("search"):
-        hmm_domtbl_files = wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"],
-                                                  refpkg_dict, ts_assign.formatted_input,
-                                                  ts_assign.stage_output_dir, n_proc, hmm_parsing_thresholds.max_e)
-    else:
-        hmm_domtbl_files = ts_assign.fetch_hmmsearch_outputs(set(refpkg_dict.keys()))
-
-    # Load alignment information
-    hmm_matches = file_parsers.parse_domain_tables(hmm_parsing_thresholds, hmm_domtbl_files)
-    ts_assign_mod.load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
-    pqueries = ts_assign_mod.load_pqueries(hmm_matches, query_seqs)
-    query_seqs.change_dict_keys("num")
-    extracted_seq_dict, numeric_contig_index = ts_assign_mod.bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
-    numeric_contig_index = ts_assign_mod.replace_contig_names(numeric_contig_index, query_seqs)
-    homolog_seq_files = ts_assign_mod.write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
-                                                           refpkg_dict, ts_assign.stage_output_dir)
-    # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
-    extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
-    ts_assign_mod.delete_files(args.delete, ts_assign.stage_output_dir, 1)
-    ts_assign.increment_stage_dir()
-
-    ##
-    # STAGE 4: Run hmmalign, and optionally BMGE, to produce the MSAs for phylogenetic placement
-    ##
-    MSAs = namedtuple("MSAs", "ref query")
-    if ts_assign.stage_status("align"):
-        combined_msa_files = {}
-        split_msa_files = {}
-        ts_assign_mod.create_ref_phy_files(refpkg_dict, ts_assign.stage_output_dir,
-                                           homolog_seq_files, ref_alignment_dimensions)
-        concatenated_msa_files = ts_assign_mod.multiple_alignments(ts_assign.executables, homolog_seq_files,
-                                                                   refpkg_dict, "hmmalign",
-                                                                   ts_assign.stage_output_dir, num_proc=n_proc)
-        file_type = utilities.find_msa_type(concatenated_msa_files)
-        alignment_length_dict = ts_assign_mod.get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
-                                                                  args.verbose, file_type)
-
-        if args.trim_align:
-            tool = "BMGE"
-            trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
-                                                                   refpkg_dict, n_proc, tool)
-            qc_ma_dict = ts_assign_mod.check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files,
-                                                                   refpkg_dict, args.min_seq_length)
-            ts_assign_mod.evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
-            combined_msa_files.update(qc_ma_dict)
-        else:
-            combined_msa_files.update(concatenated_msa_files)
-
-        # Subset the multiple alignment of reference sequences and queries to just contain query sequences
-        for refpkg_name in combined_msa_files:
-            split_msa_files[refpkg_name] = []
-            for combined_msa in combined_msa_files[refpkg_name]:
-                split_msa = MSAs(os.path.dirname(combined_msa) + os.sep +
-                                 os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa",
-                                 os.path.dirname(combined_msa) + os.sep +
-                                 os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa")
-                fasta.split_combined_ref_query_fasta(combined_msa, split_msa.query, split_msa.ref)
-                split_msa_files[refpkg_name].append(split_msa)
-        combined_msa_files.clear()
-        ts_assign_mod.delete_files(args.delete, ts_assign.stage_lookup("search").dir_path, 2)
-    else:
-        split_msa_files = ts_assign_mod.gather_split_msa(list(refpkg_dict.keys()), ts_assign.stage_output_dir)
-    ts_assign.increment_stage_dir()
-
-    ##
-    # STAGE 5: Run EPA-ng to compute the ML estimations
-    ##
-    if ts_assign.stage_status("place"):
-        wrapper.launch_evolutionary_placement_queries(ts_assign.executables, split_msa_files, refpkg_dict,
-                                                      ts_assign.stage_output_dir, n_proc)
-        jplace_utils.sub_indices_for_seq_names_jplace(ts_assign.stage_output_dir, numeric_contig_index, refpkg_dict)
-        ts_assign_mod.delete_files(args.delete, ts_assign.stage_lookup("align").dir_path, 3)
-
-    if ts_assign.stage_status("classify"):
-        tree_saps, itol_data = ts_assign_mod.parse_raxml_output(ts_assign.stage_output_dir, refpkg_dict, pqueries)
-        ts_assign.increment_stage_dir()
-        # Set PQuery.consensus_placement attributes
-        ts_assign_mod.select_query_placements(tree_saps, refpkg_dict, mode=args.p_sum)
-        ts_assign_mod.filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr)
-        ts_assign_mod.determine_confident_lineage(tree_saps, refpkg_dict)
-
-        ts_assign.write_classified_orfs(tree_saps, extracted_seq_dict)
-        abundance_dict = dict()
-        for refpkg_code in tree_saps:
-            for placed_seq in tree_saps[refpkg_code]:  # type: ts_phylo_seq.PQuery
-                abundance_dict[placed_seq.place_name] = 1.0
-
-        # Run the abundance subcommand on the classified sequences
-        if ts_assign.stage_status("abundance"):
-            abundance_args = ["--treesapp_output", ts_assign.output_dir,
-                              "--reads", args.reads,
-                              "--pairing", args.pairing,
-                              "--num_procs", str(n_proc),
-                              "--report", "nothing"]
-            if args.reverse:
-                abundance_args += ["--reverse", args.reverse]
-            abundance_dict = abundance(abundance_args)
-        ts_assign_mod.abundify_tree_saps(tree_saps, abundance_dict)
-
-        ts_assign_mod.write_classification_table(tree_saps, ts_assign.sample_prefix,
-                                                 output_file=ts_assign.classification_table)
-
-        ts_assign_mod.produce_itol_inputs(tree_saps, refpkg_dict, itol_data, ts_assign.itol_out, ts_assign.refpkg_dir)
-        ts_assign_mod.delete_files(args.delete, ts_assign.stage_lookup("place").dir_path, 4)
-
-    # Clear out the rest of the intermediates
-    ts_assign_mod.delete_files(args.delete, ts_assign.var_output_dir, 5)
-
-    return
-
-
-def abundance(sys_args):
-    """
-    TreeSAPP subcommand that is used to add read-inferred abundance information (e.g. FPKM, TPM) to classified sequences
-    Command requires:
-
-1. Path to TreeSAPP output directory that contains classified sequences (FASTA-format) in the final_outputs/
-2. Path to read file(s) in FASTQ format
-3. Parameters indicating whether a) the reads are paired-end or single-end and b) the FASTQ is interleaved
-
-    With these arguments and the option `--report update` TreeSAPP would run BWA MEM and samsum to
-    calculate the desired abundance values (FPKM by default) and update the classification table with the
-    Sample (first column) of the classification table matching the prefix of the FASTQ.
-
-    Optionally, `treesapp abundance` can be called with `--report nothing` and a dictionary containing the abundance
-    values would be returned.
-
-    :param sys_args: treesapp abundance arguments with the treesapp subcommand removed
-    :return: A dictionary containing the abundance values indexed by the reference sequence (e.g. ORF, contig) names
-    """
-    parser = treesapp_args.TreeSAPPArgumentParser(description="Calculate classified sequence abundances from read coverage.")
-    treesapp_args.add_abundance_arguments(parser)
-    args = parser.parse_args(sys_args)
-
-    ts_abund = classy.Abundance()
-    ts_abund.furnish_with_arguments(args)
-    ts_abund.check_previous_output(args.overwrite)
-
-    log_file_name = args.output + os.sep + "TreeSAPP_abundance_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\tCalculating abundance of classified sequences\t\t\t##\n")
-
-    treesapp_args.check_parser_arguments(args, sys_args)
-    ts_abund.check_arguments(args)
-    ts_abund.decide_stage(args)
-
-    if ts_abund.stage_status("align_map"):
-        ts_assign_mod.align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.classified_nuc_seqs,
-                                          ts_abund.stage_output_dir, args.reads, args.pairing, args.reverse,
-                                          args.num_threads)
-        ts_abund.increment_stage_dir()
-
-    if ts_abund.stage_status("sam_sum"):
-        if os.path.isfile(ts_abund.aln_file):
-            ref_seq_abunds = samsum_cmd.ref_sequence_abundances(aln_file=ts_abund.aln_file,
-                                                                seq_file=ts_abund.classified_nuc_seqs,
-                                                                min_aln=10, p_cov=50, map_qual=1, multireads=False)
-            abundance_dict = {ref_seq.name: ref_seq.fpkm for ref_seq in ref_seq_abunds.values()}
-            ref_seq_abunds.clear()
-        else:
-            logging.warning("SAM file '%s' was not generated.\n" % ts_abund.aln_file)
-            return {}
-        ts_abund.increment_stage_dir()
-    else:
-        abundance_dict = {}
-        logging.warning("Skipping samsum normalized relative abundance calculation in treesapp abundance.\n")
-
-    ts_abund.delete_intermediates(args.delete)
-
-    # TODO: Index each PQuery's abundance by the dataset name, write a new row for each dataset's abundance
-    if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
-        assignments = file_parsers.read_classification_table(ts_abund.classifications)
-        # Convert assignments to PQuery instances
-        pqueries = ts_phylo_seq.assignments_to_treesaps(assignments)
-        ts_assign_mod.abundify_tree_saps(pqueries, abundance_dict)
-        ts_assign_mod.write_classification_table(pqueries, ts_abund.sample_prefix, ts_abund.classifications)
-
-    return abundance_dict
-
-
 def purity(sys_args):
     """
 
@@ -1376,7 +1149,7 @@ def purity(sys_args):
             assign_args.append("--trim_align")
 
         try:
-            assign(assign_args)
+            ts_assign_mod.assign(assign_args)
         except:  # Just in case treesapp assign fails, just continue
             logging.error("TreeSAPP failed.\n")
         ts_purity.increment_stage_dir()
@@ -1482,8 +1255,10 @@ def evaluate(sys_args):
     if ts_evaluate.stage_status("classify"):
         # Run TreeSAPP against the provided tax_ids file and the unique taxa FASTA file
         for rank in args.taxon_rank:
-            for lineage in ts_clade_ex.get_testable_lineages_for_rank(ref_lineages, rep_accession_lineage_map,
-                                                                      rank, ts_evaluate.ref_pkg.taxa_trie):
+            candidate_lineages = ts_clade_ex.get_testable_lineages_for_rank(ref_lineages, rep_accession_lineage_map,
+                                                                            rank, ts_evaluate.ref_pkg.taxa_trie)
+            p_bar = tqdm.tqdm(ncols=100, desc="Evaluating {}".format(rank), total=len(candidate_lineages))
+            for lineage in candidate_lineages:
                 # Select representative sequences belonging to the taxon being tested
                 taxon_rep_seqs = ts_clade_ex.select_rep_seqs(representative_seqs, fasta_records, lineage)
                 # Decide whether to continue analyzing taxon based on number of query sequences
@@ -1495,90 +1270,22 @@ def evaluate(sys_args):
                 tt_obj = ts_evaluate.new_taxa_test(lineage, args.tool)
                 tt_obj.queries = taxon_rep_seqs.keys()
 
-                logging.info("Classifications for '{}' put in {}\n".format(tt_obj.taxon, tt_obj.intermediates_dir))
-
+                logging.debug("Classifications for '{}' put in {}\n".format(tt_obj.taxon, tt_obj.intermediates_dir))
                 if args.tool in ["graftm", "diamond"]:
-                    if not os.path.isfile(tt_obj.classification_table):
-                        # GraftM refpkg output files:
-                        gpkg_refpkg_path = os.path.join(tt_obj.refpkg_path,
-                                                        ts_evaluate.ref_pkg.prefix +
-                                                        '_' + re.sub(' ', '_', tt_obj.taxon) + ".gpkg.refpkg") + os.sep
-                        gpkg_tax_ids_file = gpkg_refpkg_path + ts_evaluate.ref_pkg.prefix + "_taxonomy.csv"
-
-                        # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        output_paths = ts_clade_ex.prep_graftm_ref_files(tmp_dir=tt_obj.intermediates_dir,
-                                                                         target_clade=lineage,
-                                                                         refpkg=ts_evaluate.ref_pkg,
-                                                                         executables=ts_evaluate.executables)
-
-                        if not os.path.isdir(tt_obj.refpkg_path):
-                            ts_clade_ex.build_graftm_package(gpkg_path=tt_obj.refpkg_path,
-                                                             tax_file=output_paths["filtered_tax_ids"],
-                                                             mfa_file=output_paths["filtered_mfa"],
-                                                             fa_file=output_paths["filtered_fasta"],
-                                                             threads=args.num_threads)
-                        # Write the query sequences
-                        fasta.write_new_fasta(taxon_rep_seqs, tt_obj.test_query_fasta)
-
-                        ts_clade_ex.graftm_classify(tt_obj.test_query_fasta,
-                                                    tt_obj.refpkg_path,
-                                                    tt_obj.classifications_root,
-                                                    args.num_threads, args.tool)
-
-                        if not os.path.isfile(tt_obj.classification_table):
-                            # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
-                            logging.warning("GraftM did not generate output for " + lineage + ". Skipping.\n")
-                            shutil.rmtree(tt_obj.intermediates_dir)
-                            continue
-
-                    tt_obj.taxonomic_tree = lca_calculations.grab_graftm_taxa(gpkg_tax_ids_file)
-                    graftm_assignments = file_parsers.read_graftm_classifications(tt_obj.classification_table)
-                    tt_obj.assignments = {ts_evaluate.ref_pkg.prefix: graftm_assignments}
-                    tt_obj.filter_assignments(ts_evaluate.ref_pkg.prefix)
+                    ts_clade_ex.run_clade_exclusion_graftm(tt_obj, taxon_rep_seqs, ts_evaluate.ref_pkg,
+                                                           graftm_classifier=args.tool,
+                                                           num_threads=args.num_threads,
+                                                           executables=ts_evaluate.executables)
                 else:
-                    if not os.path.isfile(tt_obj.classification_table):
-                        # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        ce_refpkg = ts_evaluate.ref_pkg.clone(tt_obj.refpkg_path)
-                        ce_refpkg.exclude_clade_from_ref_files(tt_obj.intermediates_dir, lineage,
-                                                               ts_evaluate.executables, args.fresh)
-                        # Write the query sequences
-                        fasta.write_new_fasta(taxon_rep_seqs, tt_obj.test_query_fasta)
-                        assign_args = ["-i", tt_obj.test_query_fasta, "-o", tt_obj.classifications_root,
-                                       "--refpkg_dir", os.path.dirname(ce_refpkg.f__json),
-                                       "-m", ts_evaluate.molecule_type, "-n", str(args.num_threads),
-                                       "--min_seq_length", str(ts_evaluate.min_seq_length),
-                                       "--overwrite", "--delete"]
-                        if args.trim_align:
-                            assign_args.append("--trim_align")
-                        try:
-                            assign(assign_args)
-                        except:  # Just in case treesapp assign fails, just continue
-                            pass
-
-                        if not os.path.isfile(tt_obj.classification_table):
-                            # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
-                            logging.warning("TreeSAPP did not generate output for '{}'. Skipping.\n".format(lineage))
-                            shutil.rmtree(tt_obj.classifications_root)
-                            continue
-                    else:
-                        # Valid number of queries and these sequences have already been classified
-                        ce_refpkg = ts_ref_pkg.ReferencePackage()
-                        ce_refpkg.f__json = os.path.join(tt_obj.intermediates_dir,
-                                                         '_'.join([ts_evaluate.ref_pkg.prefix, ts_evaluate.ref_pkg.refpkg_code, ts_evaluate.ref_pkg.date]),
-                                                         ts_evaluate.ref_pkg.prefix + ts_evaluate.ref_pkg.refpkg_suffix)
-                        ce_refpkg.slurp()
-
-                    tt_obj.taxonomic_tree = ce_refpkg.all_possible_assignments()
-                    if os.path.isfile(tt_obj.classification_table):
-                        assigned_lines = file_parsers.read_classification_table(tt_obj.classification_table)
-                        tt_obj.assignments = file_parsers.parse_assignments(assigned_lines)
-                        tt_obj.filter_assignments(ts_evaluate.ref_pkg.prefix)
-                        tt_obj.distances = ts_clade_ex.parse_distances(assigned_lines)
-                    else:
-                        logging.error("marker_contig_map.tsv is missing from output directory '" +
-                                      os.path.dirname(tt_obj.classification_table) + "'\n" +
-                                      "Please remove this directory and re-run.\n")
-                        sys.exit(21)
+                    ts_clade_ex.run_clade_exclusion_treesapp(tt_obj, taxon_rep_seqs, ts_evaluate.ref_pkg,
+                                                             num_threads=args.num_threads,
+                                                             executables=ts_evaluate.executables,
+                                                             trim_align=args.trim_align,
+                                                             fresh=args.fresh,
+                                                             molecule_type=ts_evaluate.molecule_type,
+                                                             min_seq_length=ts_evaluate.min_seq_length)
+                p_bar.update()
+            p_bar.close()
 
     if ts_evaluate.stage_status("calculate"):
         # everything has been prepared, only need to parse the classifications and map lineages

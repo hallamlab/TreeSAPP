@@ -102,6 +102,18 @@ class ExecutableWrapperTester(unittest.TestCase):
         self.assertEqual(54, len(tbl_lines))
         return
 
+    def test_build_hmm_profile(self):
+        from treesapp.wrapper import build_hmm_profile
+        from treesapp.utilities import fetch_executable_path
+        # Create an output directory with parentheses, which ordinarily trips up HMMER
+        os.makedirs(os.path.join(self.tmp_dir, "s__Leucobacter_sp._7(1)"))
+        test_hmm = os.path.join(self.tmp_dir, "s__Leucobacter_sp._7(1)", "test.hmm")
+        build_hmm_profile(hmmbuild_exe=fetch_executable_path("hmmbuild", self.ts_dir),
+                          msa_in=get_test_data("PuhA.mfa"),
+                          output_hmm=test_hmm)
+        self.assertTrue(os.path.isfile(test_hmm))
+        return
+
 
 if __name__ == '__main__':
     unittest.main()
