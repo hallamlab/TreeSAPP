@@ -6,6 +6,7 @@ import os
 import logging
 from time import sleep, time
 from math import ceil
+from random import randint
 
 from pyfastx import Fasta, Fastq
 from pyfastxcli import fastx_format_check
@@ -340,12 +341,16 @@ class FASTA:
         self.index_form = None
         return
 
-    def load_fasta(self):
-        self.fasta_dict = read_fasta_to_dict(self.file)
+    def load_fasta(self, format_it=False, molecule="prot") -> None:
+        if format_it:
+            self.fasta_dict = format_read_fasta(self.file, molecule)
+        else:
+            self.fasta_dict = read_fasta_to_dict(self.file)
         self.header_registry = register_headers(get_headers(self.file), True)
         if len(self.fasta_dict) == 0 and len(self.header_registry) == 0:
             logging.error("FASTA file '{}' is empty or corrupted - no sequences were found!\n".format(self.file))
             sys.exit(3)
+        return
 
     def add_accession_to_headers(self, refpkg_name=""):
         for acc in self.header_registry:
@@ -460,6 +465,15 @@ class FASTA:
             self.fasta_dict[seq_name] = invalid_re.sub(replace_char, self.fasta_dict[seq_name])
 
         logging.debug("Identified and replaced invalid ambiguity characters in %d sequences.\n" % bad_seqs)
+
+        return
+    
+    def trim_to_length(self, seq_length: int):
+        self.remove_shorter_than(seq_length)
+        for seq_id in self.fasta_dict:
+            max_stop = len(self.fasta_dict[seq_id]) - seq_length
+            random_start = randint(0, max_stop)
+            self.fasta_dict[seq_id] = self.fasta_dict[seq_id][random_start:random_start + seq_length]
 
         return
 

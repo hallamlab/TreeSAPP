@@ -128,6 +128,23 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(5, len(fasta_dict))
         return
 
+    def test_trim_to_length(self):
+        from treesapp.fasta import FASTA, register_headers
+        _test_length = 10
+        mock_fa = FASTA("mock.fa")
+        mock_fa.fasta_dict = {"seq_1": "ADJKHJHFAJKHDFKJH", "seq_2": "MCNMVBASUIQRUIYA", "seq_3": "AAAAAAA"}
+        mock_fa.header_registry = register_headers(list(mock_fa.fasta_dict.keys()))
+
+        mock_fa.trim_to_length(_test_length)
+        seq_lengths = [len(seq) for seq in mock_fa.fasta_dict.values()]
+        # Check sequence lengths are correct
+        self.assertTrue(min(seq_lengths) == max(seq_lengths) == _test_length)
+        # Check FASTA attributes
+        self.assertEqual(["seq_1", "seq_2"], mock_fa.get_seq_names())
+        self.assertEqual(2, mock_fa.n_seqs())
+        self.assertEqual(2, len(mock_fa.header_registry))
+        return
+
     def test_remove_shorter_than(self):
         from treesapp.fasta import FASTA
         test_fa = FASTA(self.test_fa)

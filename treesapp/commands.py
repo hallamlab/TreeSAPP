@@ -4,7 +4,6 @@ import sys
 import re
 import os
 import shutil
-from random import randint
 
 import tqdm
 from joblib import dump as jdump
@@ -1220,21 +1219,9 @@ def evaluate(sys_args):
 
     # Load FASTA data
     query_fasta = fasta.FASTA(args.input)
-    query_fasta.fasta_dict = fasta.format_read_fasta(query_fasta.file, args.molecule)
+    query_fasta.load_fasta(format_it=True, molecule=args.molecule)
     if args.length:
-        too_short = []
-        for seq_id in query_fasta.fasta_dict:
-            if len(query_fasta.fasta_dict[seq_id]) < args.length:
-                too_short.append(seq_id)
-            else:
-                max_stop = len(query_fasta.fasta_dict[seq_id]) - args.length
-                random_start = randint(0, max_stop)
-                query_fasta.fasta_dict[seq_id] = query_fasta.fasta_dict[seq_id][random_start:random_start + args.length]
-        logging.debug("The following sequences were shorter than the length threshold of {}:\n{}\n"
-                      "".format(args.length, "\n".join(too_short)))
-        logging.warning("{} sequences were shorter than {} and will not be used\n".format(len(too_short), args.length))
-        too_short.clear()
-    query_fasta.header_registry = fasta.register_headers(fasta.get_headers(query_fasta.file))
+        query_fasta.trim_to_length(args.length)
 
     fasta_records = ts_evaluate.fetch_entrez_lineages(query_fasta, args.molecule, args.acc_to_taxid)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
