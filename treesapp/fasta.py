@@ -772,7 +772,7 @@ def merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index):
     return merged_extracted_seq_dict
 
 
-def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_length=10) -> dict:
+def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_length=10, full_name=True) -> dict:
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid, and writes the valid sequence to a new FASTA.
     Only headers are read into memory and the formatted FASTA is saved to a buffer before written to a file and cleared.
@@ -781,6 +781,7 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_len
     :param molecule: Molecule type of the sequences ['prot', 'dna', 'rrna']
     :param output_fasta: Path to the formatted FASTA file to write
     :param min_seq_length: All sequences shorter than this will not be included in the returned list.
+    :param full_name: Controls whether the formatted FASTA file has the full name (True) or first name (False)
     :return: A dictionary of Header instances indexed by a numerical identifier
     """
     start = time()
@@ -803,7 +804,7 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_len
     max_buffer_size = 1E4
     seq_acc = 0
     fasta_string = ""
-    for name, seq in Fasta(fasta_input, build_index=False, full_name=True):  # type: (str, str)
+    for name, seq in Fasta(fasta_input, build_index=False, full_name=full_name):  # type: (str, str)
         if len(seq) < min_seq_length:
             continue
         if bad_chars.search(seq):
@@ -840,7 +841,7 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_len
     return header_registry
 
 
-def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_length=10):
+def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_length=10, full_name=True):
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid.
 
@@ -849,6 +850,7 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
     :param subset: A set for filtering sequences. Only sequences with names in subset will be included in the dictionary
     :type subset: set
     :param min_seq_length: All sequences shorter than this will not be included in the returned list.
+    :param full_name: Controls whether the formatted FASTA file has the full name (True) or first name (False)
     :return: A Python dictionary with headers as keys and sequences as values
     """
     start = time()
@@ -865,7 +867,7 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
         sys.exit(13)
 
     try:
-        py_fa = Fasta(fasta_input, build_index=False, full_name=True)
+        py_fa = Fasta(fasta_input, build_index=False, full_name=full_name)
     except RuntimeError as error:
         logging.debug(str(error)+"\n")
         return formatted_fasta_dict

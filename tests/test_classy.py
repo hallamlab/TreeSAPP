@@ -25,7 +25,7 @@ def treesapp_instance(request):
 class TreeSAPPClassTester(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp.fasta import FASTA
-        self.output_dir = "./TreeSAPP_classy_test_dir"
+        self.output_dir = "./tests/TreeSAPP_classy_test_dir"
         self.fasta = get_test_data("marker_test_suite.faa")
 
         self.test_fasta = FASTA(self.fasta)
@@ -37,6 +37,31 @@ class TreeSAPPClassTester(unittest.TestCase):
     def tearDown(self) -> None:
         if os.path.isdir(self.output_dir):
             rmtree(self.output_dir)
+        return
+
+    def test_increment_stage_dir(self):
+        from treesapp.classy import Purity
+        mock_purity_inst = Purity()
+        # Set directory paths
+        mock_purity_inst.output_dir = self.output_dir
+        os.makedirs(os.path.join(mock_purity_inst.output_dir, "intermediates"), exist_ok=True)
+        for stage in mock_purity_inst.stages.values():
+            stage.dir_path = os.path.join(mock_purity_inst.output_dir, "intermediates", stage.name)
+
+        # Set current stage
+        mock_purity_inst.current_stage = mock_purity_inst.stages[0]
+        mock_purity_inst.stages[1].run = False  # skip 'assign'
+        self.assertEqual('clean', mock_purity_inst.current_stage.name)
+
+        # Begin tests
+        mock_purity_inst.increment_stage_dir()
+        self.assertEqual('summarize', mock_purity_inst.current_stage.name)
+        self.assertTrue(mock_purity_inst.current_stage.run)
+        self.assertTrue(os.path.isdir(os.path.join(mock_purity_inst.output_dir, "intermediates", 'summarize')))
+        # Increment past last stage
+        mock_purity_inst.increment_stage_dir()
+        self.assertEqual('summarize', mock_purity_inst.current_stage.name)
+        self.assertTrue(mock_purity_inst.current_stage.run)
         return
 
     def test_furnish_with_arguments(self):

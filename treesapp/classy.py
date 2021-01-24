@@ -498,9 +498,13 @@ class TreeSAPP:
         :return: None
         """
         # Find the next stage
-        self.current_stage.run = False
-        while not self.current_stage.run and self.current_stage.order < max(self.stages.keys()):
-            self.current_stage = self.stages[self.current_stage.order+1]
+        curr_order = self.current_stage.order
+        while curr_order < max(self.stages.keys()):
+            next_stage = self.stages[curr_order+1]  # type: ModuleFunction
+            if next_stage.run:
+                self.current_stage = next_stage
+                break
+            curr_order += 1
 
         # Update the output directory for this stage
         self.set_stage_dir()

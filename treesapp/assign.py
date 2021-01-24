@@ -49,6 +49,7 @@ class Assigner(classy.TreeSAPP):
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
         self.svc_filter = False
+        self.fasta_full_name = True
         self.aa_orfs_file = ""
         self.nuc_orfs_file = ""
         self.classified_aa_seqs = ""
@@ -126,6 +127,7 @@ class Assigner(classy.TreeSAPP):
         """
         self.set_stage_dir()
         if self.stage_status("orf-call"):
+            self.fasta_full_name = False
             self.aa_orfs_file = self.stage_output_dir + self.sample_prefix + "_ORFs.faa"
             self.nuc_orfs_file = self.stage_output_dir + self.sample_prefix + "_ORFs.fna"
             if os.path.isfile(self.aa_orfs_file) and os.path.isfile(self.nuc_orfs_file):
@@ -255,7 +257,10 @@ class Assigner(classy.TreeSAPP):
                 classified_seq_names.update({pq.seq_name for pq in pqueries[refpkg_name]})
             if os.path.isfile(self.nuc_orfs_file):
                 nuc_orfs = fasta.FASTA(self.nuc_orfs_file)
-                nuc_orfs.fasta_dict = fasta.format_read_fasta(self.nuc_orfs_file, "dna", subset=classified_seq_names)
+                nuc_orfs.fasta_dict = fasta.format_read_fasta(self.nuc_orfs_file,
+                                                              molecule="dna",
+                                                              subset=classified_seq_names,
+                                                              full_name=self.fasta_full_name)
                 nuc_orfs.header_registry = fasta.register_headers(nuc_orfs.fasta_dict.keys())
                 nuc_orfs.change_dict_keys()
                 if not os.path.isfile(self.classified_nuc_seqs):
@@ -1285,7 +1290,8 @@ def assign(sys_args):
     if ts_assign.stage_status("clean"):
         logging.info("Reading and formatting {}... ".format(ts_assign.query_sequences))
         query_seqs.header_registry = fasta.format_fasta(fasta_input=ts_assign.query_sequences, molecule="prot",
-                                                        output_fasta=ts_assign.formatted_input)
+                                                        output_fasta=ts_assign.formatted_input,
+                                                        full_name=ts_assign.fasta_full_name)
         logging.info("done.\n")
     else:
         query_seqs.file = ts_assign.formatted_input

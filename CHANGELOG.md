@@ -9,9 +9,11 @@
 - (#71) Ability to rerun and append results from `treesapp evaluate` has been restored
 - File paths with square brackets and parentheses no longer trip up HMMER or RAxML-NG in various modules.
   Some single-quotes were needed.
+- Properly truncate sequences in `treesapp evaluate` with '--length' argument
 
 ### Changed
 - `treesapp evaluate` uses a tqdm progress bar instead of printing updates to stdout when classifying
+- Removed the prodigal header tags when ORFs are predicted by TreeSAPP. Could lead to significant RAM reduction.
 
 ## [0.9.8] - 2021-01-15
 ### Added
