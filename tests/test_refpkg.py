@@ -51,8 +51,15 @@ class RefPkgTester(unittest.TestCase):
         return
 
     def test_disband(self):
+        # Basic disband
         self.db.disband(output_dir="./tests/")
         self.assertTrue(os.path.isfile(os.path.join(self.disband_path, "McrA.fa")))
+
+        # Ensure the optional files are written properly too
+        self.db.boot_tree = "test_string"
+        self.db.disband(output_dir="./tests/")
+        self.assertTrue(os.path.isfile(os.path.join(self.disband_path, "McrA_bipart.nwk")))
+        return
 
     def test_remove_taxon_from_lineage_ids(self):
         # Ensure the initial state is as expected

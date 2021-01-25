@@ -243,7 +243,7 @@ class ReferencePackage:
         self.write_refpkg_component(self.f__model_info, self.model_info)
         self.write_refpkg_component(self.f__tree, self.tree)
         if len(self.boot_tree) > 0:
-            self.write_refpkg_component(output_prefix + self.f__boot_tree, self.boot_tree)
+            self.write_refpkg_component(self.f__boot_tree, self.boot_tree)
 
         return
 
@@ -444,6 +444,8 @@ class ReferencePackage:
         for treesapp_id in sorted(self.lineage_ids, key=int):
             seq_name, lineage = self.lineage_ids[treesapp_id].split("\t")
             ref = TreeLeafReference(treesapp_id, seq_name)
+            if self.taxa_trie.root_taxon != lineage.split(self.taxa_trie.lin_sep)[0]:
+                lineage = self.taxa_trie.root_taxon + self.taxa_trie.lin_sep + lineage
             ref.lineage = lineage
             ref_leaf_nodes.append(ref)
         return ref_leaf_nodes
