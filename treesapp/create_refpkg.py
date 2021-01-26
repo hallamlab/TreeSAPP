@@ -3,100 +3,16 @@
 __author__ = "Connor Morgan-Lang"
 __maintainer__ = "Connor Morgan-Lang"
 
-try:
-    import argparse
-    import logging
-    import sys
-    import os
-    import shutil
-    import re
-    import traceback
+import logging
+import sys
+import re
 
-    from time import gmtime, strftime, sleep
-
-    from treesapp.wrapper import run_odseq, run_mafft
-    from treesapp.external_command_interface import launch_write_command
-    from treesapp.lca_calculations import megan_lca, clean_lineage_list
-    from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
-    from treesapp import entrez_utils
-    from treesapp import fasta
-    from treesapp import classy
-    from treesapp import file_parsers
-
-except ImportError:
-    sys.stderr.write("Could not load some user defined module functions:\n")
-    sys.stderr.write(str(traceback.print_exc(10)))
-    sys.exit(13)
-
-
-def generate_cm_data(args, unaligned_fasta):
-    """
-    Using the input unaligned FASTA file:
-     1. align the sequences using cmalign against a reference Rfam covariance model to generate a Stockholm file
-     2. use the Stockholm file (with secondary structure annotated) to build a covariance model
-     3. align the sequences using cmalign against a reference Rfam covariance model to generate an aligned fasta (AFA)
-    :param args: command-line arguments objects
-    :param unaligned_fasta:
-    :return:
-    """
-    logging.info("Running cmalign to build Stockholm file with secondary structure annotations... ")
-
-    cmalign_base = [args.executables["cmalign"],
-                    "--mxsize", str(3084),
-                    "--informat", "FASTA",
-                    "--cpu", str(args.num_threads)]
-    # First, generate the stockholm file
-    cmalign_sto = cmalign_base + ["-o", args.code_name + ".sto"]
-    cmalign_sto += [args.rfam_cm, unaligned_fasta]
-
-    stdout, cmalign_pro_returncode = launch_write_command(cmalign_sto)
-
-    if cmalign_pro_returncode != 0:
-        logging.error("cmalign did not complete successfully for:\n" + ' '.join(cmalign_sto) + "\n")
-        sys.exit(13)
-
-    logging.info("done.\n")
-    logging.info("Running cmbuild... ")
-
-    # Build the CM
-    cmbuild_command = [args.executables["cmbuild"]]
-    cmbuild_command += ["-n", args.code_name]
-    cmbuild_command += [args.code_name + ".cm", args.code_name + ".sto"]
-
-    stdout, cmbuild_pro_returncode = launch_write_command(cmbuild_command)
-
-    if cmbuild_pro_returncode != 0:
-        logging.error("cmbuild did not complete successfully for:\n" +
-                      ' '.join(cmbuild_command) + "\n")
-        sys.exit(13)
-    os.rename(args.code_name + ".cm", args.final_output_dir + os.sep + args.code_name + ".cm")
-    if os.path.isfile(args.final_output_dir + os.sep + args.code_name + ".sto"):
-        logging.warning("Overwriting " + args.final_output_dir + os.sep + args.code_name + ".sto\n")
-        os.remove(args.final_output_dir + os.sep + args.code_name + ".sto")
-    shutil.move(args.code_name + ".sto", args.final_output_dir)
-
-    logging.info("done.\n")
-    logging.info("Running cmalign to build MSA... ")
-
-    # Generate the aligned FASTA file which will be used to build the BLAST database and tree with RAxML
-    aligned_fasta = args.code_name + ".fa"
-    cmalign_afa = cmalign_base + ["--outformat", "Phylip"]
-    cmalign_afa += ["-o", args.code_name + ".phy"]
-    cmalign_afa += [args.rfam_cm, unaligned_fasta]
-
-    stdout, cmalign_pro_returncode = launch_write_command(cmalign_afa)
-
-    if cmalign_pro_returncode != 0:
-        logging.error("cmalign did not complete successfully for:\n" + ' '.join(cmalign_afa) + "\n")
-        sys.exit(13)
-
-    # Convert the Phylip file to an aligned FASTA file for downstream use
-    seq_dict = file_parsers.read_phylip_to_dict(args.code_name + ".phy")
-    fasta.write_new_fasta(seq_dict, aligned_fasta)
-
-    logging.info("done.\n")
-
-    return aligned_fasta
+from treesapp.wrapper import run_odseq, run_mafft
+from treesapp.lca_calculations import megan_lca, clean_lineage_list
+from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+from treesapp import entrez_utils
+from treesapp import fasta
+from treesapp import classy
 
 
 def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
@@ -130,66 +46,6 @@ def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
         sys.exit(5)
 
     return
-
-
-def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
-    """
-    Function to regenerate the swappers dictionary with the original headers as keys and
-    the new header (swapped in the previous attempt based on VSEARCH's uc file) as a value
-
-    :param args: command-line arguments objects
-    :param cluster_dict: Dictionary where keys are centroid headers and values are headers of identical sequences
-    :param fasta_replace_dict: Immature (lacking sequences) dictionary with header information parsed from tax_ids file
-    :return:
-    """
-    swappers = dict()
-    if args.verbose:
-        sys.stderr.write("Centroids with identical sequences in the unclustered input file:\n")
-
-    header_regexes = fasta.load_fasta_header_regexes(args.code_name)
-    for rep in sorted(cluster_dict):
-        matched = False
-        subs = cluster_dict[rep]
-        # If its entry in cluster_dict == 0 then there were no identical
-        # sequences and the header could not have been swapped
-        if len(subs) >= 1:
-            # If there is the possibility the header could have been swapped,
-            # check if the header is in fasta_replace_dict
-            for treesapp_id in fasta_replace_dict:
-                if matched:
-                    break
-                ref_seq = fasta_replace_dict[treesapp_id]
-                # If the accession from the tax_ids file is the same as the representative
-                # this one has not been swapped for an identical sequence's header since it is in use
-                if re.search(ref_seq.accession, rep):
-                    if args.verbose:
-                        sys.stderr.write("\tUnchanged: " + rep + "\n")
-                        matched = True
-                    break
-                # The original representative is no longer in the reference sequences
-                # so it was replaced, with this sequence...
-                for candidate in subs:
-                    if rep in swappers or matched:
-                        break
-
-                    # parse the accession from the header
-                    header_format_re, header_db, header_molecule = fasta.get_header_format(candidate, header_regexes)
-                    sequence_info = header_format_re.match(candidate)
-                    if sequence_info:
-                        candidate_acc = sequence_info.group(1)
-                    else:
-                        logging.error("Unable to handle header: " + candidate + "\n")
-                        sys.exit(13)
-
-                    # Now compare...
-                    if candidate_acc == ref_seq.accession:
-                        if args.verbose:
-                            sys.stderr.write("\tChanged: " + candidate + "\n")
-                        swappers[rep] = candidate
-                        matched = True
-                        break
-            sys.stderr.flush()
-    return swappers
 
 
 def finalize_cluster_reps(cluster_dict: dict, refseq_objects: dict, header_registry: dict) -> None:
@@ -436,25 +292,6 @@ def order_dict_by_lineage(ref_seqs: dict) -> dict:
 
     logging.debug("done.\n")
     return sorted_lineage_dict
-
-
-def threshold(lst, confidence="low"):
-    """
-
-    :param lst:
-    :param confidence:
-    :return:
-    """
-    if confidence == "low":
-        # Majority calculation
-        index = round(len(lst)*0.51)-1
-    elif confidence == "medium":
-        # >=75% of the list is reported
-        index = round(len(lst)*0.75)-1
-    else:
-        # confidence is "high" and >=90% of the list is reported
-        index = round(len(lst)*0.9)-1
-    return sorted(lst, reverse=True)[index]
 
 
 def summarize_reference_taxa(reference_dict: dict, t_hierarchy: TaxonomicHierarchy, cluster_lca=False):
