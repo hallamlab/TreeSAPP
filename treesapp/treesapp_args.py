@@ -546,16 +546,6 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
     else:
         evaluator_instance.min_seq_length = str(30)
 
-    if args.acc_to_lin:
-        evaluator_instance.acc_to_lin = args.acc_to_lin
-        if os.path.isfile(evaluator_instance.acc_to_lin):
-            evaluator_instance.change_stage_status("lineages", False)
-        else:
-            logging.error("Unable to find accession-lineage mapping file '{}'\n".format(evaluator_instance.acc_to_lin))
-            sys.exit(3)
-    else:
-        evaluator_instance.acc_to_lin = evaluator_instance.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-
     ##
     # Define locations of files TreeSAPP outputs
     ##
@@ -563,7 +553,6 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
     evaluator_instance.performance_table = evaluator_instance.final_output_dir + "clade_exclusion_performance.tsv"
     evaluator_instance.recall_table = evaluator_instance.final_output_dir + "taxonomic_recall.tsv"
     evaluator_instance.containment_table = evaluator_instance.final_output_dir + "accuracy.tsv"
-    evaluator_instance.var_output_dir = args.output + "intermediates" + os.sep
 
     if not os.path.isdir(evaluator_instance.var_output_dir):
         os.makedirs(evaluator_instance.var_output_dir)

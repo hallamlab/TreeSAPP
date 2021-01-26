@@ -1129,9 +1129,21 @@ class Evaluator(TreeSAPP):
         This function ensures all the required inputs are present for beginning at the desired first stage,
         otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
 
-        If a
         :return: None
         """
+        self.acc_to_lin = self.stage_lookup("lineages").dir_path + "accession_id_lineage_map.tsv"
+        if args.acc_to_lin:
+            if os.path.isfile(args.acc_to_lin):
+                self.acc_to_lin = args.acc_to_lin
+                self.change_stage_status("lineages", False)
+            else:
+                logging.error(
+                    "Unable to find accession-lineage mapping file '{}'\n".format(args.acc_to_lin))
+                sys.exit(3)
+        elif os.path.isfile(self.acc_to_lin):
+            logging.info("An accession-lineage mapping file from a previous run ('{}') was found"
+                         " and will attempt to be used.\n".format(self.acc_to_lin))
+            self.change_stage_status("lineages", False)
         self.validate_continue(args)
         return
 
