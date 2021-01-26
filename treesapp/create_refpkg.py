@@ -81,13 +81,15 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects: dict, header_regis
 
 
 def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header_registry: dict,
-                                important_seqs=None, each_lineage=False) -> None:
+                                default=0, important_seqs=None, each_lineage=False) -> None:
     """
     Present the headers of identical sequences to user for them to decide on representative header
 
     :param cluster_dict: dictionary from read_uc(uc_file)
     :param refseq_objects: A dictionary of numerical TreeSAPP IDs mapped to EntrezRecord instances
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
+    :param default: The default cluster member number to use as the cluster representative.
+        Running default set to 1 is equivalent to using the --headless flag.
     :param important_seqs: If --guarantee is provided, a dictionary mapping headers to seqs from format_read_fasta()
     :param each_lineage: If set to True, each candidate's lineage is shown as well as the cluster's LCA
     :return: None
@@ -121,8 +123,8 @@ def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header
                         break
             sys.stderr.write("Sequences in '" + cluster_info.lca + "' cluster:\n")
             for num in sorted(candidates.keys(), key=int):
-                sys.stderr.write("\t" + num + ". ")
-                sys.stderr.write('\t'.join([candidates[num].organism + " | " + candidates[num].accession + "\t",
+                sys.stderr.write("\t{}. ".format(num) +
+                                 '\t'.join(["{} | {}\t".format(candidates[num].organism, candidates[num].accession),
                                             str(len(candidates[num].sequence)) + "bp or aa",
                                             str(candidates[num].cluster_rep_similarity)]))
                 if each_lineage:
@@ -130,9 +132,10 @@ def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header
                 sys.stderr.write("\n")
             sys.stderr.flush()
 
-            best = input("Number of the best representative? ")
-            # Useful for testing - no need to pick which sequence name is best!
-            # best = str(1)
+            if default:
+                best = str(default)
+            else:
+                best = input("Number of the best representative? ")
             while best not in candidates.keys():
                 best = input("Invalid number. Number of the best representative? ")
             for num_id in candidates:
@@ -470,7 +473,7 @@ def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:
     return nonredundant_guarantee_cluster_dict
 
 
-def cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_registry: dict) -> None:
+def find_cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_registry: dict) -> None:
     """
     Populates the cluster_lca attribute for Cluster instances by calculating the lowest common ancestor (LCA)
     across all lineages of sequences in a cluster (inferred using a sequence clustering tool such as VSEARCH)

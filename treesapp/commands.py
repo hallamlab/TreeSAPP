@@ -514,7 +514,7 @@ def create(sys_args):
             ##
             # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
             ##
-            ts_create_mod.cluster_lca(cluster_dict, fasta_records, ref_seqs.header_registry)
+            ts_create_mod.find_cluster_lca(cluster_dict, fasta_records, ref_seqs.header_registry)
         else:
             cluster_dict = None
 
@@ -534,7 +534,7 @@ def create(sys_args):
         if ts_create.clusters_table and not args.headless:
             # Allow user to select the representative sequence based on organism name, sequence length and similarity
             ts_create_mod.present_cluster_rep_options(cluster_dict, fasta_records, ref_seqs.header_registry,
-                                                      ref_seqs.amendments)
+                                                      important_seqs=ref_seqs.amendments)
         elif ts_create.clusters_table and args.headless:
             ts_create_mod.finalize_cluster_reps(cluster_dict, fasta_records, ref_seqs.header_registry)
         else:
@@ -852,7 +852,7 @@ def update(sys_args):
 
         # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
         entrez_records = ts_update_mod.simulate_entrez_records(combined_fasta, classified_seq_lineage_map)
-        ts_create_mod.cluster_lca(cluster_dict, entrez_records, combined_fasta.header_registry)
+        ts_create_mod.find_cluster_lca(cluster_dict, entrez_records, combined_fasta.header_registry)
 
         # Ensure centroids are the original reference sequences and skip clusters with identical lineages
         ts_update_mod.prefilter_clusters(cluster_dict,
@@ -867,7 +867,7 @@ def update(sys_args):
         else:
             # Allow user to select the representative sequence based on organism name, sequence length and similarity
             ts_create_mod.present_cluster_rep_options(cluster_dict, entrez_records, combined_fasta.header_registry,
-                                                      combined_fasta.amendments, True)
+                                                      important_seqs=combined_fasta.amendments, each_lineage=True)
 
         # Remove sequences that were replaced by resolve from ts_updater.old_ref_fasta
         still_repping = []

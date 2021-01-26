@@ -184,6 +184,13 @@ class RefPkgTester(unittest.TestCase):
         os.chdir(wd)
         return
 
+    def test_view(self):
+        from treesapp.refpkg import view
+        with pytest.raises(SystemExit):
+            view(self.db, ["boot_tree", "f__boot_tree", "annotations"])
+        view(self.db, attributes=["num_seqs"])
+        return
+
 
 if __name__ == '__main__':
     unittest.main()
