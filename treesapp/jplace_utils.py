@@ -7,6 +7,8 @@ import os
 import logging
 from json import load, dumps
 
+from ete3 import Tree
+
 from treesapp.phylo_seq import PQuery, PhyloPlace, split_placements
 from treesapp.entish import load_ete3_tree
 from treesapp.phylo_dist import parent_to_tip_distances
@@ -263,40 +265,18 @@ def add_bipartitions(jplace_data: JPlace, bipartitions) -> None:
                       "Unable to add bipartition support to JPlace.\n".format(type(bipartitions)))
         raise TypeError(3)
 
-    # Load the bipartition support for each node
-    no_length_tree = re.sub(":[0-9.]+", '', bootstrap_tree)
-    node_stack = list()
     internal_node_bipart_map = dict()
-    x = 0
-    i_node = 0
-    num_buffer = ""
-    while x < len(no_length_tree):
-        c = no_length_tree[x]
-        if c == '[':
-            x += 1
-            c = no_length_tree[x]
-            while re.search(r"[0-9]", c):
-                num_buffer += c
-                x += 1
-                c = no_length_tree[x]
-            bootstrap = num_buffer
-            num_buffer = ""
-            x -= 1
-            internal_node_bipart_map[node_stack.pop()] = bootstrap
-        elif re.search(r"[0-9]", c):
-            while re.search(r"[0-9]", c):
-                x += 1
-                c = no_length_tree[x]
-            node_stack.append(str(i_node))
-            i_node += 1
-            x -= 1
-        elif c == ')':
-            node_stack.append(str(i_node))
-            i_node += 1
-        x += 1
-    x = 0
     bootstrapped_jplace_tree = ''
     num_buffer = ''
+
+    # Load the bipartition support for each node
+    i = 0
+    supp_ete_tree = Tree(bootstrap_tree, format=2)
+    for node in supp_ete_tree.traverse(strategy="preorder"):
+        internal_node_bipart_map[str(i)] = str(node.support)
+        i += 1
+
+    x = 0
     while x < len(jplace_data.tree):
         c = jplace_data.tree[x]
         if c == '{':

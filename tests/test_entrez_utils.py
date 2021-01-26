@@ -8,7 +8,7 @@ from Bio import Entrez
 from . import testing_utils as utils
 
 
-class MyTestCase(unittest.TestCase):
+class EntrezUtilitiesTester(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp.fasta import FASTA
         from treesapp.classy import Creator
@@ -169,6 +169,11 @@ class MyTestCase(unittest.TestCase):
         taxonomy = TaxonomicHierarchy()
         taxonomy.feed_leaf_nodes(leaf_nodes)
 
+        # Retry with domain included
+        for leaf in leaf_nodes:
+            leaf.lineage = "d__Bacteria; " + leaf.lineage
+        taxonomy.feed_leaf_nodes(leaf_nodes)
+
         # Orders: 'Veillonellales' -> 'Selenomonadales', 'Selenomonadales' -> 'Clostridiales'
         # Families: 'Selenomonadaceae' -> 'Veillonellaceae'
         # Change the coverage of the different lineages to control the representative
@@ -179,7 +184,8 @@ class MyTestCase(unittest.TestCase):
                               (taxonomy.get_taxon("f__Veillonellaceae"), taxonomy.get_taxon("f__Selenomonadaceae"))}
 
         repair_conflict_lineages(taxonomy, er_dict)
-        self.assertEqual("p__Firmicutes; c__Clostridia; o__Clostridiales; f__Veillonellaceae; g__Megasphaera; s__Megasphaera elsdenii",
+        self.assertEqual("r__Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales;"
+                         " f__Veillonellaceae; g__Megasphaera; s__Megasphaera elsdenii",
                          "; ".join([t.prefix_taxon() for t in taxonomy.get_taxon("s__Megasphaera elsdenii").lineage()]))
         self.assertFalse("o__Veillonellales" in taxonomy.hierarchy)
         self.assertFalse("o__Selenomonadales" in taxonomy.hierarchy)

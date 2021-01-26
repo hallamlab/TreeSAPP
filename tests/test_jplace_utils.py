@@ -1,5 +1,6 @@
 import unittest
 import pytest
+
 from .testing_utils import get_test_data
 
 
@@ -23,7 +24,7 @@ class JPlaceTestCase(unittest.TestCase):
     def test_jplace_parser(self):
         from treesapp.jplace_utils import jplace_parser
         jplace_dat = jplace_parser(self.test_jplace)
-        self.assertEqual(3, len(jplace_dat.pqueries))
+        self.assertEqual(12, len(jplace_dat.pqueries))
         self.assertIsInstance(jplace_dat.pqueries, list)
         return
 
@@ -34,7 +35,7 @@ class JPlaceTestCase(unittest.TestCase):
         pqueries = demultiplex_pqueries(jplace_dat)
         for pquery in pqueries:
             self.assertIsInstance(pquery.placements, list)
-        self.assertEqual(3, len(pqueries))
+        self.assertEqual(12, len(pqueries))
         self.assertIsInstance(pqueries[0], PQuery)
         return
 
@@ -44,6 +45,41 @@ class JPlaceTestCase(unittest.TestCase):
         self.db.write_jplace(output_jplace)
         self.assertTrue(path.isfile(output_jplace))
         remove(output_jplace)
+        return
+
+    def test_summarize(self):
+        from treesapp.jplace_utils import jplace_parser
+        summary = jplace_parser(self.test_jplace).summarize()
+        self.assertTrue(summary)
+        return
+
+    def test_add_bipartitions(self):
+        from treesapp import jplace_utils
+        from treesapp import refpkg
+        import re
+        jplace_dat = jplace_utils.jplace_parser(self.test_jplace)
+        mcra_refpkg = refpkg.ReferencePackage()
+        mcra_refpkg.f__json = get_test_data("refpkgs/McrA_build.pkl")
+        mcra_refpkg.slurp()
+        test_ete_tree = mcra_refpkg.get_ete_tree()
+
+        # Test with wrong format of bipartitions
+        with pytest.raises(TypeError):
+            jplace_utils.add_bipartitions(jplace_dat, bipartitions={})
+
+        # Test with a properly formatted list
+        jplace_utils.add_bipartitions(jplace_dat, mcra_refpkg.boot_tree)
+        bootstrap_vals = []
+        end_pos = 0
+        while jplace_dat.tree:
+            jplace_dat.tree = jplace_dat.tree[end_pos:]
+            match = re.search(r"\[([0-9.]+)]", jplace_dat.tree)
+            if not match:
+                break
+            bootstrap_vals.append(match.group())
+            end_pos = match.end()
+        self.assertEqual(len(test_ete_tree.get_descendants()), len(bootstrap_vals))
+
         return
 
 

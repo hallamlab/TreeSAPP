@@ -152,7 +152,7 @@ def map_internal_nodes_leaves(tree: str) -> dict:
     :param tree: A string of an already read Newick tree file. Tree text exists on a single line.
     :return: Dictionary of all internal nodes (keys) and a list of child leaves (values)
     """
-    no_length_tree = re.sub(r":[0-9.]+(\[\d+\])?{", ":{", tree)
+    no_length_tree = re.sub(r":[0-9.]+(\[[0-9.]+])?{", ":{", tree)
     node_map = dict()
     node_stack = list()
     leaf_stack = list()

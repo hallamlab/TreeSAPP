@@ -10,7 +10,7 @@ def test_pquery(request):
     from treesapp.entish import map_internal_nodes_leaves
     jplace_data = jplace_parser(get_test_data("epa_result.jplace"))
     pqueries = demultiplex_pqueries(jplace_data)
-    request.cls.db = pqueries.pop(0)
+    request.cls.db = pqueries.pop(4)
     request.cls.db.node_map = map_internal_nodes_leaves(jplace_data.tree)
     request.cls.db.abundance = 2.5
     return
@@ -194,12 +194,12 @@ class PhyloSeqTests(unittest.TestCase):
         self.pquery_test_2.consensus_placement = self.pquery_test_2.placements[0]
         # Test the exception
         self.pquery_test_2.abundance = None
-        self.assertEqual(0, self.pquery_test_2.sum_rpkms_per_node(leaf_rpkm_sums={})['21_McrA'])
+        self.assertEqual(0, self.pquery_test_2.sum_rpkms_per_node(leaf_rpkm_sums={})['121_McrA'])
 
-        self.pquery_test_2.abundance = 12
+        self.pquery_test_2.abundance = 10
         leaf_rpkm_sums = self.pquery_test_2.sum_rpkms_per_node(leaf_rpkm_sums={})
-        self.assertEqual(12, len(leaf_rpkm_sums))
-        self.assertEqual(1, leaf_rpkm_sums['21_McrA'])
+        self.assertEqual(5, len(leaf_rpkm_sums))
+        self.assertEqual(2, leaf_rpkm_sums['121_McrA'])
         return
 
 

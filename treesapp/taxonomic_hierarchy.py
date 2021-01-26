@@ -744,11 +744,16 @@ class TaxonomicHierarchy:
         self.validate_rank_prefixes()
 
         previous = None
+        no_domain = []
         for ref_leaf in ref_leaves:  # type: TreeLeafReference
             if not ref_leaf.lineage:
                 continue
             taxa = ref_leaf.lineage.split(self.lin_sep)
             if taxa[0] != self.root_taxon:
+                # Look for domain
+                if 'd' not in set([taxon.split(self.taxon_sep)[0] for taxon in taxa]):
+                    no_domain.append(ref_leaf.lineage)
+                    continue
                 ref_leaf.lineage = self.root_taxon + self.lin_sep + ref_leaf.lineage
                 taxa = ref_leaf.lineage.split(self.lin_sep)
             while taxa:
@@ -774,6 +779,11 @@ class TaxonomicHierarchy:
             # Update the number of lineages provided to TaxonomicHierarchy
             self.lineages_fed += 1
             previous = None
+
+        if len(no_domain) >= 1:
+            logging.warning("Unable to load following reference package taxonomic lineages as domains are missing.\n"
+                            "{}\n\t".format("\n\t".join(no_domain)))
+
         return
 
     def emit(self, prefix_taxon: str, with_prefix=False) -> str:
