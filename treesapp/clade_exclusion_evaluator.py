@@ -164,6 +164,20 @@ def get_unclassified_rank(pos, split_lineage):
     return pos
 
 
+def check_lineage_compatibility(lineage_map: dict, taxonomy: taxonomic_hierarchy.TaxonomicHierarchy) -> None:
+    """Ensures that all the lineages are rooted."""
+    unrooted = False
+    for num_id, lineage in lineage_map.items():
+        # Ensure the query lineages are rooted and emit a warning if this is not the case
+        query_split = lineage.split(taxonomy.lin_sep)
+        if query_split[0] != taxonomy.root_taxon:
+            unrooted = True
+            lineage_map[num_id] = taxonomy.root_taxon + taxonomy.lin_sep + lineage
+    if unrooted:
+        logging.warning("Unrooted lineages have been rooted.\n")
+    return
+
+
 def get_testable_lineages_for_rank(ref_lineage_map: dict, query_lineage_map: dict, rank: str,
                                    taxonomy: taxonomic_hierarchy.TaxonomicHierarchy) -> list:
     """
@@ -262,80 +276,39 @@ def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict,
     return dereplicated_lineages, taxonomic_filter_stats
 
 
-def str_list_index(lst: list, query: str):
-    i = 0
-    while i < len(lst):
-        if query == lst[i]:
-            break
-        i += 1
-    return i
-
-
-def same_lineage(target_lineage: str, candidate_lineage: str) -> bool:
-    """
-    Identify which candidate lineages belong to target lineage and are at least as specific
-    1. "Root; Bacteria", "Root"                           False
-    2. "Root; Bacteria", "Root; Archaea"                  False
-    3. "Root; Bacteria", "Root; Bacteria"                 True
-    4. "Root; Bacteria", "Root; Bacteria; Proteobacteria" True
-    5. "Bacteria", "Root; Bacteria; Proteobacteria"       True
-    Runs in O(n) complexity
-
-    :param target_lineage:
-    :param candidate_lineage:
-    :return: Boolean
-    """
-    target_lineage = target_lineage.split("; ")
-    candidate_lineage = candidate_lineage.split("; ")
-    tlen = len(target_lineage)
-    clen = len(candidate_lineage)
-    k = 0  # For tracking the overlapping positions
-    i = str_list_index(target_lineage, candidate_lineage[0])  # Lineage offset for the target
-    j = str_list_index(candidate_lineage, target_lineage[0])  # Lineage offset for the candidate
-
-    if i == tlen and j == clen:
-        if set(target_lineage).intersection(set(candidate_lineage)):
-            logging.debug("Target '%s' and candidate '%s' lineages were not overlapped " %
-                          (target_lineage, candidate_lineage))
-        return False
-
-    # There is a common string
-    while i+k < tlen and j+k < clen and target_lineage[i+k] == candidate_lineage[j+k]:
-        k += 1
-
-    # The verdict...
-    if i+k == len(target_lineage):
-        return True
-    else:
-        return False
-
-
-def select_rep_seqs(deduplicated_assignments: dict, test_sequences: dict, target_lineage=None):
+def select_rep_seqs(deduplicated_assignments: dict, test_sequences: dict,
+                    taxon_hierarchy: taxonomic_hierarchy.TaxonomicHierarchy, target_lineage=None) -> dict:
     """
     Function for creating a fasta-formatted dict from the accessions representing unique taxa in the test sequences
 
     :param deduplicated_assignments: dict of lineages mapped to a list of accessions
-    :param test_sequences: list of ReferenceSequence objects
+    :param test_sequences: Dictionary of ReferenceSequence objects indexed by their numerical identifiers
+    :param taxon_hierarchy: A TaxonomicHierarchy instance
     :param target_lineage: A taxonomic lineage to filter the lineages (and sequences) in deduplicated assignments
     :return: Dictionary containing accessions as keys and sequences as values
     """
     if target_lineage:
+        descendents = set()
         filtered_assignments = dict()
+        # Gather the set of all descendent lineages
+        target_taxon = target_lineage.split(taxon_hierarchy.lin_sep)[-1]
+        for line in [taxon.lineage() for taxon in taxon_hierarchy.get_taxon_descendents(target_taxon)]:  # type: list
+            descendents.add(taxon_hierarchy.lin_sep.join([taxon.prefix_taxon() for taxon in line]))
+        # Query the candidate lineages for whether they're in the target lineage's list of descendents
         for candidate_lineage in sorted(deduplicated_assignments):
-            if same_lineage(target_lineage, candidate_lineage):
+            if candidate_lineage in descendents:
                 filtered_assignments[candidate_lineage] = deduplicated_assignments[candidate_lineage]
     else:
         filtered_assignments = deduplicated_assignments
 
+    test_seq_lookup = {ref_seq.accession: ref_seq.sequence for ref_seq in test_sequences.values()}
+
     deduplicated_fasta_dict = dict()
     for lineage in sorted(filtered_assignments):
         for accession in filtered_assignments[lineage]:
-            matched = False
-            for _, ref_seq in test_sequences.items():  # type: (str, EntrezRecord)
-                if ref_seq.accession == accession:
-                    deduplicated_fasta_dict[accession] = ref_seq.sequence
-                    matched = True
-            if not matched:
+            try:
+                deduplicated_fasta_dict[accession] = test_seq_lookup[accession]
+            except KeyError:
                 logging.error("Unable to find accession (" + accession + ") in accession-lineage map\n")
                 sys.exit(21)
     return deduplicated_fasta_dict

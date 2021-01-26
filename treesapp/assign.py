@@ -1218,7 +1218,7 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
 
         if os.path.isfile(refpkg.f__boot_tree):
             # TODO: investigate whether this is still valid for JPlace instance, or should be PQuery
-            jplace_data = jplace_utils.add_bipartitions(jplace_data, refpkg.f__boot_tree)
+            jplace_utils.add_bipartitions(jplace_data, refpkg.f__boot_tree)
 
         # Make a master jplace file from the set of placements in all jplace files for each marker
         master_jplace = os.path.join(itol_base_dir, refpkg.prefix, refpkg.prefix + "_complete_profile.jplace")

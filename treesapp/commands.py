@@ -1236,13 +1236,17 @@ def evaluate(sys_args):
     representative_seqs, ts_evaluate.taxa_filter = ts_clade_ex.pick_taxonomic_representatives(fasta_records,
                                                                                               ts_evaluate.taxa_filter)
     logging.info("done.\n")
+    logging.info("\t{} representative sequences may be used by TreeSAPP evaluate.\n".format(len(representative_seqs)))
 
-    logging.info("\t{} representative sequences will be used by TreeSAPP evaluate.\n".format(len(representative_seqs)))
-
-    deduplicated_fasta_dict = ts_clade_ex.select_rep_seqs(representative_seqs, fasta_records)
+    deduplicated_fasta_dict = ts_clade_ex.select_rep_seqs(representative_seqs,
+                                                          test_sequences=fasta_records,
+                                                          taxon_hierarchy=ts_evaluate.ref_pkg.taxa_trie)
     fasta.write_new_fasta(deduplicated_fasta_dict, ts_evaluate.test_rep_taxa_fasta)
     rep_accession_lineage_map = ts_clade_ex.map_seqs_to_lineages(ts_evaluate.seq_lineage_map, deduplicated_fasta_dict)
 
+    # Ensure that both lineage sets are rooted
+    ts_clade_ex.check_lineage_compatibility(ref_lineages, ts_evaluate.ref_pkg.taxa_trie)
+    ts_clade_ex.check_lineage_compatibility(rep_accession_lineage_map, ts_evaluate.ref_pkg.taxa_trie)
     # Checkpoint three: We have accessions linked to taxa, and sequences to analyze with TreeSAPP, but not classified
     if ts_evaluate.stage_status("classify"):
         # Run TreeSAPP against the provided tax_ids file and the unique taxa FASTA file
@@ -1252,7 +1256,9 @@ def evaluate(sys_args):
             p_bar = tqdm.tqdm(ncols=100, desc="Evaluating {}".format(rank), total=len(candidate_lineages))
             for lineage in candidate_lineages:
                 # Select representative sequences belonging to the taxon being tested
-                taxon_rep_seqs = ts_clade_ex.select_rep_seqs(representative_seqs, fasta_records, lineage)
+                taxon_rep_seqs = ts_clade_ex.select_rep_seqs(representative_seqs, fasta_records,
+                                                             taxon_hierarchy=ts_evaluate.ref_pkg.taxa_trie,
+                                                             target_lineage=lineage)
                 # Decide whether to continue analyzing taxon based on number of query sequences
                 if len(taxon_rep_seqs.keys()) == 0:
                     logging.debug("No query sequences for {}.\n".format(lineage))

@@ -12,26 +12,6 @@ from treesapp.entish import load_ete3_tree
 from treesapp.phylo_dist import parent_to_tip_distances
 
 
-# def pquery_likelihood_weight_ratio(pquery, position):
-#     """
-#     Determines the likelihood weight ratio (LWR) for a single placement. There may be multiple placements
-#     (or 'pquery's) in a single .jplace file. Therefore, this function is usually looped over.
-#
-#     :param pquery:
-#     :param position: The position of "like_weight_ration" in the pquery fields
-#     :return: The float(LWR) of a single placement
-#     """
-#     lwr = 0.0
-#     placement = loads(str(pquery), encoding="utf-8")
-#     for k, v in placement.items():
-#         if k == 'p':
-#             acc = 0
-#             while acc < len(v):
-#                 pquery_fields = v[acc]
-#                 lwr = float(pquery_fields[position])
-#                 acc += 1
-#     return lwr
-
 class JPlace:
     """
     A class to hold all data relevant to a jplace file to be viewed in iTOL
@@ -50,13 +30,13 @@ class JPlace:
     def __init__(self):
         return
 
-    def summarize(self):
+    def summarize(self) -> str:
         """
         Prints a summary of the JPlace object (equivalent to a single marker) to stderr
         Summary include the number of marks found, the tree used, and the tree-placement of each sequence identified
         Written solely for testing purposes
 
-        :return:
+        :return: A string summarizing the JPlace placement, mostly for debugging.
         """
         summary_string = "\nInformation for JPlace file '{}'\n" \
                          "{} sequence(s) grafted onto the {} tree.\n" \
@@ -69,7 +49,11 @@ class JPlace:
             summary_string += "\tNone.\n"
         else:
             for placement in self.pqueries:  # type: PhyloPlace
-                summary_string += placement.summary()
+                if isinstance(placement, PhyloPlace):
+                    summary_string += placement.summary()
+                else:
+                    summary_string += str(placement)
+
         summary_string += "\n"
         return summary_string
 
@@ -259,47 +243,57 @@ def sub_indices_for_seq_names_jplace(jplace_dir, numeric_contig_index, refpkg_di
     return
 
 
-def add_bipartitions(jplace_data, bipartition_file):
+def add_bipartitions(jplace_data: JPlace, bipartitions) -> None:
     """
     Adds bootstrap values read from a NEWICK tree-file where they are indicated by values is square-brackets
     and inserts them into a JPlace-formatted NEWICK tree (Internal nodes in curly braces are required)
 
     :param jplace_data: An JPlace object
-    :param bipartition_file: Path to file containing the bootstrapped tree
+    :param bipartitions: Path to file containing the bootstrapped tree, or a list
     :return: Updated ItolJPlace object
     """
-    with open(bipartition_file) as bootstrap_tree_handler:
-        bootstrap_tree = bootstrap_tree_handler.readline().strip()
-        no_length_tree = re.sub(":[0-9.]+", '', bootstrap_tree)
-        node_stack = list()
-        internal_node_bipart_map = dict()
-        x = 0
-        i_node = 0
-        num_buffer = ""
-        while x < len(no_length_tree):
+    # Read the bipartitions, whether its a file or a list of lines
+    if isinstance(bipartitions, str) and os.path.isfile(bipartitions):
+        with open(bipartitions) as bootstrap_tree_handler:
+            bootstrap_tree = bootstrap_tree_handler.readline().strip()
+    elif isinstance(bipartitions, list):
+        bootstrap_tree = bipartitions.pop()
+    else:
+        logging.error("Unrecognized bipartitions instance type '{}'. "
+                      "Unable to add bipartition support to JPlace.\n".format(type(bipartitions)))
+        raise TypeError(3)
+
+    # Load the bipartition support for each node
+    no_length_tree = re.sub(":[0-9.]+", '', bootstrap_tree)
+    node_stack = list()
+    internal_node_bipart_map = dict()
+    x = 0
+    i_node = 0
+    num_buffer = ""
+    while x < len(no_length_tree):
+        c = no_length_tree[x]
+        if c == '[':
+            x += 1
             c = no_length_tree[x]
-            if c == '[':
+            while re.search(r"[0-9]", c):
+                num_buffer += c
                 x += 1
                 c = no_length_tree[x]
-                while re.search(r"[0-9]", c):
-                    num_buffer += c
-                    x += 1
-                    c = no_length_tree[x]
-                bootstrap = num_buffer
-                num_buffer = ""
-                x -= 1
-                internal_node_bipart_map[node_stack.pop()] = bootstrap
-            elif re.search(r"[0-9]", c):
-                while re.search(r"[0-9]", c):
-                    x += 1
-                    c = no_length_tree[x]
-                node_stack.append(str(i_node))
-                i_node += 1
-                x -= 1
-            elif c == ')':
-                node_stack.append(str(i_node))
-                i_node += 1
-            x += 1
+            bootstrap = num_buffer
+            num_buffer = ""
+            x -= 1
+            internal_node_bipart_map[node_stack.pop()] = bootstrap
+        elif re.search(r"[0-9]", c):
+            while re.search(r"[0-9]", c):
+                x += 1
+                c = no_length_tree[x]
+            node_stack.append(str(i_node))
+            i_node += 1
+            x -= 1
+        elif c == ')':
+            node_stack.append(str(i_node))
+            i_node += 1
+        x += 1
     x = 0
     bootstrapped_jplace_tree = ''
     num_buffer = ''
@@ -321,20 +315,5 @@ def add_bipartitions(jplace_data, bipartition_file):
             bootstrapped_jplace_tree += c
         x += 1
     jplace_data.tree = bootstrapped_jplace_tree
-    return jplace_data
+    return
 
-
-def find_edge_length(jplace_tree: str, node: str):
-    """
-    Parses a Newick-formatted tree with depth-first-search internal nodes enveloped by curly braces
-
-    :param jplace_tree: Newick tree
-    :param node: The number of an internal node
-    :return: float
-    """
-    edge_component = re.search(r':([0-9.]+){' + re.escape(node) + '}', jplace_tree)
-    if edge_component:
-        edge_length = float(edge_component.group(1))
-    else:
-        raise AssertionError("Unable to find node '" + node + "' in JPlace-formatted tree.")
-    return edge_length

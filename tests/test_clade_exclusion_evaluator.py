@@ -57,12 +57,54 @@ class CladeExclusionTester(unittest.TestCase):
                                                                             taxonomy=mcra_rp.taxa_trie)
         self.assertEqual(1, len(lineages))
 
+        # Test when the ref_lineage_map lineages are not rooted
+        rlm = {'1': "d__Archaea; p__Euryarchaeota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp. Maddingley MBC34",
+               '2': "d__Archaea; p__Euryarchaeota; c__Halobacteria; o__Halobacteriales; f__Haloarculaceae; g__Halapricum; s__Halapricum salinum",
+               '3': "d__Archaea; p__Euryarchaeota; c__Methanococci; o__Methanococcales; f__Methanococcaceae; g__Methanococcus; s__Methanococcus aeolicus",
+               '4': "d__Archaea; p__Euryarchaeota; c__Methanomicrobia; o__Methanosarcinales; f__Methanosarcinaceae; g__Methanosarcina"}
+        clade_exclusion_evaluator.check_lineage_compatibility(rlm, mcra_rp.taxa_trie)
+        lineages = clade_exclusion_evaluator.get_testable_lineages_for_rank(ref_lineage_map=rlm, query_lineage_map=qlm,
+                                                                            rank="class",
+                                                                            taxonomy=mcra_rp.taxa_trie)
+        self.assertEqual(2, len(lineages))
+
         # Test normal conditions
         lineages = clade_exclusion_evaluator.get_testable_lineages_for_rank(ref_lineage_map=rlm, query_lineage_map=qlm,
                                                                             rank="class",
                                                                             taxonomy=mcra_rp.taxa_trie)
         self.assertEqual(["r__Root; d__Archaea; p__Euryarchaeota; c__Methanobacteria",
                           "r__Root; d__Archaea; p__Euryarchaeota; c__Methanococci"], lineages)
+        return
+
+    def test_select_rep_seqs(self):
+        from treesapp.clade_exclusion_evaluator import select_rep_seqs
+        from treesapp.entrez_utils import EntrezRecord
+        # Make some fake Entrez records
+        er_one = EntrezRecord('CMV57640', 'CMV57640.1')
+        er_one.sequence = "AAAA"
+        er_two = EntrezRecord('WP_000245505', 'WP_000245505.1')
+        er_two.sequence = "CCCC"
+        er_three = EntrezRecord("er_three", "er_three.1")
+        er_three.sequence = "GGGG"
+
+        mocked_dedup_assignments = {'r__Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Lactobacillales;'
+                                    ' f__Streptococcaceae; g__Streptococcus; s__Streptococcus pneumoniae':
+                                        ['CMV57640', 'WP_000245505']}
+        mocked_entrez_records = {'1': er_one, '2': er_two, '3': er_three}
+        selected_fa_dict = select_rep_seqs(mocked_dedup_assignments, mocked_entrez_records, self.ref_pkg.taxa_trie)
+        self.assertEqual(2, len(selected_fa_dict))
+        self.assertEqual("AAAA", selected_fa_dict['CMV57640'])
+
+        # Ensure the taxonomic filtering works
+        mocked_dedup_assignments.update({"r__Root; d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria;"
+                                         " o__Caulobacterales; f__Caulobacteraceae; g__Brevundimonas":
+                                             ["er_three"]})
+        selected_fa_dict = select_rep_seqs(deduplicated_assignments=mocked_dedup_assignments,
+                                           test_sequences=mocked_entrez_records,
+                                           taxon_hierarchy=self.ref_pkg.taxa_trie,
+                                           target_lineage="r__Root; d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria")
+        self.assertEqual(1, len(selected_fa_dict))
+        self.assertEqual("er_three", list(selected_fa_dict.keys())[0])
         return
 
     def test_prep_graftm_ref_files(self):

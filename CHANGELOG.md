@@ -10,6 +10,8 @@
 - File paths with square brackets and parentheses no longer trip up HMMER or RAxML-NG in various modules.
   Some single-quotes were needed.
 - Properly truncate sequences in `treesapp evaluate` with '--length' argument
+- Can add bipartition support to JPlace trees for visualization. Bipartitions were not formatted properly.
+- File paths of reference package trees with support values
 
 ### Changed
 - `treesapp evaluate` uses a tqdm progress bar instead of printing updates to stdout when classifying

@@ -40,13 +40,17 @@ _conflict_node_four = TreeLeafReference('4', 'redirect')
 _conflict_node_four.lineage = "d__Bacteria; p__Firmicutes; n__RemoveMe; c__Fake"
 
 Cauto_leaf = TreeLeafReference('1', 'Cauto')
-Cauto_leaf.lineage = "r__Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Clostridiaceae; g__Clostridium; s__Clostridium autoethanogenum"
+Cauto_leaf.lineage = "r__Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales;" \
+                     " f__Clostridiaceae; g__Clostridium; s__Clostridium autoethanogenum"
 Ameta_leaf = TreeLeafReference('2', 'Ameta')
-Ameta_leaf.lineage = "r__Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Clostridiaceae; g__Alkaliphilus; s__Alkaliphilus metalliredigens"
+Ameta_leaf.lineage = "r__Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales;" \
+                     " f__Clostridiaceae; g__Alkaliphilus; s__Alkaliphilus metalliredigens"
 Mmult_leaf = TreeLeafReference('3', 'Mmult')
-Mmult_leaf.lineage = 'r__Root; d__Bacteria; p__Firmicutes; c__Negativicutes; o__Selenomonadales; f__Selenomonadaceae; g__Mitsuokella; s__Mitsuokella multacida'
+Mmult_leaf.lineage = 'r__Root; d__Bacteria; p__Firmicutes; c__Negativicutes; o__Selenomonadales;' \
+                     ' f__Selenomonadaceae; g__Mitsuokella; s__Mitsuokella multacida'
 Melsd_leaf = TreeLeafReference('4', 'Melsd')
-Melsd_leaf.lineage = 'r__Root; d__Bacteria; p__Firmicutes; c__Negativicutes; o__Veillonellales; f__Veillonellaceae; g__Megasphaera; s__Megasphaera elsdenii'
+Melsd_leaf.lineage = 'r__Root; d__Bacteria; p__Firmicutes; c__Negativicutes; o__Veillonellales;' \
+                     ' f__Veillonellaceae; g__Megasphaera; s__Megasphaera elsdenii'
 
 
 @pytest.fixture(scope="class")
@@ -155,7 +159,8 @@ class TaxonomicHierarchyTester(unittest.TestCase):
 
         # Test loading a TreeLeafReference instance with unclassified taxa
         unclassified_leaf = TreeLeafReference('5', '2667527398_667992784')
-        unclassified_leaf.lineage = "d__Archaea; p__Euryarchaeota; c__Methanomicrobia; o__Methanomicrobiales; f__unclassified; g__unclassified"
+        unclassified_leaf.lineage = "d__Archaea; p__Euryarchaeota; c__Methanomicrobia; o__Methanomicrobiales;" \
+                                    " f__unclassified; g__unclassified"
         test_th.feed_leaf_nodes([unclassified_leaf])
         self.assertEqual(4, test_th.lineages_fed)
         self.assertEqual(1, test_th.get_taxon("d__Archaea").coverage)
@@ -284,7 +289,7 @@ class TaxonomicHierarchyTester(unittest.TestCase):
 
         # Test the conflicting nodes
         test_th.resolve_conflicts()
-        self.assertEqual(4, len(test_th.hierarchy))
+        self.assertEqual(5, len(test_th.hierarchy))
         coverage_values = [test_th.hierarchy[t].coverage for t in test_th.hierarchy]
         self.assertTrue(len(test_leaf_nodes) == max(coverage_values))
         return
@@ -424,6 +429,17 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         with pytest.raises(RuntimeError):
             t_hierarchy.digest_taxon(rank="superkingdom", rank_prefix="s", taxon="Bacteria", previous=None)
 
+        return
+
+    def test_get_taxon_descendents(self):
+        # Test taxon that isn't present
+        self.assertEqual([], self.db.get_taxon_descendents("d__Archaea"))
+
+        # Test genus and species for proper filtering
+        self.assertEqual(2, len(self.db.get_taxon_descendents("g__Actinomyces")))
+        a_nas_desc = self.db.get_taxon_descendents('s__Actinomyces nasicola')
+        self.assertEqual(1, len(a_nas_desc))
+        self.assertEqual('s__Actinomyces nasicola', a_nas_desc[0].prefix_taxon())
         return
 
 
