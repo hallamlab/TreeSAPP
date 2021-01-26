@@ -335,7 +335,12 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         ref_seq = ref_seq_dict[treesapp_id]  # type: EntrezRecord
         if ref_seq.lineage:
-            if t_hierarchy.clean_lineage_string(ref_seq.lineage) not in t_hierarchy.trie:
+            # clean_lineage_string() doesn't handle unprefixed lineages and will exit if encountered
+            try:
+                cleaned_lineage = t_hierarchy.clean_lineage_string(ref_seq.lineage)
+            except (RuntimeError, ValueError):  # Lineage is lacking rank prefixes
+                cleaned_lineage = ""
+            if cleaned_lineage not in t_hierarchy.trie:
                 to_repair.add(treesapp_id)
                 unprefixed_lineages.add(ref_seq.lineage)  # It only takes one rank without a prefix to add it
         else:

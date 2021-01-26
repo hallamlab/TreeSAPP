@@ -39,6 +39,14 @@ class EntrezUtilitiesTester(unittest.TestCase):
             shutil.rmtree(self.create_inst.output_dir)
         return
 
+    def test_validate_target_db(self):
+        from treesapp.entrez_utils import validate_target_db
+        self.assertEqual("Taxonomy", validate_target_db("tax"))
+        self.assertEqual("nucleotide", validate_target_db("dna"))
+        with pytest.raises(SystemExit):
+            validate_target_db("nuc")
+        return
+
     def test_fetch_entrez_lineages(self):
         entrez_record_dict = self.create_inst.fetch_entrez_lineages(self.test_fa, 'prot')
         self.assertEqual(self.test_fa.n_seqs(), len(entrez_record_dict))
@@ -135,9 +143,22 @@ class EntrezUtilitiesTester(unittest.TestCase):
         return
 
     def test_repair_lineages(self):
-        # TODO: provide EntrezRecord instances in ref_seq_dict
-        from treesapp.entrez_utils import repair_lineages
-        repair_lineages(ref_seq_dict={}, t_hierarchy=self.create_inst.ref_pkg.taxa_trie)
+        from treesapp import entrez_utils
+        from treesapp.refpkg import ReferencePackage
+        mcra_refpkg = ReferencePackage()
+        mcra_refpkg.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        mcra_refpkg.slurp()
+
+        mock_one_er = entrez_utils.EntrezRecord("AAW80308", "AAW80308.1")
+        mock_two_er = entrez_utils.EntrezRecord("QGT32507", "QGT32507.1")
+        mock_one_er.lineage = "Archaea; Euryarchaeota; environmental samples"
+        mock_two_er.lineage = "Archaea; Euryarchaeota; Stenosarchaea group; Methanomicrobia; Methanosarcinales;" \
+                              " Candidatus Methanoperedenaceae; Candidatus Methanoperedens; environmental samples"
+
+        entrez_utils.repair_lineages(ref_seq_dict={'1': mock_one_er, '2': mock_two_er},
+                                     t_hierarchy=mcra_refpkg.taxa_trie)
+        self.assertEqual("r__Root; d__Archaea; p__Euryarchaeota", mock_one_er.lineage)
+        self.assertEqual("r__Root; d__Archaea; p__Euryarchaeota", mock_two_er.lineage)
         return
 
     def test_repair_conflict_lineages(self):

@@ -1006,6 +1006,8 @@ class TaxonomicHierarchy:
         """
         reconstructed_lineage = []
         self.validate_rank_prefixes()
+        prefix = ""
+        name = ""
         for taxon in lineage.split(self.lin_sep):  # type: str
             try:
                 prefix, name = taxon.split(self.taxon_sep)
@@ -1017,8 +1019,6 @@ class TaxonomicHierarchy:
                     self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for clean_lineage_string().\n"
                                                              "None was provided for taxon '{}' in lineage {}\n"
                                                              "".format(taxon, lineage))
-                    raise ValueError()
-
             try:
                 if not self.no_rank_re.match(taxon) and self.rank_prefix_map[prefix] in self.accepted_ranks_depths:
                     if with_prefix is False:
