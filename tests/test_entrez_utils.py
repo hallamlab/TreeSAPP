@@ -142,23 +142,42 @@ class EntrezUtilitiesTester(unittest.TestCase):
         self.assertEqual(1, len(found))
         return
 
+    def test_ref_seq_lineage_scanner(self):
+        from treesapp import entrez_utils
+        er_one = entrez_utils.EntrezRecord(".", ".")
+        er_one.lineage = 'r__Root; d__Bacteria; p__Tenericutes; c__Mollicutes; o__Mycoplasmatales;' \
+                         ' f__Mycoplasmataceae; g__Mycoplasmopsis; s__Mycoplasma cynos; t__Mycoplasma cynos C142'
+        matches = entrez_utils.ref_seq_lineage_scanner(ref_seq_dict={'1': er_one}, taxon_name="g__Mycoplasmopsis")
+        self.assertEqual([er_one], matches)
+        return
+
     def test_repair_lineages(self):
         from treesapp import entrez_utils
         from treesapp.refpkg import ReferencePackage
+        # Load reference package to compare with
         mcra_refpkg = ReferencePackage()
         mcra_refpkg.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         mcra_refpkg.slurp()
-
+        # Set up mock test data
+        l1 = "Archaea; Euryarchaeota; environmental samples"
+        l2 = "Archaea; Euryarchaeota; Stenosarchaea group; Methanomicrobia; Methanosarcinales; " \
+             "Candidatus Methanoperedenaceae; Candidatus Methanoperedens; environmental samples"
+        l3 = "r__Root; d__Archaea; p__Candidatus Thermoplasmatota; c__Thermoplasmata_1; " \
+             "o__Methanomassiliicoccales_1; f__Candidatus Methanomethylophilaceae; " \
+             "g__Candidatus Methanomethylophilus; s__Candidatus Methanomethylophilus sp. 1R26"
         mock_one_er = entrez_utils.EntrezRecord("AAW80308", "AAW80308.1")
         mock_two_er = entrez_utils.EntrezRecord("QGT32507", "QGT32507.1")
-        mock_one_er.lineage = "Archaea; Euryarchaeota; environmental samples"
-        mock_two_er.lineage = "Archaea; Euryarchaeota; Stenosarchaea group; Methanomicrobia; Methanosarcinales;" \
-                              " Candidatus Methanoperedenaceae; Candidatus Methanoperedens; environmental samples"
+        mock_three_er = entrez_utils.EntrezRecord("seq_3", "seq_3.1")
+        mock_one_er.lineage = l1
+        mock_two_er.lineage = l2
+        mock_three_er.lineage = l3 + "; t__Methanomethylophilus sp. 1R26 strain mock"
 
-        entrez_utils.repair_lineages(ref_seq_dict={'1': mock_one_er, '2': mock_two_er},
+        # Test
+        entrez_utils.repair_lineages(ref_seq_dict={'1': mock_one_er, '2': mock_two_er, '3': mock_three_er},
                                      t_hierarchy=mcra_refpkg.taxa_trie)
         self.assertEqual("r__Root; d__Archaea; p__Euryarchaeota", mock_one_er.lineage)
         self.assertEqual("r__Root; d__Archaea; p__Euryarchaeota", mock_two_er.lineage)
+        self.assertEqual(l3, mock_three_er.lineage)
         return
 
     def test_repair_conflict_lineages(self):
@@ -208,8 +227,12 @@ class EntrezUtilitiesTester(unittest.TestCase):
         self.assertEqual("r__Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales;"
                          " f__Veillonellaceae; g__Megasphaera; s__Megasphaera elsdenii",
                          "; ".join([t.prefix_taxon() for t in taxonomy.get_taxon("s__Megasphaera elsdenii").lineage()]))
+        self.assertEqual("r__Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales;"
+                         " f__Veillonellaceae; g__Mitsuokella; s__Mitsuokella multacida",
+                         "; ".join([t.prefix_taxon() for t in taxonomy.get_taxon("s__Mitsuokella multacida").lineage()]))
         self.assertFalse("o__Veillonellales" in taxonomy.hierarchy)
         self.assertFalse("o__Selenomonadales" in taxonomy.hierarchy)
+        self.assertFalse("c__Negativicutes" in taxonomy.hierarchy)
         return
 
     def test_verify_rank_occupancy(self):

@@ -127,7 +127,7 @@ class TaxonomicHierarchy:
         self.taxon_sep = "__"  # Separator between the rank prefix and the taxon name
         self.root_taxon = "r" + self.taxon_sep + "Root"
         self.bad_taxa = ["cellular organisms", "unclassified"]  # Optional list that can be used to remove some taxa
-        self.canonical_prefix = re.compile(r"^[nrdpcofgs]" + re.escape(self.taxon_sep))
+        self.canonical_prefix = re.compile(r"^[nrdpcofgst]" + re.escape(self.taxon_sep))
         self.proper_species_re = re.compile("^(s__)?[A-Z][a-z]+ [a-z]+$")
         self.no_rank_re = re.compile(r"^" + re.escape(self.no_rank_name[0] + self.taxon_sep) + r".*")
         self.conflicts = set()  # A tuple to store Taxon instances that create conflicting paths in the hierarchy
@@ -429,7 +429,7 @@ class TaxonomicHierarchy:
             return replaced_nodes
 
         self.conflicts = self.order_conflict_taxa()
-        conflict_resolution_summary = "Taxonomic hierarchy conflicts were resolved by merging the left taxon into the right:\n"
+        conflict_resolution_summary = "Taxonomic hierarchy conflicts were fixed by merging the left into the right:\n"
         while self.conflicts:
             node_one, node_two = self.conflicts.pop(0)  # type: (Taxon, Taxon)
 
@@ -465,7 +465,7 @@ class TaxonomicHierarchy:
                                                                                rep.name, rep.rank)
 
         logging.debug(conflict_resolution_summary)
-        self.conflicts = set()
+        self.conflicts = set(self.conflicts)
         return replaced_nodes
 
     def validate_rank_prefixes(self) -> None:
@@ -675,7 +675,12 @@ class TaxonomicHierarchy:
                               "taxon = {0}\n"
                               "taxon_info = {1}\n".format(taxon_name, str(taxon_info)))
                 sys.exit(11)
-            rank = taxon_info["Rank"]
+            try:
+                rank = taxon_info["Rank"]
+            except KeyError:
+                logging.warning("'Rank' attribute missing from Entrez record '{}'. "
+                                "Rank set to '{}'.\n".format(taxon_info, self.no_rank_name))
+                rank = self.no_rank_name
 
             taxon = self.digest_taxon(taxon_name, rank, previous=previous)  # type: Taxon
             if not taxon and previous:

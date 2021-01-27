@@ -232,7 +232,7 @@ def prep_for_entrez_query():
     :return: None
     """
 
-    logging.info("Preparing Bio.Entrez for NCBI queries... ")
+    logging.debug("Preparing Bio.Entrez for NCBI queries... ")
     Entrez.email = "c.morganlang@gmail.com"
     Entrez.tool = "treesapp"
     # Test the internet connection:
@@ -241,7 +241,7 @@ def prep_for_entrez_query():
     except error.URLError:
         logging.warning("Unable to serve Entrez query. Are you connected to the internet?\n")
         record = None
-    logging.info("done.\n")
+    logging.debug("done.\n")
     return record
 
 
@@ -256,28 +256,31 @@ def repair_conflict_lineages(t_hierarchy: TaxonomicHierarchy, ref_seq_dict: dict
     """
     if len(t_hierarchy.conflicts) == 0:
         return
-
+    logging.debug("Resolving conflicting lineages within taxonomic hierarchy... ")
     nodes_replaced_map = t_hierarchy.resolve_conflicts()  # return taxa whose nodes were merged
 
     for new_taxon, old_taxa in nodes_replaced_map.items():  # type: (Taxon, list)
         for obsolete in old_taxa:  # type: Taxon
-            taxon_name = obsolete.prefix_taxon()
-            for record in ref_seq_lineage_scanner(ref_seq_dict, taxon_name):  # type: EntrezRecord
+            for record in ref_seq_lineage_scanner(ref_seq_dict, obsolete.prefix_taxon()):  # type: EntrezRecord
+                i = -1
                 # Find the name of the organism to use for building the new taxonomic lineage
                 if t_hierarchy.canonical_prefix.match(record.organism):
                     organism_query = record.organism
-                elif t_hierarchy.canonical_prefix.match(record.lineage.split(t_hierarchy.lin_sep)[-1]):
-                    organism_query = record.lineage.split(t_hierarchy.lin_sep)[-1]
+                elif t_hierarchy.canonical_prefix.match(record.lineage.split(t_hierarchy.lin_sep)[i]):
+                    organism_query = record.lineage.split(t_hierarchy.lin_sep)[i]
                 else:
                     continue
 
                 # If the current record's most resolved taxon has been substituted
                 # swap all taxonomic information to the new representative
-                if organism_query == taxon_name:
+                if organism_query == obsolete.prefix_taxon():
                     record.organism = new_taxon.prefix_taxon()
                     organism_query = record.organism
 
                 ref_taxon = t_hierarchy.get_taxon(organism_query)  # type: Taxon
+                while not ref_taxon and (i*-1) < len(record.lineage.split(t_hierarchy.lin_sep)):
+                    ref_taxon = t_hierarchy.get_taxon(record.lineage.split(t_hierarchy.lin_sep)[i])
+                    i -= 1
                 for taxon in ref_taxon.lineage():
                     if taxon.parent and taxon.coverage > taxon.parent.coverage:
                         logging.error("Coverage of descendent {} ({}) is greater than that of ancestral taxon {} ({}).\n"
@@ -290,6 +293,7 @@ def repair_conflict_lineages(t_hierarchy: TaxonomicHierarchy, ref_seq_dict: dict
                     logging.warning("Unable to repair the conflicted lineage of record {}, "
                                     "'{}'".format(record.accession, record.lineage))
                     continue
+    logging.debug("done.\n")
     return
 
 
@@ -331,7 +335,7 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     t_hierarchy.clean_trie = True
     repair_conflict_lineages(t_hierarchy, ref_seq_dict)
     t_hierarchy.build_multifurcating_trie(key_prefix=True)
-    # TODO: handle the lineages with rank-prefixes but are absent from the hierarchy
+    logging.debug("Repairing any taxonomic lineages lacking rank prefixes... ")
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         ref_seq = ref_seq_dict[treesapp_id]  # type: EntrezRecord
         if ref_seq.lineage:
@@ -382,8 +386,13 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
 
         if len(to_repair) == 0:
             logging.info("done.\n")
+    logging.debug("done.\n")
 
+    logging.debug("Rooting domains in taxonomic hierarchy... ")
     t_hierarchy.root_domains(root=t_hierarchy.find_root_taxon())
+    logging.debug("done.\n")
+
+    logging.debug("Validating lineages of all entrez records... ")
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         e_record = ref_seq_dict[treesapp_id]  # type: EntrezRecord
         valid_lineage = t_hierarchy.check_lineage(e_record.lineage, e_record.organism)
@@ -392,6 +401,7 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
                             "".format(e_record.versioned, e_record.lineage, t_hierarchy.root_taxon))
             valid_lineage = t_hierarchy.root_taxon
         e_record.lineage = valid_lineage
+    logging.debug("done.\n")
 
     return
 

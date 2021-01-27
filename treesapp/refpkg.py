@@ -1029,7 +1029,6 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
         if type(v) is dict:
             v = "\n" + "\n".join([sk + "\t" + sv for sk, sv in v.items()])
         sys.stdout.write(str(v).strip() + "\n")
-        logging.info("\n")
 
     # TODO: optionally use ReferencePackage.write_refpkg_component
     return
