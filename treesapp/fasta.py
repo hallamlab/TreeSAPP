@@ -371,10 +371,10 @@ class FASTA:
             logging.warning("FASTA header registry and fasta dictionary are out of sync!\n")
         return len(self.fasta_dict.keys())
 
-    def original_header_map(self):
+    def original_header_map(self) -> dict:
         return {self.header_registry[index].original: [self.header_registry[index]] for index in self.header_registry}
 
-    def first_split_header_map(self):
+    def first_split_header_map(self) -> dict:
         header_map = dict()
         for header in self.header_registry.values():  # type: Header
             fs_h = header.first_split

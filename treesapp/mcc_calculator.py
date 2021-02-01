@@ -15,7 +15,7 @@ from treesapp import file_parsers
 from treesapp import wrapper
 from treesapp import utilities
 from treesapp import assign
-from treesapp.phylo_seq import assignments_to_treesaps
+from treesapp.phylo_seq import assignments_to_pqueries
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import get_headers, register_headers
 from treesapp.classy import prep_logging, get_header_info
@@ -832,7 +832,7 @@ def mcc_calculator(sys_args):
                 classify_args.append("--svm")
             assign.assign(classify_args)
         classification_lines = file_parsers.read_classification_table(classification_table)
-        assignments = assignments_to_treesaps(classification_lines)
+        assignments = assignments_to_pqueries(classification_lines)
     else:
         # Since you are only able to analyze a single reference package at a time with GraftM, this is ran iteratively
         for gpkg in glob(args.refpkg_dir + "*gpkg"):

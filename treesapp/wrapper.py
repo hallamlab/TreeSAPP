@@ -10,7 +10,6 @@ from tqdm import tqdm
 import subprocess
 
 from treesapp.external_command_interface import launch_write_command, CommandLineFarmer
-from treesapp.fasta import read_fasta_to_dict
 from treesapp import utilities
 
 
@@ -761,7 +760,7 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
     return sam_file
 
 
-def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads) -> None:
+def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads: int) -> None:
     """
     Wrapper function for the MAFFT multiple sequence alignment tool.
     Runs MAFFT using `--auto` and checks if the output is empty.
@@ -785,12 +784,12 @@ def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads) -> Non
         logging.error("Multiple sequence alignment using " + mafft_exe +
                       " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
         sys.exit(7)
-    else:
-        mfa = read_fasta_to_dict(fasta_out)
-        if len(mfa.keys()) < 1:
-            logging.error("MAFFT did not generate a proper FASTA file. " +
-                          "Check the output by running:\n" + ' '.join(mafft_align_command) + "\n")
-            sys.exit(7)
+
+    # mfa = read_fasta_to_dict(fasta_out)
+    # if len(mfa.keys()) < 1:
+    #     logging.error("MAFFT did not generate a proper FASTA file. " +
+    #                   "Check the output by running:\n" + ' '.join(mafft_align_command) + "\n")
+    #     sys.exit(7)
 
     return
 

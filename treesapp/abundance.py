@@ -70,9 +70,7 @@ def abundance(sys_args):
 
     # TODO: Index each PQuery's abundance by the dataset name, write a new row for each dataset's abundance
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
-        assignments = file_parsers.read_classification_table(ts_abund.classifications)
-        # Convert assignments to PQuery instances
-        pqueries = phylo_seq.assignments_to_treesaps(assignments)
+        pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir)
         phylo_seq.abundify_tree_saps(pqueries, abundance_dict)
         file_parsers.write_classification_table(pqueries, ts_abund.sample_prefix, ts_abund.classifications)
 

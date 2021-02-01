@@ -9,13 +9,15 @@ import numpy as np
 from ete3 import Tree, TreeNode
 
 from treesapp.treesapp_args import TreeSAPPArgumentParser
-from treesapp.refpkg import ReferencePackage
 from treesapp import file_parsers
 from treesapp import jplace_utils
 from treesapp import rel_evo_dist
 from treesapp import phylo_seq
 from treesapp import taxonomic_hierarchy as ts_taxonomy
 from treesapp import classy as ts_classy
+from treesapp import fasta
+from treesapp import wrapper
+from treesapp import entish
 
 
 class PhylOTU:
@@ -29,46 +31,51 @@ class PhylOTU:
         return
 
 
-class PhyloClust:
+class PhyloClust(ts_classy.TreeSAPP):
     def __init__(self):
+        super(PhyloClust, self).__init__("phylotu")
         """Initialize a PhyloClust instance."""
         # Parameters
         self.arg_parser = TreeSAPPArgumentParser(description="A tool for sorting query sequences placed on a phylogeny"
                                                              " into phylogenetically-inferred clusters.")
-        self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-        self.refpkg_dir = self.treesapp_dir + 'data' + os.sep
+        self.clustering_mode = ""
         self.alpha = 0
         self.tax_rank = "species"
         self.normalize = False
         self.jplace_files = {}
+        self.assign_output_dirs = {}
         self.output_dir = ""
         self.sample_re = None
 
         # Objects for clustering
-        self.refpkg = ReferencePackage()
         self.sample_mat = {}
         self.cluster_index = {}
         self._edges_to_cluster_index = {}
+
+        self.stages = {0: ts_classy.ModuleFunction("load_pqueries", 0),
+                       1: ts_classy.ModuleFunction("phylogeny", 1),
+                       2: ts_classy.ModuleFunction("cluster", 2)}
+
         return
 
     def load_args(self, args) -> None:
         # Set and create the output directory
         self.output_dir = args.output
-        if not os.path.isdir(self.output_dir):
-            try:
-                os.mkdir(self.output_dir)
-            except IOError:
-                logging.error("Unable to make output directory '{}'.\n".format(self.output_dir))
-                sys.exit(5)
+        self.set_output_dirs()
+        self.check_previous_output(overwrite=False)
+
+        self.validate_continue(args)
+
+        self.clustering_mode = args.clustering_mode
 
         self.prep_log(args)
 
         if args.pkg_target:
             refpkg_dict = file_parsers.gather_ref_packages(self.refpkg_dir, [args.pkg_target])
-            self.refpkg = refpkg_dict[args.pkg_target]
+            self.ref_pkg = refpkg_dict[args.pkg_target]
         elif args.pkg_path:
-            self.refpkg.f__json = args.pkg_path
-            self.refpkg.slurp()
+            self.ref_pkg.f__json = args.pkg_path
+            self.ref_pkg.slurp()
         else:
             logging.error("A reference package must be provided to treesapp phylotu.\n")
             sys.exit(3)
@@ -79,18 +86,23 @@ class PhyloClust:
 
         # Format the JPlace files dictionary, mapping sample names to file paths
         if args.jplace:
+            if self.clustering_mode == "de_novo":
+                logging.error("TreeSAPP assign output directories must be provided for 'de_novo' clustering.\n")
+                sys.exit(5)
             self.jplace_files = {os.path.basename(f_path).replace('.jplace', ''): f_path for f_path in args.jplace}
         elif args.ts_out:
             for dirname in args.ts_out:  # type: str
                 sample_id = os.path.basename(dirname.strip(os.sep))
-                jplace_file = os.path.join(dirname, "iTOL_output", self.refpkg.prefix,
-                                           self.refpkg.prefix + "_complete_profile.jplace")
+                jplace_file = os.path.join(dirname, "iTOL_output", self.ref_pkg.prefix,
+                                           self.ref_pkg.prefix + "_complete_profile.jplace")
                 if not os.path.isfile(jplace_file):
                     logging.warning("JPlace file was not found for {} in treesapp assign output path '{}'.\n"
-                                    "".format(self.refpkg.prefix, dirname))
+                                    "".format(self.ref_pkg.prefix, dirname))
                     continue
                 self.jplace_files[sample_id] = jplace_file
+                self.assign_output_dirs[sample_id] = dirname
 
+        self.executables = self.find_executables(args)
         # Determine whether to normalise the evolutionary distances or not
         # if args.evo_dist == "red":
         #     self.normalize = True
@@ -101,7 +113,7 @@ class PhyloClust:
         #     sys.exit(3)
         return
 
-    def get_arguments(self, sys_args: list) -> None:
+    def get_arguments(self, sys_args: list):
         """Add arguments to the TreeSAPP ArgumentParser instance, then parse and load."""
         refpkg_arg = self.arg_parser.reqs.add_mutually_exclusive_group()
         refpkg_arg.add_argument("--refpkg_path", dest="pkg_path",
@@ -118,6 +130,9 @@ class PhyloClust:
         place_dat.add_argument("--assign_output", nargs='+', dest="ts_out",
                                help="Path to one or more output directories of treesapp assign.")
 
+        self.arg_parser.optopt.add_argument("-m", "--mode", dest="clustering_mode",
+                                            choices=["de_novo", "ref_guided"], default="ref_guided", required=False,
+                                            help="The phylogentic clustering mode to use. [ DEFAULT = ref_guided ].")
         self.arg_parser.optopt.add_argument("-t", "--tax_rank",
                                             default="species", choices=["class", "order", "family", "genus", "species"],
                                             help="The taxonomic rank the cluster radius should approximately represent."
@@ -135,14 +150,9 @@ class PhyloClust:
         #                                          choices=["raw", "red"], default="red", required=False,
         #                                          help="The evolutionary distance normalisation method to use."
         #                                               " [ DEAULT = red ]")
-        # self.arg_parser.optopt.add_argument("-m", "--partition_metric",
-        #                                     choices=["mean", "median", "max"], default="max", required=False,
-        #                                     help="The metric to use when deciding when to cut a cluster."
-        #                                          " [ DEFAULT = max ].")
 
         # Parse the arguments
-        self.load_args(self.arg_parser.parse_args(sys_args))
-        return
+        return self.arg_parser.parse_args(sys_args)
 
     def prep_log(self, args):
         log_file = os.path.join(self.output_dir, "TreeSAPP_phyloclust_log.txt")
@@ -293,10 +303,12 @@ class PhyloClust:
             index += 1
         return inode_partitions
 
-    def define_tree_clusters(self, tree: Tree) -> None:
-        node_partitions = self.partition_nodes(tree)
-        # Split the cluster nodes into internal nodes when necessary
-        cluster_nodes = self.split_node_partition_edges(node_partitions)
+    def define_tree_clusters(self, tree: Tree, internal=True) -> None:
+        if internal:
+            # Split the cluster nodes into internal nodes when necessary
+            cluster_nodes = self.split_node_partition_edges(self.partition_nodes(tree))
+        else:
+            cluster_nodes = self.partition_nodes(tree)
 
         for num, cluster_tree_node in cluster_nodes.items():  # type: (int, TreeNode)
             potu = PhylOTU(name=num)
@@ -319,7 +331,26 @@ class PhyloClust:
                 self._edges_to_cluster_index[node_edge_map[node.name]] = p_otu.number
         return
 
-    def assign_pqueries_to_clusters(self, pqueries: list) -> None:
+    def assign_pqueries_to_leaf_clusters(self, pqueries: list) -> None:
+        # Build a map between the leaf node names and cluster numbers
+        leaf_cluster_map = {}
+        for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
+            for leaf in p_otu.tree_node.get_leaf_names():
+                leaf_cluster_map[leaf] = cluster_num
+
+        # Match the PQuery names to clusters
+        for pquery in pqueries:  # type: phylo_seq.PQuery
+            pquery.p_otu = leaf_cluster_map[pquery.place_name]
+            if getattr(pquery, "sample_name") not in self.sample_mat:
+                self.sample_mat[getattr(pquery, "sample_name")] = {n: 0 for n in self.cluster_index}
+            try:
+                self.sample_mat[getattr(pquery, "sample_name")][pquery.p_otu] += 1
+            except KeyError:
+                self.sample_mat[getattr(pquery, "sample_name")][pquery.p_otu] = 1
+            self.cluster_index[pquery.p_otu].cardinality += 1
+        return
+
+    def assign_pqueries_to_edge_clusters(self, pqueries: list) -> None:
         """
         Identifies which phylogenetic cluster each PQuery belongs to based on its edge_num attribute.
         This is saved in a new attribute called 'p_otu'.
@@ -391,50 +422,193 @@ class PhyloClust:
 
         return
 
+    def report_cluster_occupancy(self, sample_name, n_pqueries: int):
+        occupancy = 0
+        for num, p_otu in self.cluster_index.items():
+            if p_otu.cardinality >= 1:
+                occupancy += 1
+        logging.info("{} classified sequences occupy {}/{} '{}' pOTUs in sample '{}'.\n"
+                     "".format(n_pqueries, occupancy, len(self.cluster_index),
+                               self.ref_pkg.prefix, sample_name))
+        return
 
-def cluster_phylogeny(sys_args: list) -> None:
-    p_clust = PhyloClust()
-    p_clust.get_arguments(sys_args)
 
-    # Calculate RED distances for each node
-    taxa_tree = p_clust.refpkg.taxonomically_label_tree()
-    red_tree = rel_evo_dist.RedTree()
-    red_tree.decorate_rel_dist(taxa_tree)
+def dereplicate_by_clustering(fasta_inst: fasta.FASTA, prop_similarity: float, mmseqs_exe: str, tmp_dir: str,
+                              subset=None, num_threads=2) -> dict:
+    """
+    A method for dereplicating a FASTA instance using pairwise sequence clustering with MMSeqs2.
+    The FASTA instance, fasta_inst, fasta_dict attribute is modified to only store the representative (i.e. centroid)
+    sequences determined from the sequence clustering.
 
-    if not p_clust.alpha:
-        logging.info("Alpha threshold not provided. Estimating for '{}'... ".format(p_clust.tax_rank))
-        p_clust.calculate_distance_threshold(taxa_tree, p_clust.refpkg.taxa_trie)
-        logging.info("done.\n")
-        logging.debug("Alpha estimated to be {}.\n".format(p_clust.alpha))
+    :param fasta_inst: A FASTA instance with the fasta_dict and header_registry loaded
+    :param prop_similarity: The proportional similarity to cluster the sequences in fasta_inst
+    :param mmseqs_exe: The path to a MMSeqs2 executable
+    :param tmp_dir: A directory to write temporary files
+    :param subset: Optionally, a list of sequences to cluster. Those not included will be removed from fasta_inst
+    :param num_threads: The number of threads for MMSeqs2 to use (2 by default)
+    :return: A dictionary of cluster numerical identifiers indexing Cluster instances
+    """
 
+    fasta_inst.change_dict_keys("num")
+    cluster_input = os.path.join(tmp_dir, "cluster_in.fasta")
+    clusters_prefix = os.path.join(tmp_dir, "linclust_out")
+    clusters_table = clusters_prefix + "_cluster.tsv"
+    cluster_alignments = clusters_prefix + "_cluster_aln.tsv"
+
+    # Write a FASTA for clustering containing the formatted headers since
+    # not all clustering tools + versions keep whole header - spaces are replaced with underscores
+    fasta.write_new_fasta(fasta_dict=fasta_inst.fasta_dict, fasta_name=cluster_input, headers=subset)
+
+    wrapper.cluster_sequences(software_path=mmseqs_exe,
+                              fasta_input=cluster_input, output_prefix=clusters_prefix,
+                              similarity=prop_similarity, num_threads=num_threads)
+
+    cluster_map = file_parsers.create_mmseqs_clusters(clusters_table, cluster_alignments)
+
+    # Revert headers in cluster_dict from 'formatted' back to 'original'
+    fasta.rename_cluster_headers(cluster_map, fasta_inst.header_registry)
+    logging.debug("\t{} sequence clusters\n".format(len(cluster_map.keys())))
+
+    # Keep only the representative sequences in the FASTA instance
+    fasta_inst.change_dict_keys()
+    fasta_inst.keep_only(header_subset=[c.representative for num, c in cluster_map.items()])
+
+    # Clean up the temporary files
+    for tmp_file in [cluster_input, clusters_table, cluster_alignments]:
+        os.remove(tmp_file)
+    return cluster_map
+
+
+def de_novo_phylogeny_from_queries(phylo_clust: PhyloClust, fasta_inst: fasta.FASTA) -> Tree:
+    # TODO: Build a profile HMM from the incomplete query sequences and filter by length/coverage
+
+    # Change header format to one without whitespace
+    fasta_inst.change_dict_keys("num")
+    # Write a FASTA file for multiple sequence alignment and phylogenetic inference
+    fasta.write_new_fasta(fasta_inst.fasta_dict,
+                          fasta_name=phylo_clust.stage_output_dir + "de_novo_clusters.fasta")
+    wrapper.run_mafft(mafft_exe=phylo_clust.executables["mafft"],
+                      fasta_in=phylo_clust.stage_output_dir + "de_novo_clusters.fasta",
+                      fasta_out=phylo_clust.stage_output_dir + "de_novo_clusters.mfa",
+                      num_threads=2)
+    clusters_tree = wrapper.construct_tree(tree_builder="FastTree",
+                                           executables=phylo_clust.executables,
+                                           evo_model="LG",
+                                           multiple_alignment_file=phylo_clust.stage_output_dir + "de_novo_clusters.mfa",
+                                           tree_output_dir=phylo_clust.stage_output_dir,
+                                           tree_prefix="de_novo_cluster_tree")
+
+    # Ensure that the phylogeny is bifurcating
+    ete_tree = Tree(clusters_tree)
+    entish.label_internal_nodes_ete(ete_tree)
+    # Propagate a 'taxon' feature - None by default - to all TreeNodes for holding Taxon instances
+    for n in ete_tree.traverse(strategy="postorder"):  # type: Tree
+        n.add_feature(pr_name="taxon", pr_value=None)
+    # Add the query sequence name for each leaf
+    for leaf_node in ete_tree.get_leaves():
+        leaf_node.name = fasta_inst.header_registry[leaf_node.name].original
+    return ete_tree
+
+
+def pqueries_to_fasta(pqueries, fa_name="") -> fasta.FASTA:
+    pqueries_fasta = fasta.FASTA(file_name=fa_name)
+    for sample_id, refpkg_pquery_map in pqueries.items():
+        for refpkg_name, pqueries in refpkg_pquery_map.items():  # type: (str, list)
+            for pquery in pqueries:  # type: phylo_seq.PQuery
+                pqueries_fasta.fasta_dict[pquery.place_name] = pquery.seq
+    pqueries_fasta.header_registry = fasta.register_headers(list(pqueries_fasta.fasta_dict.keys()))
+    return pqueries_fasta
+
+
+def de_novo_phylo_clusters(phylo_clust: PhyloClust, drep_similarity=1.0):
+    # Gather all classified sequences for a reference package from the treesapp assign outputs
+    classified_pqueries = {}
+    for sample_id, ts_out in phylo_clust.assign_output_dirs.items():
+        classified_pqueries[sample_id] = file_parsers.load_classified_sequences_from_assign_output(ts_out,
+                                                                                                   phylo_clust.ref_pkg.prefix)
+        for pquery in classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]:
+            phylo_clust.set_pquery_sample_name(pquery, sample_id)
+
+    # Load the classified PQuery sequences into a FASTA instance
+    pqueries_fasta = pqueries_to_fasta(classified_pqueries,
+                                       fa_name=os.path.join(phylo_clust.stage_output_dir, "classified_pqueries.fasta"))
+    pqueries_fasta.summarize_fasta_sequences()
+    phylo_clust.increment_stage_dir()
+
+    # Dereplicate classified sequences into Clusters
+    if drep_similarity < 1.0:
+        cluster_map = dereplicate_by_clustering(fasta_inst=pqueries_fasta,
+                                                prop_similarity=drep_similarity,
+                                                mmseqs_exe=phylo_clust.executables["mmseqs"],
+                                                tmp_dir=phylo_clust.stage_output_dir)
+    else:
+        cluster_map = {}
+
+    de_novo_phylogeny = de_novo_phylogeny_from_queries(phylo_clust, pqueries_fasta)
+    phylo_clust.increment_stage_dir()
+
+    # Define tree clusters
+    phylo_clust.define_tree_clusters(de_novo_phylogeny, internal=False)
+    for sample_id in classified_pqueries:
+        if phylo_clust.ref_pkg.prefix not in classified_pqueries[sample_id]:
+            continue
+        pqueries = classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]
+        # TODO: Use cluster_map to assign pqueries to clusters that are not in the phylogeny
+        phylo_clust.assign_pqueries_to_leaf_clusters(pqueries)
+
+        phylo_clust.report_cluster_occupancy(sample_name=sample_id, n_pqueries=len(pqueries))
+    return
+
+
+def reference_placement_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree) -> None:
     # Perform maximum, mean, or median distance min-cut partitioning
     logging.info("Defining phylogenetic clusters... ")
-    p_clust.define_tree_clusters(p_clust.refpkg.taxonomically_label_tree())
+    phylo_clust.define_tree_clusters(phylo_clust.ref_pkg.taxonomically_label_tree())
     logging.info("done.\n")
 
     # Find the edges belonging to each cluster and invert the dictionary to create the _edges_to_cluster_index
-    p_clust.match_edges_to_clusters(tree=p_clust.refpkg.taxonomically_label_tree())
+    phylo_clust.match_edges_to_clusters(tree=phylo_clust.ref_pkg.taxonomically_label_tree())
 
     logging.info("Assigning query sequences to clusters...\n")
-    for sample_id, jplace_file in p_clust.jplace_files.items():
+    for sample_id, jplace_file in phylo_clust.jplace_files.items():
         # Load the JPlace file
         jplace_dat = jplace_utils.jplace_parser(jplace_file)
 
         pqueries = jplace_utils.demultiplex_pqueries(jplace_dat)
         for pquery in pqueries:  # type: phylo_seq.PQuery
-            p_clust.set_pquery_sample_name(pquery, sample_id)
-            pquery.process_max_weight_placement(taxa_tree)
+            phylo_clust.set_pquery_sample_name(pquery, sample_id)
+            pquery.process_max_weight_placement(taxon_labelled_tree)
 
         # Map the PQueries (max_lwr or aelw?) to clusters
-        p_clust.assign_pqueries_to_clusters(pqueries)
+        phylo_clust.assign_pqueries_to_edge_clusters(pqueries)
 
         # Report the number of clusters occupied
-        occupancy = 0
-        for num, p_otu in p_clust.cluster_index.items():
-            if p_otu.cardinality >= 1:
-                occupancy += 1
-        logging.info("{} classified sequences occupy {}/{} '{}' pOTUs in sample '{}'.\n"
-                     "".format(len(pqueries), occupancy, len(p_clust.cluster_index), p_clust.refpkg.prefix, sample_id))
+        phylo_clust.report_cluster_occupancy(sample_name=sample_id, n_pqueries=len(pqueries))
+    return
+
+
+def cluster_phylogeny(sys_args: list) -> None:
+    p_clust = PhyloClust()
+    p_clust.load_args(p_clust.get_arguments(sys_args))
+
+    # Calculate RED distances for each node
+    taxa_tree = p_clust.ref_pkg.taxonomically_label_tree()
+    red_tree = rel_evo_dist.RedTree()
+    red_tree.decorate_rel_dist(taxa_tree)
+
+    if not p_clust.alpha:
+        logging.info("Alpha threshold not provided. Estimating for '{}'... ".format(p_clust.tax_rank))
+        p_clust.calculate_distance_threshold(taxa_tree, p_clust.ref_pkg.taxa_trie)
+        logging.info("done.\n")
+        logging.debug("Alpha estimated to be {}.\n".format(p_clust.alpha))
+
+    if p_clust.clustering_mode == "ref_guided":
+        reference_placement_phylo_clusters(phylo_clust=p_clust, taxon_labelled_tree=taxa_tree)
+    elif p_clust.clustering_mode == "de_novo":
+        de_novo_phylo_clusters(phylo_clust=p_clust)
+    else:
+        logging.error("Unknown clustering mode specified: '{}'.\n".format(p_clust.clustering_mode))
+        sys.exit(5)
 
     # Write a OTU table with the abundance of each PhylOTU for each JPlace
     p_clust.write_otu_matrix()

@@ -327,6 +327,7 @@ class TreeSAPP:
         self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
         self.acc_to_lin = ""  # Path to an accession-lineage mapping file
         self.ref_pkg = ReferencePackage()
+        self.classification_tbl_name = "marker_contig_map.tsv"
 
         # Values derived from the command-line arguments
         self.input_sequences = ""
@@ -356,6 +357,12 @@ class TreeSAPP:
                                     "Input molecule type = " + self.molecule_type])
         return info_string
 
+    def set_output_dirs(self) -> None:
+        self.output_dir = validate_new_dir(self.output_dir)
+        self.final_output_dir = self.output_dir + "final_outputs" + os.sep
+        self.var_output_dir = self.output_dir + "intermediates" + os.sep
+        return
+
     def furnish_with_arguments(self, args) -> None:
         """
         Carries over the basic TreeSAPP arguments to the respective TreeSAPP-subclass.
@@ -365,9 +372,8 @@ class TreeSAPP:
         :return: None
         """
         if self.command != "info":
-            self.output_dir = validate_new_dir(args.output)
-            self.final_output_dir = self.output_dir + "final_outputs" + os.sep
-            self.var_output_dir = self.output_dir + "intermediates" + os.sep
+            self.output_dir = args.output
+            self.set_output_dirs()
             if set(vars(args)).issuperset({"molecule", "input"}):
                 self.input_sequences = args.input
                 self.molecule_type = args.molecule
@@ -555,7 +561,7 @@ class TreeSAPP:
 
         self.current_stage = self.stages[last_valid_stage]
         self.set_stage_dir()
-        if args.stage == "continue":
+        if "stage" not in vars(args) or args.stage == "continue":
             logging.debug("Continuing with stage '{}'\n".format(self.current_stage.name))
             self.edit_stages(last_valid_stage)
             return
@@ -577,7 +583,7 @@ class TreeSAPP:
 
         return
 
-    def find_executables(self, args):
+    def find_executables(self, args) -> dict:
         """
         Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
 
@@ -591,10 +597,8 @@ class TreeSAPP:
         if self.command == "abundance":
             dependencies += ["bwa"]
 
-        if self.command in ["create", "update", "train", "evaluate", "info"]:
-            dependencies += ["mmseqs", "mafft"]
-            if hasattr(args, "fast") and args.fast:
-                dependencies.append("FastTree")
+        if self.command in ["create", "update", "train", "evaluate", "info", "phylotu"]:
+            dependencies += ["mmseqs", "mafft", "FastTree"]
 
             if hasattr(args, "od_seq") and args.od_seq:
                 dependencies.append("OD-seq")
@@ -1478,7 +1482,7 @@ class Abundance(TreeSAPP):
             sys.exit(5)
         self.classified_nuc_seqs = glob(self.final_output_dir + "*_classified.fna")[0]
 
-        self.classifications = self.output_dir + "final_outputs" + os.sep + "marker_contig_map.tsv"
+        self.classifications = self.final_output_dir + self.classification_tbl_name
 
         if not os.path.isdir(self.var_output_dir):
             os.makedirs(self.var_output_dir)
