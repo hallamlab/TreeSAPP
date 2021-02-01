@@ -96,6 +96,27 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(680, len(sto_dict["KKH90701"]))
         return
 
+    def test_load_classifified_sequences_from_assign_output(self):
+        from treesapp.file_parsers import load_classified_sequences_from_assign_output
+        from treesapp.phylo_seq import PQuery
+        refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("marker_test_results"))
+        self.assertEqual(["McrA", "McrB"], list(refpkg_pquery_map.keys()))
+        self.assertEqual(13, sum([len(pqueries) for pqueries in refpkg_pquery_map.values()]))
+        for rp, pqueries in refpkg_pquery_map.items():
+            for pq in pqueries:  # type: PQuery
+                self.assertTrue(len(pq.seq) > 0)
+                self.assertEqual(rp, pq.ref_name)
+
+        # Test refpkg filtering
+        refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("test_output_TarA"),
+                                                                         refpkg_name="DsrAB")
+        self.assertEqual(95, len(refpkg_pquery_map["DsrAB"]))
+        for rp, pqueries in refpkg_pquery_map.items():
+            for pq in pqueries:  # type: PQuery
+                self.assertEqual("DsrAB", pq.ref_name)
+
+        return
+
 
 if __name__ == '__main__':
     unittest.main()
