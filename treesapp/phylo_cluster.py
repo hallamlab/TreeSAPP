@@ -331,7 +331,7 @@ class PhyloClust(ts_classy.TreeSAPP):
                 self._edges_to_cluster_index[node_edge_map[node.name]] = p_otu.number
         return
 
-    def assign_pqueries_to_leaf_clusters(self, pqueries: list) -> None:
+    def assign_pqueries_to_leaf_clusters(self, pqueries: list, pairwise_clusters: dict) -> None:
         # Build a map between the leaf node names and cluster numbers
         leaf_cluster_map = {}
         for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
@@ -340,7 +340,12 @@ class PhyloClust(ts_classy.TreeSAPP):
 
         # Match the PQuery names to clusters
         for pquery in pqueries:  # type: phylo_seq.PQuery
-            pquery.p_otu = leaf_cluster_map[pquery.place_name]
+            try:
+                pquery.p_otu = leaf_cluster_map[pquery.place_name]
+            except KeyError:
+                for num, cluster in pairwise_clusters.items():  # type: ts_classy.Cluster
+                    if pquery.place_name in set([member[0] for member in cluster.members]):
+                        pquery.p_otu = leaf_cluster_map[cluster.representative]
             if getattr(pquery, "sample_name") not in self.sample_mat:
                 self.sample_mat[getattr(pquery, "sample_name")] = {n: 0 for n in self.cluster_index}
             try:
@@ -553,8 +558,8 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, drep_similarity=1.0):
         if phylo_clust.ref_pkg.prefix not in classified_pqueries[sample_id]:
             continue
         pqueries = classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]
-        # TODO: Use cluster_map to assign pqueries to clusters that are not in the phylogeny
-        phylo_clust.assign_pqueries_to_leaf_clusters(pqueries)
+        # Use cluster_map to assign pqueries to clusters that are not in the phylogeny
+        phylo_clust.assign_pqueries_to_leaf_clusters(pqueries, cluster_map)
 
         phylo_clust.report_cluster_occupancy(sample_name=sample_id, n_pqueries=len(pqueries))
     return
@@ -605,7 +610,7 @@ def cluster_phylogeny(sys_args: list) -> None:
     if p_clust.clustering_mode == "ref_guided":
         reference_placement_phylo_clusters(phylo_clust=p_clust, taxon_labelled_tree=taxa_tree)
     elif p_clust.clustering_mode == "de_novo":
-        de_novo_phylo_clusters(phylo_clust=p_clust)
+        de_novo_phylo_clusters(phylo_clust=p_clust, drep_similarity=0.999)
     else:
         logging.error("Unknown clustering mode specified: '{}'.\n".format(p_clust.clustering_mode))
         sys.exit(5)

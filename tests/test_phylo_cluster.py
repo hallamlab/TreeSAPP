@@ -211,7 +211,7 @@ class PhyloClusterTester(unittest.TestCase):
                                                  "--assign_output", get_test_data("test_output_TarA"),
                                                  "--output", self.tmp_dir,
                                                  "--alpha", str(0.4)]))
-        phylo_cluster.de_novo_phylo_clusters(p_clust)
+        phylo_cluster.de_novo_phylo_clusters(p_clust, 0.9)
 
         return
 
