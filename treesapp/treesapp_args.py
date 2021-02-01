@@ -38,7 +38,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.miscellany = self.add_argument_group("Miscellaneous options")
 
         self.miscellany.add_argument('--overwrite', action='store_true', default=False,
-                                     help='Overwrites previously processed output folders')
+                                     help='Overwrites previously written output files and directories')
         self.miscellany.add_argument("-v", "--verbose", action="store_true", default=False,
                                      help="Prints a more verbose runtime log")
         self.miscellany.add_argument("-h", "--help",
@@ -232,8 +232,6 @@ def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
     pkg_parser.optopt.add_argument('-o', '--output', default="./", required=False,
                                    help='Path to an output directory. '
                                         'Default is the current working directory.')
-    pkg_parser.optopt.add_argument("--overwrite", default=False, required=False, action="store_true",
-                                   help="When editing a reference package, should the current file be overwritten?")
     return
 
 
