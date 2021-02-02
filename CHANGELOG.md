@@ -1,9 +1,11 @@
-## [0.9.9] - 2021
+## [0.10.0] - 2021-02
 ### Added
 - (#33) Checkpointing to all major (i.e. time-consuming) subcommands: `abundance`, `assign`, `create`, `purity`, `train`
 - `stages` argument to `treesapp abundance` to control checkpoint
 - Able to control the maximum number of examples used and SVC kernel for training through `treesapp create`
 - (#66) Documentation for `treesapp evaluate`
+- A new _de novo_ clustering mode for `treesapp phylotu` will infer a new tree of just query sequences
+- A new `treesapp phylotu` output mapping classified sequences to their cluster
 
 ### Fixed
 - (#71) Ability to rerun and append results from `treesapp evaluate` has been restored

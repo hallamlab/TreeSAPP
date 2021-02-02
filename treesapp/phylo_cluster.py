@@ -48,6 +48,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.sample_re = None
 
         # Objects for clustering
+        self.clustered_pqueries = []
         self.sample_mat = {}
         self.cluster_index = {}
         self._edges_to_cluster_index = {}
@@ -393,25 +394,30 @@ class PhyloClust(ts_classy.TreeSAPP):
             pquery.__setattr__("sample_name", default_sample)
         return
 
+    @staticmethod
+    def open_output_file(file_path: str):
+        try:
+            f_handler = open(file_path, 'w')
+        except IOError:
+            logging.error("Unable to open output file '{}' for writing.\n".format(file_path))
+            sys.exit(13)
+        return f_handler
+
     def write_cluster_taxon_labels(self) -> None:
         """Writes a two-column table mapping each cluster to its respective taxonomic lineage."""
         tbl_string = ""
-        output_table = os.path.join(self.output_dir, "phylotu_taxa.tsv")
         for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
             lineage = "; ".join([t.prefix_taxon() for t in p_otu.taxon.lineage()])
             tbl_string += "{}\t{}\n".format(cluster_num, lineage)
 
-        with open(output_table, 'w') as taxa_tbl:
-            taxa_tbl.write(tbl_string)
+        taxa_tbl = self.open_output_file(os.path.join(self.final_output_dir, "phylotu_taxa.tsv"))
+        taxa_tbl.write(tbl_string)
+        taxa_tbl.close()
         return
 
     def write_otu_matrix(self, sep="\t") -> None:
         """Writes a typical OTU matrix with OTU IDs for rows and samples for columns."""
-        try:
-            otu_mat = open(os.path.join(self.output_dir, "phylotu_matrix.tsv"), 'w')
-        except IOError:
-            logging.error("Unable to open output file '{}' for writing.\n")
-            sys.exit(13)
+        otu_mat = self.open_output_file(os.path.join(self.final_output_dir, "phylotu_matrix.tsv"))
 
         # Write the header
         otu_mat.write(sep.join(["#OTU_ID"] + [sid for sid in sorted(self.sample_mat.keys())]) + "\n")
@@ -424,6 +430,18 @@ class PhyloClust(ts_classy.TreeSAPP):
             buffer.clear()
 
         otu_mat.close()
+
+        return
+
+    def write_pquery_otu_classifications(self, sep="\t") -> None:
+        """Writes a tabular table mapping PQuery sequence names to their reference package phylogenetic OTUs."""
+        pquery_otu_tbl = self.open_output_file(os.path.join(self.final_output_dir, "phylotu_pquery_assignments.tsv"))
+        tbl_str = sep.join(["PQuery", "RefPkg", "OTU_ID"]) + "\n"
+        for pquery in self.clustered_pqueries:
+            tbl_str += sep.join([pquery.seq_name, pquery.ref_name, str(pquery.p_otu)]) + "\n"
+
+        pquery_otu_tbl.write(tbl_str)
+        pquery_otu_tbl.close()
 
         return
 
@@ -533,6 +551,7 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, drep_similarity=1.0):
                                                                                                    phylo_clust.ref_pkg.prefix)
         for pquery in classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]:
             phylo_clust.set_pquery_sample_name(pquery, sample_id)
+            phylo_clust.clustered_pqueries.append(pquery)
 
     # Load the classified PQuery sequences into a FASTA instance
     pqueries_fasta = pqueries_to_fasta(classified_pqueries,
@@ -583,6 +602,7 @@ def reference_placement_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_t
         for pquery in pqueries:  # type: phylo_seq.PQuery
             phylo_clust.set_pquery_sample_name(pquery, sample_id)
             pquery.process_max_weight_placement(taxon_labelled_tree)
+            phylo_clust.clustered_pqueries.append(pquery)
 
         # Map the PQueries (max_lwr or aelw?) to clusters
         phylo_clust.assign_pqueries_to_edge_clusters(pqueries)
@@ -620,6 +640,9 @@ def cluster_phylogeny(sys_args: list) -> None:
 
     # Write a table mapping each OTU identifier to its taxonomy
     p_clust.write_cluster_taxon_labels()
+
+    # Write a table mapping PQuery sequence names to their cluster
+    p_clust.write_pquery_otu_classifications()
 
     # TODO: Return pqueries with a 'cluster' attribute
 
