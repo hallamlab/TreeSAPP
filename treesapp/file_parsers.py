@@ -243,9 +243,13 @@ def read_classification_table(assignment_file) -> list:
 def load_classified_sequences_from_assign_output(assign_output_dir: str, refpkg_name=None) -> dict:
     assigner_cls = classy.TreeSAPP("phylotu")
     assigner_cls.final_output_dir = os.path.join(assign_output_dir, "final_outputs")
-    assigner_cls.sample_prefix = os.path.basename(os.path.dirname(assign_output_dir + os.sep))
     classification_tbl = os.path.join(assigner_cls.final_output_dir, assigner_cls.classification_tbl_name)
-    classified_seqs_fa = os.path.join(assigner_cls.final_output_dir, assigner_cls.sample_prefix + "_classified.faa")
+    try:
+        classified_seqs_fa = glob(os.path.join(assigner_cls.final_output_dir, "*_classified.faa")).pop()
+    except IndexError:
+        logging.error("Classified sequences FASTA file was not found in output '{}'.\n".format(assign_output_dir))
+        sys.exit(7)
+    assigner_cls.sample_prefix = re.sub("_classified.faa", '', os.path.basename(classified_seqs_fa))
 
     # Read the lines from the classification table and convert assignments to PQuery instances
     pqueries = phylo_seq.assignments_to_pqueries(read_classification_table(classification_tbl))
@@ -265,9 +269,6 @@ def load_classified_sequences_from_assign_output(assign_output_dir: str, refpkg_
         tmp_dict.update({pq.place_name: pq for pq in pquery_list})
     pquery_fasta = fasta.read_fasta_to_dict(classified_seqs_fa)
     if len(pquery_fasta) == 0:
-        if not os.path.isfile(classified_seqs_fa):
-            logging.error("Classified sequences FASTA file was not found in output '{}'.\n".format(assign_output_dir))
-            sys.exit(7)
         logging.warning("Unable to read classified query sequences from FASTA file '{}'.\n".format(classified_seqs_fa))
     for pq_name, pq in tmp_dict.items():  # type: (str, phylo_seq.PQuery)
         pq.seq = pquery_fasta[pq_name]
