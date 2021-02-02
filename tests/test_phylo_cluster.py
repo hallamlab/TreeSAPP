@@ -166,7 +166,8 @@ class PhyloClusterTester(unittest.TestCase):
         cluster_phylogeny(["--refpkg_path", self.refpkg.f__json,
                            "--assign_output", get_test_data("test_output_TarA"),
                            "--output", self.tmp_dir,
-                           "--alpha", str(0.4)])
+                           "--alpha", str(0.4),
+                           "--mode", "de_novo"])
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_taxa.tsv")))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_matrix.tsv")))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_pquery_assignments.tsv")))

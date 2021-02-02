@@ -303,6 +303,21 @@ class PhyloClust(ts_classy.TreeSAPP):
             index += 1
         return inode_partitions
 
+    def set_pquery_leaf_node_taxa(self, tree: Tree) -> None:
+        # Create a map between PQuery sequence names and taxon instances
+        pquery_taxon_map = {}
+        hierarchy = self.ref_pkg.taxa_trie  # type: ts_taxonomy.TaxonomicHierarchy
+        for pquery in self.clustered_pqueries:  # type: phylo_seq.PQuery
+            taxon_name = pquery.lct.split(hierarchy.lin_sep)[-1]
+            pquery_taxon_map[pquery.place_name] = hierarchy.get_taxon(taxon_name)
+            if not pquery_taxon_map[pquery.place_name]:
+                pquery_taxon_map[pquery.place_name] = hierarchy.find_root_taxon()
+        for leaf_node in tree.get_leaves():
+            leaf_node.taxon = pquery_taxon_map[leaf_node.name]
+
+        self.ref_pkg.propagate_internal_node_taxon_labels_from_leaves(tree)
+        return
+
     def define_tree_clusters(self, tree: Tree, internal=True) -> None:
         if internal:
             # Split the cluster nodes into internal nodes when necessary
@@ -435,9 +450,13 @@ class PhyloClust(ts_classy.TreeSAPP):
     def write_pquery_otu_classifications(self, sep="\t") -> None:
         """Writes a tabular table mapping PQuery sequence names to their reference package phylogenetic OTUs."""
         pquery_otu_tbl = self.open_output_file(os.path.join(self.final_output_dir, "phylotu_pquery_assignments.tsv"))
-        tbl_str = sep.join(["PQuery", "RefPkg", "OTU_ID"]) + "\n"
+        tbl_str = sep.join(["PQuery", "RefPkg", "Resolution", "Mode", "OTU_ID"]) + "\n"
         for pquery in sorted(self.clustered_pqueries, key=lambda x: x.seq_name):
-            tbl_str += sep.join([pquery.seq_name, pquery.ref_name, str(pquery.p_otu)]) + "\n"
+            tbl_str += sep.join([pquery.seq_name,
+                                 pquery.ref_name,
+                                 self.tax_rank,
+                                 self.clustering_mode,
+                                 str(pquery.p_otu)]) + "\n"
 
         pquery_otu_tbl.write(tbl_str)
         pquery_otu_tbl.close()
@@ -568,6 +587,8 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, drep_similarity=1.0):
         cluster_map = {}
 
     de_novo_phylogeny = de_novo_phylogeny_from_queries(phylo_clust, pqueries_fasta)
+    # Use the taxonomy of each classified sequence as leaf node taxon attribute
+    phylo_clust.set_pquery_leaf_node_taxa(de_novo_phylogeny)
     phylo_clust.increment_stage_dir()
 
     # Define tree clusters
