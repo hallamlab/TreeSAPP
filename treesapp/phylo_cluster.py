@@ -62,14 +62,13 @@ class PhyloClust(ts_classy.TreeSAPP):
     def load_args(self, args) -> None:
         # Set and create the output directory
         self.output_dir = args.output
+        self.prep_log(args)
         self.set_output_dirs()
         self.check_previous_output(overwrite=False)
 
         self.validate_continue(args)
 
         self.clustering_mode = args.clustering_mode
-
-        self.prep_log(args)
 
         if args.pkg_target:
             refpkg_dict = file_parsers.gather_ref_packages(self.refpkg_dir, [args.pkg_target])
@@ -437,7 +436,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         """Writes a tabular table mapping PQuery sequence names to their reference package phylogenetic OTUs."""
         pquery_otu_tbl = self.open_output_file(os.path.join(self.final_output_dir, "phylotu_pquery_assignments.tsv"))
         tbl_str = sep.join(["PQuery", "RefPkg", "OTU_ID"]) + "\n"
-        for pquery in self.clustered_pqueries:
+        for pquery in sorted(self.clustered_pqueries, key=lambda x: x.seq_name):
             tbl_str += sep.join([pquery.seq_name, pquery.ref_name, str(pquery.p_otu)]) + "\n"
 
         pquery_otu_tbl.write(tbl_str)
