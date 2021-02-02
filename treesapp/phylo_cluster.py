@@ -33,8 +33,8 @@ class PhylOTU:
 
 class PhyloClust(ts_classy.TreeSAPP):
     def __init__(self):
-        super(PhyloClust, self).__init__("phylotu")
         """Initialize a PhyloClust instance."""
+        super(PhyloClust, self).__init__("phylotu")
         # Parameters
         self.arg_parser = TreeSAPPArgumentParser(description="A tool for sorting query sequences placed on a phylogeny"
                                                              " into phylogenetically-inferred clusters.")
@@ -358,7 +358,7 @@ class PhyloClust(ts_classy.TreeSAPP):
             try:
                 pquery.p_otu = leaf_cluster_map[pquery.place_name]
             except KeyError:
-                for num, cluster in pairwise_clusters.items():  # type: ts_classy.Cluster
+                for _, cluster in pairwise_clusters.items():  # type: ts_classy.Cluster
                     if pquery.place_name in set([member[0] for member in cluster.members]):
                         pquery.p_otu = leaf_cluster_map[cluster.representative]
             if getattr(pquery, "sample_name") not in self.sample_mat:
@@ -465,7 +465,7 @@ class PhyloClust(ts_classy.TreeSAPP):
 
     def report_cluster_occupancy(self, sample_name, n_pqueries: int):
         occupancy = 0
-        for num, p_otu in self.cluster_index.items():
+        for _, p_otu in self.cluster_index.items():
             if p_otu.cardinality >= 1:
                 occupancy += 1
         logging.info("{} classified sequences occupy {}/{} '{}' pOTUs in sample '{}'.\n"
@@ -553,8 +553,8 @@ def de_novo_phylogeny_from_queries(phylo_clust: PhyloClust, fasta_inst: fasta.FA
 
 def pqueries_to_fasta(pqueries, fa_name="") -> fasta.FASTA:
     pqueries_fasta = fasta.FASTA(file_name=fa_name)
-    for sample_id, refpkg_pquery_map in pqueries.items():
-        for refpkg_name, pqueries in refpkg_pquery_map.items():  # type: (str, list)
+    for _, refpkg_pquery_map in pqueries.items():
+        for _, pqueries in refpkg_pquery_map.items():  # type: (str, list)
             for pquery in pqueries:  # type: phylo_seq.PQuery
                 pqueries_fasta.fasta_dict[pquery.place_name] = pquery.seq
     pqueries_fasta.header_registry = fasta.register_headers(list(pqueries_fasta.fasta_dict.keys()))
