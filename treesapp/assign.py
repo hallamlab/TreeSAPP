@@ -4,43 +4,33 @@ __author__ = "Connor Morgan-Lang"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL-3.0"
 
-try:
-    import sys
-    import os
-    import shutil
-    import re
-    import glob
-    import time
-    import traceback
-    import subprocess
-    import logging
-    from time import gmtime, strftime
-    from collections import namedtuple
+import sys
+import os
+import shutil
+import re
+import glob
+import time
+import logging
+from collections import namedtuple
 
-    import pyfastx
-    from numpy import array as np_array
-    from sklearn import preprocessing
+import pyfastx
+from numpy import array as np_array
+from sklearn import preprocessing
 
-    from treesapp import abundance
-    from treesapp import classy
-    from treesapp import phylo_seq
-    from treesapp.refpkg import ReferencePackage
-    from treesapp import treesapp_args
-    from treesapp.entish import index_tree_edges, map_internal_nodes_leaves
-    from treesapp.external_command_interface import launch_write_command
-    from treesapp import lca_calculations as ts_lca
-    from treesapp import jplace_utils
-    from treesapp import file_parsers
-    from treesapp import phylo_dist
-    from treesapp import utilities
-    from treesapp import wrapper
-    from treesapp import fasta
-    from treesapp.hmmer_tbl_parser import HmmMatch
-
-except ImportWarning:
-    sys.stderr.write("Could not load some user defined module functions")
-    sys.stderr.write(traceback.print_exc(10))
-    sys.exit(3)
+from treesapp import abundance
+from treesapp import classy
+from treesapp import phylo_seq
+from treesapp.refpkg import ReferencePackage
+from treesapp import treesapp_args
+from treesapp.entish import index_tree_edges, map_internal_nodes_leaves
+from treesapp import lca_calculations as ts_lca
+from treesapp import jplace_utils
+from treesapp import file_parsers
+from treesapp import phylo_dist
+from treesapp import utilities
+from treesapp import wrapper
+from treesapp import fasta
+from treesapp.hmmer_tbl_parser import HmmMatch
 
 
 class Assigner(classy.TreeSAPP):
@@ -909,7 +899,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
         refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
         unclassified_seqs[refpkg.prefix] = dict()
         unclassified_seqs[refpkg.prefix]["low_lwr"] = list()
-        unclassified_seqs[refpkg.prefix]["np"] = list()
+        unclassified_seqs[refpkg.prefix]["big_pendant"] = list()
         unclassified_seqs[refpkg.prefix]["svm"] = list()
         svc_attempt = False
 
@@ -918,12 +908,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
             if not tree_sap.classified:
                 unclassified_seqs[refpkg.prefix]["low_lwr"].append(tree_sap)
                 continue
-            if not tree_sap.placements:
-                unclassified_seqs[tree_sap.ref_name]["np"].append(tree_sap)
-                continue
-            elif tree_sap.placements[0] == '{}':
-                unclassified_seqs[refpkg.prefix]["np"].append(tree_sap)
-                tree_sap.classified = False
+            elif not tree_sap.placements:
                 continue
 
             pplace = tree_sap.consensus_placement  # type: phylo_seq.PhyloPlace
@@ -938,6 +923,10 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
             tree_sap.distances = ','.join([str(distal_length), str(pendant_length), str(avg_tip_dist)])
 
             # hmm_perc = round((int(tree_sap.seq_len) * 100) / refpkg.profile_length, 1)
+
+            if pendant_length > 2:
+                unclassified_seqs[refpkg.prefix]["big_pendant"].append(tree_sap)
+                tree_sap.classified = False
 
             if svc:
                 if refpkg.svc is None:
