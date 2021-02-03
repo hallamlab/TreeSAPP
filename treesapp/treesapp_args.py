@@ -37,6 +37,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.svc_opts = self.add_argument_group("Classifier arguments")
         self.miscellany = self.add_argument_group("Miscellaneous options")
 
+        self.miscellany.add_argument('--overwrite', action='store_true', default=False,
+                                     help='Overwrites previously written output files and directories')
         self.miscellany.add_argument("-v", "--verbose", action="store_true", default=False,
                                      help="Prints a more verbose runtime log")
         self.miscellany.add_argument("-h", "--help",
@@ -140,8 +142,6 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                            "aELW uses the taxon with greatest accumulated LWR across placements.")
 
     def add_compute_miscellany(self):
-        self.miscellany.add_argument('--overwrite', action='store_true', default=False,
-                                     help='overwrites previously processed output folders')
         self.miscellany.add_argument('-n', '--num_procs', dest="num_threads", default=2, type=int,
                                      help='The number of CPU threads or parallel processes '
                                           'to use in various pipeline steps [DEFAULT = 2]')
@@ -232,8 +232,6 @@ def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
     pkg_parser.optopt.add_argument('-o', '--output', default="./", required=False,
                                    help='Path to an output directory. '
                                         'Default is the current working directory.')
-    pkg_parser.optopt.add_argument("--overwrite", default=False, required=False, action="store_true",
-                                   help="When editing a reference package, should the current file be overwritten?")
     return
 
 

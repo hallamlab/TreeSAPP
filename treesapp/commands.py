@@ -280,7 +280,7 @@ def train(sys_args):
 
         try:
             ts_assign_mod.assign(assign_params)
-            plain_pqueries = ts_phylo_seq.assignments_to_treesaps(file_parsers.read_classification_table(
+            plain_pqueries = ts_phylo_seq.assignments_to_pqueries(file_parsers.read_classification_table(
                 os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")))
         except (SystemExit, IOError):
             logging.info("failed.\n")
@@ -492,6 +492,7 @@ def create(sys_args):
     # Optionally cluster the input sequences using MMSeqs' linclust at the specified identity
     ##
     if ts_create.stage_status("cluster"):
+        # TODO: replace with fasta.dereplicate_by_clustering()
         pre_cluster = ref_seqs.n_seqs()
         ref_seqs.change_dict_keys("num")
         # Write a FASTA for clustering containing the formatted headers since
@@ -583,8 +584,8 @@ def create(sys_args):
 
         if args.multiple_alignment is False:
             logging.info("Aligning the sequences using MAFFT... ")
-            ts_create_mod.run_mafft(ts_create.executables["mafft"],
-                                    ts_create.unaln_ref_fasta, ts_create.ref_pkg.f__msa, args.num_threads)
+            wrapper.run_mafft(ts_create.executables["mafft"], ts_create.unaln_ref_fasta,
+                              ts_create.ref_pkg.f__msa, args.num_threads)
             logging.info("done.\n")
         else:
             pass

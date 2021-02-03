@@ -9,9 +9,9 @@ from glob import glob
 from collections import namedtuple
 from pygtrie import StringTrie
 
-from treesapp.classy import Cluster, BlastAln
-from treesapp.refpkg import ReferencePackage
-from treesapp.fasta import read_fasta_to_dict
+from treesapp import classy
+from treesapp import refpkg
+from treesapp import fasta
 from treesapp import hmmer_tbl_parser
 from treesapp import phylo_seq
 
@@ -42,19 +42,19 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
         sys.exit(3)
 
     for rp_file in refpkg_files:
-        refpkg = ReferencePackage()
-        refpkg.f__json = rp_file
-        refpkg.slurp()
+        ref_pkg = refpkg.ReferencePackage()
+        ref_pkg.f__json = rp_file
+        ref_pkg.slurp()
         if targets:  # type: list
-            if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:
+            if ref_pkg.prefix not in targets and ref_pkg.refpkg_code not in targets:
                 continue
-            elif refpkg.prefix in refpkgs_found and refpkg.refpkg_code in refpkgs_found:
-                logging.warning("RefPkg for {} has already been found. Skipping {}.\n".format(refpkg.prefix, rp_file))
+            elif ref_pkg.prefix in refpkgs_found and ref_pkg.refpkg_code in refpkgs_found:
+                logging.warning("RefPkg for {} has already been found. Skipping {}.\n".format(ref_pkg.prefix, rp_file))
             else:
-                match = targets.intersection({refpkg.prefix, refpkg.refpkg_code}).pop()
+                match = targets.intersection({ref_pkg.prefix, ref_pkg.refpkg_code}).pop()
                 refpkgs_found.add(match)
-        if refpkg.validate():
-            refpkg_dict[refpkg.prefix] = refpkg
+        if ref_pkg.validate():
+            refpkg_dict[ref_pkg.prefix] = ref_pkg
     logging.debug("done.\n")
 
     targets = targets.difference(refpkgs_found)
@@ -238,6 +238,41 @@ def read_classification_table(assignment_file) -> list:
     assignments_handle.close()
 
     return classified_lines
+
+
+def load_classified_sequences_from_assign_output(assign_output_dir: str, refpkg_name=None) -> dict:
+    assigner_cls = classy.TreeSAPP("phylotu")
+    assigner_cls.final_output_dir = os.path.join(assign_output_dir, "final_outputs")
+    classification_tbl = os.path.join(assigner_cls.final_output_dir, assigner_cls.classification_tbl_name)
+    try:
+        classified_seqs_fa = glob(os.path.join(assigner_cls.final_output_dir, "*_classified.faa")).pop()
+    except IndexError:
+        logging.error("Classified sequences FASTA file was not found in output '{}'.\n".format(assign_output_dir))
+        sys.exit(7)
+    assigner_cls.sample_prefix = re.sub("_classified.faa", '', os.path.basename(classified_seqs_fa))
+
+    # Read the lines from the classification table and convert assignments to PQuery instances
+    pqueries = phylo_seq.assignments_to_pqueries(read_classification_table(classification_tbl))
+    if refpkg_name:
+        # Remove sequences that were not classified as refpkg_name
+        if refpkg_name not in pqueries:
+            logging.warning("No queries were classified as '{}' in sample {}.\n"
+                            "".format(refpkg_name, assigner_cls.sample_prefix))
+            return {}
+        else:
+            for key_name in set(pqueries.keys()).difference({refpkg_name}):
+                pqueries.pop(key_name)
+
+    # Read the sequences into the 'seq' attribute of the pqueries
+    tmp_dict = {}
+    for pquery_list in pqueries.values():
+        tmp_dict.update({pq.place_name: pq for pq in pquery_list})
+    pquery_fasta = fasta.read_fasta_to_dict(classified_seqs_fa)
+    if len(pquery_fasta) == 0:
+        logging.warning("Unable to read classified query sequences from FASTA file '{}'.\n".format(classified_seqs_fa))
+    for pq_name, pq in tmp_dict.items():  # type: (str, phylo_seq.PQuery)
+        pq.seq = pquery_fasta[pq_name]
+    return pqueries
 
 
 def best_discrete_matches(matches: list) -> list:
@@ -612,7 +647,7 @@ def read_uc(uc_file: str) -> dict:
     for line in uc:
         cluster_type, num_id, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
         if cluster_type == "S":
-            cluster_dict[num_id] = Cluster(header)
+            cluster_dict[num_id] = classy.Cluster(header)
         elif cluster_type == "H":
             cluster_dict[num_id].members.append([header, identity])
         elif cluster_type == "C":
@@ -653,7 +688,7 @@ def read_linclust_clusters(clusters_tsv_file: str) -> dict:
             logging.error("Unacceptable line format in MMSeqs cluster table:\n{}\n".format(line))
             sys.exit(17)
         if rep_name != previous:
-            cl_inst = Cluster(rep_name)
+            cl_inst = classy.Cluster(rep_name)
             clusters[str(cluster_acc)] = cl_inst
             cluster_acc += 1
         cl_inst.members.append([mem_name, 0.0])
@@ -694,7 +729,7 @@ def create_mmseqs_clusters(clusters_tbl: str, aln_tbl: str) -> dict:
     for line in aln:
         if not line:
             continue
-        alignment = BlastAln()
+        alignment = classy.BlastAln()
         alignment.load_blast_tab(line)
         try:
             aln_map[alignment.subject].append(alignment)
@@ -702,12 +737,12 @@ def create_mmseqs_clusters(clusters_tbl: str, aln_tbl: str) -> dict:
             aln_map[alignment.subject] = [alignment]
     aln.close()
 
-    for _, cluster in clusters.items():  # type: (int, Cluster)
+    for _, cluster in clusters.items():  # type: (int, classy.Cluster)
         rep_alignments = aln_map[cluster.representative]
         for member in cluster.members:  # type: [str, float]
             x = 0
             while x < len(rep_alignments):
-                alignment = rep_alignments[x]  # type: BlastAln
+                alignment = rep_alignments[x]  # type: classy.BlastAln
                 if alignment.query == member[0]:
                     member[1] = alignment.pident
                     rep_alignments.pop(x)
@@ -755,9 +790,9 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
         if re.search("phy", f_ext):  # File is in Phylip format
             seq_dict = read_phylip_to_dict(multi_align_file)
         elif re.match("^f", f_ext):  # This is meant to match all fasta extensions
-            seq_dict = read_fasta_to_dict(multi_align_file)
+            seq_dict = fasta.read_fasta_to_dict(multi_align_file)
         elif f_ext == "mfa":  # This is meant to match a multiple alignment in FASTA format
-            seq_dict = read_fasta_to_dict(multi_align_file)
+            seq_dict = fasta.read_fasta_to_dict(multi_align_file)
         else:
             logging.error("Unable to detect file format of " + multi_align_file + ".\n")
             sys.exit(13)

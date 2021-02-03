@@ -146,11 +146,11 @@ class PhyloSeqTests(unittest.TestCase):
             self.assertTrue(pq.consensus_placement.like_weight_ratio <= 1.0)
         return
 
-    def test_assignments_to_treesaps(self):
-        from treesapp.phylo_seq import assignments_to_treesaps
+    def test_assignments_to_pqueries(self):
+        from treesapp.phylo_seq import assignments_to_pqueries
         assignment_lines = [['test_TarA.1', 'scaffold_5431_c1_4', 'DsrAB', '79', '161', 'r__Root', '0.0', '282', '7.3e-10', '1.0', '3.085', '0.599,1.952,0.534'],
                             ['test_TarA.1', 'scaffold_59587_c1_1', 'DsrAB', '1', '182', 'r__Root; d__Bacteria; p__Proteobacteria; c__Deltaproteobacteria', '0.0', '979', '2.1e-63', '1.0', '0.143', '0.022,0.121,0.0']]
-        pqueries = assignments_to_treesaps(assignment_lines)
+        pqueries = assignments_to_pqueries(assignment_lines)
         self.assertTrue("DsrAB" in pqueries)
         self.assertEqual(['scaffold_5431_c1_4|DsrAB|79_161', 'scaffold_59587_c1_1|DsrAB|1_182'],
                          [x.place_name for x in pqueries["DsrAB"]])
@@ -159,7 +159,7 @@ class PhyloSeqTests(unittest.TestCase):
 
         # Fail due to bad line format
         with pytest.raises(SystemExit):
-            assignments_to_treesaps(["Taxonomy\tAbundance\tiNode\tE-value\tLWR\tEvoDist\tDistances".split("\t")])
+            assignments_to_pqueries(["Taxonomy\tAbundance\tiNode\tE-value\tLWR\tEvoDist\tDistances".split("\t")])
         return
 
     def test_phylo_place(self):

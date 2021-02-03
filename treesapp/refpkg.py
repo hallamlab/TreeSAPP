@@ -958,6 +958,26 @@ class ReferencePackage:
 
         return load_taxonomic_trie(lineage_list)
 
+    @staticmethod
+    def propagate_internal_node_taxon_labels_from_leaves(ref_tree: Tree) -> None:
+        # Label the internal nodes based on the LCA of the leaf nodes
+        for n in ref_tree.traverse(strategy="postorder"):
+            if len(n.children) == 0:  # this is a leaf node
+                continue
+            elif len(n.children) == 1:
+                logging.error("Unexpected number of children (1) for Tree.Node {}.\n".format(n.name))
+                raise AssertionError
+            elif len(n.children) > 2:
+                n.resolve_polytomy(recursive=False)
+                for c in n.children:
+                    if not hasattr(c, "taxon"):
+                        c.add_feature(pr_name="taxon", pr_value=None)
+                        c.taxon = Taxon.lca(c.children[0].taxon, c.children[1].taxon)
+            l_node, r_node = n.get_children()
+            lca = Taxon.lca(l_node.taxon, r_node.taxon)
+            n.taxon = lca
+        return
+
     def taxonomically_label_tree(self) -> Tree:
         """
         When deciding what the taxonomic label should be assigned to a query sequence, algorithms may require a tree
@@ -983,22 +1003,7 @@ class ReferencePackage:
             tree_node = rt.get_leaves_by_name(name="{}_{}".format(leaf_node.number, self.prefix)).pop()
             tree_node.add_feature(pr_name="taxon", pr_value=taxon)
 
-        # Label the internal nodes based on the LCA of the leaf nodes
-        for n in rt.traverse(strategy="postorder"):
-            if len(n.children) == 0:  # this is a leaf node
-                continue
-            elif len(n.children) == 1:
-                self.bail("Unexpected number of children (1) for Tree.Node {}.\n".format(n.name))
-                raise AssertionError
-            elif len(n.children) > 2:
-                n.resolve_polytomy(recursive=False)
-                for c in n.children:
-                    if not hasattr(c, "taxon"):
-                        c.add_feature(pr_name="taxon", pr_value=None)
-                        c.taxon = Taxon.lca(c.children[0].taxon, c.children[1].taxon)
-            l_node, r_node = n.get_children()
-            lca = Taxon.lca(l_node.taxon, r_node.taxon)
-            n.taxon = lca
+        self.propagate_internal_node_taxon_labels_from_leaves(rt)
 
         return rt
 

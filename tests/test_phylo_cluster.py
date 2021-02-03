@@ -40,6 +40,27 @@ class PhyloClusterTester(unittest.TestCase):
             shutil.rmtree(self.tmp_dir)
         return
 
+    def test_load_args(self):
+        from treesapp.phylo_cluster import PhyloClust
+        p_clust = PhyloClust()
+        cli_args = ["-o", self.tmp_dir,
+                    "--assign_output", get_test_data("test_output_TarA"), get_test_data("marker_test_results"),
+                    "--refpkg_path", self.refpkg.f__json,
+                    "--mode", "ref_guided",
+                    "--tax_rank", "genus"]
+        p_clust.load_args(p_clust.get_arguments(cli_args))
+        self.assertEqual(os.path.join(self.tmp_dir, "intermediates", "load_pqueries/"),
+                         p_clust.stage_output_dir)
+        self.assertTrue(os.path.isdir(p_clust.stage_output_dir))
+        self.assertTrue("mmseqs" in p_clust.executables)
+
+        # Simulate failure by de novo clustering with JPlace file
+        with pytest.raises(SystemExit):
+            p_clust.load_args(p_clust.arg_parser.parse_args(["--refpkg_path", self.refpkg.f__json,
+                                                             "--mode", "de_novo",
+                                                             "--jplace", get_test_data("epa_result.jplace")]))
+        return
+
     def test_partition_nodes(self):
         from treesapp.phylo_cluster import PhyloClust
         p_clust = PhyloClust()
@@ -145,7 +166,57 @@ class PhyloClusterTester(unittest.TestCase):
         cluster_phylogeny(["--refpkg_path", self.refpkg.f__json,
                            "--assign_output", get_test_data("test_output_TarA"),
                            "--output", self.tmp_dir,
-                           "--alpha", str(0.4)])
+                           "--alpha", str(0.4),
+                           "--mode", "de_novo"])
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_taxa.tsv")))
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_matrix.tsv")))
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_pquery_assignments.tsv")))
+        return
+
+    def test_dereplicate_by_clustering(self):
+        from treesapp.phylo_cluster import dereplicate_by_clustering
+        from treesapp import fasta
+        from treesapp.utilities import fetch_executable_path
+        test_fa = fasta.FASTA(get_test_data("PuhA.fa"))
+        test_fa.load_fasta()
+        cluster_map = dereplicate_by_clustering(fasta_inst=test_fa,
+                                                prop_similarity=0.799,
+                                                mmseqs_exe=fetch_executable_path("mmseqs", treesapp_dir="./"),
+                                                tmp_dir=self.tmp_dir)
+        self.assertEqual(len(cluster_map), test_fa.n_seqs())
+        return
+
+    def test_de_novo_phylogeny_from_queries(self):
+        from treesapp.phylo_cluster import de_novo_phylogeny_from_queries
+        from treesapp.fasta import FASTA
+        from treesapp import phylo_cluster
+        p_clust = phylo_cluster.PhyloClust()
+        p_clust.load_args(p_clust.get_arguments(["--refpkg_path", self.refpkg.f__json,
+                                                 "--assign_output", get_test_data("test_output_TarA"),
+                                                 "--output", self.tmp_dir,
+                                                 "--alpha", str(0.4)]))
+        q_seqs = FASTA(get_test_data("McrA_eval.faa"))
+        q_seqs.load_fasta()
+        ete_tree = de_novo_phylogeny_from_queries(phylo_clust=p_clust, fasta_inst=q_seqs)
+        # Test for node names
+        ex_name = "KKH90701  coded_by=13826..15538,organism=Methanosarcina mazei,definition=methyl-coenzyme M reductase"
+        self.assertTrue(ex_name in ete_tree.get_leaf_names())
+        self.assertEqual(0, len(set(ete_tree.get_leaf_names()).difference(q_seqs.get_seq_names())))
+        self.assertEqual(os.path.join(self.tmp_dir, 'intermediates', 'load_pqueries/'), p_clust.stage_output_dir)
+
+        # Test for number of nodes
+        self.assertEqual(q_seqs.n_seqs(), len(ete_tree))
+        return
+
+    def test_de_novo_phylo_clusters(self):
+        from treesapp import phylo_cluster
+        p_clust = phylo_cluster.PhyloClust()
+        p_clust.load_args(p_clust.get_arguments(["--refpkg_path", self.refpkg.f__json,
+                                                 "--assign_output", get_test_data("test_output_TarA"),
+                                                 "--output", self.tmp_dir,
+                                                 "--alpha", str(0.4)]))
+        phylo_cluster.de_novo_phylo_clusters(p_clust, 0.9)
+
         return
 
 

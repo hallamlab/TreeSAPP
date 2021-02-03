@@ -459,7 +459,7 @@ class PQuery:
         return
 
 
-def assignments_to_treesaps(classified_lines: list) -> dict:
+def assignments_to_pqueries(classified_lines: list) -> dict:
     """
     Used for converting the TreeSAPP-assignment information of classified sequences (found in self.classifications)
     into JPlace instances such that these can be reproducibly modified and written again, if needed.
