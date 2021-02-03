@@ -31,9 +31,9 @@ class MccTester(unittest.TestCase):
         annotations_map = get_test_data("EggNOG_McrA_annot_map.tsv")
 
         # Ensure the number of sequences in test fasta and annotations map are as expected
-        self.assertEqual(54, len(read_fasta_to_dict(test_fa)))
+        self.assertEqual(55, len(read_fasta_to_dict(test_fa)))
         with open(annotations_map) as annotations:
-            self.assertEqual(52, len(annotations.readlines()))
+            self.assertEqual(53, len(annotations.readlines()))
 
         cmd = ["--fastx_input", test_fa,
                "--annot_map", annotations_map,
@@ -54,7 +54,7 @@ class MccTester(unittest.TestCase):
             for dist in cls_counts:
                 tp, tn, fp, fn = [int(x) for x in dist]
                 self.assertTrue(fp >= 2)
-                self.assertTrue(fn == 0)
+                self.assertTrue(fn == 1)
                 self.assertEqual(54, sum([tp, tn, fp]))
 
         # Read MCC_table.tsv to ensure the correct number of sequences were classified
@@ -71,9 +71,9 @@ class MccTester(unittest.TestCase):
                     fn += 1
                 line = mcc_classified.readline()
                 n_lines += 1
-        self.assertEqual(52, n_lines)
+        self.assertEqual(53, n_lines)
         self.assertEqual(52, tp)
-        self.assertEqual(0, fn)
+        self.assertEqual(1, fn)
 
         ##
         # Test MCC calculator with GraftM

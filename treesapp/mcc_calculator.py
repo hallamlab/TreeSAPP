@@ -353,7 +353,8 @@ class ConfusionTest:
                     refpkg_og_map[og].append(refpkg_name)
                 except KeyError:
                     refpkg_og_map[og] = [refpkg_name]
-
+        fn_names = set()
+        validated_fns = set()
         for marker in self.fn:
             if marker in refpkg_dbname_dict:
                 homologous_tp_names = set()
@@ -361,12 +362,18 @@ class ConfusionTest:
                     for homolgous_marker in refpkg_og_map[og]:
                         if homolgous_marker != marker:
                             homologous_tp_names.update(set(qs.place_name for qs in self.tp[homolgous_marker]))
-                validated_fns = set()
+
                 for qseq in self.fn[marker]:  # type: QuerySequence
                     if qseq.place_name not in homologous_tp_names:
-                        validated_fns.add(qseq)
+                        fn_names.add(qseq.place_name)
                 # Remove all sequences from this marker's false negatives that are found in a homologous TP set
-                self.fn[marker] = self.all_queries.intersection(validated_fns)
+                validated_fn_names = self.all_queries.intersection(fn_names)
+                for qseq in self.fn[marker]:
+                    if qseq.place_name in validated_fn_names:
+                        validated_fns.add(qseq)
+                self.fn[marker] = self.fn[marker].intersection(validated_fns)
+                fn_names.clear()
+                validated_fns.clear()
         return
 
     def summarise_type_one_placements(self, classification_lines) -> str:
@@ -825,6 +832,7 @@ def mcc_calculator(sys_args):
                              "--stringency", args.stringency,
                              "--placement_summary", args.p_sum,
                              "--min_like_weight_ratio", str(args.min_lwr),
+                             "--max_pendant_length", str(args.max_pd),
                              "--overwrite", "--delete"]
             if args.trim_align:
                 classify_args.append("--trim_align")
