@@ -880,7 +880,7 @@ def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
     return tree_protein_list
 
 
-def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: float) -> None:
+def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: float, max_pendant: float) -> None:
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
@@ -889,6 +889,8 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :param svc: A boolean indicating whether placements should be filtered using ReferencePackage.svc
     :param min_lwr: Likelihood-weight-ratio (LWR) threshold for filtering pqueries
+    :param max_pendant: The maximum pendant length distance threshold.
+    PQueries with pendant length > max_pendant will be unclassified.
     :return: None
     """
 
@@ -924,7 +926,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
 
             # hmm_perc = round((int(tree_sap.seq_len) * 100) / refpkg.profile_length, 1)
 
-            if pendant_length > 2:
+            if pendant_length > max_pendant:
                 unclassified_seqs[refpkg.prefix]["big_pendant"].append(tree_sap)
                 tree_sap.classified = False
 
@@ -1368,7 +1370,7 @@ def assign(sys_args):
         ts_assign.increment_stage_dir()
         # Set PQuery.consensus_placement attributes
         select_query_placements(tree_saps, refpkg_dict, mode=args.p_sum)
-        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr)
+        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr, args.max_pd)
         determine_confident_lineage(tree_saps, refpkg_dict)
 
         ts_assign.write_classified_orfs(tree_saps, extracted_seq_dict)

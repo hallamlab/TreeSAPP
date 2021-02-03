@@ -129,12 +129,15 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         # Doesn't _really_ fit in here but good enough. Needs to be used by create and update.
         self.optopt.add_argument("--outdet_align", default=False, action="store_true", dest="od_seq",
                                  help="Flag to activate outlier detection and removal from multiple sequence alignments"
-                                      " using OD-seq. [DEFAULT = False]")
+                                      " using OD-seq. [ DEFAULT = False ]")
 
     def add_pplace_params(self):
         self.pplace_args.add_argument("-l", "--min_like_weight_ratio", default=0.1, type=float, dest="min_lwr",
                                       help="The minimum likelihood weight ratio required for an EPA placement. "
-                                           "[DEFAULT = 0.1]")
+                                           "[ DEFAULT = 0.1 ]")
+        self.pplace_args.add_argument("--max_pendant_length", default=2.0, type=float, dest="max_pd",
+                                      help="The maximum pendant length distance threshold, "
+                                           "beyond which EPA placements are unclassified. [ DEFAULT = 2.0 ]")
         self.pplace_args.add_argument("--placement_summary", default="max_lwr", choices=["aelw", "max_lwr"],
                                       dest="p_sum",
                                       help="Controls the algorithm for consolidating multiple phylogenetic placements."
@@ -144,7 +147,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
     def add_compute_miscellany(self):
         self.miscellany.add_argument('-n', '--num_procs', dest="num_threads", default=2, type=int,
                                      help='The number of CPU threads or parallel processes '
-                                          'to use in various pipeline steps [DEFAULT = 2]')
+                                          'to use in various pipeline steps [ DEFAULT = 2 ]')
 
     def add_accession_params(self):
         self.taxa_args.add_argument("--accession2taxid", dest="acc_to_taxid", required=False, default=None,
