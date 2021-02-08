@@ -76,6 +76,12 @@ class Taxon:
             return False
         return True
 
+    def get_rank_in_lineage(self, rank_name: str):
+        for t in self.lineage():
+            if t.rank == rank_name:
+                return t
+        return
+
     @staticmethod
     def lca(left_taxon, right_taxon):
         try:
