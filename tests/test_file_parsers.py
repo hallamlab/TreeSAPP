@@ -117,7 +117,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_write_classification_table(self):
-        from file_parsers import write_classification_table, load_classified_sequences_from_assign_output
+        from treesapp.file_parsers import write_classification_table, load_classified_sequences_from_assign_output
         refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("marker_test_results"))
         test_output = "tests/tmp_classifications.tsv"
         write_classification_table(tree_saps=refpkg_pquery_map, output_file=test_output, sample_name="Testing")
