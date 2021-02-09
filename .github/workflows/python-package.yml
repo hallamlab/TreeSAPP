@@ -121,7 +121,7 @@ jobs:
           tox -e coverage-py${PYTHON_VERSION}-ts
           if [ ${{ matrix.python-version }} == $PY_COV_VERSION ]; then tox -e coverage_report; fi
       - name: Upload coverage to Codecov
-        if: ${{ matrix.python-version == env.PY_COV_VERSION }}  && ${{ matrix.os != 'macos-latest' }}
+        if: ${{ matrix.python-version == env.PY_COV_VERSION }} && ${{ matrix.os == 'ubuntu-latest' }}
         uses: codecov/codecov-action@v1
         with:
             files: ./coverage.xml
