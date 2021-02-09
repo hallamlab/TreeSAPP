@@ -109,17 +109,27 @@ def read_graftm_classifications(assignment_file):
     return assignments
 
 
-def write_classification_table(tree_saps, sample_name, output_file):
+def write_classification_table(tree_saps: dict, sample_name: str, output_file: str, append=False) -> None:
     """
     Write the final classification table
 
     :param tree_saps: A dictionary containing PQuery objects
     :param sample_name: String representing the name of the sample (i.e. Assign.sample_prefix)
     :param output_file: Path to write the classification table
+    :param append: Boolean controlling whether a file is overwritten or appended to
     :return: None
     """
-    tab_out_string = "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\t" \
-                     "iNode\tE-value\tLWR\tEvoDist\tDistances\n"
+    try:
+        if append:
+            tab_out = open(output_file, 'a')
+            tab_out_string = ""
+        else:
+            tab_out = open(output_file, 'w')
+            tab_out_string = "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\t" \
+                             "iNode\tE-value\tLWR\tEvoDist\tDistances\n"
+    except IOError:
+        logging.error("Unable to open " + output_file + " for writing!\n")
+        sys.exit(3)
 
     for refpkg_name in tree_saps:
         for tree_sap in tree_saps[refpkg_name]:  # type: phylo_seq.PQuery
@@ -138,11 +148,6 @@ def write_classification_table(tree_saps, sample_name, output_file):
                                          str(pplace.like_weight_ratio),
                                          str(tree_sap.avg_evo_dist),
                                          tree_sap.distances]) + "\n"
-    try:
-        tab_out = open(output_file, 'w')
-    except IOError:
-        logging.error("Unable to open " + output_file + " for writing!\n")
-        sys.exit(3)
 
     tab_out.write(tab_out_string)
     tab_out.close()

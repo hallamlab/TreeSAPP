@@ -1,3 +1,4 @@
+import os
 import unittest
 import pytest
 
@@ -7,7 +8,6 @@ from .testing_utils import get_test_data, get_treesapp_root
 class TreesappTester(unittest.TestCase):
     def test_gather_ref_packages(self):
         from treesapp.file_parsers import gather_ref_packages
-        import os
         from . import testing_utils as utils
         refpkg_dir = utils.get_test_data(os.path.join("refpkgs"))
         #
@@ -114,6 +114,27 @@ class TreesappTester(unittest.TestCase):
             for pq in pqueries:
                 self.assertEqual("DsrAB", pq.ref_name)
 
+        return
+
+    def test_write_classification_table(self):
+        from file_parsers import write_classification_table, load_classified_sequences_from_assign_output
+        refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("marker_test_results"))
+        test_output = "tests/tmp_classifications.tsv"
+        write_classification_table(tree_saps=refpkg_pquery_map, output_file=test_output, sample_name="Testing")
+        with open(test_output) as t_out:
+            self.assertEqual(14, len(t_out.readlines()))
+
+        # Try appending
+        write_classification_table(tree_saps=refpkg_pquery_map,
+                                   sample_name="Testing_testing",
+                                   output_file=test_output,
+                                   append=True)
+        with open(test_output) as t_out:
+            self.assertEqual(27, len(t_out.readlines()))
+
+        # Clean up output
+        if os.path.isfile(test_output):
+            os.remove(test_output)
         return
 
 
