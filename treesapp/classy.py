@@ -1527,7 +1527,10 @@ class Abundance(TreeSAPP):
         return
 
     def strip_file_to_sample_name(self, file_path) -> None:
-        file_prefix = '.'.join(os.path.basename(file_path).split('.')[:-1])
+        file_name, suffix = os.path.splitext(os.path.basename(file_path))
+        if suffix == ".gz":
+            file_name, suffix = os.path.splitext(file_name)
+        file_prefix = '.'.join(file_name.split('.'))
         self.sample_prefix = self.fq_suffix_re.sub('', file_prefix)
         return
 

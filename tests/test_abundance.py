@@ -13,6 +13,9 @@ class AbundanceTester(unittest.TestCase):
 
         mock_abund.strip_file_to_sample_name("path/to/test_sample_R1.fq")
         self.assertEqual("test_sample", mock_abund.sample_prefix)
+
+        mock_abund.strip_file_to_sample_name("SRR7188253_1.fastq.gz")
+        self.assertEqual("SRR7188253", mock_abund.sample_prefix)
         return
 
 
