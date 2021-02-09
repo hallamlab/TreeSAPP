@@ -1,3 +1,11 @@
+## [0.10.1] - 2021
+### Added
+
+### Fixed
+- Control of relative abundance metric for `treesapp abundance` to use with `treesapp assign`
+
+### Changed
+
 ## [0.10.0] - 2021-02-09
 ### Added
 - (#33) Checkpointing to all major (i.e. time-consuming) subcommands: `abundance`, `assign`, `create`, `purity`, `train`

@@ -6,7 +6,6 @@ import argparse
 
 from treesapp import fasta
 from treesapp.refpkg import ReferencePackage
-from treesapp.wrapper import build_hmm_profile, run_mafft
 from treesapp.utilities import base_file_prefix, which
 
 

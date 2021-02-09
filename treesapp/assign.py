@@ -1386,7 +1386,8 @@ def assign(sys_args):
                               "--reads", ' '.join(args.reads),
                               "--pairing", args.pairing,
                               "--num_procs", str(n_proc),
-                              "--report", "nothing"]
+                              "--report", "nothing",
+                              "--metric", args.metric]
             if args.reverse:
                 abundance_args += ["--reverse", ' '.join(args.reverse)]
             sample_id, abundance_dict = abundance.abundance(abundance_args).popitem()
