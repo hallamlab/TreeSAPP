@@ -237,12 +237,12 @@ class PQuery:
             self.classified = False
         return
 
-    def sum_rpkms_per_node(self, leaf_rpkm_sums: dict) -> dict:
+    def sum_abundances_per_node(self, leaf_abundance_sums: dict) -> dict:
         """
-        Function that adds the RPKM value of a contig to the node it was placed.
-        For contigs mapping to internal nodes: the proportional RPKM assigned is summed for all children.
+        Function that adds the abundance value of a contig to the node it was placed.
+        For contigs mapping to internal nodes: the proportional abundance assigned is summed for all children.
 
-        :param leaf_rpkm_sums: A dictionary mapping tree leaf numbers to abundances (RPKM sums)
+        :param leaf_abundance_sums: A dictionary mapping tree leaf numbers to abundances (RPKM sums)
         :return: A dictionary mapping numerical leaf node identifiers to normalized abundance values
         """
         jplace_node = self.consensus_placement.edge_num
@@ -254,10 +254,10 @@ class PQuery:
             normalized_abundance = 0.0
 
         for tree_leaf in tree_leaves:  # type: str
-            if tree_leaf not in leaf_rpkm_sums.keys():
-                leaf_rpkm_sums[tree_leaf] = 0.0
-            leaf_rpkm_sums[tree_leaf] += normalized_abundance
-        return leaf_rpkm_sums
+            if tree_leaf not in leaf_abundance_sums.keys():
+                leaf_abundance_sums[tree_leaf] = 0.0
+            leaf_abundance_sums[tree_leaf] += normalized_abundance
+        return leaf_abundance_sums
 
     def check_jplace_edge_lengths(self, tree_index: dict) -> None:
         """

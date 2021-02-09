@@ -29,7 +29,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.reqs = self.add_argument_group("Required parameters")
         self.seqops = self.add_argument_group("Sequence operation arguments")
         self.pplace_args = self.add_argument_group("Phylogenetic placement arguments")
-        self.rpkm_opts = self.add_argument_group("RPKM options")
+        self.fpkm_opts = self.add_argument_group("Abundance options")
         self.io = self.add_argument_group("Inputs and Outputs")
         self.aes = self.add_argument_group("Aesthetic options")
         self.optopt = self.add_argument_group("Optional options")
@@ -101,12 +101,14 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                  help="Type of input sequences "
                                       "(prot = protein; dna = nucleotide [DEFAULT]; rrna = rRNA)")
 
-    def add_rpkm_params(self):
-        self.rpkm_opts.add_argument("-r", "--reads", required=False,
+    def add_abundance_params(self):
+        self.fpkm_opts.add_argument("--metric", required=False, default="fpkm", choices=["fpkm", "tpm"],
+                                    help="Selects which normalization metric to use, FPKM or TPM.")
+        self.fpkm_opts.add_argument("-r", "--reads", required=False, nargs='+',
                                     help="FASTQ file containing to be aligned to predicted genes using BWA MEM")
-        self.rpkm_opts.add_argument("-2", "--reverse", required=False,
+        self.fpkm_opts.add_argument("-2", "--reverse", required=False, nargs='+',
                                     help="FASTQ file containing to reverse mate-pair reads to be aligned using BWA MEM")
-        self.rpkm_opts.add_argument("-p", "--pairing", required=False, default='pe', choices=['pe', 'se'],
+        self.fpkm_opts.add_argument("-p", "--pairing", required=False, default='pe', choices=['pe', 'se'],
                                     help="Indicating whether the reads are paired-end (pe) or single-end (se)")
 
     def add_search_params(self):
@@ -296,7 +298,7 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
     assign_parser.add_io()
     assign_parser.add_refpkg_opt()
     assign_parser.add_refpkg_targets()
-    assign_parser.add_rpkm_params()
+    assign_parser.add_abundance_params()
     assign_parser.add_seq_params()
     assign_parser.add_search_params()
     assign_parser.add_pplace_params()
@@ -313,8 +315,9 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
     assign_parser.optopt.add_argument("--stage", default="continue", required=False,
                                       choices=["continue", "orf-call", "search", "align", "place", "classify"],
                                       help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
-    assign_parser.rpkm_opts.add_argument("--rpkm", action="store_true", default=False,
-                                         help="Flag indicating RPKM values should be calculated for the sequences detected")
+    assign_parser.fpkm_opts.add_argument("--rel_abund", action="store_true", default=False,
+                                         help="Flag indicating relative abundance values should be"
+                                              " calculated for the sequences detected")
 
     # The miscellany
     assign_parser.miscellany.add_argument('-R', '--reftree', required=False, default="", type=str,
@@ -324,17 +327,16 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
 
 
 def add_abundance_arguments(parser: TreeSAPPArgumentParser):
-    parser.add_rpkm_params()
+    parser.add_abundance_params()
     parser.add_compute_miscellany()
     parser.add_delete()
     parser.reqs.add_argument("--treesapp_output", dest="output", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
-    # TODO: Include an option to append new values to the classification table
-    parser.optopt.add_argument("--report", choices=["update", "nothing"], required=False, default="update",
+    parser.optopt.add_argument("--report", choices=["update", "nothing", "append"], required=False, default="append",
                                help="What should be done with the abundance values? The TreeSAPP classification table "
-                                    "can be overwritten (update) or left unchanged. "
-                                    "[ DEFAULT = update ]")
+                                    "can be overwritten (update), appended or left unchanged. "
+                                    "[ DEFAULT = append ]")
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "align_map", "sam_sum", "summarise"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")

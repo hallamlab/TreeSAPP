@@ -1467,7 +1467,8 @@ class Abundance(TreeSAPP):
         self.classified_nuc_seqs = ""
         self.classifications = ""
         self.aln_file = ""
-        self.fq_suffix_re = re.compile(r"([._-])+(pe|fq|fastq|fwd|R1)$")
+        self.append_abundance = False
+        self.fq_suffix_re = re.compile(r"([._-])+(pe|fq|fastq|fwd|R1|1)$")
         self.stages = {0: ModuleFunction("align_map", 0),
                        1: ModuleFunction("sam_sum", 1),
                        2: ModuleFunction("summarise", 2)}
@@ -1487,9 +1488,18 @@ class Abundance(TreeSAPP):
         if not os.path.isdir(self.var_output_dir):
             os.makedirs(self.var_output_dir)
 
-        self.sample_prefix = self.fq_suffix_re.sub('', '.'.join(os.path.basename(args.reads).split('.')[:-1]))
         self.aln_file = self.stage_lookup("align_map").dir_path + \
                         '.'.join(os.path.basename(self.classified_nuc_seqs).split('.')[0:-1]) + ".sam"
+
+        if len(args.reverse) > 0:
+            if len(args.reads) != len(args.reverse):
+                logging.error("Number of fastq files differs between reads () and reverse () arguments!.\n"
+                              "".format(len(args.reads), len(args.reverse)))
+                sys.exit(3)
+
+        if args.report == "update":
+            self.append_abundance = False
+
         return
 
     def decide_stage(self, args):
@@ -1514,6 +1524,11 @@ class Abundance(TreeSAPP):
         for file_path in files_to_be_deleted:
             if os.path.exists(file_path):
                 os.remove(file_path)
+        return
+
+    def strip_file_to_sample_name(self, file_path) -> None:
+        file_prefix = '.'.join(os.path.basename(file_path).split('.')[:-1])
+        self.sample_prefix = self.fq_suffix_re.sub('', file_prefix)
         return
 
 

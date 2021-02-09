@@ -1,11 +1,12 @@
-## [0.10.0] - 2021-02
+## [0.10.0] - 2021-02-09
 ### Added
 - (#33) Checkpointing to all major (i.e. time-consuming) subcommands: `abundance`, `assign`, `create`, `purity`, `train`
-- `stages` argument to `treesapp abundance` to control checkpoint
+- Added `stages` argument to `treesapp abundance` to control checkpoint
 - Able to control the maximum number of examples used and SVC kernel for training through `treesapp create`
 - (#66) Documentation for `treesapp evaluate`
 - A new _de novo_ clustering mode for `treesapp phylotu` will infer a new tree of just query sequences
 - A new `treesapp phylotu` output mapping classified sequences to their cluster
+- Able to append results from `treesapp abundance` to classification table for multiple read datasets
 
 ### Fixed
 - (#71) Ability to rerun and append results from `treesapp evaluate` has been restored
@@ -18,6 +19,7 @@
 ### Changed
 - `treesapp evaluate` uses a tqdm progress bar instead of printing updates to stdout when classifying
 - Removed the prodigal header tags when ORFs are predicted by TreeSAPP. Could lead to significant RAM reduction.
+- Flag to activate relative abundance calculation in `treesapp assign` changed from '--rpkm' to '--rel_abund'
 
 ## [0.9.8] - 2021-01-15
 ### Added

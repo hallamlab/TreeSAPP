@@ -81,8 +81,8 @@ class Assigner(classy.TreeSAPP):
         if self.molecule_type == "prot":
             self.query_sequences = self.input_sequences
             self.change_stage_status("orf-call", False)
-            if args.rpkm:
-                logging.error("Unable to calculate RPKM values for protein sequences.\n")
+            if args.rel_abund:
+                logging.error("Unable to calculate abundance values for protein sequences.\n")
                 sys.exit(3)
 
         self.formatted_input = self.stage_lookup("clean").dir_path + self.sample_prefix + "_formatted.fasta"
@@ -124,22 +124,23 @@ class Assigner(classy.TreeSAPP):
                 self.change_stage_status("orf-call", False)
                 self.query_sequences = self.aa_orfs_file
 
-        if args.rpkm and self.molecule_type == "dna":
+        if args.rel_abund and self.molecule_type == "dna":
             if not args.reads:
                 if args.reverse:
                     logging.error("File containing reverse reads provided but forward mates file missing!\n")
                     sys.exit(3)
                 else:
-                    logging.error("At least one FASTQ file must be provided if -rpkm flag is active!\n")
+                    logging.error("At least one FASTQ file must be provided if --rel_abund flag is active!\n")
                     sys.exit(3)
-            elif args.reads and not os.path.isfile(args.reads):
-                logging.error("Path to forward reads ('%s') doesn't exist.\n" % args.reads)
-                sys.exit(3)
-            elif args.reverse and not os.path.isfile(args.reverse):
-                logging.error("Path to reverse reads ('%s') doesn't exist.\n" % args.reverse)
-                sys.exit(3)
-            else:
-                self.change_stage_status("abundance", True)
+            for fp in args.reads:
+                if not os.path.isfile(fp):
+                    logging.error("Path to forward reads ('%s') doesn't exist.\n" % fp)
+                    sys.exit(3)
+            for fp in args.reverse:
+                if not os.path.isfile(fp):
+                    logging.error("Path to reverse reads ('%s') doesn't exist.\n" % fp)
+                    sys.exit(3)
+            self.change_stage_status("abundance", True)
         else:
             self.change_stage_status("abundance", False)
 
@@ -846,36 +847,36 @@ def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
 
 def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
     """
-    From the basic RPKM output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
+    From the basic abundance output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
 
     :param target_marker:
     :param tree_protein_list: A list of PQuery objects, for single sequences
     :param itol_bar_file: The name of the file to write the simple-bar data for iTOL
     :return:
     """
-    leaf_rpkm_sums = dict()
+    leaf_abundance_sums = dict()
 
     for tree_sap in tree_protein_list:  # type: phylo_seq.PQuery
         if tree_sap.ref_name == target_marker and tree_sap.classified:
-            leaf_rpkm_sums = tree_sap.sum_rpkms_per_node(leaf_rpkm_sums)
+            leaf_abundance_sums = tree_sap.sum_abundances_per_node(leaf_abundance_sums)
 
     # Only make the file if there is something to write
-    if len(leaf_rpkm_sums.keys()) > 0:
+    if len(leaf_abundance_sums.keys()) > 0:
         try:
-            itol_rpkm_out = open(itol_bar_file, 'w')
+            itol_abundance_out = open(itol_bar_file, 'w')
         except IOError:
             logging.error("Unable to open " + itol_bar_file + " for writing.\n")
             sys.exit(3)
 
         # Write the header
-        header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,RPKM\nCOLOR,#ff0000\n"
-        itol_rpkm_out.write(header)
-        # Write the RPKM sums for each leaf
-        itol_rpkm_out.write("DATA\n")
-        data_lines = [','.join([str(k), str(v)]) for k, v in leaf_rpkm_sums.items()]
-        itol_rpkm_out.write("\n".join(data_lines))
+        header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,ABUNDANCE\nCOLOR,#ff0000\n"
+        itol_abundance_out.write(header)
+        # Write the abundance sums for each leaf
+        itol_abundance_out.write("DATA\n")
+        data_lines = [','.join([str(k), str(v)]) for k, v in leaf_abundance_sums.items()]
+        itol_abundance_out.write("\n".join(data_lines))
 
-        itol_rpkm_out.close()
+        itol_abundance_out.close()
 
     return tree_protein_list
 
@@ -1382,13 +1383,13 @@ def assign(sys_args):
         # Run the abundance subcommand on the classified sequences
         if ts_assign.stage_status("abundance"):
             abundance_args = ["--treesapp_output", ts_assign.output_dir,
-                              "--reads", args.reads,
+                              "--reads", ' '.join(args.reads),
                               "--pairing", args.pairing,
                               "--num_procs", str(n_proc),
                               "--report", "nothing"]
             if args.reverse:
-                abundance_args += ["--reverse", args.reverse]
-            abundance_dict = abundance.abundance(abundance_args)
+                abundance_args += ["--reverse", ' '.join(args.reverse)]
+            sample_id, abundance_dict = abundance.abundance(abundance_args).popitem()
         phylo_seq.abundify_tree_saps(tree_saps, abundance_dict)
 
         file_parsers.write_classification_table(tree_saps, ts_assign.sample_prefix,

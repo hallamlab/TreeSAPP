@@ -190,16 +190,16 @@ class PhyloSeqTests(unittest.TestCase):
         self.assertEqual("seq_test_1", self.pquery_test_1.place_name)
         return
 
-    def test_sum_rpkms_per_node(self):
+    def test_sum_abundances_per_node(self):
         self.pquery_test_2.consensus_placement = self.pquery_test_2.placements[0]
         # Test the exception
         self.pquery_test_2.abundance = None
-        self.assertEqual(0, self.pquery_test_2.sum_rpkms_per_node(leaf_rpkm_sums={})['121_McrA'])
+        self.assertEqual(0, self.pquery_test_2.sum_abundances_per_node(leaf_abundance_sums={})['121_McrA'])
 
         self.pquery_test_2.abundance = 10
-        leaf_rpkm_sums = self.pquery_test_2.sum_rpkms_per_node(leaf_rpkm_sums={})
-        self.assertEqual(5, len(leaf_rpkm_sums))
-        self.assertEqual(2, leaf_rpkm_sums['121_McrA'])
+        leaf_abundance_sums = self.pquery_test_2.sum_abundances_per_node(leaf_abundance_sums={})
+        self.assertEqual(5, len(leaf_abundance_sums))
+        self.assertEqual(2, leaf_abundance_sums['121_McrA'])
         return
 
 

@@ -101,7 +101,7 @@ class AssignerTester(unittest.TestCase):
         self.assertFalse(ts_assigner.stage_status("orf-call"))
         self.assertFalse(ts_assigner.stage_status("abundance"))
 
-        # Test a nucleotide input but with no rpkm
+        # Test a nucleotide input but with no abundance
         ts_assigner.change_stage_status("orf-call", True)
         ts_assigner.change_stage_status("abundance", True)
         args = self.mock_parser.parse_args(["--fastx_input", get_test_data("marker_test_suite.faa"),
@@ -119,7 +119,7 @@ class AssignerTester(unittest.TestCase):
                                                 "--molecule", "dna",
                                                 "--refpkg_dir", self.output_dir,
                                                 "--output", self.output_dir,
-                                                "--reads", "test_TarA.1.fq", "--rpkm"])
+                                                "--reads", "test_TarA.1.fq", "--rel_abund"])
             ts_assigner.furnish_with_arguments(args)
             ts_assigner.decide_stage(args)
 
@@ -130,7 +130,7 @@ class AssignerTester(unittest.TestCase):
                                             "--output", self.output_dir,
                                             "--reads", get_test_data("test_TarA.1.fq"),
                                             "--reverse", get_test_data("test_TarA.2.fq"),
-                                            "--rpkm", "--pairing", "pe"])
+                                            "--rel_abund", "--pairing", "pe"])
         ts_assigner.furnish_with_arguments(args)
         ts_assigner.decide_stage(args)
         self.assertTrue(ts_assigner.stage_status("abundance"))

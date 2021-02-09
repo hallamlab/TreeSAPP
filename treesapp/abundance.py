@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 
 from samsum import commands as samsum_cmd
@@ -45,33 +46,53 @@ def abundance(sys_args):
     ts_abund.check_arguments(args)
     ts_abund.decide_stage(args)
 
-    if ts_abund.stage_status("align_map"):
-        wrapper.align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.classified_nuc_seqs,
-                                    ts_abund.stage_output_dir, args.reads, args.pairing, args.reverse,
-                                    args.num_threads)
-        ts_abund.increment_stage_dir()
+    abundance_dict = {}
+    rev_reads = None
 
-    if ts_abund.stage_status("sam_sum"):
-        if os.path.isfile(ts_abund.aln_file):
-            ref_seq_abunds = samsum_cmd.ref_sequence_abundances(aln_file=ts_abund.aln_file,
-                                                                seq_file=ts_abund.classified_nuc_seqs,
-                                                                min_aln=10, p_cov=50, map_qual=1, multireads=False)
-            abundance_dict = {ref_seq.name: ref_seq.fpkm for ref_seq in ref_seq_abunds.values()}
-            ref_seq_abunds.clear()
+    while args.reads:
+        fwd_reads = args.reads.pop(0)
+        ts_abund.strip_file_to_sample_name(fwd_reads)
+        logging.info("Working on sample '{}'.\n".format(ts_abund.sample_prefix))
+        if args.pairing == 'pe' and args.reverse:
+            rev_reads = args.reverse.pop(0)
+        if ts_abund.stage_status("align_map"):
+            wrapper.align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.classified_nuc_seqs,
+                                        ts_abund.stage_output_dir, fwd_reads, args.pairing, rev_reads,
+                                        args.num_threads)
+            ts_abund.increment_stage_dir()
+
+        if ts_abund.stage_status("sam_sum"):
+            if os.path.isfile(ts_abund.aln_file):
+                ref_seq_abunds = samsum_cmd.ref_sequence_abundances(aln_file=ts_abund.aln_file,
+                                                                    seq_file=ts_abund.classified_nuc_seqs,
+                                                                    min_aln=10, p_cov=50, map_qual=1, multireads=False)
+                if args.metric == "fpkm":
+                    abundance_dict[ts_abund.sample_prefix] = {ref_seq.name: ref_seq.fpkm for ref_seq
+                                                              in ref_seq_abunds.values()}
+                elif args.metric == "tpm":
+                    abundance_dict[ts_abund.sample_prefix] = {ref_seq.name: ref_seq.tpm for ref_seq
+                                                              in ref_seq_abunds.values()}
+                else:
+                    logging.error("Unrecognized normalization metric '{}'.\n".format(args.metric))
+                    sys.exit(7)
+
+                ref_seq_abunds.clear()
+            else:
+                logging.warning("SAM file '%s' was not generated.\n" % ts_abund.aln_file)
+                return {}
+            ts_abund.increment_stage_dir()
         else:
-            logging.warning("SAM file '%s' was not generated.\n" % ts_abund.aln_file)
-            return {}
-        ts_abund.increment_stage_dir()
-    else:
-        abundance_dict = {}
-        logging.warning("Skipping samsum normalized relative abundance calculation in treesapp abundance.\n")
+            abundance_dict = {}
+            logging.warning("Skipping samsum normalized relative abundance calculation in treesapp abundance.\n")
 
     ts_abund.delete_intermediates(args.delete)
 
-    # TODO: Index each PQuery's abundance by the dataset name, write a new row for each dataset's abundance
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
         pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir)
-        phylo_seq.abundify_tree_saps(pqueries, abundance_dict)
-        file_parsers.write_classification_table(pqueries, ts_abund.sample_prefix, ts_abund.classifications)
+        for sample_name, abundance_map in abundance_dict.items():
+            phylo_seq.abundify_tree_saps(pqueries, abundance_map)
+            file_parsers.write_classification_table(pqueries, sample_name, ts_abund.classifications,
+                                                    append=ts_abund.append_abundance)
+            ts_abund.append_abundance = True
 
     return abundance_dict

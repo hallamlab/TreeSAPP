@@ -46,12 +46,12 @@ class TreesappTester(unittest.TestCase):
                                   "--pairing", "pe",
                                   "--num_procs", str(self.num_procs),
                                   "--delete"]
-        abund_dict = abundance(abundance_command_list)
+        abund_dict = abundance(abundance_command_list)["test_TarA"]
         post_lines = read_classification_table(get_test_data(classification_table))
         # Ensure no lines were removed
         self.assertEqual(len(pre_lines), len(post_lines))
         # Ensure the name of the sample is substituted for the sample ID
-        self.assertEqual({"test_TarA.1"}, set([line[0] for line in post_lines]))
+        self.assertEqual({"test_TarA"}, set([line[0] for line in post_lines]))
         self.assertEqual(148, round(sum(abund_dict.values())))
         # Replace the classification table
         copyfile(os.path.join(self.ts_assign_output, "tmp.tsv"), classification_table)
@@ -80,6 +80,7 @@ class TreesappTester(unittest.TestCase):
     def test_assign_dna(self):
         ref_pkgs = ["M0701", "M0702"]
         from treesapp import assign
+        from .testing_utils import get_test_data
         from treesapp.file_parsers import read_classification_table
         assign_commands_list = ["--fastx_input", self.nt_test_fa,
                                 "--targets", ','.join(ref_pkgs),
@@ -88,6 +89,11 @@ class TreesappTester(unittest.TestCase):
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "strict",
                                 "--trim_align", "--overwrite", "--delete"]
+        assign.assign(assign_commands_list)
+
+        assign_commands_list += ["--rel_abund",
+                                 "--reads", get_test_data("SRR3669912_1.fastq"),
+                                 "--reverse", get_test_data("SRR3669912_2.fastq")]
         assign.assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(6, len(lines))
