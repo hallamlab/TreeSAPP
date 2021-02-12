@@ -106,7 +106,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                     help="Selects which normalization metric to use, FPKM or TPM.")
         self.fpkm_opts.add_argument("-r", "--reads", required=False, nargs='+',
                                     help="FASTQ file containing to be aligned to predicted genes using BWA MEM")
-        self.fpkm_opts.add_argument("-2", "--reverse", required=False, nargs='+',
+        self.fpkm_opts.add_argument("-2", "--reverse", required=False, nargs='+', default=[],
                                     help="FASTQ file containing to reverse mate-pair reads to be aligned using BWA MEM")
         self.fpkm_opts.add_argument("-p", "--pairing", required=False, default='pe', choices=['pe', 'se'],
                                     help="Indicating whether the reads are paired-end (pe) or single-end (se)")

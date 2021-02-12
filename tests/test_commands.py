@@ -35,6 +35,7 @@ class TreesappTester(unittest.TestCase):
     def test_abundance(self):
         from treesapp.abundance import abundance
         from treesapp.file_parsers import read_classification_table
+        from treesapp.phylo_seq import assignments_to_pqueries
         from .testing_utils import get_test_data
         classification_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
         # Copy the classification table to replace after overwrite
@@ -48,11 +49,28 @@ class TreesappTester(unittest.TestCase):
                                   "--delete"]
         abund_dict = abundance(abundance_command_list)["test_TarA"]
         post_lines = read_classification_table(get_test_data(classification_table))
-        # Ensure no lines were removed
+        # Ensure no lines were added or removed
         self.assertEqual(len(pre_lines), len(post_lines))
         # Ensure the name of the sample is substituted for the sample ID
         self.assertEqual({"test_TarA"}, set([line[0] for line in post_lines]))
+        # Ensure the value
         self.assertEqual(148, round(sum(abund_dict.values())))
+
+        # Test an interleaved fastq file with TPM relative abundance measure
+        abundance_command_list = ["--treesapp_output", self.ts_assign_output,
+                                  "--reads", get_test_data("test_TarA.fastq.gz"),
+                                  "--pairing", "pe",
+                                  "--metric", "tpm",
+                                  "--num_procs", str(self.num_procs),
+                                  "--delete"]
+        abundance(abundance_command_list)
+
+        pqueries = assignments_to_pqueries(read_classification_table(get_test_data(classification_table)))
+        abundant_pqueries = []
+        for rp in pqueries:
+            abundant_pqueries += [pq for pq in pqueries[rp] if pq.abundance > 0.0]
+        self.assertEqual(33702, round(sum([pq.abundance for pq in abundant_pqueries])))
+
         # Replace the classification table
         copyfile(os.path.join(self.ts_assign_output, "tmp.tsv"), classification_table)
         os.remove(os.path.join(self.ts_assign_output, "tmp.tsv"))
