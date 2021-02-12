@@ -445,59 +445,59 @@ DATA
 441_DsrAB,sulfate-reducing bacterium oXyS1 | AAQ05960
 442_DsrAB,delta proteobacterium ML-1 | ADW23606
 443_DsrAB,Olavius ilvae Delta 3 endosymbiont | AAY97996
-444_DsrAB,delta proteobacterium 28bB2T | BAK52534
-445_DsrAB,delta proteobacterium MLMS-1 | EAT04804
-446_DsrAB,Olavius algarvensis sulfate-reducing endosymbiont | AAK28361
-447_DsrAB,sulfate-reducing bacterium oXyS1 | AAQ05959
-448_DsrAB,Olavius ilvae Delta 3 endosymbiont | AKN56974
-449_DsrAB,Olavius ilvae Delta 3 endosymbiont | AAY97995
-450_DsrAB,delta proteobacterium MLMS-1 | EAT01398
-451_DsrAB,Olavius ilvae Delta 1 endosymbiont | AAY97992
-452_DsrAB,Desulfarculus baarsii DSM 2075 | ADK84330
-453_DsrAB,Desulfarculus baarsii DSM 2075 | AAK83215
-454_DsrAB,Desulfarculus baarsii DSM 2075 | ADK84329
-455_DsrAB,Desulfocarbo indianensis | KMY67317
-456_DsrAB,Desulfocarbo indianensis | KMY67318
-457_DsrAB,Dethiosulfatarculus sandiegensis | KIX11064
-458_DsrAB,Dethiosulfatarculus sandiegensis | KIX11065
-459_DsrAB,Candidatus Magnetomorum sp. HK-1 | KPA08768
-460_DsrAB,Candidatus Magnetomorum sp. HK-1 | KPA08769
-461_DsrAB,Desulfatibacillum aliphaticivorans | ACL05981
-462_DsrAB,Desulfatibacillum aliphaticivorans | ACL05980
-463_DsrAB,Desulfatiferula berrensis | CCE67081
-464_DsrAB,Desulfatiferula berrensis | CCE67080
-465_DsrAB,Desulfatiferula olefinivorans | ABH03459
-466_DsrAB,Desulfatiferula olefinivorans | ABH03460
-467_DsrAB,Desulfatiglans anilini DSM 4660 | AAQ05939
-468_DsrAB,Desulfatiglans anilini DSM 4660 | AAQ05940
-469_DsrAB,Desulfatitalea tepidiphila | BAM15279
-470_DsrAB,Desulfobacter latus | AAC24097
-471_DsrAB,Desulfobacter latus | AAC24098
-472_DsrAB,Desulfobacter postgatei 2ac9 | AAL57469
-473_DsrAB,Desulfobacter postgatei 2ac9 | AAL57470
-474_DsrAB,Desulfobacter vibrioformis | CAB95042
-475_DsrAB,Desulfobacter vibrioformis | CAB95043
-476_DsrAB,Desulfobacterium autotrophicum HRM2 | ACN17296
-477_DsrAB,Desulfobacterium autotrophicum | CAA75653
-478_DsrAB,Desulfobacterium vacuolatum | AAL57479
-479_DsrAB,Desulfobacterium vacuolatum | AAL57480
-480_DsrAB,Desulfobacula toluolica Tol2 | CCK78726
-481_DsrAB,Desulfobacula toluolica Tol2 | CCK78725
-482_DsrAB,Desulfobotulus sapovorans | AAC24109
-483_DsrAB,Desulfobotulus sapovorans | AAC24110
-484_DsrAB,Desulfocella halophila | AAL57473
-485_DsrAB,Desulfocella halophila | AAL57474
-486_DsrAB,Desulfococcus multivorans | AAC24101
-487_DsrAB,Desulfococcus multivorans | AOY59589
-488_DsrAB,Desulfococcus oleovorans Hxd3 | ABW68472
-489_DsrAB,Desulfococcus oleovorans Hxd3 | ABW68473
-490_DsrAB,Desulfoconvexum algidum | AFJ95152
-491_DsrAB,Desulfofaba gelida | AAK83201
-492_DsrAB,Desulfofaba gelida | AAK83202
-493_DsrAB,Desulfosalsimonas propionicica | ABD46860
-494_DsrAB,Desulfosalsimonas propionicica | ABD46861
-495_DsrAB,Desulfosarcina cetonica | AAN31398
-496_DsrAB,Desulfosarcina cetonica | AAN31399
+444_DsrAB,delta proteobacterium MLMS-1 | EAT04804
+445_DsrAB,Olavius algarvensis sulfate-reducing endosymbiont | AAK28361
+446_DsrAB,sulfate-reducing bacterium oXyS1 | AAQ05959
+447_DsrAB,Olavius ilvae Delta 3 endosymbiont | AKN56974
+448_DsrAB,Olavius ilvae Delta 3 endosymbiont | AAY97995
+449_DsrAB,delta proteobacterium MLMS-1 | EAT01398
+450_DsrAB,Olavius ilvae Delta 1 endosymbiont | AAY97992
+451_DsrAB,Desulfarculus baarsii DSM 2075 | ADK84330
+452_DsrAB,Desulfarculus baarsii DSM 2075 | AAK83215
+453_DsrAB,Desulfarculus baarsii DSM 2075 | ADK84329
+454_DsrAB,Desulfocarbo indianensis | KMY67317
+455_DsrAB,Desulfocarbo indianensis | KMY67318
+456_DsrAB,Dethiosulfatarculus sandiegensis | KIX11064
+457_DsrAB,Dethiosulfatarculus sandiegensis | KIX11065
+458_DsrAB,Candidatus Magnetomorum sp. HK-1 | KPA08768
+459_DsrAB,Candidatus Magnetomorum sp. HK-1 | KPA08769
+460_DsrAB,Desulfatibacillum aliphaticivorans | ACL05981
+461_DsrAB,Desulfatibacillum aliphaticivorans | ACL05980
+462_DsrAB,Desulfatiferula berrensis | CCE67081
+463_DsrAB,Desulfatiferula berrensis | CCE67080
+464_DsrAB,Desulfatiferula olefinivorans | ABH03459
+465_DsrAB,Desulfatiferula olefinivorans | ABH03460
+466_DsrAB,Desulfatiglans anilini DSM 4660 | AAQ05939
+467_DsrAB,Desulfatiglans anilini DSM 4660 | AAQ05940
+468_DsrAB,Desulfatitalea tepidiphila | BAM15279
+469_DsrAB,Desulfobacter latus | AAC24097
+470_DsrAB,Desulfobacter latus | AAC24098
+471_DsrAB,Desulfobacter postgatei 2ac9 | AAL57469
+472_DsrAB,Desulfobacter postgatei 2ac9 | AAL57470
+473_DsrAB,Desulfobacter vibrioformis | CAB95042
+474_DsrAB,Desulfobacter vibrioformis | CAB95043
+475_DsrAB,Desulfobacterium autotrophicum HRM2 | ACN17296
+476_DsrAB,Desulfobacterium autotrophicum | CAA75653
+477_DsrAB,Desulfobacterium vacuolatum | AAL57479
+478_DsrAB,Desulfobacterium vacuolatum | AAL57480
+479_DsrAB,Desulfobacula toluolica Tol2 | CCK78726
+480_DsrAB,Desulfobacula toluolica Tol2 | CCK78725
+481_DsrAB,Desulfobotulus sapovorans | AAC24109
+482_DsrAB,Desulfobotulus sapovorans | AAC24110
+483_DsrAB,Desulfocella halophila | AAL57473
+484_DsrAB,Desulfocella halophila | AAL57474
+485_DsrAB,Desulfococcus multivorans | AAC24101
+486_DsrAB,Desulfococcus multivorans | AOY59589
+487_DsrAB,Desulfococcus oleovorans Hxd3 | ABW68472
+488_DsrAB,Desulfococcus oleovorans Hxd3 | ABW68473
+489_DsrAB,Desulfoconvexum algidum | AFJ95152
+490_DsrAB,Desulfofaba gelida | AAK83201
+491_DsrAB,Desulfofaba gelida | AAK83202
+492_DsrAB,Desulfosalsimonas propionicica | ABD46860
+493_DsrAB,Desulfosalsimonas propionicica | ABD46861
+494_DsrAB,Desulfosarcina cetonica | AAN31398
+495_DsrAB,Desulfosarcina cetonica | AAN31399
+496_DsrAB,Desulfosarcina ovata subsp. sediminis | BAK52534
 497_DsrAB,Desulfosarcina sp. SD1 | ACR46723
 498_DsrAB,Desulfosarcina sp. SD1 | ACR46724
 499_DsrAB,Desulfosarcina variabilis str. Montpellier | AAK58134
