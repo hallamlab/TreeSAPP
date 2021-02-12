@@ -1,17 +1,16 @@
 # TreeSAPP: Tree-based Sensitive and Accurate Phylogenetic Profiler
 
 ![tests](https://github.com/hallamlab/TreeSAPP/workflows/tests/badge.svg)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/b1937000c13040e8bba62f46e954796e)](https://www.codacy.com/gh/hallamlab/TreeSAPP?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hallamlab/TreeSAPP&amp;utm_campaign=Badge_Grade)
-[![codecov](https://codecov.io/gh/hallamlab/TreeSAPP/branch/master/graph/badge.svg)](https://codecov.io/gh/hallamlab/TreeSAPP)
-
 [![PyPI version](https://badge.fury.io/py/treesapp.svg)](https://badge.fury.io/py/treesapp)
-[![Python version](https://img.shields.io/pypi/pyversions/treesapp.svg)](https://img.shields.io/pypi/pyversions/)
-
-[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/treesapp/README.html)
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/treesapp/badges/version.svg)](https://anaconda.org/bioconda/treesapp)
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/treesapp/badges/platforms.svg)](https://anaconda.org/bioconda/treesapp)
-
 [![Docker Repository on Quay](https://quay.io/repository/hallamlab/treesapp/status "Docker Repository on Quay")](https://quay.io/repository/hallamlab/treesapp)
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/b1937000c13040e8bba62f46e954796e)](https://www.codacy.com/gh/hallamlab/TreeSAPP?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hallamlab/TreeSAPP&amp;utm_campaign=Badge_Grade)
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/treesapp/README.html)
+[![Python version](https://img.shields.io/pypi/pyversions/treesapp.svg)](https://img.shields.io/pypi/pyversions/)
+[![codecov](https://codecov.io/gh/hallamlab/TreeSAPP/branch/master/graph/badge.svg)](https://codecov.io/gh/hallamlab/TreeSAPP)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/treesapp/badges/downloads.svg)](https://anaconda.org/bioconda/treesapp)
 
 ## Overview
 
@@ -20,7 +19,7 @@ TreeSAPP is a python package for functional and taxonomic annotation of proteins
 
 ## Quick start
 
-We recommend installing TreeSAPP into it's own conda environment with the following command:
+We recommend installing TreeSAPP into its own conda environment with the following command:
 
 ```bash
 conda create -n treesapp_cenv -c bioconda -c conda-forge treesapp
@@ -31,7 +30,7 @@ To list all the sub-commands run `treesapp`.
 
 To test the `assign` workflow, run:
 ```bash
-treesapp assign -i TreeSAPP/test_data/marker_test_suite.faa -m prot --trim_align -o assign_test -t M0701,M0702,M0705
+treesapp assign -i TreeSAPP/tests/test_data/marker_test_suite.faa -m prot --trim_align -o assign_test -t McrA,DsrAB
 ```
 
 To classify sequences in your genome of interest:
