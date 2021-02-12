@@ -1,8 +1,10 @@
 ## [0.10.1] - 2021
 ### Added
+- Control of relative abundance metric for `treesapp abundance` to use with `treesapp assign`
 
 ### Fixed
-- Control of relative abundance metric for `treesapp abundance` to use with `treesapp assign`
+- Using all predicted ORFs when calculating abundance values for proper TPM values
+- Fixed TypeError when `treesapp abundance` is used with single-end or interleaved FASTQ files
 
 ### Changed
 

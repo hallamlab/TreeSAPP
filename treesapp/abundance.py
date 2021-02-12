@@ -11,7 +11,7 @@ from treesapp import phylo_seq
 from treesapp import file_parsers
 
 
-def abundance(sys_args):
+def abundance(sys_args) -> dict:
     """
     TreeSAPP subcommand that is used to add read-inferred abundance information (e.g. FPKM, TPM) to classified sequences
     Command requires:
@@ -88,10 +88,14 @@ def abundance(sys_args):
     ts_abund.delete_intermediates(args.delete)
 
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
-        classified_seqs = set()
         pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir)
+
+        # Collect the names of all classified PQueries
+        classified_seqs = set()
         for rp_pqs in pqueries.values():
             classified_seqs.update({pq.seq_name for pq in rp_pqs})
+
+        # Fill PQuery.abundance attribute
         for sample_name, abundance_map in abundance_dict.items():
             # Filter the abundance_map dictionary to just the classified sequences
             absentee = set(abundance_map.keys()).difference(classified_seqs)
