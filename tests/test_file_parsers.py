@@ -109,7 +109,7 @@ class TreesappTester(unittest.TestCase):
         # Test refpkg filtering
         refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("test_output_TarA"),
                                                                          refpkg_name="DsrAB")
-        self.assertEqual(95, len(refpkg_pquery_map["DsrAB"]))
+        self.assertEqual(70, len(refpkg_pquery_map["DsrAB"]))
         for rp, pqueries in refpkg_pquery_map.items():
             for pq in pqueries:
                 self.assertEqual("DsrAB", pq.ref_name)

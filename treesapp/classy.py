@@ -15,8 +15,8 @@ from numpy import var
 from treesapp import phylo_seq
 from treesapp.refpkg import ReferencePackage
 from treesapp import fasta
-from treesapp.utilities import median, write_dict_to_table, validate_new_dir, fetch_executable_path
-from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
+from treesapp import utilities as ts_utils
+from treesapp import lca_calculations
 from treesapp import entrez_utils
 from treesapp.wrapper import estimate_ml_model
 
@@ -358,7 +358,7 @@ class TreeSAPP:
         return info_string
 
     def set_output_dirs(self) -> None:
-        self.output_dir = validate_new_dir(self.output_dir)
+        self.output_dir = ts_utils.validate_new_dir(self.output_dir)
         self.final_output_dir = self.output_dir + "final_outputs" + os.sep
         self.var_output_dir = self.output_dir + "intermediates" + os.sep
         return
@@ -607,7 +607,7 @@ class TreeSAPP:
             dependencies += ["cmalign", "cmsearch", "cmbuild"]
 
         for dep in dependencies:
-            exec_paths[dep] = fetch_executable_path(dep, self.treesapp_dir)
+            exec_paths[dep] = ts_utils.fetch_executable_path(dep, self.treesapp_dir)
 
         return exec_paths
 
@@ -672,7 +672,7 @@ class TreeSAPP:
                     self.seq_lineage_map[accession[1:]] = self.seq_lineage_map.pop(accession)
 
             # Write the accession-lineage mapping file - essential for training too
-            write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
+            ts_utils.write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
             self.increment_stage_dir()
         elif self.stage_status("lineages") is False and os.path.isfile(self.acc_to_lin):
             logging.info("Reading cached lineages in '{}'... ".format(self.acc_to_lin))
@@ -1030,7 +1030,7 @@ class TaxonTest:
     def get_optimal_assignment(self):
         if self.lineage.split('; ')[0] != "r__Root":
             self.lineage = "; ".join(["r__Root"] + self.lineage.split("; "))
-        return optimal_taxonomic_assignment(self.taxonomic_tree, self.lineage)
+        return lca_calculations.optimal_taxonomic_assignment(self.taxonomic_tree, self.lineage)
 
     def summarise_taxon_test(self):
         summary_string = "Test for taxonomic lineage '" + self.lineage + "':\n" + \
@@ -1235,19 +1235,19 @@ class Evaluator(TreeSAPP):
             distance_summary = ["Rank\tType\tMean\tMedian\tVariance",
                                 "\t".join([rank, "Distal",
                                            str(round(sum(distals) / float(n_dists), 4)),
-                                           str(round(median(distals), 4)),
+                                           str(round(ts_utils.median(distals), 4)),
                                            str(round(float(var(distals)), 4))]),
                                 "\t".join([rank, "Pendant",
                                            str(round(sum(pendants) / float(n_dists), 4)),
-                                           str(round(median(pendants), 4)),
+                                           str(round(ts_utils.median(pendants), 4)),
                                            str(round(float(var(pendants)), 4))]),
                                 "\t".join([rank, "Tip",
                                            str(round(sum(tips) / float(n_dists), 4)),
-                                           str(round(median(tips), 4)),
+                                           str(round(ts_utils.median(tips), 4)),
                                            str(round(float(var(tips)), 4))]),
                                 "\t".join([rank, "Total",
                                            str(round(sum(totals) / float(n_dists), 4)),
-                                           str(round(median(totals), 4)),
+                                           str(round(ts_utils.median(totals), 4)),
                                            str(round(float(var(totals)), 4))])]
             sys.stdout.write("\n".join(distance_summary) + "\n")
             return distals, pendants, tips
@@ -1353,7 +1353,7 @@ class Evaluator(TreeSAPP):
                         if optimal == classified:
                             offset = 0
                         else:
-                            offset = determine_offset(classified, optimal)
+                            offset = lca_calculations.determine_offset(classified, optimal)
                         if offset > 7:
                             # This shouldn't be possible since there are no more than 7 taxonomic ranks
                             logging.error("Offset found to be greater than what is possible (" + str(offset) + ").\n" +
@@ -1464,7 +1464,7 @@ class Abundance(TreeSAPP):
     def __init__(self):
         super(Abundance, self).__init__("abundance")
         self.target_refpkgs = list()
-        self.classified_nuc_seqs = ""
+        self.ref_nuc_seqs = ""
         self.classifications = ""
         self.aln_file = ""
         self.append_abundance = False
@@ -1481,7 +1481,7 @@ class Abundance(TreeSAPP):
         if len(glob(self.final_output_dir + "*_classified.fna")) < 1:
             logging.error("Unable to find classified ORF nucleotide sequences in '{}'.\n".format(self.final_output_dir))
             sys.exit(5)
-        self.classified_nuc_seqs = glob(self.final_output_dir + "*_classified.fna")[0]
+        self.ref_nuc_seqs = ts_utils.match_file(os.path.join(self.var_output_dir, "orf-call", "*_ORFs.fna"))
 
         self.classifications = self.final_output_dir + self.classification_tbl_name
 
@@ -1489,7 +1489,7 @@ class Abundance(TreeSAPP):
             os.makedirs(self.var_output_dir)
 
         self.aln_file = self.stage_lookup("align_map").dir_path + \
-                        '.'.join(os.path.basename(self.classified_nuc_seqs).split('.')[0:-1]) + ".sam"
+                        '.'.join(os.path.basename(self.ref_nuc_seqs).split('.')[0:-1]) + ".sam"
 
         if len(args.reverse) > 0:
             if len(args.reads) != len(args.reverse):

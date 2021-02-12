@@ -82,6 +82,7 @@ class TreesappTester(unittest.TestCase):
         from treesapp import assign
         from .testing_utils import get_test_data
         from treesapp.file_parsers import read_classification_table
+        from treesapp.phylo_seq import assignments_to_pqueries
         assign_commands_list = ["--fastx_input", self.nt_test_fa,
                                 "--targets", ','.join(ref_pkgs),
                                 "--num_procs", str(self.num_procs),
@@ -95,9 +96,13 @@ class TreesappTester(unittest.TestCase):
                                  "--reads", get_test_data("SRR3669912_1.fastq"),
                                  "--reverse", get_test_data("SRR3669912_2.fastq")]
         assign.assign(assign_commands_list)
-        lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
+        assignments_tbl = "./TreeSAPP_assign/final_outputs/marker_contig_map.tsv"
+        lines = read_classification_table(assignments_tbl)
         self.assertEqual(6, len(lines))
-        classified_seqs = [line[1].split()[0] for line in lines]
+        classified_seqs = set()
+        pqueries = assignments_to_pqueries(lines)
+        for rp_pqs in pqueries.values():
+            classified_seqs.update({pq.seq_name for pq in rp_pqs if pq.abundance >= 0.0})
         self.assertTrue("LYOS01000003.1:168824-170509_1" in classified_seqs)
         self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.fna"))
         return

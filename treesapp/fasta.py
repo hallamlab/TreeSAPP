@@ -772,7 +772,8 @@ def merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index):
     return merged_extracted_seq_dict
 
 
-def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_length=10, full_name=True) -> dict:
+def format_fasta(fasta_input: str, molecule: str, output_fasta: str,
+                 min_seq_length=10, true_name=False, full_name=True) -> dict:
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid, and writes the valid sequence to a new FASTA.
     Only headers are read into memory and the formatted FASTA is saved to a buffer before written to a file and cleared.
@@ -781,6 +782,7 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_len
     :param molecule: Molecule type of the sequences ['prot', 'dna', 'rrna']
     :param output_fasta: Path to the formatted FASTA file to write
     :param min_seq_length: All sequences shorter than this will not be included in the returned list.
+    :param true_name: Whether to use a number (default) or the original sequence name for each header
     :param full_name: Controls whether the formatted FASTA file has the full name (True) or first name (False)
     :return: A dictionary of Header instances indexed by a numerical identifier
     """
@@ -813,7 +815,10 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str, min_seq_len
 
         seq_acc += 1
         headers.append(name)
-        fasta_string += ">{}\n{}\n".format(seq_acc, seq)
+        if true_name:
+            fasta_string += ">{}\n{}\n".format(name, seq)
+        else:
+            fasta_string += ">{}\n{}\n".format(seq_acc, seq)
 
         # Write the fasta_string to the output fasta if the size exceeds the max_buffer_size
         if len(fasta_string) > max_buffer_size:

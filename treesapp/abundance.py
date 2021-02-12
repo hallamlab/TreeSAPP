@@ -56,7 +56,7 @@ def abundance(sys_args):
         if args.pairing == 'pe' and args.reverse:
             rev_reads = args.reverse.pop(0)
         if ts_abund.stage_status("align_map"):
-            wrapper.align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.classified_nuc_seqs,
+            wrapper.align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.ref_nuc_seqs,
                                         ts_abund.stage_output_dir, fwd_reads, args.pairing, rev_reads,
                                         args.num_threads)
             ts_abund.increment_stage_dir()
@@ -64,7 +64,7 @@ def abundance(sys_args):
         if ts_abund.stage_status("sam_sum"):
             if os.path.isfile(ts_abund.aln_file):
                 ref_seq_abunds = samsum_cmd.ref_sequence_abundances(aln_file=ts_abund.aln_file,
-                                                                    seq_file=ts_abund.classified_nuc_seqs,
+                                                                    seq_file=ts_abund.ref_nuc_seqs,
                                                                     min_aln=10, p_cov=50, map_qual=1, multireads=False)
                 if args.metric == "fpkm":
                     abundance_dict[ts_abund.sample_prefix] = {ref_seq.name: ref_seq.fpkm for ref_seq
@@ -88,8 +88,15 @@ def abundance(sys_args):
     ts_abund.delete_intermediates(args.delete)
 
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
+        classified_seqs = set()
         pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir)
+        for rp_pqs in pqueries.values():
+            classified_seqs.update({pq.seq_name for pq in rp_pqs})
         for sample_name, abundance_map in abundance_dict.items():
+            # Filter the abundance_map dictionary to just the classified sequences
+            absentee = set(abundance_map.keys()).difference(classified_seqs)
+            while absentee:
+                abundance_map.pop(absentee.pop())
             phylo_seq.abundify_tree_saps(pqueries, abundance_map)
             file_parsers.write_classification_table(pqueries, sample_name, ts_abund.classifications,
                                                     append=ts_abund.append_abundance)

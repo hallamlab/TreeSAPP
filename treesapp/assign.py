@@ -203,9 +203,20 @@ class Assigner(classy.TreeSAPP):
 
         # Concatenate outputs
         if not os.path.isfile(self.aa_orfs_file) and not os.path.isfile(self.nuc_orfs_file):
-            utilities.concatenate_files(tmp_prodigal_aa_orfs, self.aa_orfs_file)
-            utilities.concatenate_files(tmp_prodigal_nuc_orfs, self.nuc_orfs_file)
-            intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files)
+            aa_cat_tmp = self.aa_orfs_file + ".tmp"
+            nuc_cat_tmp = self.nuc_orfs_file + ".tmp"
+            tmp_cat_files = [aa_cat_tmp, nuc_cat_tmp]
+            utilities.concatenate_files(tmp_prodigal_aa_orfs, aa_cat_tmp)
+            utilities.concatenate_files(tmp_prodigal_nuc_orfs, nuc_cat_tmp)
+
+            # Remove Prodigal header tags from the ORF FASTA files
+            fasta.format_fasta(fasta_input=aa_cat_tmp, output_fasta=self.aa_orfs_file,
+                               molecule="prot", true_name=True, full_name=self.fasta_full_name)
+            fasta.format_fasta(fasta_input=nuc_cat_tmp, output_fasta=self.nuc_orfs_file,
+                               molecule="dna", true_name=True, full_name=self.fasta_full_name)
+
+            # Remove intermediate files
+            intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files + tmp_cat_files)
             for tmp_file in intermediate_files:
                 if tmp_file != self.input_sequences:
                     os.remove(tmp_file)
@@ -219,6 +230,7 @@ class Assigner(classy.TreeSAPP):
                       ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
         self.query_sequences = self.aa_orfs_file
+        # self.change_stage_status("clean", False)
         self.increment_stage_dir()
         return
 

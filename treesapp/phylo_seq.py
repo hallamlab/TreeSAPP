@@ -473,8 +473,8 @@ def assignments_to_pqueries(classified_lines: list) -> dict:
         pquery = PQuery()
         con_place = PhyloPlace()
         try:
-            _, pquery.seq_name, pquery.ref_name, pquery.start, pquery.end, pquery.recommended_lineage, \
-            _, con_place.edge_num, pquery.evalue, con_place.like_weight_ratio, pquery.avg_evo_dist, pquery.distances = fields
+            _, pquery.seq_name, pquery.ref_name, pquery.start, pquery.end, pquery.recommended_lineage, pquery.abundance,\
+            con_place.edge_num, pquery.evalue, con_place.like_weight_ratio, pquery.avg_evo_dist, pquery.distances = fields
         except ValueError:
             logging.error("Bad line in classification table:\n" +
                           '\t'.join(fields) + "\n")
@@ -482,6 +482,7 @@ def assignments_to_pqueries(classified_lines: list) -> dict:
         pquery.place_name = "{}|{}|{}_{}".format(pquery.seq_name, pquery.ref_name, pquery.start, pquery.end)
         pquery.end = int(pquery.end)
         pquery.start = int(pquery.start)
+        pquery.abundance = float(pquery.abundance)
         pquery.seq_len = pquery.end - pquery.start
         pquery.lct = pquery.recommended_lineage
         con_place.distal_length, con_place.pendant_length, con_place.mean_tip_length = [float(d) for d in
