@@ -60,6 +60,7 @@ jobs:
       - name: Install system dependencies
         if: ${{ matrix.os != 'macos-latest' }}
         run: |
+          sudo apt update;
           sudo apt -y install gcc dpkg-dev zip git libz-dev default-jdk time time libssl-dev libsqlite3-dev \
           autotools-dev libtool flex bison cmake automake autoconf \
           python3-distutils python3-dev;
