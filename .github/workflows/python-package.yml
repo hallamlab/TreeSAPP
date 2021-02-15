@@ -12,6 +12,9 @@ jobs:
   lint:
     name: Lint Python code with flake8
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
@@ -70,6 +73,7 @@ jobs:
           auto-update-conda: true
           miniconda-version: 'latest'
           activate-environment: ts-test
+          auto-activate-base: false
           python-version: ${{ matrix.python-version }}
           allow-softlinks: true
           environment-file: ci/environment-test.yml
