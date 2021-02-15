@@ -77,8 +77,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
           allow-softlinks: true
           environment-file: ci/environment-test.yml
-      - name: Ensure we have the right Python
+      - name: Ensure the expected Python is installed
         shell: bash -l {0}
+        if: ${{ matrix.os != 'macos-latest' }}
         run: |
           echo "Installed Python: $(python --version)"
           echo "Expected: ${{ matrix.python-version }}"
