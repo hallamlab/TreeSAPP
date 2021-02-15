@@ -20,5 +20,5 @@ dependencies:
   - mafft=7.475
   - mmseqs2=12.113e3
   - fasttree>=2.1.10
-  - setuptools=50.0.0
+  - setuptools
   - yaml
