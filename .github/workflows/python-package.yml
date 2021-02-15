@@ -36,9 +36,6 @@ jobs:
     name: Run unit and integrative tests
     needs: [lint]
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
@@ -84,10 +81,7 @@ jobs:
         shell: bash -l {0}
         if: ${{ matrix.os != 'macos-latest' }}
         run: |
-          conda env list
-          conda info
-          conda list
-
+          echo $PATH
           which mmseqs2
           which mafft
           which bwa
@@ -107,6 +101,7 @@ jobs:
 
       - name: Run tox
         if: ${{ matrix.os != 'macos-latest' }}
+        shell: bash -l {0}
         run: |
           echo $PATH
           PYTHON_VERSION=$( echo ${{ matrix.python-version }} | sed 's/\.//g')
