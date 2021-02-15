@@ -118,6 +118,20 @@ class Taxon:
                 break
         return lineage
 
+    def increment_absent_ancestral_coverage(self) -> None:
+        """
+        Ensure all of the ranks in the lineage have been incremented,
+        whether they're part of the NCBI taxonomy or not. Necessary for 'r__Root'.
+        :return: None
+        """
+        for t in self.lineage():  # type: Taxon
+            if t.parent:
+                if t.coverage > t.parent.coverage:
+                    t.parent.coverage += 1
+                else:
+                    break
+        return
+
 
 class TaxonomicHierarchy:
     """

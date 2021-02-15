@@ -627,11 +627,7 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
             lineage_ex += [{"ScientificName": tax_organism, "Rank": tax_rank}]
 
         taxon = t_hierarchy.feed(tax_lineage, lineage_ex)  # type: Taxon
-        # Ensure all of the ranks in the lineage have been incremented,
-        # whether they're part of the NCBI taxonomy or not. Necessary for 'r__Root'.
-        for t in taxon.lineage():  # type: Taxon
-            if t.parent and t.coverage > t.parent.coverage:
-                t.parent.coverage += 1
+        taxon.increment_absent_ancestral_coverage()
         lineage_anno = t_hierarchy.emit(taxon.prefix_taxon(), True)
 
         try:
