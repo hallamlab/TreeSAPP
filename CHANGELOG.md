@@ -7,6 +7,7 @@
 - Fixed TypeError when `treesapp abundance` is used with single-end or interleaved FASTQ files
 
 ### Changed
+- Using miniconda for installing dependencies in GitHub Action 'tests'
 
 ## [0.10.0] - 2021-02-09
 ### Added
