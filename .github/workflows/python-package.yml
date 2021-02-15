@@ -36,6 +36,9 @@ jobs:
     name: Run unit and integrative tests
     needs: [lint]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
