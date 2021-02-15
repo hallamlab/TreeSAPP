@@ -2,7 +2,7 @@
 use strict;
 use LWP::UserAgent;
 use HTTP::Request::Common;
-use Config::Simple;
+use Config::File::Simple;
 
 
 use Data::Dumper;
