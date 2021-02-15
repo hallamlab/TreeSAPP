@@ -77,17 +77,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
           allow-softlinks: true
           environment-file: ci/environment-test.yml
+      - name: Ensure we have the right Python
+        shell: bash -l {0}
+        run: |
+          echo "Installed Python: $(python --version)"
+          echo "Expected: ${{ matrix.python-version }}"
+          python --version | grep "Python ${{ matrix.python-version }}"
       - name: Query conda install
         shell: bash -l {0}
         if: ${{ matrix.os != 'macos-latest' }}
         run: |
-          echo $PATH
-          which mmseqs2
+          which mmseqs
           which mafft
           which bwa
-
-          export PATH="/usr/share/miniconda3/envs/ts-test/bin:$PATH"
-          echo $PATH
 
           wget https://github.com/hallamlab/TreeSAPP/raw/master/treesapp/sub_binaries/BMGE.jar;
           sudo mv BMGE.jar /usr/local/bin/;
