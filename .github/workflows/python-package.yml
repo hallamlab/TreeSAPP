@@ -73,6 +73,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           allow-softlinks: true
           environment-file: ci/environment-test.yml
+      - name: Query conda install
+        if: ${{ matrix.os != 'macos-latest' }}
         run: |
           conda info
           conda list
