@@ -81,8 +81,10 @@ jobs:
           allow-softlinks: true
           environment-file: ci/environment-test.yml
       - name: Query conda install
+        shell: bash -l {0}
         if: ${{ matrix.os != 'macos-latest' }}
         run: |
+          conda env list
           conda info
           conda list
 
@@ -90,6 +92,7 @@ jobs:
           which mafft
           which bwa
 
+          export PATH="/usr/share/miniconda3/envs/ts-test/bin:$PATH"
           echo $PATH
 
           wget https://github.com/hallamlab/TreeSAPP/raw/master/treesapp/sub_binaries/BMGE.jar;
@@ -105,6 +108,7 @@ jobs:
       - name: Run tox
         if: ${{ matrix.os != 'macos-latest' }}
         run: |
+          echo $PATH
           PYTHON_VERSION=$( echo ${{ matrix.python-version }} | sed 's/\.//g')
           tox -e coverage-py${PYTHON_VERSION}-ts
           if [ ${{ matrix.python-version }} == $PY_COV_VERSION ]; then tox -e coverage_report; fi
