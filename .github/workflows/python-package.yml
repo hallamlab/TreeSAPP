@@ -42,13 +42,7 @@ jobs:
             python-version: 3.8
 
     env:
-      RAXML_VERSION: "1.0.1"
-      EPA_VERSION: "0.3.8"
-      BWA_VERSION: "0.7.17"
-      HMMER_VERSION: "3.3"
-      PRODIGAL_VERSION: "2.6.3"
-      VSEARCH_VERSION: "2.15.0"
-      MAFFT_VERSION: "7.475-1"
+      MAFFT_VERSION: "7.475"
       MMSEQS_VERSION: "12-113e3"
       PY_COV_VERSION: "3.7"
 
@@ -70,12 +64,22 @@ jobs:
           autotools-dev libtool flex bison cmake automake autoconf \
           python3-distutils python3-dev;
           sudo apt install python-six -y;
-      - name: Install external dependencies
+      - name: Setup Miniconda
         if: ${{ matrix.os != 'macos-latest' }}
+        uses: conda-incubator/setup-miniconda@v2.0.1
+        with:
+          auto-update-conda: true
+          miniconda-version: 'latest'
+          python-version: ${{ matrix.python-version }}
+          allow-softlinks: true
+          environment-file: ci/environment-test.yml
         run: |
-          wget https://mafft.cbrc.jp/alignment/software/mafft_${MAFFT_VERSION}_amd64.deb;
-          sudo dpkg -i mafft_${MAFFT_VERSION}_amd64.deb;
+          conda info
+          conda list
 
+          which mmseqs2
+          which mafft
+          which bwa
           wget -O mmseqs-linux-sse41.tar.gz https://github.com/soedinglab/MMseqs2/releases/download/${MMSEQS_VERSION}/MMseqs2-Linux-SSE4_1.tar.gz;
           tar xvzf mmseqs-linux-sse41.tar.gz;
           sudo cp mmseqs/bin/mmseqs /usr/local/bin;

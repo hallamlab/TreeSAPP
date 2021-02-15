@@ -1,0 +1,24 @@
+name: ts-test
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - conda-build=3.18.10
+  - conda-verify=3.4.2
+  - numpy>=1.18.1
+  - scipy=1.5.2
+  - scikit-learn=0.23.1
+  - biopython>=1.78
+  - pygtrie=2.3.3
+  - ete3=3.1.2
+  - raxml-ng=1.0.1
+  - epa-ng=0.3.8
+  - bwa=0.7.17
+  - hmmer=3.3.2
+  - prodigal=2.6.3
+  - vsearch=2.15.2
+  - mafft=7.475
+  - mmseqs2=12.113e3
+  - fasttree>=2.1.10
+  - setuptools=50.0.0
+  - yaml
