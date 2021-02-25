@@ -510,3 +510,21 @@ def find_cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_regi
         lineages.clear()
     formatted_to_num_map.clear()
     return
+
+
+def formulate_train_command(input_seqs: str, ref_pkg, output_dir: str, args, acc_to_lin=None, seqs_to_lin=None) -> list:
+    trainer_cmd = ["-i", input_seqs,
+                   "-r", ref_pkg.f__json,
+                   "-o", output_dir,
+                   "-m", ref_pkg.molecule,
+                   "--num_procs", str(args.num_threads),
+                   "--max_examples", str(args.max_examples),
+                   "--svm_kernel", args.kernel]
+    if args.trim_align:
+        trainer_cmd.append("--trim_align")
+    if acc_to_lin:
+        trainer_cmd += ["-a", acc_to_lin]
+    if seqs_to_lin:
+        trainer_cmd += ["--seqs2lineage", seqs_to_lin]
+
+    return trainer_cmd

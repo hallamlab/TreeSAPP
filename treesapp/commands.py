@@ -222,7 +222,9 @@ def train(sys_args):
     ##
     # STAGE 3: Download the taxonomic lineages for each query sequence
     ##
-    entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule, args.acc_to_taxid)
+    entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule,
+                                                          acc_to_taxid=args.acc_to_taxid,
+                                                          seqs_to_lineage=args.seq_names_to_taxa)
 
     entrez_utils.fill_ref_seq_lineages(entrez_record_dict, ts_trainer.seq_lineage_map, complete=True)
     ref_leaf_nodes = ts_phylo_seq.convert_entrez_to_tree_leaf_references(entrez_record_dict)
@@ -675,16 +677,11 @@ def create(sys_args):
 
     ts_create.ref_pkg.band()
     # Build the regression model of placement distances to taxonomic ranks
-    trainer_cmd = ["-i", ts_create.filtered_fasta,
-                   "-r", ts_create.ref_pkg.f__json,
-                   "-o", ts_create.training_dir,
-                   "-m", ts_create.ref_pkg.molecule,
-                   "-a", ts_create.acc_to_lin,
-                   "--num_procs", str(args.num_threads),
-                   "--max_examples", str(args.max_examples),
-                   "--svm_kernel", args.kernel]
-    if args.trim_align:
-        trainer_cmd.append("--trim_align")
+    trainer_cmd = ts_create_mod.formulate_train_command(input_seqs=ts_create.filtered_fasta,
+                                                        ref_pkg=ts_create.ref_pkg,
+                                                        output_dir=ts_create.training_dir,
+                                                        acc_to_lin=ts_create.acc_to_lin,
+                                                        args=args)
 
     if ts_create.stage_status("train"):
         train(trainer_cmd)
@@ -910,12 +907,27 @@ def update(sys_args):
     ##
     create_cmd = ts_update_mod.formulate_create_command(ts_updater, args)
     create(create_cmd)
+    ts_updater.updated_refpkg.f__json = ts_updater.updated_refpkg_path
+    ts_updater.updated_refpkg.slurp()
+
+    if ts_updater.stage_status("train"):
+        train(ts_create_mod.formulate_train_command(input_seqs=ts_updater.input_sequences,
+                                                    ref_pkg=ts_updater.updated_refpkg,
+                                                    output_dir=ts_updater.training_dir,
+                                                    args=args,
+                                                    seqs_to_lin=ts_updater.lineage_map_file))
+        ts_updater.updated_refpkg.f__json = os.path.join(ts_updater.training_dir, "final_outputs",
+                                                         ts_updater.ref_pkg.prefix + ts_updater.ref_pkg.refpkg_suffix)
+        ts_updater.updated_refpkg.slurp()
+    else:
+        ts_updater.updated_refpkg.pfit = ts_updater.ref_pkg.pfit
+        ts_updater.updated_refpkg.svc = ts_updater.ref_pkg.svc
 
     ##
     # Summarize some key parts of the new reference package, compared to the old one
     ##
-    ts_updater.updated_refpkg.f__json = ts_updater.updated_refpkg_path
-    ts_updater.updated_refpkg.slurp()
+    ts_updater.updated_refpkg.validate()
+    ts_updater.ref_pkg.change_file_paths(ts_updater.final_output_dir)
     ts_updater.update_refpkg_fields()
 
     return

@@ -331,7 +331,8 @@ def formulate_create_command(ts_updater: Updater, args) -> list:
                   "-o", ts_updater.output_dir,
                   "--accession2lin", ts_updater.lineage_map_file,
                   "--num_procs", str(args.num_threads),
-                  "--bootstraps", str(args.bootstraps)]
+                  "--bootstraps", str(args.bootstraps),
+                  "--stage", "support"]
     if args.trim_align:
         create_cmd.append("--trim_align")
     if args.od_seq:

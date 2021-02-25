@@ -695,6 +695,7 @@ class Updater(TreeSAPP):
         self.cluster_input = ""  # Used only if resolve is True
         self.clusters_prefix = ""  # Used only if resolve is True
         self.updated_refpkg_path = ""
+        self.training_dir = ""
         # self.rank_depth_map = None
         self.prop_sim = 1.0
         self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the refpkg
@@ -702,7 +703,8 @@ class Updater(TreeSAPP):
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("lineages", 0),
-                       1: ModuleFunction("rebuild", 1)}
+                       1: ModuleFunction("rebuild", 1),
+                       2: ModuleFunction("train", 2)}
 
     def decide_stage(self, args):
         """
@@ -711,10 +713,13 @@ class Updater(TreeSAPP):
         This function ensures all the required inputs are present for beginning at the desired first stage,
         otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
 
-        If a
         :return: None
         """
         self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+
+        if not self.input_sequences:
+            self.change_stage_status("train", False)
+
         self.validate_continue(args)
         return
 

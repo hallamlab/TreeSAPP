@@ -343,55 +343,55 @@ def add_abundance_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
+def add_create_arguments(crt_parser: TreeSAPPArgumentParser) -> None:
     """
     Adds command-line arguments that are specific to *treesapp create*
 
     :return: None
     """
-    parser.add_io()
-    parser.add_seq_params()
-    parser.add_taxa_args()
-    parser.add_cluster_args()
-    parser.add_lineage_table_param()
-    parser.add_phylogeny_params()
-    parser.add_accession_params()
-    parser.add_compute_miscellany()
-    parser.add_basic_classifier_model_params()
+    crt_parser.add_io()
+    crt_parser.add_seq_params()
+    crt_parser.add_taxa_args()
+    crt_parser.add_cluster_args()
+    crt_parser.add_lineage_table_param()
+    crt_parser.add_phylogeny_params()
+    crt_parser.add_accession_params()
+    crt_parser.add_compute_miscellany()
+    crt_parser.add_basic_classifier_model_params()
 
-    parser.reqs.add_argument("-c", "--refpkg_name",
-                             help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
-                                  "Examples are 'McrA', 'DsrAB', and 'p_amoA'.",
-                             required=True)
+    crt_parser.reqs.add_argument("-c", "--refpkg_name",
+                                 help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
+                                      "Examples are 'McrA', 'DsrAB', and 'p_amoA'.",
+                                 required=True)
 
-    parser.seqops.add_argument("--multiple_alignment",
-                               help='The FASTA input is also the multiple alignment file to be used.\n'
-                                    'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
-                               action="store_true",
-                               default=False)
-    parser.seqops.add_argument("-d", "--profile", dest="profile",
-                               help="An HMM profile representing a specific domain.\n"
-                                    "Domains will be excised from input sequences based on hmmsearch alignments.",
-                               required=False, default=None)
-    parser.seqops.add_argument("-g", "--guarantee",
-                               help="A FASTA file containing sequences that need to be included \n"
-                                    "in the tree after all clustering and filtering",
-                               default=None,
-                               required=False)
+    crt_parser.seqops.add_argument("--multiple_alignment",
+                                   help='The FASTA input is also the multiple alignment file to be used.\n',
+                                   action="store_true",
+                                   default=False)
+    crt_parser.seqops.add_argument("-d", "--profile", dest="profile",
+                                   help="An HMM profile representing a specific domain.\n"
+                                        "Domains will be excised from input sequences based on hmmsearch alignments.",
+                                   required=False, default=None)
+    crt_parser.seqops.add_argument("-g", "--guarantee",
+                                   help="A FASTA file containing sequences that need to be included \n"
+                                        "in the tree after all clustering and filtering",
+                                   default=None,
+                                   required=False)
 
-    parser.optopt.add_argument("--kind", default="functional", choices=["functional", "taxonomic"], required=False,
-                               help="The broad classification of marker gene type, either "
-                                    "functional or taxonomic. [ DEFAULT = functional ]")
-    parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "search", "lineages", "clean", "cluster", "build",
-                                        "evaluate", "support", "train", "update"],
-                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    crt_parser.optopt.add_argument("--kind", default="functional", choices=["functional", "taxonomic"], required=False,
+                                   help="The broad classification of marker gene type, either "
+                                        "functional or taxonomic. [ DEFAULT = functional ]")
+    crt_parser.optopt.add_argument("--stage", default="continue", required=False,
+                                   choices=["continue", "search", "lineages", "clean", "cluster", "build",
+                                            "evaluate", "support", "train", "update"],
+                                   help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
 
-    parser.miscellany.add_argument('--pc', action='store_true', default=False,
-                                   help='Prints the final commands to complete\n'
-                                        'installation for a provided `code_name`')
-    parser.miscellany.add_argument("--headless", action="store_true", default=False,
-                                   help="Do not require any user input during runtime.")
+    crt_parser.miscellany.add_argument('--pc', action='store_true', default=False,
+                                       help='Prints the final commands to complete\n'
+                                            'installation for a provided `code_name`')
+    crt_parser.miscellany.add_argument("--headless", action="store_true", default=False,
+                                       help="Do not require any user input during runtime.")
+    return
 
 
 def add_purity_arguments(parser: TreeSAPPArgumentParser) -> None:
@@ -448,7 +448,8 @@ def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
 
     :return: None
     """
-    parser.add_io()  # i, o
+    parser.add_output_dir()
+    parser.add_delete()
     parser.add_seq_params()  # w, m
     parser.add_cluster_args()  # p
     parser.add_taxa_args()  # s, f, t
@@ -456,9 +457,13 @@ def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_lineage_table_param()
     parser.add_phylogeny_params()  # b, e
     parser.add_compute_miscellany()  # n
+    parser.add_basic_classifier_model_params()
     parser.reqs.add_argument("--treesapp_output", dest="ts_out", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
+    parser.optopt.add_argument('-i', '--fastx_input', required=False, dest="input", default="",
+                               help='An input file containing candidate reference sequences in either FASTA format. '
+                                    'Will trigger re-training the reference package if provided.')
     parser.optopt.add_argument("-l", "--min_lwr", dest="min_lwr", required=False, default=0.0, type=float,
                                help="The minimum likelihood weight ratio for a sequence to be included in update.")
     parser.optopt.add_argument("--skip_assign", default=False, required=False, action="store_true",
@@ -473,6 +478,7 @@ def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
     parser.miscellany.add_argument("--headless", action="store_true", default=False,
                                    help="Do not require any user input during runtime.")
+    return
 
 
 def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
@@ -485,6 +491,7 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_refpkg_file_param()
     parser.add_seq_params()
     parser.add_accession_params()
+    parser.add_lineage_table_param()
     parser.add_taxa_ranks_param()
     parser.add_compute_miscellany()
     parser.add_basic_classifier_model_params()
@@ -702,6 +709,7 @@ def check_updater_arguments(updater: Updater, args):
         updater.treesapp_output += os.sep
     updater.final_output_dir = updater.treesapp_output + "final_outputs" + os.sep
     # updater.var_output_dir = updater.treesapp_output + "intermediates" + os.sep
+    updater.training_dir = updater.var_output_dir + "train"
     updater.old_ref_fasta = updater.var_output_dir + "original_refs.fasta"
     updater.combined_fasta = updater.var_output_dir + "all_refs.fasta"
     updater.lineage_map_file = updater.var_output_dir + "accession_id_lineage_map.tsv"
