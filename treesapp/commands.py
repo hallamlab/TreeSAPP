@@ -905,7 +905,7 @@ def update(sys_args):
     ##
     # Call create to create a new, updated reference package where the new sequences are guaranteed
     ##
-    create_cmd = ts_update_mod.formulate_create_command(ts_updater, args)
+    create_cmd = ts_update_mod.formulate_create_command(ts_updater, args, final_stage="support")
     create(create_cmd)
     ts_updater.updated_refpkg.f__json = ts_updater.updated_refpkg_path
     ts_updater.updated_refpkg.slurp()
@@ -914,8 +914,7 @@ def update(sys_args):
         train(ts_create_mod.formulate_train_command(input_seqs=ts_updater.input_sequences,
                                                     ref_pkg=ts_updater.updated_refpkg,
                                                     output_dir=ts_updater.training_dir,
-                                                    args=args,
-                                                    seqs_to_lin=ts_updater.lineage_map_file))
+                                                    args=args))
         ts_updater.updated_refpkg.f__json = os.path.join(ts_updater.training_dir, "final_outputs",
                                                          ts_updater.ref_pkg.prefix + ts_updater.ref_pkg.refpkg_suffix)
         ts_updater.updated_refpkg.slurp()
