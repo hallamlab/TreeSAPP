@@ -365,9 +365,9 @@ def add_create_arguments(crt_parser: TreeSAPPArgumentParser) -> None:
                                  required=True)
 
     crt_parser.seqops.add_argument("--deduplicate", default=False, dest="dedup", action="store_true",
-                                   help="Deduplicate the input sequences at 99.9% percent similarity. "
+                                   help="Deduplicate the input sequences at 99.9 percent similarity. "
                                         "This is a pre-processing step to require fewer Entrez queries - "
-                                        "clustering at lower resolution is still suggested.")
+                                        "clustering at lower resolution with '--cluster' is still suggested.")
     crt_parser.seqops.add_argument("--multiple_alignment",
                                    help='The FASTA input is also the multiple alignment file to be used.\n',
                                    action="store_true",
