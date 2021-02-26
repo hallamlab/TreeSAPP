@@ -325,16 +325,15 @@ def best_discrete_matches(matches: list) -> list:
     return len_sorted_matches
 
 
-def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
+def parse_domain_tables(thresholds, hmm_domtbl_files: list) -> dict:
     """
+    Parses HMMER domain tables using predetermined thresholds
 
-    :param args:
+    :param thresholds: A namedtuple instance: namedtuple("thresholds", "max_e max_ie min_acc min_score perc_aligned")
     :param hmm_domtbl_files: A list of domain table files written by hmmsearch
     :return: Dictionary of HmmMatch objects indexed by their reference package and/or HMM name
     """
     # Check if the HMM filtering thresholds have been set
-    thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
-
     logging.info("Parsing HMMER domain tables for high-quality matches... ")
 
     search_stats = hmmer_tbl_parser.HmmSearchStats()

@@ -29,6 +29,8 @@ from treesapp import clade_exclusion_evaluator as ts_clade_ex
 from treesapp import assign as ts_assign_mod
 from treesapp import create_refpkg as ts_create_mod
 from treesapp import update_refpkg as ts_update_mod
+from treesapp import phylo_cluster as ts_potu
+from treesapp import hmmer_tbl_parser
 
 
 def info(sys_args):
@@ -195,7 +197,8 @@ def train(sys_args):
                                                  ts_trainer.formatted_input,
                                                  ts_trainer.stage_output_dir)
         logging.info("done.\n")
-        hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
+        thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
+        hmm_matches = file_parsers.parse_domain_tables(thresholds, hmm_domtbl_files)
         ts_assign_mod.load_homologs(hmm_matches, ts_trainer.formatted_input, train_seqs)
 
         logging.info(train_seqs.summarize_fasta_sequences())
@@ -407,20 +410,28 @@ def create(sys_args):
     ts_create.ref_pkg.change_file_paths(ts_create.final_output_dir)
     ts_create.ref_pkg.cmd = ' '.join(["treesapp", "create"] + sys_args)
 
-    ref_seqs = fasta.FASTA(args.input)
+    ref_seqs = fasta.FASTA(ts_create.input_sequences)
+    # Read the FASTA into a dictionary - homologous sequences will be extracted from this
+    ref_seqs.load_fasta(format_it=True, molecule=ts_create.ref_pkg.molecule)
+    if ts_create.stage_status("deduplicate"):
+        ts_potu.dereplicate_by_clustering(fasta_inst=ref_seqs,
+                                          prop_similarity=0.999,
+                                          mmseqs_exe=ts_create.executables["mmseqs"],
+                                          tmp_dir=ts_create.stage_output_dir,
+                                          num_threads=args.num_threads)
+        ts_create.input_sequences = ts_create.stage_output_dir + "deduplicated.fasta"
+        fasta.write_new_fasta(fasta_dict=ref_seqs.fasta_dict, fasta_name=ts_create.input_sequences)
 
     if ts_create.stage_status("search"):
         profile_match_dict = dict()
-        # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        ref_seqs.fasta_dict = fasta.format_read_fasta(args.input, ts_create.ref_pkg.molecule)
-        ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(args.input))
         logging.debug("Raw, unfiltered sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
         logging.info("Searching for domain sequences... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], ts_create.hmm_profile,
-                                                 args.input, ts_create.var_output_dir, args.num_threads)
+                                                 ts_create.input_sequences, ts_create.var_output_dir, args.num_threads)
         logging.info("done.\n")
-        hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
+        thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
+        hmm_matches = file_parsers.parse_domain_tables(thresholds, hmm_domtbl_files)
         for k, v in utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry).items():
             profile_match_dict.update(v)
         fasta.write_new_fasta(profile_match_dict, ts_create.hmm_purified_seqs)

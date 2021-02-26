@@ -777,15 +777,16 @@ class Creator(TreeSAPP):
         self.training_dir = ""
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("search", 0),
-                       1: ModuleFunction("lineages", 1),
-                       2: ModuleFunction("clean", 2),
-                       3: ModuleFunction("cluster", 3),
-                       4: ModuleFunction("build", 4),
-                       5: ModuleFunction("evaluate", 5),
-                       6: ModuleFunction("support", 6),
-                       7: ModuleFunction("train", 7),
-                       8: ModuleFunction("update", 8)}
+        self.stages = {0: ModuleFunction("deduplicate", 0),
+                       1: ModuleFunction("search", 1),
+                       2: ModuleFunction("lineages", 2),
+                       3: ModuleFunction("clean", 3),
+                       4: ModuleFunction("cluster", 4),
+                       5: ModuleFunction("build", 5),
+                       6: ModuleFunction("evaluate", 6),
+                       7: ModuleFunction("support", 7),
+                       8: ModuleFunction("train", 8),
+                       9: ModuleFunction("update", 9)}
 
     def decide_stage(self, args):
         """
@@ -794,9 +795,11 @@ class Creator(TreeSAPP):
         This function ensures all the required inputs are present for beginning at the desired first stage,
         otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
 
-        If a
         :return: None
         """
+        if not args.dedup:
+            self.change_stage_status("deduplicate", False)
+
         if not args.profile:
             self.change_stage_status("search", False)
         if args.pc:

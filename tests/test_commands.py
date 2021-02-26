@@ -162,7 +162,8 @@ class TreesappTester(unittest.TestCase):
                                 "--output", "./TreeSAPP_create",
                                 "--num_procs", str(self.num_procs),
                                 "--max_examples", str(100),
-                                "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
+                                "--trim_align", "--cluster", "--fast", "--headless",
+                                "--overwrite", "--delete", "--deduplicate"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
