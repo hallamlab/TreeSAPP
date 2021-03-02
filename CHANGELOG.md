@@ -1,4 +1,13 @@
-## [0.10.1] - 2021
+## [0.10.2] - 2021-03
+### Added
+- New flag '--deduplicate' for `treesapp create` to remove redundant sequences within 99.9% similarity before querying Entrez.
+
+### Fixed
+
+### Changed
+- Reference package training is now optional with `treesapp update`. A fasta file is no longer required.
+
+## [0.10.1] - 2021-02-15
 ### Added
 - Control of relative abundance metric for `treesapp abundance` to use with `treesapp assign`
 

@@ -29,6 +29,8 @@ from treesapp import clade_exclusion_evaluator as ts_clade_ex
 from treesapp import assign as ts_assign_mod
 from treesapp import create_refpkg as ts_create_mod
 from treesapp import update_refpkg as ts_update_mod
+from treesapp import phylo_cluster as ts_potu
+from treesapp import hmmer_tbl_parser
 
 
 def info(sys_args):
@@ -195,7 +197,8 @@ def train(sys_args):
                                                  ts_trainer.formatted_input,
                                                  ts_trainer.stage_output_dir)
         logging.info("done.\n")
-        hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
+        thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
+        hmm_matches = file_parsers.parse_domain_tables(thresholds, hmm_domtbl_files)
         ts_assign_mod.load_homologs(hmm_matches, ts_trainer.formatted_input, train_seqs)
 
         logging.info(train_seqs.summarize_fasta_sequences())
@@ -222,7 +225,9 @@ def train(sys_args):
     ##
     # STAGE 3: Download the taxonomic lineages for each query sequence
     ##
-    entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule, args.acc_to_taxid)
+    entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule,
+                                                          acc_to_taxid=args.acc_to_taxid,
+                                                          seqs_to_lineage=args.seq_names_to_taxa)
 
     entrez_utils.fill_ref_seq_lineages(entrez_record_dict, ts_trainer.seq_lineage_map, complete=True)
     ref_leaf_nodes = ts_phylo_seq.convert_entrez_to_tree_leaf_references(entrez_record_dict)
@@ -405,20 +410,28 @@ def create(sys_args):
     ts_create.ref_pkg.change_file_paths(ts_create.final_output_dir)
     ts_create.ref_pkg.cmd = ' '.join(["treesapp", "create"] + sys_args)
 
-    ref_seqs = fasta.FASTA(args.input)
+    ref_seqs = fasta.FASTA(ts_create.input_sequences)
+    # Read the FASTA into a dictionary - homologous sequences will be extracted from this
+    ref_seqs.load_fasta(format_it=True, molecule=ts_create.ref_pkg.molecule)
+    if ts_create.stage_status("deduplicate"):
+        ts_potu.dereplicate_by_clustering(fasta_inst=ref_seqs,
+                                          prop_similarity=0.999,
+                                          mmseqs_exe=ts_create.executables["mmseqs"],
+                                          tmp_dir=ts_create.stage_output_dir,
+                                          num_threads=args.num_threads)
+        ts_create.input_sequences = ts_create.stage_output_dir + "deduplicated.fasta"
+        fasta.write_new_fasta(fasta_dict=ref_seqs.fasta_dict, fasta_name=ts_create.input_sequences)
 
     if ts_create.stage_status("search"):
         profile_match_dict = dict()
-        # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        ref_seqs.fasta_dict = fasta.format_read_fasta(args.input, ts_create.ref_pkg.molecule)
-        ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(args.input))
         logging.debug("Raw, unfiltered sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
         logging.info("Searching for domain sequences... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], ts_create.hmm_profile,
-                                                 args.input, ts_create.var_output_dir, args.num_threads)
+                                                 ts_create.input_sequences, ts_create.var_output_dir, args.num_threads)
         logging.info("done.\n")
-        hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
+        thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
+        hmm_matches = file_parsers.parse_domain_tables(thresholds, hmm_domtbl_files)
         for k, v in utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry).items():
             profile_match_dict.update(v)
         fasta.write_new_fasta(profile_match_dict, ts_create.hmm_purified_seqs)
@@ -675,16 +688,11 @@ def create(sys_args):
 
     ts_create.ref_pkg.band()
     # Build the regression model of placement distances to taxonomic ranks
-    trainer_cmd = ["-i", ts_create.filtered_fasta,
-                   "-r", ts_create.ref_pkg.f__json,
-                   "-o", ts_create.training_dir,
-                   "-m", ts_create.ref_pkg.molecule,
-                   "-a", ts_create.acc_to_lin,
-                   "--num_procs", str(args.num_threads),
-                   "--max_examples", str(args.max_examples),
-                   "--svm_kernel", args.kernel]
-    if args.trim_align:
-        trainer_cmd.append("--trim_align")
+    trainer_cmd = ts_create_mod.formulate_train_command(input_seqs=ts_create.filtered_fasta,
+                                                        ref_pkg=ts_create.ref_pkg,
+                                                        output_dir=ts_create.training_dir,
+                                                        acc_to_lin=ts_create.acc_to_lin,
+                                                        args=args)
 
     if ts_create.stage_status("train"):
         train(trainer_cmd)
@@ -908,14 +916,28 @@ def update(sys_args):
     ##
     # Call create to create a new, updated reference package where the new sequences are guaranteed
     ##
-    create_cmd = ts_update_mod.formulate_create_command(ts_updater, args)
+    create_cmd = ts_update_mod.formulate_create_command(ts_updater, args, final_stage="support")
     create(create_cmd)
+    ts_updater.updated_refpkg.f__json = ts_updater.updated_refpkg_path
+    ts_updater.updated_refpkg.slurp()
+
+    if ts_updater.stage_status("train"):
+        train(ts_create_mod.formulate_train_command(input_seqs=ts_updater.input_sequences,
+                                                    ref_pkg=ts_updater.updated_refpkg,
+                                                    output_dir=ts_updater.training_dir,
+                                                    args=args))
+        ts_updater.updated_refpkg.f__json = os.path.join(ts_updater.training_dir, "final_outputs",
+                                                         ts_updater.ref_pkg.prefix + ts_updater.ref_pkg.refpkg_suffix)
+        ts_updater.updated_refpkg.slurp()
+    else:
+        ts_updater.updated_refpkg.pfit = ts_updater.ref_pkg.pfit
+        ts_updater.updated_refpkg.svc = ts_updater.ref_pkg.svc
 
     ##
     # Summarize some key parts of the new reference package, compared to the old one
     ##
-    ts_updater.updated_refpkg.f__json = ts_updater.updated_refpkg_path
-    ts_updater.updated_refpkg.slurp()
+    ts_updater.updated_refpkg.validate()
+    ts_updater.ref_pkg.change_file_paths(ts_updater.final_output_dir)
     ts_updater.update_refpkg_fields()
 
     return

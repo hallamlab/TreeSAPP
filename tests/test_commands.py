@@ -162,7 +162,8 @@ class TreesappTester(unittest.TestCase):
                                 "--output", "./TreeSAPP_create",
                                 "--num_procs", str(self.num_procs),
                                 "--max_examples", str(100),
-                                "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
+                                "--trim_align", "--cluster", "--fast", "--headless",
+                                "--overwrite", "--delete", "--deduplicate"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
@@ -332,11 +333,12 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(max_ex, len(rank_list))
         return
 
-    def test_update_resolve(self):
+    def test_update(self):
         from treesapp.commands import update
         from treesapp.refpkg import ReferencePackage
         from .testing_utils import get_test_data
-        update_command_list = ["--fastx_input", get_test_data("Photosynthesis/PuhA/ENOG4111FIN_PF03967_seed.faa"),
+        # Test with re-training and the resolve workflow
+        update_command_list = ["--fastx_input", get_test_data("ENOG4111FIN_PF03967_seed.faa"),
                                "--refpkg_path", self.puha_pkl,
                                "--treesapp_output", get_test_data("assign_SwissProt_PuhA/"),
                                "--output", "./TreeSAPP_update",
@@ -350,14 +352,9 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(49, test_refpkg.num_seqs)
-        return
 
-    def test_update_seqs2lineage(self):
-        from treesapp.commands import update
-        from treesapp.refpkg import ReferencePackage
-        from .testing_utils import get_test_data
-        update_command_list = ["--fastx_input", get_test_data("Photosynthesis/PuhA/ENOG4111FIN_PF03967_seed.faa"),
-                               "--refpkg_path", self.puha_pkl,
+        # Test the workflow when seqs2lineage table is provided and no training
+        update_command_list = ["--refpkg_path", self.puha_pkl,
                                "--treesapp_output", get_test_data("assign_SwissProt_PuhA/"),
                                "--seqs2lineage", get_test_data("SwissProt_PuhA_seqs2lineage.txt"),
                                "--output", "./TreeSAPP_update",
@@ -372,6 +369,8 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(49, test_refpkg.num_seqs)
+        self.assertEqual((-2.7691, 7.0), test_refpkg.pfit)
+        self.assertTrue(test_refpkg.svc is not None)
         return
 
     # def test_tmp(self):

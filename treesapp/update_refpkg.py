@@ -322,7 +322,7 @@ def prefilter_clusters(cluster_dict: dict, lineage_lookup: dict, priority: list,
     return
 
 
-def formulate_create_command(ts_updater: Updater, args) -> list:
+def formulate_create_command(ts_updater: Updater, args, final_stage) -> list:
     create_cmd = ["-i", ts_updater.combined_fasta,
                   "-c", ts_updater.ref_pkg.prefix,
                   "-p", str(ts_updater.prop_sim),
@@ -331,7 +331,8 @@ def formulate_create_command(ts_updater: Updater, args) -> list:
                   "-o", ts_updater.output_dir,
                   "--accession2lin", ts_updater.lineage_map_file,
                   "--num_procs", str(args.num_threads),
-                  "--bootstraps", str(args.bootstraps)]
+                  "--bootstraps", str(args.bootstraps),
+                  "--stage", final_stage]
     if args.trim_align:
         create_cmd.append("--trim_align")
     if args.od_seq:
