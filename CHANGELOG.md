@@ -1,10 +1,8 @@
-## [0.10.2] - 2021-03
+## [0.10.2] - 2021-03-08
 ### Added
 - New flag '--deduplicate' for `treesapp create` to remove redundant sequences within 99.9% similarity before querying Entrez.
 - New option for `treesapp assign` called '--hmm_coverage' that allows users to control minimum percentage of a
   profile HMM that a query sequence's alignment must cover
-
-### Fixed
 
 ### Changed
 - Reference package training is now optional with `treesapp update`. A fasta file is no longer required.
