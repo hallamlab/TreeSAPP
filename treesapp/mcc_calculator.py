@@ -572,6 +572,7 @@ def get_arguments(sys_args):
     parser.add_refpkg_opt()
     parser.add_refpkg_targets()
     parser.add_seq_params()
+    parser.add_search_params()
     parser.add_compute_miscellany()
     parser.add_pplace_params()
     parser.add_annot_map(required=True)
@@ -583,8 +584,6 @@ def get_arguments(sys_args):
     ts.add_argument("--svm", default=False, required=False, action="store_true",
                     help="Uses the support vector machine (SVM) classification filter. "
                          "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
-    ts.add_argument("-s", "--stringency", choices=["relaxed", "strict"], default="relaxed", required=False,
-                    help="HMM-threshold mode affects the number of query sequences that advance [DEFAULT = relaxed]")
 
     args = parser.parse_args(sys_args)
 
