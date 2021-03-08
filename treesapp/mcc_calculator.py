@@ -137,7 +137,7 @@ class ConfusionTest:
 
         if unknowns:
             warn_str = ""
-            for taxid in unknowns:
+            for taxid in sorted(unknowns, key=int):
                 warn_str += "\t{} query sequences with unknown taxid '{}'\n".format(unknowns[taxid], taxid)
             logging.warning("Lineage information unavailable for taxonomy IDs:\n" + warn_str)
         return

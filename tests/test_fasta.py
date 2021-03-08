@@ -2,7 +2,7 @@ import os
 import unittest
 
 
-class MyTestCase(unittest.TestCase):
+class FastaTester(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp.fasta import load_fasta_header_regexes
         from .testing_utils import get_test_data
@@ -44,12 +44,23 @@ class MyTestCase(unittest.TestCase):
         header_format_re, header_db, _ = get_header_format(seq_name, self.header_regexes)
         seq_info_tuple = sequence_info_groups(header_format_re.match(seq_name), header_db, seq_name)
         self.assertEqual("AKB49151", seq_info_tuple.accession)
+
+        seq_name = ">WP_048080940.1"
+        header_format_re, header_db, _ = get_header_format(seq_name, self.header_regexes)
+        seq_info_tuple = sequence_info_groups(header_format_re.match(seq_name), header_db, seq_name)
+        self.assertEqual("WP_048080940", seq_info_tuple.accession)
+        self.assertEqual("WP_048080940.1", seq_info_tuple.version)
         # Test three: EggNOG
         seq_name = ">1000565.METUNv1_03969"
         header_format_re, header_db, _ = get_header_format(seq_name, self.header_regexes)
         seq_info_tuple = sequence_info_groups(header_format_re.match(seq_name), header_db, seq_name)
         self.assertEqual("1000565.METUNv1_03969", seq_info_tuple.accession)
         self.assertEqual("1000565", seq_info_tuple.taxid)
+        seq_name = "1148.1006613"
+        header_format_re, header_db, _ = get_header_format(seq_name, self.header_regexes)
+        seq_info_tuple = sequence_info_groups(header_format_re.match(seq_name), header_db, seq_name)
+        self.assertEqual(seq_name, seq_info_tuple.version)
+        self.assertEqual("1148", seq_info_tuple.taxid)
         # Test four: SwissProt, representing accessions with database prefix (e.g. 'sp') with accession enclosed by '|'
         seq_name = 'sp|P06008|RCEH_BLAVI Reaction center protein H chain OS=Blastochloris viridis GN=puhA'
         header_format_re, header_db, _ = get_header_format(seq_name, self.header_regexes)
@@ -159,6 +170,36 @@ class MyTestCase(unittest.TestCase):
         test_fa.load_fasta()
         test_fa.clear()
         self.assertEqual({}, test_fa.fasta_dict)
+        return
+
+
+class HeaderTester(unittest.TestCase):
+    def setUp(self) -> None:
+        self.eggnog_one = '1148.1006613'
+        self.eggnog_two = '28072.Nos7524_3177'
+        self.eggnog_three = '59919.PMM0223'
+
+    def test_find_accession(self):
+        from treesapp.fasta import Header
+        h = Header(self.eggnog_one)
+        h.find_accession()
+        self.assertEqual('1148.1006613', h.accession)
+        self.assertEqual('1148.1006613', h.version)
+
+        h.original = self.eggnog_two
+        h.find_accession()
+        self.assertEqual(self.eggnog_two, h.version)
+
+        h.original = self.eggnog_three
+        h.find_accession()
+        self.assertEqual(self.eggnog_three, h.version)
+        return
+
+    def test_get_info(self):
+        from treesapp.fasta import Header
+        h = Header(self.eggnog_one)
+        info = h.get_info()
+        self.assertEqual(3, len(info.split('\n')))
         return
 
 

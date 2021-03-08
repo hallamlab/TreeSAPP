@@ -1024,12 +1024,12 @@ def load_fasta_header_regexes(code_name="") -> dict:
     # The regular expressions with the accession and organism name grouped
     # Protein databases:
     gi_re = re.compile(r">?gi\|(\d+)\|[a-z]+\|[_A-Z0-9.]+\|.* RecName: Full=([A-Za-z1-9 _\-]+);?.*$")  # a
-    gi_prepend_proper_re = re.compile(r">?gi\|\d+\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)\]$")  # a, d, o
+    gi_prepend_proper_re = re.compile(r">?gi\|\d+\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)]$")  # a, d, o
     gi_prepend_mess_re = re.compile(r">?gi\|(\d+)[|/]?.*$")  # a
-    dbj_re = re.compile(r">?dbj\|(.*)\|.*\[(.*)\]")  # a, o
-    emb_re = re.compile(r">?emb\|(.*)\|.*\[(.*)\]")
-    gb_re = re.compile(r">?gb\|(.*)\|.*\[(.*)\]")
-    ref_re = re.compile(r">?ref\|(.*)\|.*\[(.*)\]")
+    dbj_re = re.compile(r">?dbj\|(.*)\|.*\[(.*)]")  # a, o
+    emb_re = re.compile(r">?emb\|(.*)\|.*\[(.*)]")
+    gb_re = re.compile(r">?gb\|(.*)\|.*\[(.*)]")
+    ref_re = re.compile(r">?ref\|(.*)\|.*\[(.*)]")
     pdb_re = re.compile(r">?pdb\|(.*)\|.+$")  # a
     pir_re = re.compile(r">?pir\|.*\|(\w+).* - (.*)$")  # a, o
     presf_re = re.compile(r">?prf\|.*\|([A-Z0-9]+)\s+.*$")  # a
@@ -1037,7 +1037,7 @@ def load_fasta_header_regexes(code_name="") -> dict:
     tr_re = re.compile(r">?tr\|(\w+)\|\w+_\w+ .* OS=(.*) GN=.*$")  # a, o
     treesapp_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
     pfam_re = re.compile(r">?([A-Z]+\|)?([A-Z0-9]+)(\.\d)?(_[A-Z0-9]+)?/\d+-\d+$")  # a
-    eggnog_re = re.compile(r"^>?(\d+)\.([-\w]+)((\.[\w-]+){0,2})?(?!\s\[.*\])$")  # t, o
+    eggnog_re = re.compile(r"^>?(\d+)\.([-\w]+)((\.[\w-]+){0,2})?(?!\s\[.*])$")  # t, o
     eggnot_re = re.compile(r">?eggnog\|(\d+)\|(.*)")  # a
     # Nucleotide databases:
     # silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
@@ -1048,7 +1048,7 @@ def load_fasta_header_regexes(code_name="") -> dict:
     # genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
     # accession_only = re.compile(r"^>?([A-Za-z_0-9.]+\.?[0-9]?)$")  # a
     ncbi_ambiguous = re.compile(r"^>?([A-Za-z]{1,6}_[0-9.\-]{5,11})\s+.*(?<!])$")  # a
-    ncbi_org = re.compile(r"^>?([A-Z][A-Za-z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
+    ncbi_org = re.compile(r"^>?([A-Z][A-Za-z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*]$")  # a
     assign_re = re.compile(r"^>?(\w+)?(.*)\|({0})\|(\d+_\d+)$".format(re.escape(code_name)))  # a, d, l
 
     # Custom fasta header with taxonomy:
@@ -1056,7 +1056,7 @@ def load_fasta_header_regexes(code_name="") -> dict:
     # There are no character restrictions on the first and third groups
     # The lineage must be formatted like:
     #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
-    custom_tax = re.compile(r"^>?(.*) lineage=([A-Za-z ]+.*) \[(.*)\]$")  # a, l, o
+    custom_tax = re.compile(r"^>?(.*) lineage=([A-Za-z ]+.*) \[(.*)]$")  # a, l, o
     unformat_re = re.compile(r"^>?(\w+)?(.*)")
 
     header_regexes = {"prot": {dbj_re: "dbj",
@@ -1123,9 +1123,6 @@ def sequence_info_groups(regex_match_groups, header_db: str, header: str, header
                 accession = regex_match_groups.group(1)
             else:
                 accession = re.sub(r"^>", '', header)
-        elif header_db == "silva":
-            locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
-            lineage = regex_match_groups.group(4)
         elif header_db == "pfam":
             accession = str(regex_match_groups.group(2))
         elif len(regex_match_groups.groups()) == 3:
@@ -1136,7 +1133,10 @@ def sequence_info_groups(regex_match_groups, header_db: str, header: str, header
             accession = regex_match_groups.group(1)
         if accession.find('.') >= 0:
             pieces = accession.split('.')
-            version_match = re.match(r"^(\d{1,2})( (.*)?)?", pieces[1])
+            if re.search(r"[- .]", pieces[1]):
+                version_match = re.match(r"^(\d{1,2}) (.*)?", pieces[1])
+            else:
+                version_match = re.match(r"^(\d{1,2})$", pieces[1])
             if version_match:
                 accession = pieces[0]
                 version = '.'.join([accession, version_match.group(1)])

@@ -4,6 +4,9 @@
 - New option for `treesapp assign` called '--hmm_coverage' that allows users to control minimum percentage of a
   profile HMM that a query sequence's alignment must cover
 
+### Fixed
+- Mapping some EggNOG identifiers with seqs2lineage mapping process
+
 ### Changed
 - Reference package training is now optional with `treesapp update`. A fasta file is no longer required.
 

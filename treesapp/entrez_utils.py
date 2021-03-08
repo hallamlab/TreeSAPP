@@ -1251,7 +1251,7 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
     :param refpkg_name: The reference package's name
     :return: A dictionary mapping each classified sequence to a lineage and list of TreeSAPP IDs that were mapped
     """
-    logging.info("Mapping assigned sequences to provided taxonomic lineages:\n")
+    logging.info("Mapping sequence names to provided taxonomic lineages in {}:\n".format(seq_lineage_tbl))
     seq_lineage_map = read_seq_taxa_table(seq_lineage_tbl)
     classified_seq_lineage_map = dict()
     treesapp_nums = list(header_registry.keys())

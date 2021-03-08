@@ -123,6 +123,8 @@ class EntrezUtilitiesTester(unittest.TestCase):
         h3.first_split = h3.original
         h4 = Header('AB-746_I02_AB-902_NODE_1_length_133761_cov_569.254_ID_1_26 # 25226 # 25834 # 1 # ID=10766_26;partial=00;start_type=ATG;rbs_motif=AGGAG(G)/GGAGG;rbs_spacer=13-15bp;gc_cont=0.335')
         h4.first_split = h4.original.split()[0]
+        h5 = Header("1147.D082_03820")
+        h5.find_accession()
 
         with pytest.raises(SystemExit):
             map_orf_lineages(seq_lineage_tbl=utils.get_test_data("SwissProt_PuhA_seqs2lineage.txt"), header_registry={})
@@ -138,8 +140,8 @@ class EntrezUtilitiesTester(unittest.TestCase):
 
         # Test a complicated header
         orf_lin_map, found = map_orf_lineages(seq_lineage_tbl=utils.get_test_data("test_seqs2lineage.txt"),
-                                              header_registry={'1': h4})
-        self.assertEqual(1, len(found))
+                                              header_registry={'1': h4, '2': h5})
+        self.assertEqual(2, len(found))
         return
 
     def test_ref_seq_lineage_scanner(self):

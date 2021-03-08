@@ -77,7 +77,6 @@ def get_header_info(header_registry: dict, code_name=''):
     logging.info("Extracting information from headers... ")
     ref_records = dict()
     header_regexes = fasta.load_fasta_header_regexes(code_name)
-    # TODO: Fix parsing of combined EggNOG and custom headers such that the taxid is parsed from the "accession"
     for treesapp_id in sorted(header_registry.keys(), key=int):  # type: str
         original_header = header_registry[treesapp_id].original
         header_format_re, header_db, header_molecule = fasta.get_header_format(original_header, header_regexes)
