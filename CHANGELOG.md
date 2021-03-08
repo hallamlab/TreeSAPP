@@ -1,3 +1,10 @@
+## [0.11.0] - 2021
+### Added
+
+### Fixed
+
+### Changed
+
 ## [0.10.2] - 2021-03-08
 ### Added
 - New flag '--deduplicate' for `treesapp create` to remove redundant sequences within 99.9% similarity before querying Entrez.
