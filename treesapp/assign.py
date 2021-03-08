@@ -98,9 +98,11 @@ class Assigner(classy.TreeSAPP):
 
         # Parameterizing the hmmsearch output parsing:
         if args.stringency == "relaxed":
-            domtbl_thresholds = thresholds_nt(perc_aligned=10, min_acc=0.7, max_e=1E-3, max_ie=1E-1, min_score=15)
+            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage,
+                                              min_acc=0.7, max_e=1E-3, max_ie=1E-1, min_score=15)
         elif args.stringency == "strict":
-            domtbl_thresholds = thresholds_nt(perc_aligned=10, min_acc=0.7, max_e=1E-5, max_ie=1E-3, min_score=30)
+            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage,
+                                              min_acc=0.7, max_e=1E-5, max_ie=1E-3, min_score=30)
         else:
             logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
             sys.exit(3)

@@ -115,6 +115,9 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.optopt.add_argument("-s", "--stringency", choices=["relaxed", "strict"], default="relaxed", required=False,
                                  help="HMM-threshold mode affects the number of query sequences that advance "
                                       "[DEFAULT = relaxed]")
+        self.optopt.add_argument("-P", "--hmm_coverage", type=int, default=10, required=False,
+                                 help="Minimum percent the profile HMM must be covered for a query to be considered. "
+                                      "[ DEFAULT = 10 ]")
 
     def add_phylogeny_params(self):
         self.optopt.add_argument("-b", "--bootstraps",

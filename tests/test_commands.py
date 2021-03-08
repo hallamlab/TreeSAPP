@@ -76,31 +76,29 @@ class TreesappTester(unittest.TestCase):
         os.remove(os.path.join(self.ts_assign_output, "tmp.tsv"))
         return
 
-    def test_assign_prot(self):
+    def test_assign(self):
         ref_pkgs = ["McrA", "M0702", "S0001"]
-        from treesapp.assign import assign
+        from treesapp import assign
+        from .testing_utils import get_test_data
         from treesapp.file_parsers import read_classification_table
+        from treesapp.phylo_seq import assignments_to_pqueries
         assign_commands_list = ["--fastx_input", self.aa_test_fa,
                                 "--targets", ','.join(ref_pkgs),
                                 "--refpkg_dir", self.refpkg_dir,
                                 "--num_procs", str(self.num_procs),
                                 "-m", "prot",
+                                "--hmm_coverage", str(20),
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "relaxed",
                                 "--placement_summary", "max_lwr",
                                 "--trim_align", "--overwrite", "--delete", "--svm"]
-        assign(assign_commands_list)
+        assign.assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(15, len(lines))
         self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.faa"))
-        return
 
-    def test_assign_dna(self):
+        # Test nucleotide sequence input
         ref_pkgs = ["M0701", "M0702"]
-        from treesapp import assign
-        from .testing_utils import get_test_data
-        from treesapp.file_parsers import read_classification_table
-        from treesapp.phylo_seq import assignments_to_pqueries
         assign_commands_list = ["--fastx_input", self.nt_test_fa,
                                 "--targets", ','.join(ref_pkgs),
                                 "--num_procs", str(self.num_procs),
