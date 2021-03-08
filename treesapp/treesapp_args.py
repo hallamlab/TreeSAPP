@@ -28,6 +28,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         super(TreeSAPPArgumentParser, self).__init__(add_help=False, prog=_prog, **kwargs)
         self.reqs = self.add_argument_group("Required parameters")
         self.seqops = self.add_argument_group("Sequence operation arguments")
+        self.hmmer_args = self.add_argument_group("Homology search arguments")
         self.pplace_args = self.add_argument_group("Phylogenetic placement arguments")
         self.fpkm_opts = self.add_argument_group("Abundance options")
         self.io = self.add_argument_group("Inputs and Outputs")
@@ -101,6 +102,15 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                  help="Type of input sequences "
                                       "(prot = protein; dna = nucleotide [DEFAULT]; rrna = rRNA)")
 
+    def add_search_params(self):
+        self.hmmer_args.add_argument("-s", "--stringency",
+                                     choices=["relaxed", "strict"], default="relaxed", required=False,
+                                     help="HMM-threshold mode affects the number of query sequences that advance "
+                                          "[DEFAULT = relaxed]")
+        self.hmmer_args.add_argument("-P", "--hmm_coverage", type=int, default=20, required=False,
+                                     help="Minimum percent of a profile HMM that a query alignment must be cover "
+                                          "for it to be considered. [ DEFAULT = 20 ]")
+
     def add_abundance_params(self):
         self.fpkm_opts.add_argument("--metric", required=False, default="fpkm", choices=["fpkm", "tpm"],
                                     help="Selects which normalization metric to use, FPKM or TPM.")
@@ -110,14 +120,6 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                     help="FASTQ file containing to reverse mate-pair reads to be aligned using BWA MEM")
         self.fpkm_opts.add_argument("-p", "--pairing", required=False, default='pe', choices=['pe', 'se'],
                                     help="Indicating whether the reads are paired-end (pe) or single-end (se)")
-
-    def add_search_params(self):
-        self.optopt.add_argument("-s", "--stringency", choices=["relaxed", "strict"], default="relaxed", required=False,
-                                 help="HMM-threshold mode affects the number of query sequences that advance "
-                                      "[DEFAULT = relaxed]")
-        self.optopt.add_argument("-P", "--hmm_coverage", type=int, default=10, required=False,
-                                 help="Minimum percent the profile HMM must be covered for a query to be considered. "
-                                      "[ DEFAULT = 10 ]")
 
     def add_phylogeny_params(self):
         self.optopt.add_argument("-b", "--bootstraps",
