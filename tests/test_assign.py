@@ -20,7 +20,7 @@ class AssignerTester(unittest.TestCase):
 
         # Reference packages
         puha_rp = refpkg.ReferencePackage()
-        puha_rp.f__json = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+        puha_rp.f__pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
         puha_rp.slurp()
         node_map = puha_rp.get_internal_node_leaf_map()
 

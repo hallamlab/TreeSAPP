@@ -22,7 +22,7 @@ class PlacementTrainerTestCase(unittest.TestCase):
         self.bad_fasta.load_fasta()
         # ReferencePackage instance for tests
         self.test_refpkg = ReferencePackage("PuhA")
-        self.test_refpkg.f__json = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+        self.test_refpkg.f__pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
         self.test_refpkg.slurp()
         # Executables dictionary
         self.exes = {}

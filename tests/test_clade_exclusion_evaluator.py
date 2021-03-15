@@ -13,7 +13,7 @@ class CladeExclusionTester(unittest.TestCase):
         # Create and slurp the reference package that will be used for clade exclusions
         self.ref_pkg = ReferencePackage()
         self.puha_pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
-        self.ref_pkg.f__json = get_test_data(self.puha_pkl)
+        self.ref_pkg.f__pkl = get_test_data(self.puha_pkl)
         self.ref_pkg.slurp()
 
         # Create the directory for temporary files
@@ -41,7 +41,7 @@ class CladeExclusionTester(unittest.TestCase):
         from treesapp.refpkg import ReferencePackage
         # Generate the inputs
         mcra_rp = ReferencePackage()
-        mcra_rp.f__json = get_test_data(get_test_data(os.path.join("refpkgs", "McrA_build.pkl")))
+        mcra_rp.f__pkl = get_test_data(get_test_data(os.path.join("refpkgs", "McrA_build.pkl")))
         mcra_rp.slurp()
         rlm = {leaf.number: leaf.lineage for leaf in mcra_rp.generate_tree_leaf_references_from_refpkg()}
         qlm = {'q1': 'r__Root; d__Bacteria',

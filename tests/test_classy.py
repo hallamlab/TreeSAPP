@@ -140,7 +140,7 @@ class EvaluatorTester(unittest.TestCase):
         self.eval.var_output_dir = self.output_dir
         # Set the instance's reference package
         self.eval.ref_pkg = ReferencePackage()
-        self.eval.ref_pkg.f__json = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+        self.eval.ref_pkg.f__pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
         self.eval.ref_pkg.slurp()
 
         return

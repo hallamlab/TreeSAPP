@@ -5,7 +5,8 @@ import logging
 from pygtrie import StringTrie
 
 from treesapp.utilities import load_taxonomic_trie
-from treesapp.classy import Cluster, Updater
+from treesapp.classy import Updater
+from treesapp.seq_clustering import Cluster
 from treesapp.entrez_utils import EntrezRecord
 from treesapp.fasta import FASTA
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy

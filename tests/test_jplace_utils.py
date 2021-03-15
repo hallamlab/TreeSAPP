@@ -59,7 +59,7 @@ class JPlaceTestCase(unittest.TestCase):
         import re
         jplace_dat = jplace_utils.jplace_parser(self.test_jplace)
         mcra_refpkg = refpkg.ReferencePackage()
-        mcra_refpkg.f__json = get_test_data("refpkgs/McrA_build.pkl")
+        mcra_refpkg.f__pkl = get_test_data("refpkgs/McrA_build.pkl")
         mcra_refpkg.slurp()
         test_ete_tree = mcra_refpkg.get_ete_tree()
 

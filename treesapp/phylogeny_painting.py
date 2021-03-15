@@ -32,11 +32,10 @@ class PhyPainter(TreeSAPP):
         self.refpkg_leaf_nodes_to_colour = {}
         self.taxa_phenotype_map = {}
         self.taxa_to_colour = set()
-        self.phenotypes = False
         self.rank = ""
         self.palette = ""
         self.set_op = ""
-        self.output_prefix = ""
+        self.feature_name = ""
         self.num_taxa = 0
         self.num_seqs = 0
         self.rank_depth = -1
@@ -46,7 +45,7 @@ class PhyPainter(TreeSAPP):
         self.ref_pkg = None
         for pkl_file in args.pkg_path:
             ref_pkg = ReferencePackage()
-            ref_pkg.f__json = pkl_file
+            ref_pkg.f__pkl = pkl_file
             ref_pkg.slurp()
             if ref_pkg.validate():
                 self.refpkg_dict[ref_pkg.prefix] = ref_pkg
@@ -410,34 +409,6 @@ def order_taxa(taxa_to_colour: set, taxon_leaf_map: dict, leaf_order: list):
         taxon_order[i] = taxon
         i += 1
     return taxon_order
-
-
-def read_phenotypes(phenotypes_file: str, comment_char='#') -> dict:
-    taxa_phenotype_map = {}
-    try:
-        file_handler = open(phenotypes_file, 'r')
-    except IOError:
-        logging.error("Unable to open taxa-phenotype table '{}' for reading.\n".format(phenotypes_file))
-        sys.exit(7)
-
-    for line in file_handler:
-        if not line or line[0] == comment_char:
-            continue
-        if line.find(comment_char) >= 0:
-            line = line[:line.find(comment_char)]
-        try:
-            taxon_name, phenotype = line.rstrip().split("\t")
-        except ValueError:
-            logging.error("Unable to parse line in {}:\n{}\n".format(phenotypes_file, line))
-            sys.exit(9)
-        if taxon_name in taxa_phenotype_map:
-            logging.warning("Taxon '{}' found in {} multiple times and will be overwritten.\n"
-                            "".format(taxon_name, phenotypes_file))
-        taxa_phenotype_map[taxon_name.strip()] = phenotype.strip()
-
-    file_handler.close()
-
-    return taxa_phenotype_map
 
 
 def map_taxa_to_leaf_nodes(leaf_names: list, refpkg: ReferencePackage) -> dict:

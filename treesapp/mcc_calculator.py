@@ -16,7 +16,7 @@ from treesapp import wrapper
 from treesapp import utilities
 from treesapp import assign
 from treesapp.phylo_seq import assignments_to_pqueries
-from treesapp.refpkg import ReferencePackage
+from treesapp import refpkg as ts_ref_pkg
 from treesapp.fasta import get_headers, register_headers
 from treesapp.classy import prep_logging, get_header_info
 from treesapp.entrez_utils import EntrezRecord, get_multiple_lineages
@@ -29,7 +29,7 @@ from treesapp.training_utils import bin_headers, QuerySequence
 class ConfusionTest:
     def __init__(self, gene_list):
         self._MAX_TAX_DIST = -1
-        self.ref_packages = {key: ReferencePackage() for key in gene_list}
+        self.ref_packages = {key: ts_ref_pkg.ReferencePackage() for key in gene_list}
         self.fn = {key: [] for key in gene_list}
         self.fp = {key: set() for key in gene_list}
         self.tp = {key: [] for key in gene_list}  # This will be a list of QuerySequence instances
@@ -196,7 +196,7 @@ class ConfusionTest:
         :return: None
         """
         for marker in self.tp:
-            refpkg = self.ref_packages[marker]  # type: ReferencePackage
+            refpkg = self.ref_packages[marker]  # type: ts_ref_pkg.ReferencePackage
             refpkg.taxa_trie.trie_check()
             if not refpkg.taxa_trie.rooted:
                 refpkg.taxa_trie.root_domains(root=refpkg.taxa_trie.find_root_taxon())
@@ -390,7 +390,7 @@ class ConfusionTest:
         refpkg_map = dict()
         hmm_lengths = dict()
         for name in self.ref_packages:
-            refpkg = self.ref_packages[name]  # type: ReferencePackage
+            refpkg = self.ref_packages[name]  # type: ts_ref_pkg.ReferencePackage
             refpkg_map[refpkg.prefix] = name
             try:
                 internal_nodes_dict[refpkg.prefix] = refpkg.get_internal_node_leaf_map()
@@ -686,7 +686,7 @@ def filter_redundant_og(query_og_map: dict) -> set:
 def create_refpkg_query_map(query_name_map: dict, refpkg_dict: dict) -> dict:
     refpkg_query_map = {}
     tmp_map = {}
-    for rp_name, rp in refpkg_dict.items():  # type: (str, ReferencePackage)
+    for rp_name, rp in refpkg_dict.items():  # type: (str, ts_ref_pkg.ReferencePackage)
         try:
             tmp_map[rp.refpkg_code].add(rp_name)
         except KeyError:
@@ -715,7 +715,7 @@ def match_queries_to_refpkgs(query_name_map: dict, refpkg_dict: dict) -> (dict, 
     prefix_to_code = {refpkg.prefix: refpkg.refpkg_code for name, refpkg in refpkg_dict.items()}
     code_to_prefix = {refpkg.refpkg_code: set() for name, refpkg in refpkg_dict.items()}
     for rp_code in code_to_prefix:
-        for prefix, refpkg in refpkg_dict.items():  # type: (str, ReferencePackage)
+        for prefix, refpkg in refpkg_dict.items():  # type: (str, ts_ref_pkg.ReferencePackage)
             if rp_code == refpkg.refpkg_code:
                 code_to_prefix[rp_code].add(prefix)
     query_to_prefix = {}
@@ -770,7 +770,7 @@ def mcc_calculator(sys_args):
     # Read the file mapping reference package name to the database annotations
     ##
     query_name_dict = file_parsers.read_annotation_mapping_file(args.annot_map)
-    refpkg_dict = file_parsers.gather_ref_packages(args.refpkg_dir, args.targets)
+    refpkg_dict = ts_ref_pkg.gather_ref_packages(args.refpkg_dir, args.targets)
     test_obj = ConfusionTest(refpkg_dict.keys())
     test_obj.map_data(output_dir=args.output, tool=args.tool)
 

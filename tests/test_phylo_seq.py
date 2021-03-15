@@ -46,7 +46,7 @@ class PhyloSeqTests(unittest.TestCase):
                                          'n': ['AFD09581.1']}
         # Reference packages
         puha_rp = ReferencePackage()
-        puha_rp.f__json = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+        puha_rp.f__pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
         puha_rp.slurp()
         node_map = puha_rp.get_internal_node_leaf_map()
 
@@ -59,7 +59,7 @@ class PhyloSeqTests(unittest.TestCase):
 
         # Prepare the reference package
         self.refpkg = ReferencePackage(refpkg_name="McrA")
-        self.refpkg.f__json = get_test_data("refpkgs/McrA_build.pkl")
+        self.refpkg.f__pkl = get_test_data("refpkgs/McrA_build.pkl")
         self.refpkg.slurp()
         return
 

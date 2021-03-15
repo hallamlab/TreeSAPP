@@ -82,7 +82,7 @@ def info(sys_args):
     logging.info(utilities.executable_dependency_versions(ts_info.executables))
 
     if args.verbose:
-        refpkg_dict = file_parsers.gather_ref_packages(ts_info.refpkg_dir)
+        refpkg_dict = ts_ref_pkg.gather_ref_packages(ts_info.refpkg_dir)
         refpkg_summary_str = "\t".join(["Name", "Code-name",
                                         "Molecule", "Tree builder", "RefPkg-type", "Leaf nodes",
                                         "Description", "Created", "Last-updated"]) + "\n"
@@ -134,13 +134,13 @@ Use '-h' to get subcommand-specific help, e.g. 'treesapp package view -h'
     classy.prep_logging(log_file=os.path.join(args.output, 'TreeSAPP_package_log.txt'))
 
     for refpkg_pkl in args.pkg_path:
-        refpkg.f__json = refpkg_pkl
+        refpkg.f__pkl = refpkg_pkl
         refpkg.slurp()
 
         if args.subcommand == "view":
             ts_ref_pkg.view(refpkg, args.attributes)
         elif args.subcommand == "edit":
-            ts_ref_pkg.edit(refpkg, args.attributes, args.output, args.overwrite)
+            ts_ref_pkg.edit(refpkg, args.attributes, args.output, args.overwrite, args.phenotypes)
         elif args.subcommand == "rename":
             ts_ref_pkg.rename(refpkg, args.attributes, args.output, args.overwrite)
         else:
@@ -276,7 +276,7 @@ def train(sys_args):
         assign_params = ["-i", train_seqs.file,
                          "-o", assign_prefix,
                          "--num_procs", str(args.num_threads),
-                         "--refpkg_dir", os.path.dirname(ts_trainer.ref_pkg.f__json),
+                         "--refpkg_dir", os.path.dirname(ts_trainer.ref_pkg.f__pkl),
                          "--targets", ts_trainer.ref_pkg.prefix,
                          "--molecule", ts_trainer.ref_pkg.molecule,
                          "--delete"]
@@ -366,8 +366,8 @@ def train(sys_args):
             ts_trainer.ref_pkg.pfit = [0.0, 7.0]
 
         ts_trainer.ref_pkg.svc = refpkg_classifiers[ts_trainer.ref_pkg.prefix]
-        ts_trainer.ref_pkg.f__json = os.path.join(ts_trainer.final_output_dir,
-                                                  os.path.basename(ts_trainer.ref_pkg.f__json))
+        ts_trainer.ref_pkg.f__pkl = os.path.join(ts_trainer.final_output_dir,
+                                                 os.path.basename(ts_trainer.ref_pkg.f__pkl))
 
         ts_trainer.ref_pkg.validate()
         ts_trainer.ref_pkg.pickle_package()
@@ -703,8 +703,8 @@ def create(sys_args):
     # Finish validating the file and append the reference package build parameters to the master table
     ##
     if ts_create.stage_status("update"):
-        ts_create.ref_pkg.f__json = os.path.join(ts_create.var_output_dir, "placement_trainer", "final_outputs",
-                                                 ts_create.ref_pkg.prefix + ts_create.ref_pkg.refpkg_suffix)
+        ts_create.ref_pkg.f__pkl = os.path.join(ts_create.var_output_dir, "placement_trainer", "final_outputs",
+                                                ts_create.ref_pkg.prefix + ts_create.ref_pkg.refpkg_suffix)
         ts_create.ref_pkg.slurp()
         ts_create.ref_pkg.validate()
         ts_create.ref_pkg.change_file_paths(ts_create.final_output_dir)
@@ -918,7 +918,7 @@ def update(sys_args):
     ##
     create_cmd = ts_update_mod.formulate_create_command(ts_updater, args, final_stage="support")
     create(create_cmd)
-    ts_updater.updated_refpkg.f__json = ts_updater.updated_refpkg_path
+    ts_updater.updated_refpkg.f__pkl = ts_updater.updated_refpkg_path
     ts_updater.updated_refpkg.slurp()
 
     if ts_updater.stage_status("train"):
@@ -926,8 +926,8 @@ def update(sys_args):
                                                     ref_pkg=ts_updater.updated_refpkg,
                                                     output_dir=ts_updater.training_dir,
                                                     args=args))
-        ts_updater.updated_refpkg.f__json = os.path.join(ts_updater.training_dir, "final_outputs",
-                                                         ts_updater.ref_pkg.prefix + ts_updater.ref_pkg.refpkg_suffix)
+        ts_updater.updated_refpkg.f__pkl = os.path.join(ts_updater.training_dir, "final_outputs",
+                                                        ts_updater.ref_pkg.prefix + ts_updater.ref_pkg.refpkg_suffix)
         ts_updater.updated_refpkg.slurp()
     else:
         ts_updater.updated_refpkg.pfit = ts_updater.ref_pkg.pfit
@@ -944,8 +944,9 @@ def update(sys_args):
 
 
 def colour(sys_args):
-    parser = treesapp_args.TreeSAPPArgumentParser(description="Colours a reference package's phylogeny based on"
-                                                              " taxonomic or phenotypic data.")
+    parser = treesapp_args.TreeSAPPArgumentParser(description="Generates colour style and strip files for visualizing "
+                                                              "a reference package's phylogeny in iTOL based on "
+                                                              "taxonomic or phenotypic data.")
     treesapp_args.add_colour_arguments(parser)
     args = parser.parse_args(sys_args)
 
@@ -957,9 +958,6 @@ def colour(sys_args):
 
     ts_painter = paint.PhyPainter()
     ts_painter.primer(args)
-
-    if ts_painter.phenotypes:
-        ts_painter.taxa_phenotype_map = paint.read_phenotypes(args.phenotypes)
 
     # Find the taxa that should be coloured for each reference package
     for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ts_ref_pkg.ReferencePackage)
@@ -1022,11 +1020,10 @@ def colour(sys_args):
 
 def layer(sys_args):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
-    parser = treesapp_args.TreeSAPPArgumentParser(description="This script is generally used for layering extra "
-                                                              "annotations such as Subgroup or Metabolism on TreeSAPP "
-                                                              "outputs. This is accomplished by adding an extra column "
-                                                              "(to all rows) of an existing marker_contig_map.tsv and "
-                                                              "annotating the relevant sequences.")
+    parser = treesapp_args.TreeSAPPArgumentParser(description="This script adds extra feature annotations, such as "
+                                                              "Subgroup and Metabolic Pathway, to an existing "
+                                                              "classification table made by treesapp assign. "
+                                                              "A new column is bound to the table for each feature.")
     treesapp_args.add_layer_arguments(parser)
     args = parser.parse_args(sys_args)
 
@@ -1052,8 +1049,8 @@ def layer(sys_args):
     unique_markers_annotated = set()
     marker_tree_info = dict()
     master_dat, field_order = annotate_extra.parse_marker_classification_table(ts_layer.final_output_dir +
-                                                                               "marker_contig_map.tsv")
-    refpkg_dict = file_parsers.gather_ref_packages(ts_layer.refpkg_dir)
+                                                                               ts_layer.classification_tbl_name)
+    refpkg_dict = ts_ref_pkg.gather_ref_packages(ts_layer.refpkg_dir)
 
     # structure of master dat:
     # {"Sequence_1": {"Field1": x, "Field2": y, "Extra": n},

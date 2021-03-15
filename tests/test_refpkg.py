@@ -10,7 +10,7 @@ from . import testing_utils as utils
 def refpkg_class(request):
     from treesapp import refpkg
     request.cls.db = refpkg.ReferencePackage("McrA")
-    request.cls.db.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+    request.cls.db.f__pkl = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
     request.cls.db.slurp()
     return
 
@@ -46,7 +46,7 @@ class RefPkgTester(unittest.TestCase):
         return
 
     def test_band(self):
-        self.db.change_file_paths(new_dir=os.path.dirname(self.db.f__json))
+        self.db.change_file_paths(new_dir=os.path.dirname(self.db.f__pkl))
         self.db.band()
         return
 
@@ -103,7 +103,7 @@ class RefPkgTester(unittest.TestCase):
         self.db.bail()
 
     def test_get_internal_node_leaf_map(self):
-        self.db.f__json = self.pkl_path
+        self.db.f__pkl = self.pkl_path
         self.db.slurp()
         node_map = self.db.get_internal_node_leaf_map()
         self.assertEqual(2*self.db.num_seqs, len(node_map))
@@ -138,14 +138,14 @@ class RefPkgTester(unittest.TestCase):
         return
 
     def test_pickle_package(self):
-        self.db.f__json = self.new_pkl_path
+        self.db.f__pkl = self.new_pkl_path
         self.db.pickle_package()
         self.db.slurp()
         self.assertTrue("McrA" == self.db.prefix)
         return
 
     def test_slurp(self):
-        self.db.f__json = self.pkl_path
+        self.db.f__pkl = self.pkl_path
         self.db.slurp()
         self.assertEqual("McrA", self.db.prefix)
         self.assertEqual(249, self.db.num_seqs)
@@ -172,7 +172,7 @@ class RefPkgTester(unittest.TestCase):
         rename(refpkg=self.db, attributes=['prefix', 'McrA2'], output_dir=self.disband_path, overwrite=False)
         # Load the edited reference package
         renamed_refpkg = ReferencePackage()
-        renamed_refpkg.f__json = os.path.join(self.disband_path, "McrA2_build.pkl")
+        renamed_refpkg.f__pkl = os.path.join(self.disband_path, "McrA2_build.pkl")
         renamed_refpkg.slurp()
         self.assertEqual("McrA2", renamed_refpkg.prefix)
 

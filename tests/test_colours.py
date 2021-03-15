@@ -10,7 +10,7 @@ class ColourTestCase(unittest.TestCase):
         self.mcra_metabolism = get_test_data("Mcr_taxonomy-phenotype_map.tsv")
 
         self.mcra_refpkg = ReferencePackage()
-        self.mcra_refpkg.f__json = self.mcra_pkl
+        self.mcra_refpkg.f__pkl = self.mcra_pkl
         self.mcra_refpkg.slurp()
         return
 
@@ -22,15 +22,9 @@ class ColourTestCase(unittest.TestCase):
         self.assertEqual(13, len(leaf_map["g__Methanosarcina"]))
         return
 
-    def test_read_phenotypes_map(self):
-        from treesapp.phylogeny_painting import read_phenotypes
-
-        phenotypes = read_phenotypes(self.mcra_metabolism)
-        self.assertIsInstance(cls=dict, obj=phenotypes)
-        self.assertEqual(15, len(phenotypes))
-
     def test_convert_taxa_to_phenotypes(self):
-        from treesapp.phylogeny_painting import convert_taxa_to_phenotypes, read_phenotypes, map_taxa_to_leaf_nodes
+        from treesapp.file_parsers import read_phenotypes
+        from treesapp.phylogeny_painting import convert_taxa_to_phenotypes, map_taxa_to_leaf_nodes
 
         phenotypes = read_phenotypes(self.mcra_metabolism)
         phenotype_leaf_map = convert_taxa_to_phenotypes(phenotypes_map=phenotypes,

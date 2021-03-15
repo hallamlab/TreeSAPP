@@ -10,11 +10,11 @@ class MyTestCase(unittest.TestCase):
         from treesapp import refpkg
         from treesapp import annotate_extra
         self.mcra_refpkg = refpkg.ReferencePackage("McrA")
-        self.mcra_refpkg.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        self.mcra_refpkg.f__pkl = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.mcra_refpkg.slurp()
 
         self.xmoa_refpkg = refpkg.ReferencePackage("XmoA")
-        self.xmoa_refpkg.f__json = utils.get_test_data(os.path.join("refpkgs", "XmoA_build.pkl"))
+        self.xmoa_refpkg.f__pkl = utils.get_test_data(os.path.join("refpkgs", "XmoA_build.pkl"))
         self.xmoa_refpkg.slurp()
 
         self.leaf_node_map = self.xmoa_refpkg.get_internal_node_leaf_map()

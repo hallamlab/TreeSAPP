@@ -125,6 +125,7 @@ class TreesappTester(unittest.TestCase):
 
     def test_colour(self):
         from treesapp.commands import colour
+        # Test creating iTOL files for a taxonomic rank
         colour_commands = ["-r", self.mcra_pkl, self.mcrb_pkl,
                            "-l", "family",
                            "-o", "./TreeSAPP_colour",
@@ -132,17 +133,19 @@ class TreesappTester(unittest.TestCase):
                            "--min_proportion", str(0.01),
                            "--no_polyphyletic"]
         colour(colour_commands)
-        self.assertEqual(True, True)
+        self.assertTrue(os.path.isfile(os.path.join("TreeSAPP_colour", "McrA_family_colour_strip.txt")))
 
-    def test_colour_phenotypes(self):
-        from treesapp.commands import colour
-        from .testing_utils import get_test_data
+        # Test creating strip and styles file for an annotated feature
         colour_commands = ["-r", self.mcra_pkl,
                            "-o", "./TreeSAPP_colour",
                            "--palette", "viridis",
-                           "--taxa_map", get_test_data("Mcr_taxonomy-phenotype_map.tsv")]
+                           "--attribute", "Pathway"]
         colour(colour_commands)
-        self.assertTrue(True)
+        itol_strip_file = os.path.isfile(os.path.join("TreeSAPP_colour", "McrA_Pathway_colour_strip.txt"))
+        self.assertTrue(itol_strip_file)
+        with open(itol_strip_file) as strip_dat:
+            self.assertEqual(18, strip_dat.readlines())
+        return
 
     def test_create(self):
         from treesapp.commands import create
@@ -164,7 +167,7 @@ class TreesappTester(unittest.TestCase):
                                 "--overwrite", "--delete", "--deduplicate"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
+        test_refpkg.f__pkl = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(77, test_refpkg.num_seqs)
@@ -188,7 +191,7 @@ class TreesappTester(unittest.TestCase):
                                 "--overwrite", "--delete"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_create/final_outputs/PuhA_build.pkl"
+        test_refpkg.f__pkl = "./TreeSAPP_create/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(39, test_refpkg.num_seqs)
@@ -209,7 +212,7 @@ class TreesappTester(unittest.TestCase):
                     "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
         create(cmd_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_create/final_outputs/PF01280_build.pkl"
+        test_refpkg.f__pkl = "./TreeSAPP_create/final_outputs/PF01280_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(51, test_refpkg.num_seqs)
@@ -284,7 +287,15 @@ class TreesappTester(unittest.TestCase):
     def test_package(self):
         from treesapp.commands import package
         from treesapp.refpkg import ReferencePackage
-        view_command_list = ["view", "lineage_ids",
+        from treesapp.clade_annotation import CladeAnnotation
+        from .testing_utils import get_test_data
+
+        test_refpkg = ReferencePackage()
+        test_refpkg.f__pkl = "./TreeSAPP_package/McrA_build.pkl"
+
+        # Test viewer
+        view_command_list = ["view",
+                             "lineage_ids", "feature_annotations",
                              "--refpkg_path", self.mcra_pkl,
                              "--output", "./TreeSAPP_package"]
         package(view_command_list)
@@ -293,12 +304,25 @@ class TreesappTester(unittest.TestCase):
                              "--refpkg_path", self.mcra_pkl,
                              "--output", "./TreeSAPP_package"]
         package(edit_command_list)
-        test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_package/McrA_build.pkl"
         test_refpkg.slurp()
         self.assertFalse(test_refpkg.validate())
         with pytest.raises(SystemExit):
             package(["rename", "-h"])
+
+        # Test adding to a reference package's feature_annotations attribute
+        edit_command_list = ["edit",
+                             "feature_annotations", "Function",
+                             "--taxa_map", get_test_data("Mcr_taxonomy-phenotype_map.tsv"),
+                             "--refpkg_path", self.mcra_pkl,
+                             "--output", "./TreeSAPP_package",
+                             "--overwrite"]
+        package(edit_command_list)
+        test_refpkg.slurp()
+        self.assertIsInstance(test_refpkg.feature_annotations, dict)
+        self.assertTrue('Function' in test_refpkg.feature_annotations)
+        self.assertEqual(5, len(test_refpkg.feature_annotations["Function"]))
+        self.assertIsInstance(test_refpkg.feature_annotations["Function"][0], CladeAnnotation)
+
         return
 
     def test_train(self):
@@ -346,10 +370,11 @@ class TreesappTester(unittest.TestCase):
                                "--overwrite", "--delete", "--skip_assign", "--resolve"]
         update(update_command_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
+        test_refpkg.f__pkl = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(49, test_refpkg.num_seqs)
+        self.assertEqual(2, len(test_refpkg.feature_annotations["test"]))
 
         # Test the workflow when seqs2lineage table is provided and no training
         update_command_list = ["--refpkg_path", self.puha_pkl,
@@ -363,7 +388,7 @@ class TreesappTester(unittest.TestCase):
                                "--overwrite", "--delete", "--skip_assign"]
         update(update_command_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
+        test_refpkg.f__pkl = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(49, test_refpkg.num_seqs)

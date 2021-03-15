@@ -158,7 +158,7 @@ class EntrezUtilitiesTester(unittest.TestCase):
         from treesapp.refpkg import ReferencePackage
         # Load reference package to compare with
         mcra_refpkg = ReferencePackage()
-        mcra_refpkg.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        mcra_refpkg.f__pkl = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         mcra_refpkg.slurp()
         # Set up mock test data
         l1 = "Archaea; Euryarchaeota; environmental samples"

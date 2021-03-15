@@ -88,7 +88,8 @@ def abundance(sys_args) -> dict:
     ts_abund.delete_intermediates(args.delete)
 
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
-        pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir)
+        assigner_instance = classy.TreeSAPP("phylotu")
+        pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir, assigner_instance)
 
         # Collect the names of all classified PQueries
         classified_seqs = set()

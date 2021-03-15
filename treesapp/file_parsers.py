@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import sys
 import os
 import re
@@ -9,64 +7,12 @@ from glob import glob
 from collections import namedtuple
 from pygtrie import StringTrie
 
-from treesapp import classy
-from treesapp import refpkg
+from treesapp import seq_clustering
 from treesapp import fasta
 from treesapp import hmmer_tbl_parser
 from treesapp import phylo_seq
 
 __author__ = 'Connor Morgan-Lang'
-
-
-def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
-    """
-    Returns a dictionary of ReferencePackage instances for each MarkerBuild instance in the marker_build_dict.
-    Optionally these markers can be subsetted further by a list of targets
-
-    :param refpkg_data_dir: Path to the directory containing TreeSAPP reference packages (JSON-format)
-    :param targets: List of refpkg codes that are desired or an empty list suggesting all refpkgs should be used
-    :return: Dictionary of ReferencePackage.prefix keys indexing their respective instances
-    """
-    refpkg_dict = dict()
-    refpkgs_found = set()
-    logging.debug("Gathering reference package files... ")
-
-    if targets is None:
-        targets = set()
-    else:
-        targets = set(targets)
-
-    refpkg_files = glob(refpkg_data_dir + os.sep + "*_build.pkl")
-    if len(refpkg_files) == 0:
-        logging.error("No reference package files were found in {}.\n".format(refpkg_data_dir))
-        sys.exit(3)
-
-    for rp_file in refpkg_files:
-        ref_pkg = refpkg.ReferencePackage()
-        ref_pkg.f__json = rp_file
-        ref_pkg.slurp()
-        if targets:  # type: list
-            if ref_pkg.prefix not in targets and ref_pkg.refpkg_code not in targets:
-                continue
-            elif ref_pkg.prefix in refpkgs_found and ref_pkg.refpkg_code in refpkgs_found:
-                logging.warning("RefPkg for {} has already been found. Skipping {}.\n".format(ref_pkg.prefix, rp_file))
-            else:
-                match = targets.intersection({ref_pkg.prefix, ref_pkg.refpkg_code}).pop()
-                refpkgs_found.add(match)
-        if ref_pkg.validate():
-            refpkg_dict[ref_pkg.prefix] = ref_pkg
-    logging.debug("done.\n")
-
-    targets = targets.difference(refpkgs_found)
-    if len(targets) > 0:
-        logging.warning("Reference packages for targets {} could not be found.\n".format(", ".join(targets)))
-
-    if len(refpkg_dict) == 0:
-        logging.error("No reference package data was found.\n" +
-                      "Are there reference packages in '{}'?\n".format(refpkg_data_dir))
-        sys.exit(3)
-
-    return refpkg_dict
 
 
 def read_graftm_classifications(assignment_file):
@@ -245,8 +191,7 @@ def read_classification_table(assignment_file) -> list:
     return classified_lines
 
 
-def load_classified_sequences_from_assign_output(assign_output_dir: str, refpkg_name=None) -> dict:
-    assigner_cls = classy.TreeSAPP("phylotu")
+def load_classified_sequences_from_assign_output(assign_output_dir: str, assigner_cls, refpkg_name=None) -> dict:
     assigner_cls.final_output_dir = os.path.join(assign_output_dir, "final_outputs")
     classification_tbl = os.path.join(assigner_cls.final_output_dir, assigner_cls.classification_tbl_name)
     try:
@@ -651,7 +596,7 @@ def read_uc(uc_file: str) -> dict:
     for line in uc:
         cluster_type, num_id, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
         if cluster_type == "S":
-            cluster_dict[num_id] = classy.Cluster(header)
+            cluster_dict[num_id] = seq_clustering.Cluster(header)
         elif cluster_type == "H":
             cluster_dict[num_id].members.append([header, identity])
         elif cluster_type == "C":
@@ -692,7 +637,7 @@ def read_linclust_clusters(clusters_tsv_file: str) -> dict:
             logging.error("Unacceptable line format in MMSeqs cluster table:\n{}\n".format(line))
             sys.exit(17)
         if rep_name != previous:
-            cl_inst = classy.Cluster(rep_name)
+            cl_inst = seq_clustering.Cluster(rep_name)
             clusters[str(cluster_acc)] = cl_inst
             cluster_acc += 1
         cl_inst.members.append([mem_name, 0.0])
@@ -733,7 +678,7 @@ def create_mmseqs_clusters(clusters_tbl: str, aln_tbl: str) -> dict:
     for line in aln:
         if not line:
             continue
-        alignment = classy.BlastAln()
+        alignment = seq_clustering.BlastAln()
         alignment.load_blast_tab(line)
         try:
             aln_map[alignment.subject].append(alignment)
@@ -741,12 +686,12 @@ def create_mmseqs_clusters(clusters_tbl: str, aln_tbl: str) -> dict:
             aln_map[alignment.subject] = [alignment]
     aln.close()
 
-    for _, cluster in clusters.items():  # type: (int, classy.Cluster)
+    for _, cluster in clusters.items():  # type: (int, seq_clustering.Cluster)
         rep_alignments = aln_map[cluster.representative]
         for member in cluster.members:  # type: [str, float]
             x = 0
             while x < len(rep_alignments):
-                alignment = rep_alignments[x]  # type: classy.BlastAln
+                alignment = rep_alignments[x]  # type: seq_clustering.BlastAln
                 if alignment.query == member[0]:
                     member[1] = alignment.pident
                     rep_alignments.pop(x)
@@ -948,3 +893,31 @@ def grab_graftm_taxa(tax_ids_file):
 
             line = tax_ids.readline().strip()
     return taxonomic_tree
+
+
+def read_phenotypes(phenotypes_file: str, comment_char='#') -> dict:
+    taxa_phenotype_map = {}
+    try:
+        file_handler = open(phenotypes_file, 'r')
+    except IOError:
+        logging.error("Unable to open taxa-phenotype table '{}' for reading.\n".format(phenotypes_file))
+        sys.exit(7)
+
+    for line in file_handler:
+        if not line or line[0] == comment_char:
+            continue
+        if line.find(comment_char) >= 0:
+            line = line[:line.find(comment_char)]
+        try:
+            taxon_name, phenotype = line.rstrip().split("\t")
+        except ValueError:
+            logging.error("Unable to parse line in {}:\n{}\n".format(phenotypes_file, line))
+            sys.exit(9)
+        if taxon_name in taxa_phenotype_map:
+            logging.warning("Taxon '{}' found in {} multiple times and will be overwritten.\n"
+                            "".format(taxon_name, phenotypes_file))
+        taxa_phenotype_map[taxon_name.strip()] = phenotype.strip()
+
+    file_handler.close()
+
+    return taxa_phenotype_map

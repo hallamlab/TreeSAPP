@@ -171,56 +171,6 @@ def dedup_records(ref_seqs: fasta.FASTA, ref_seq_records: dict) -> dict:
     return ref_seq_records
 
 
-class Cluster:
-    def __init__(self, rep_name):
-        self.representative = rep_name
-        self.members = list()
-        self.lca = ''
-
-    def get_info(self):
-        info_string = "Representative: " + str(self.representative) + "\n" + \
-                      "LCA: " + self.lca + "\n" + \
-                      "Members:\n\t" + "\n\t".join([', '.join(member) for member in self.members]) + "\n"
-        return info_string
-
-
-class BlastAln:
-    def __init__(self):
-        self.subject = ""
-        self.query = ""
-        self.start = 0
-        self.end = 0
-        self.alnlen = 0
-        self.gapopen = 0
-        self.mismatch = 0
-        self.qstart = 0
-        self.qend = 0
-        self.tstart = 0
-        self.tend = 0
-        self.evalue = 0.0
-        self.pident = 0.0
-        self.bits = 0.0
-
-    def load_blast_tab(self, line: str, sep="\t") -> None:
-        try:
-            fields = line.strip().split(sep)
-        except ValueError:
-            logging.error("Unable to parse line in from alignment table:\n{}\n".format(line))
-            sys.exit(7)
-
-        try:
-            self.subject, self.query = fields[0], fields[1]
-            self.pident, self.alnlen, self.mismatch, self.gapopen = fields[2:6]
-            self.qstart, self.qend, self.tstart, self.tend = fields[6:10]
-            self.evalue, self.bits = fields[10], fields[11]
-        except ValueError:
-            logging.error("Incorrect format for line in alignment file. Twelve were expected, found {}.\n{}\n"
-                          "".format(len(fields), line))
-            sys.exit(7)
-
-        return
-
-
 class MyFormatter(logging.Formatter):
 
     error_fmt = "%(levelname)s - %(module)s, line %(lineno)d:\n%(message)s"
@@ -879,7 +829,7 @@ class Creator(TreeSAPP):
                      " where $code is a unique identifier.\n"
                      "2. Copy {0} to a directory containing other reference packages you want to analyse. "
                      "This may be in {1}/data/ or elsewhere\n"
-                     "".format(self.ref_pkg.f__json, self.treesapp_dir))
+                     "".format(self.ref_pkg.f__pkl, self.treesapp_dir))
         return
 
     def overcluster_warning(self, pre_count: int, post_count: int) -> None:
@@ -907,9 +857,9 @@ class Purity(TreeSAPP):
                        2: ModuleFunction("summarize", 2)}
 
     def check_purity_arguments(self, args):
-        self.ref_pkg.f__json = args.pkg_path
+        self.ref_pkg.f__pkl = args.pkg_path
         self.ref_pkg.slurp()
-        self.refpkg_dir = os.path.dirname(self.ref_pkg.f__json)
+        self.refpkg_dir = os.path.dirname(self.ref_pkg.f__pkl)
 
         self.formatted_input = self.stage_lookup("clean").dir_path + self.sample_prefix + "_formatted.fasta"
 
@@ -1458,13 +1408,9 @@ class Evaluator(TreeSAPP):
 class Layerer(TreeSAPP):
     def __init__(self):
         super(Layerer, self).__init__("layer")
-        self.c_style_re = re.compile(".*_style.txt$")
-        self.c_strip_re = re.compile(".*_strip.txt$")
         self.stages = {}
-        self.annot_files = list()
         self.target_refpkgs = list()
         self.treesapp_output = ""
-        self.colours_file = ""
 
 
 class Abundance(TreeSAPP):

@@ -12,7 +12,7 @@ def refpkg_class(request):
     from treesapp import refpkg
     from . import testing_utils as utils
     request.cls.db = refpkg.ReferencePackage("McrA")
-    request.cls.db.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+    request.cls.db.f__pkl = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
     request.cls.db.slurp()
     return
 

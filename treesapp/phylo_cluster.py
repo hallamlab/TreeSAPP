@@ -12,6 +12,8 @@ from treesapp.treesapp_args import TreeSAPPArgumentParser
 from treesapp import file_parsers
 from treesapp import jplace_utils
 from treesapp import rel_evo_dist
+from treesapp import refpkg
+from treesapp import seq_clustering
 from treesapp import phylo_seq
 from treesapp import taxonomic_hierarchy as ts_taxonomy
 from treesapp import classy as ts_classy
@@ -71,10 +73,10 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.clustering_mode = args.clustering_mode
 
         if args.pkg_target:
-            refpkg_dict = file_parsers.gather_ref_packages(self.refpkg_dir, [args.pkg_target])
+            refpkg_dict = refpkg.gather_ref_packages(self.refpkg_dir, [args.pkg_target])
             self.ref_pkg = refpkg_dict[args.pkg_target]
         elif args.pkg_path:
-            self.ref_pkg.f__json = args.pkg_path
+            self.ref_pkg.f__pkl = args.pkg_path
             self.ref_pkg.slurp()
         else:
             logging.error("A reference package must be provided to treesapp phylotu.\n")
@@ -358,7 +360,7 @@ class PhyloClust(ts_classy.TreeSAPP):
             try:
                 pquery.p_otu = leaf_cluster_map[pquery.place_name]
             except KeyError:
-                for _, cluster in pairwise_clusters.items():  # type: ts_classy.Cluster
+                for _, cluster in pairwise_clusters.items():  # type: seq_clustering.Cluster
                     if pquery.place_name in set([member[0] for member in cluster.members]):
                         pquery.p_otu = leaf_cluster_map[cluster.representative]
             if getattr(pquery, "sample_name") not in self.sample_mat:
@@ -565,7 +567,9 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, drep_similarity=1.0):
     # Gather all classified sequences for a reference package from the treesapp assign outputs
     classified_pqueries = {}
     for sample_id, ts_out in phylo_clust.assign_output_dirs.items():
+        assigner_instance = ts_classy.TreeSAPP("phylotu")
         classified_pqueries[sample_id] = file_parsers.load_classified_sequences_from_assign_output(ts_out,
+                                                                                                   assigner_instance,
                                                                                                    phylo_clust.ref_pkg.prefix)
         for pquery in classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]:
             phylo_clust.set_pquery_sample_name(pquery, sample_id)

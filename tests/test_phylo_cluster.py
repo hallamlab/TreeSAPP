@@ -20,7 +20,7 @@ class PhyloClusterTester(unittest.TestCase):
         os.mkdir(self.tmp_dir)
 
         self.refpkg = ReferencePackage()
-        self.refpkg.f__json = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        self.refpkg.f__pkl = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.refpkg.slurp()
         self.taxa_tree = self.refpkg.taxonomically_label_tree()
 
@@ -45,7 +45,7 @@ class PhyloClusterTester(unittest.TestCase):
         p_clust = PhyloClust()
         cli_args = ["-o", self.tmp_dir,
                     "--assign_output", get_test_data("test_output_TarA"), get_test_data("marker_test_results"),
-                    "--refpkg_path", self.refpkg.f__json,
+                    "--refpkg_path", self.refpkg.f__pkl,
                     "--mode", "ref_guided",
                     "--tax_rank", "genus"]
         p_clust.load_args(p_clust.get_arguments(cli_args))
@@ -56,7 +56,7 @@ class PhyloClusterTester(unittest.TestCase):
 
         # Simulate failure by de novo clustering with JPlace file
         with pytest.raises(SystemExit):
-            p_clust.load_args(p_clust.arg_parser.parse_args(["--refpkg_path", self.refpkg.f__json,
+            p_clust.load_args(p_clust.arg_parser.parse_args(["--refpkg_path", self.refpkg.f__pkl,
                                                              "--mode", "de_novo",
                                                              "--jplace", get_test_data("epa_result.jplace")]))
         return
@@ -154,16 +154,16 @@ class PhyloClusterTester(unittest.TestCase):
         # Should fail when multiple refpkgs provided
         with pytest.raises(SystemExit):
             cluster_phylogeny(["--refpkg_path",
-                               self.refpkg.f__json, get_test_data(os.path.join("refpkgs", "McrB_build.pkl")),
+                               self.refpkg.f__pkl, get_test_data(os.path.join("refpkgs", "McrB_build.pkl")),
                                "--jplace", get_test_data("epa_result.jplace")])
 
         # Test input is a single JPlace file
-        cluster_phylogeny(["--refpkg_path", self.refpkg.f__json,
+        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
                            "--jplace", get_test_data("epa_result.jplace"),
                            "--output", self.tmp_dir])
 
         # Test input is a treesapp assign output directory
-        cluster_phylogeny(["--refpkg_path", self.refpkg.f__json,
+        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
                            "--assign_output", get_test_data("test_output_TarA"),
                            "--output", self.tmp_dir,
                            "--alpha", str(0.4),
@@ -191,7 +191,7 @@ class PhyloClusterTester(unittest.TestCase):
         from treesapp.fasta import FASTA
         from treesapp import phylo_cluster
         p_clust = phylo_cluster.PhyloClust()
-        p_clust.load_args(p_clust.get_arguments(["--refpkg_path", self.refpkg.f__json,
+        p_clust.load_args(p_clust.get_arguments(["--refpkg_path", self.refpkg.f__pkl,
                                                  "--assign_output", get_test_data("test_output_TarA"),
                                                  "--output", self.tmp_dir,
                                                  "--alpha", str(0.4)]))
@@ -211,7 +211,7 @@ class PhyloClusterTester(unittest.TestCase):
     def test_de_novo_phylo_clusters(self):
         from treesapp import phylo_cluster
         p_clust = phylo_cluster.PhyloClust()
-        p_clust.load_args(p_clust.get_arguments(["--refpkg_path", self.refpkg.f__json,
+        p_clust.load_args(p_clust.get_arguments(["--refpkg_path", self.refpkg.f__pkl,
                                                  "--assign_output", get_test_data("test_output_TarA"),
                                                  "--output", self.tmp_dir,
                                                  "--alpha", str(0.4)]))

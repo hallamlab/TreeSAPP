@@ -4,6 +4,7 @@ import re
 import sys
 import json
 import inspect
+from glob import glob
 from shutil import copy
 
 from packaging import version
@@ -16,6 +17,8 @@ from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
 from treesapp.utilities import base_file_prefix, load_taxonomic_trie, match_file, get_hmm_value
+from treesapp.file_parsers import read_phenotypes
+from treesapp.clade_annotation import CladeAnnotation
 from treesapp import wrapper
 from treesapp import __version__ as ts_version
 
@@ -33,9 +36,8 @@ class ReferencePackage:
         self.refpkg_code = "Z1111"  # AKA denominator
 
         # These are files (with '_f' suffix) and their respective data (read with file.readlines())
-        # TODO: Rename to f__pkl
         self.refpkg_suffix = "_build.pkl"
-        self.f__json = self.prefix + self.refpkg_suffix  # Path to the pickled reference package file
+        self.f__pkl = self.prefix + self.refpkg_suffix  # Path to the pickled reference package file
         self.msa = []  # Reference MSA FASTA
         self.f__msa = self.prefix + ".fa"
         self.profile = []
@@ -63,6 +65,7 @@ class ReferencePackage:
         self.tree_tool = ""  # Software used for inferring the reference phylogeny
         self.description = ""
         self.pid = 1.0  # Proportional sequence similarity inputs were clustered at
+        self.feature_annotations = {}  # A dictionary storing the annotations for clades
         self.pfit = []  # Parameters for the polynomial regression function
         self.cmd = ""  # The command used for building the reference package
 
@@ -108,11 +111,11 @@ class ReferencePackage:
 
     def clone(self, clone_path: str):
         refpkg_clone = ReferencePackage()
-        if not os.path.isfile(self.f__json):
+        if not os.path.isfile(self.f__pkl):
             self.pickle_package()
-        refpkg_clone.f__json = self.f__json
+        refpkg_clone.f__pkl = self.f__pkl
         refpkg_clone.slurp()
-        refpkg_clone.f__json = clone_path
+        refpkg_clone.f__pkl = clone_path
         return refpkg_clone
 
     def pickle_package(self) -> None:
@@ -121,20 +124,20 @@ class ReferencePackage:
 
         :return: None.
         """
-        if len(self.f__json) == 0:
+        if len(self.f__pkl) == 0:
             self.bail("ReferencePackage.f__json not set. ReferencePackage band() cannot be completed.\n")
             raise AttributeError
 
-        output_dir = os.path.dirname(self.f__json)
+        output_dir = os.path.dirname(self.f__pkl)
         if not output_dir:
             output_dir = "./"
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
 
         try:
-            refpkg_handler = open(self.f__json, 'wb')
+            refpkg_handler = open(self.f__pkl, 'wb')
         except IOError:
-            self.bail("Unable to open reference package pickled file '{}' for writing.\n".format(self.f__json))
+            self.bail("Unable to open reference package pickled file '{}' for writing.\n".format(self.f__pkl))
             raise IOError
 
         refpkg_dict = {}
@@ -253,37 +256,37 @@ class ReferencePackage:
 
         :return: None
         """
-        new_path = self.f__json
-        if len(self.f__json) == 0:
+        new_path = self.f__pkl
+        if len(self.f__pkl) == 0:
             logging.error("ReferencePackage.f__json was not set.\n")
             sys.exit(11)
 
-        if not os.path.isfile(self.f__json):
-            logging.error("ReferencePackage pickle file '{}' doesn't exist.\n".format(self.f__json))
+        if not os.path.isfile(self.f__pkl):
+            logging.error("ReferencePackage pickle file '{}' doesn't exist.\n".format(self.f__pkl))
             sys.exit(7)
 
         try:
-            refpkg_data = joblib.load(self.f__json)
+            refpkg_data = joblib.load(self.f__pkl)
         except KeyError:
-            refpkg_handler = open(self.f__json, 'r')
+            refpkg_handler = open(self.f__pkl, 'r')
             refpkg_data = json.load(refpkg_handler)
             refpkg_handler.close()
         except EOFError:
-            logging.error("Joblib was unable to load reference package pickle '{}'.\n".format(self.f__json))
+            logging.error("Joblib was unable to load reference package pickle '{}'.\n".format(self.f__pkl))
             sys.exit(17)
 
         for a, v in refpkg_data.items():
             self.__dict__[a] = v
 
         # Fix the pickle path
-        self.f__json = new_path
+        self.f__pkl = new_path
 
         if type(self.tree) is list:
             if len(self.tree) > 0:
                 self.tree = self.tree[0]
             else:
                 logging.error("Unable to load the phylogenetic tree for reference package '{}' ({})\n."
-                              "".format(self.prefix, self.f__json))
+                              "".format(self.prefix, self.f__pkl))
                 return
 
         self.load_taxonomic_hierarchy()
@@ -1007,14 +1010,58 @@ class ReferencePackage:
 
         return rt
 
+    def add_feature_annotations(self, feature_name: str, **kwargs) -> None:
+        """Triages the different formats of feature maps to their respective functions."""
+        if "taxon_feature_map" in kwargs:
+            self.add_taxonomic_features(feature_name, taxon_feature_map=kwargs["taxon_feature_map"])
+        return
 
-def write_edited_pkl(refpkg: ReferencePackage, output_dir: str, overwrite: bool) -> None:
-    if not overwrite:
-        refpkg.f__json = os.path.join(output_dir, os.path.basename(refpkg.f__json))
-        if os.path.isfile(refpkg.f__json):
-            logging.warning("RefPkg file '{}' already exists.\n".format(refpkg.f__json))
-            return
-    refpkg.pickle_package()
+    def add_taxonomic_features(self, feature_name: str, taxon_feature_map: dict) -> None:
+        """Adds feature annotations from a taxonomy-phenotype mapping file."""
+        # Pull the current annotations in case it can be appended to
+        try:
+            clade_annots = self.feature_annotations[feature_name]
+        except KeyError:
+            clade_annots = []
+            self.feature_annotations[feature_name] = clade_annots
+
+        # Invert the dictionary to map annotation names to taxa
+        feature_map = {}
+        for taxon, annotation in taxon_feature_map.items():
+            try:
+                feature_map[annotation].append(taxon)
+            except KeyError:
+                feature_map[annotation] = [taxon]
+
+        # Create a new CladeAnnotation instance for each feature
+        for annotation, taxa in feature_map.items():  # type: (str, list)
+            # Determine whether the feature is already in clade_annots and if so, update it
+            ca = None
+            for prev_annot in clade_annots:  # type: CladeAnnotation
+                if prev_annot.name == annotation:
+                    ca = prev_annot
+                    break
+            if ca is None:
+                ca = CladeAnnotation(name=annotation, key=feature_name)
+                self.feature_annotations[feature_name].append(ca)
+
+            # Populate the taxa and members attributes
+            ca.taxa = set(taxa)
+            for taxon_name in ca.taxa:
+                ca.members.update(set([ref_leaf.number for ref_leaf in
+                                       self.get_leaf_nodes_for_taxon(taxon_name=taxon_name)]))
+                # TODO: replace/remove phylogeny_paintin.map_taxa_to_leaf_nodes
+
+        return
+
+
+def write_edited_pkl(ref_pkg: ReferencePackage, output_dir: str, overwrite: bool) -> None:
+    if output_dir:
+        ref_pkg.f__pkl = os.path.join(output_dir, os.path.basename(ref_pkg.f__pkl))
+    if not overwrite and os.path.isfile(ref_pkg.f__pkl):
+        logging.warning("RefPkg file '{}' already exists.\n".format(ref_pkg.f__pkl))
+        return
+    ref_pkg.pickle_package()
     return
 
 
@@ -1039,7 +1086,7 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
     return
 
 
-def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool) -> None:
+def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrite: bool, phenotypes=None) -> None:
     if len(attributes) > 2:
         logging.error("`treesapp package edit` only edits a single attribute at a time.\n")
         sys.exit(3)
@@ -1047,7 +1094,7 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool
         logging.error("`treesapp package edit` requires a value to change.\n")
         sys.exit(3)
     else:
-        k, v = attributes  # type: (str, str)
+        k, v = attributes  # type: (str, any)
 
     try:
         current_v = refpkg.__dict__[k]
@@ -1061,15 +1108,19 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir, overwrite: bool
         k_content = re.sub(r"^f__", '', k)
         if not os.path.isfile(v):
             logging.error("Unable to find path to new file '{}'. "
-                          "Exiting and the reference package '{}' will remain unchanged.\n".format(v, refpkg.f__json))
+                          "Exiting and the reference package '{}' will remain unchanged.\n".format(v, refpkg.f__pkl))
             sys.exit(5)
         with open(v) as content_handler:
             v_content = content_handler.readlines()
         try:
             refpkg.__dict__[k_content] = v_content
         except KeyError:
-            logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, refpkg.f__json))
+            logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, refpkg.f__pkl))
             sys.exit(7)
+    elif k == "feature_annotations":
+        taxa_phenotype_map = read_phenotypes(phenotypes)
+        refpkg.add_feature_annotations(feature_name=v, taxon_feature_map=taxa_phenotype_map)
+        v = refpkg.feature_annotations
     refpkg.__dict__[k] = v
 
     write_edited_pkl(refpkg, output_dir, overwrite)
@@ -1105,8 +1156,59 @@ def rename(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrit
 
     # Finally change the value of the prefix once all other attributes have been modified
     refpkg.prefix = new_prefix
-    refpkg.f__json = refpkg.prefix + refpkg.refpkg_suffix
+    refpkg.f__pkl = refpkg.prefix + refpkg.refpkg_suffix
 
     write_edited_pkl(refpkg, output_dir, overwrite)
 
     return
+
+
+def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
+    """
+    Returns a dictionary of ReferencePackage instances for each MarkerBuild instance in the marker_build_dict.
+    Optionally these markers can be subsetted further by a list of targets
+
+    :param refpkg_data_dir: Path to the directory containing TreeSAPP reference packages (JSON-format)
+    :param targets: List of refpkg codes that are desired or an empty list suggesting all refpkgs should be used
+    :return: Dictionary of ReferencePackage.prefix keys indexing their respective instances
+    """
+    refpkg_dict = dict()
+    refpkgs_found = set()
+    logging.debug("Gathering reference package files... ")
+
+    if targets is None:
+        targets = set()
+    else:
+        targets = set(targets)
+
+    refpkg_files = glob(refpkg_data_dir + os.sep + "*_build.pkl")
+    if len(refpkg_files) == 0:
+        logging.error("No reference package files were found in {}.\n".format(refpkg_data_dir))
+        sys.exit(3)
+
+    for rp_file in refpkg_files:
+        ref_pkg = ReferencePackage()
+        ref_pkg.f__pkl = rp_file
+        ref_pkg.slurp()
+        if targets:  # type: list
+            if ref_pkg.prefix not in targets and ref_pkg.refpkg_code not in targets:
+                continue
+            elif ref_pkg.prefix in refpkgs_found and ref_pkg.refpkg_code in refpkgs_found:
+                logging.warning("RefPkg for {} has already been found. Skipping {}.\n".format(ref_pkg.prefix, rp_file))
+            else:
+                match = targets.intersection({ref_pkg.prefix, ref_pkg.refpkg_code}).pop()
+                refpkgs_found.add(match)
+        if ref_pkg.validate():
+            refpkg_dict[ref_pkg.prefix] = ref_pkg
+    logging.debug("done.\n")
+
+    targets = targets.difference(refpkgs_found)
+    if len(targets) > 0:
+        logging.warning("Reference packages for targets {} could not be found.\n".format(", ".join(targets)))
+
+    if len(refpkg_dict) == 0:
+        logging.error("No reference package data was found.\n" +
+                      "Are there reference packages in '{}'?\n".format(refpkg_data_dir))
+        sys.exit(3)
+
+    return refpkg_dict

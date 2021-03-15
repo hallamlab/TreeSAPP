@@ -7,7 +7,7 @@ from .testing_utils import get_test_data, get_treesapp_root
 
 class TreesappTester(unittest.TestCase):
     def test_gather_ref_packages(self):
-        from treesapp.file_parsers import gather_ref_packages
+        from treesapp.refpkg import gather_ref_packages
         from . import testing_utils as utils
         refpkg_dir = utils.get_test_data(os.path.join("refpkgs"))
         #
@@ -98,7 +98,10 @@ class TreesappTester(unittest.TestCase):
 
     def test_load_classifified_sequences_from_assign_output(self):
         from treesapp.file_parsers import load_classified_sequences_from_assign_output
-        refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("marker_test_results"))
+        from treesapp.classy import TreeSAPP
+        assigner_instance = TreeSAPP("phylotu")
+        refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("marker_test_results"),
+                                                                         assigner_instance)
         self.assertEqual(["McrA", "McrB"], list(refpkg_pquery_map.keys()))
         self.assertEqual(13, sum([len(pqueries) for pqueries in refpkg_pquery_map.values()]))
         for rp, pqueries in refpkg_pquery_map.items():
@@ -108,6 +111,7 @@ class TreesappTester(unittest.TestCase):
 
         # Test refpkg filtering
         refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("test_output_TarA"),
+                                                                         assigner_instance,
                                                                          refpkg_name="DsrAB")
         self.assertEqual(70, len(refpkg_pquery_map["DsrAB"]))
         for rp, pqueries in refpkg_pquery_map.items():
@@ -118,7 +122,10 @@ class TreesappTester(unittest.TestCase):
 
     def test_write_classification_table(self):
         from treesapp.file_parsers import write_classification_table, load_classified_sequences_from_assign_output
-        refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("marker_test_results"))
+        from treesapp.classy import TreeSAPP
+        assigner_instance = TreeSAPP("phylotu")
+        refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("marker_test_results"),
+                                                                         assigner_instance)
         test_output = "tests/tmp_classifications.tsv"
         write_classification_table(tree_saps=refpkg_pquery_map, output_file=test_output, sample_name="Testing")
         with open(test_output) as t_out:
@@ -136,6 +143,14 @@ class TreesappTester(unittest.TestCase):
         if os.path.isfile(test_output):
             os.remove(test_output)
         return
+
+    def test_read_phenotypes_map(self):
+        from treesapp.file_parsers import read_phenotypes
+        mcra_metabolism = get_test_data("Mcr_taxonomy-phenotype_map.tsv")
+
+        phenotypes = read_phenotypes(mcra_metabolism)
+        self.assertIsInstance(cls=dict, obj=phenotypes)
+        self.assertEqual(15, len(phenotypes))
 
 
 if __name__ == '__main__':
