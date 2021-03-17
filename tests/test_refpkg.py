@@ -110,6 +110,12 @@ class RefPkgTester(unittest.TestCase):
     def test_bail(self):
         self.db.bail()
 
+    def test_map_taxa_to_leaf_nodes(self):
+        leaf_map = self.db.map_taxa_to_leaf_nodes(leaf_names=["g__Methanothrix", "g__Methanosarcina"])
+        self.assertEqual(4, len(leaf_map["g__Methanothrix"]))
+        self.assertEqual(13, len(leaf_map["g__Methanosarcina"]))
+        return
+
     def test_get_internal_node_leaf_map(self):
         self.db.f__pkl = self.pkl_path
         self.db.slurp()
