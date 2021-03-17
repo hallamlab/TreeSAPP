@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 __author__ = "Connor Morgan-Lang"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL-3.0"
@@ -1260,6 +1258,24 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
     return
 
 
+def alert_for_refpkg_feature_annotations(pqueries: dict, refpkg_dict: dict) -> None:
+    feature_positive = []
+    for refpkg_name in pqueries:
+        if len(pqueries[refpkg_name]) == 0:
+            continue
+        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
+        if len(ref_pkg.feature_annotations) > 0:
+            feature_positive.append(ref_pkg.prefix)
+
+    if len(feature_positive) > 0:
+        logging.info("Alert: {} reference packages have feature annotations."
+                     "Consider running treesapp layer.\n".format(len(feature_positive)))
+        logging.debug("Reference packages with clade_annotations attribute filled:\n\t{}\n"
+                      "".format("\n\t".join(feature_positive)))
+
+    return
+
+
 def assign(sys_args):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = treesapp_args.TreeSAPPArgumentParser(description='Classify sequences through evolutionary placement.')
@@ -1412,6 +1428,8 @@ def assign(sys_args):
 
         produce_itol_inputs(tree_saps, refpkg_dict, itol_data, ts_assign.itol_out, ts_assign.refpkg_dir)
         delete_files(args.delete, ts_assign.stage_lookup("place").dir_path, 4)
+
+        alert_for_refpkg_feature_annotations(tree_saps, refpkg_dict)
 
     # Clear out the rest of the intermediates
     delete_files(args.delete, ts_assign.var_output_dir, 5)
