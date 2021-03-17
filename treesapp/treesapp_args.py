@@ -248,7 +248,7 @@ def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
                                          "To automatically infer the variable name (rather than through `names`). "
                                          "File name format should be `marker`_`var`.txt. For example: McrA_Metabolism.txt "
                                          "would create a new column in marker_contig_map.tsv named 'Metabolism'.")
-    pkg_parser.optopt.add_argument('-o', '--output', default="./", required=False,
+    pkg_parser.optopt.add_argument('-o', '--output', default=None, required=False,
                                    help='Path to an output directory. '
                                         'Default is the current working directory.')
     return

@@ -8,8 +8,11 @@ class CladeAnnotation:
         self.taxa = set()  # List of representative taxa
         self.colour = ""
 
+    def __str__(self) -> str:
+        return self.summarise()
+
     def summarise(self) -> str:
-        summary_str = "Annotation {} of feature {} status:\n".format(self.name, self.feature)
+        summary_str = "Annotation '{}' of feature '{}' status:\n".format(self.name, self.feature)
         if len(self.members) == 0:
             summary_str += "\tUninitiated.\n"
         else:

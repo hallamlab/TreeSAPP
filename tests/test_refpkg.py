@@ -18,16 +18,24 @@ def refpkg_class(request):
 @pytest.mark.usefixtures("refpkg_class")
 class RefPkgTester(unittest.TestCase):
     def setUp(self) -> None:
+        from treesapp.refpkg import ReferencePackage
         from treesapp.utilities import fetch_executable_path
+        from shutil import copyfile
         self.pkl_path = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.new_pkl_path = "./test_write_json" + self.db.refpkg_suffix
         self.disband_path = os.path.join("tests", "_".join([self.db.prefix, self.db.refpkg_code, self.db.date]))
         if os.path.isdir(self.disband_path):
             rmtree(self.disband_path)
-        self.intermediates_dir = "refpkg_test_dir"
+        self.intermediates_dir = os.path.join("tests", "refpkg_test_dir") + os.sep
         if os.path.isdir(self.intermediates_dir):
             rmtree(self.intermediates_dir)
         os.mkdir(self.intermediates_dir)
+
+        # Copy the original McrA test reference package to a new directory
+        copyfile(self.pkl_path, os.path.join(self.intermediates_dir, os.path.basename(self.db.f__pkl)))
+        self.mutable_ref_pkg = ReferencePackage()
+        self.mutable_ref_pkg.f__pkl = os.path.join(self.intermediates_dir, os.path.basename(self.db.f__pkl))
+        self.mutable_ref_pkg.slurp()
 
         # Find the executables
         self.exe_map = {}
@@ -189,6 +197,45 @@ class RefPkgTester(unittest.TestCase):
         with pytest.raises(SystemExit):
             view(self.db, ["boot_tree", "f__boot_tree", "annotations"])
         view(self.db, attributes=["num_seqs"])
+        return
+
+    def test_write_edited_pkl(self):
+        from treesapp.refpkg import write_edited_pkl
+
+        # Test writing to a new directory
+        retcode = write_edited_pkl(ref_pkg=self.mutable_ref_pkg, output_dir=self.intermediates_dir + "tmp/", overwrite=False)
+        self.assertEqual(0, retcode)
+        self.assertTrue(os.path.isfile(os.path.join(self.intermediates_dir, "tmp", os.path.basename(self.db.f__pkl))))
+
+        # Test writing to the same file (should not work)
+        retcode = write_edited_pkl(ref_pkg=self.mutable_ref_pkg, output_dir=self.intermediates_dir + "tmp/", overwrite=False)
+        self.assertEqual(1, retcode)
+
+        # Test overwriting the existing reference package
+        self.mutable_ref_pkg.feature_annotations = {"Something": []}
+        retcode = write_edited_pkl(ref_pkg=self.mutable_ref_pkg, output_dir="", overwrite=True)
+        self.assertEqual(0, retcode)
+        self.assertEqual(os.path.join(self.intermediates_dir, "tmp", os.path.basename(self.db.f__pkl)),
+                         self.mutable_ref_pkg.f__pkl)
+        # Reset the feature_annotations attribute to ensure the annotation is from the written, edited RefPkg
+        self.mutable_ref_pkg.feature_annotations = {}
+        self.mutable_ref_pkg.slurp()
+        self.assertTrue("Something" in self.mutable_ref_pkg.feature_annotations)
+        return
+
+    def test_edit(self):
+        from treesapp.refpkg import edit
+        new_value = "Z0002"
+        edit(refpkg=self.mutable_ref_pkg,
+             output_dir=os.path.dirname(self.mutable_ref_pkg.f__pkl),
+             attributes=["refpkg_code", new_value],
+             overwrite=True)
+
+        # To ensure the observed attribute value is as we expect, assign the attribute a temporary value
+        self.mutable_ref_pkg.refpkg_code = "tmp"
+
+        self.mutable_ref_pkg.slurp()
+        self.assertEqual(new_value, self.mutable_ref_pkg.refpkg_code)
         return
 
 

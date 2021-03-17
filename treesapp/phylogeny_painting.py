@@ -30,7 +30,6 @@ class PhyPainter(TreeSAPP):
         super(PhyPainter, self).__init__("colour")
         self.refpkg_dict = {}
         self.refpkg_leaf_nodes_to_colour = {}
-        self.taxa_phenotype_map = {}
         self.taxa_to_colour = set()
         self.rank = ""
         self.palette = ""
@@ -73,15 +72,11 @@ class PhyPainter(TreeSAPP):
             self.rank = args.rank
         self.palette = args.palette
 
-        if args.phenotypes:
-            self.phenotypes = True
-
-        if args.name:
-            self.output_prefix = args.name
-        elif self.phenotypes:
-            self.output_prefix, _ = os.path.splitext(os.path.basename(args.phenotypes))
+        # Determine the prefix for the colour files
+        if args.attribute == "taxonomy":
+            self.feature_name = self.rank
         else:
-            self.output_prefix = self.rank
+            self.feature_name = args.attribute
 
         return
 
@@ -411,27 +406,8 @@ def order_taxa(taxa_to_colour: set, taxon_leaf_map: dict, leaf_order: list):
     return taxon_order
 
 
-def map_taxa_to_leaf_nodes(leaf_names: list, refpkg: ReferencePackage) -> dict:
-    taxon_leaf_map = {}
-    i = 0
-    # Collect the leaf names for taxa names
-    while i < len(leaf_names):
-        taxon_name = leaf_names[i]  # type: str
-        if taxon_name not in refpkg.taxa_trie.hierarchy:
-            i += 1
-        else:
-            taxon_leaf_nodes = refpkg.get_leaf_nodes_for_taxon(taxon_name)
-            taxon_leaf_map[taxon_name] = [leaf.number + '_' + refpkg.prefix for leaf in taxon_leaf_nodes]
-            leaf_names.pop(i)
-    # The remaining names in leaf_names refer to individual leaf nodes, not higher-level taxa
-    for leaf_name in leaf_names:
-        leaves = refpkg.get_leaf_node_by_name(leaf_name)
-        if leaves:
-            taxon_leaf_map[leaf_name] = [leaf.number + '_' + refpkg.prefix for leaf in leaves]
-    return taxon_leaf_map
-
-
 def convert_taxa_to_phenotypes(taxon_leaf_map: dict, phenotypes_map: dict) -> dict:
+    """Creates a dictionary mapping feature annotation names to a list of leaf node names."""
     phenotype_leaf_map = {}
     while taxon_leaf_map:
         taxon, leaves = taxon_leaf_map.popitem()  # type: (str, list)

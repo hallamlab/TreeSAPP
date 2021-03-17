@@ -299,18 +299,14 @@ class TreesappTester(unittest.TestCase):
         from .testing_utils import get_test_data
 
         test_refpkg = ReferencePackage()
-        test_refpkg.f__pkl = "./TreeSAPP_package/McrA_build.pkl"
+        output_dir = "./TreeSAPP_package" + os.sep
+        test_refpkg.f__pkl = output_dir + "McrA_build.pkl"
 
-        # Test viewer
-        view_command_list = ["view",
-                             "lineage_ids", "feature_annotations",
-                             "--refpkg_path", self.mcra_pkl,
-                             "--output", "./TreeSAPP_package"]
-        package(view_command_list)
+        # Test editing a component file's contents
         edit_command_list = ["edit",
                              "f__msa", self.aa_test_fa,
                              "--refpkg_path", self.mcra_pkl,
-                             "--output", "./TreeSAPP_package"]
+                             "--output", output_dir]
         package(edit_command_list)
         test_refpkg.slurp()
         self.assertFalse(test_refpkg.validate())
@@ -322,7 +318,7 @@ class TreesappTester(unittest.TestCase):
                              "feature_annotations", "Function",
                              "--taxa_map", get_test_data("Mcr_taxonomy-phenotype_map.tsv"),
                              "--refpkg_path", self.mcra_pkl,
-                             "--output", "./TreeSAPP_package",
+                             "--output", output_dir,
                              "--overwrite"]
         package(edit_command_list)
         test_refpkg.slurp()
@@ -330,6 +326,13 @@ class TreesappTester(unittest.TestCase):
         self.assertTrue('Function' in test_refpkg.feature_annotations)
         self.assertEqual(5, len(test_refpkg.feature_annotations["Function"]))
         self.assertIsInstance(test_refpkg.feature_annotations["Function"][0], CladeAnnotation)
+
+        # Test viewer
+        view_command_list = ["view",
+                             "lineage_ids", "feature_annotations",
+                             "--refpkg_path", output_dir + os.path.basename(self.mcra_pkl),
+                             "--output", output_dir]
+        package(view_command_list)
 
         return
 

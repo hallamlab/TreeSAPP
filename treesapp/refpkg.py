@@ -540,6 +540,31 @@ class ReferencePackage:
                 taxon_leaf_nodes.append(leaf)
         return taxon_leaf_nodes
 
+    def map_taxa_to_leaf_nodes(self, leaf_names: list) -> dict:
+        """
+        A flexible method for mapping a set of nodes by their accessions or a taxon.
+
+        :return: A dictionary mapping taxa or leaf node names to leaf node numbers. Example:
+        {'g__Methanosarcina': [53_McrA, 54_McrA], 'WP_1245.1': [62_McrA]}"""
+        taxon_leaf_map = {}
+        i = 0
+        # Collect the leaf names for taxa names
+        while i < len(leaf_names):
+            taxon_name = leaf_names[i]  # type: str
+            if taxon_name not in self.taxa_trie.hierarchy:
+                i += 1
+            else:
+                taxon_leaf_nodes = self.get_leaf_nodes_for_taxon(taxon_name)
+                taxon_leaf_map[taxon_name] = [leaf.number + '_' + self.prefix for leaf in taxon_leaf_nodes]
+                leaf_names.pop(i)
+
+        # The remaining names in leaf_names refer to individual leaf nodes, not higher-level taxa
+        for leaf_name in leaf_names:
+            leaves = self.get_leaf_node_by_name(leaf_name)
+            if leaves:
+                taxon_leaf_map[leaf_name] = [leaf.number + '_' + self.prefix for leaf in leaves]
+        return taxon_leaf_map
+
     def get_leaf_node_by_name(self, leaf_name: str) -> list:
         leaves = []
         for leaf_node in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
@@ -1046,23 +1071,22 @@ class ReferencePackage:
                 self.feature_annotations[feature_name].append(ca)
 
             # Populate the taxa and members attributes
-            ca.taxa = set(taxa)
-            for taxon_name in ca.taxa:
-                ca.members.update(set([ref_leaf.number for ref_leaf in
-                                       self.get_leaf_nodes_for_taxon(taxon_name=taxon_name)]))
-                # TODO: replace/remove phylogeny_paintin.map_taxa_to_leaf_nodes
+            ca.taxa.update(set(taxa))
+            ca.taxa_leaf_map = self.map_taxa_to_leaf_nodes(taxa)
+            for t, l in ca.taxa_leaf_map.items():
+                ca.members.update(set(l))
 
         return
 
 
-def write_edited_pkl(ref_pkg: ReferencePackage, output_dir: str, overwrite: bool) -> None:
+def write_edited_pkl(ref_pkg: ReferencePackage, output_dir: str, overwrite: bool) -> int:
     if output_dir:
         ref_pkg.f__pkl = os.path.join(output_dir, os.path.basename(ref_pkg.f__pkl))
     if not overwrite and os.path.isfile(ref_pkg.f__pkl):
         logging.warning("RefPkg file '{}' already exists.\n".format(ref_pkg.f__pkl))
-        return
+        return 1
     ref_pkg.pickle_package()
-    return
+    return 0
 
 
 def view(refpkg: ReferencePackage, attributes: list) -> None:
@@ -1076,10 +1100,17 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
 
     for k, v in view_dict.items():
         logging.info("{}:\t".format(k))
-        if type(v) is list and k not in ["pfit"]:
+        if type(v) is list and k not in ["pfit"]:  # various file contents
             v = ''.join(v)
-        if type(v) is dict:
-            v = "\n" + "\n".join([sk + "\t" + sv for sk, sv in v.items()])
+        if type(v) is dict:  # feature_annotations, lineage_ids
+            buffer = "\n"
+            if len(v.items()) > 0:
+                for sk, sv in v.items():
+                    if isinstance(sv, list):
+                        buffer += sk + "\t" + "".join([str(e) for e in sv]) + "\n"
+                    else:
+                        buffer += sk + "\t" + str(sv) + "\n"
+            v = buffer
         sys.stdout.write(str(v).strip() + "\n")
 
     # TODO: optionally use ReferencePackage.write_refpkg_component
