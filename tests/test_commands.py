@@ -17,6 +17,7 @@ class TreesappTester(unittest.TestCase):
         self.mcra_pkl = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.mcrb_pkl = get_test_data(os.path.join("refpkgs", "McrB_build.pkl"))
         self.puha_pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+        self.xmoa_pkl = get_test_data(os.path.join("refpkgs", "XmoA_build.pkl"))
 
         # Output examples
         self.ts_assign_output = get_test_data("test_output_TarA/")
@@ -135,16 +136,23 @@ class TreesappTester(unittest.TestCase):
         colour(colour_commands)
         self.assertTrue(os.path.isfile(os.path.join("TreeSAPP_colour", "McrA_family_colour_strip.txt")))
 
+        # Test a failure when the desired attribute doesn't exist in the reference package(s)
+        with pytest.raises(AssertionError):
+            colour(["-r", self.mcra_pkl, self.mcrb_pkl,
+                    "-o", "./TreeSAPP_colour",
+                    "--palette", "viridis",
+                    "--attribute", "Pathway"])
+
         # Test creating strip and styles file for an annotated feature
-        colour_commands = ["-r", self.mcra_pkl,
+        colour_commands = ["-r", self.xmoa_pkl,
                            "-o", "./TreeSAPP_colour",
                            "--palette", "viridis",
-                           "--attribute", "Pathway"]
+                           "--attribute", "Paralog"]
         colour(colour_commands)
-        itol_strip_file = os.path.isfile(os.path.join("TreeSAPP_colour", "McrA_Pathway_colour_strip.txt"))
-        self.assertTrue(itol_strip_file)
+        itol_strip_file = os.path.join("TreeSAPP_colour", "XmoA_Paralog_colour_strip.txt")
+        self.assertTrue(os.path.isfile(itol_strip_file))
         with open(itol_strip_file) as strip_dat:
-            self.assertEqual(18, strip_dat.readlines())
+            self.assertEqual(25, len(strip_dat.readlines()))
         return
 
     def test_create(self):

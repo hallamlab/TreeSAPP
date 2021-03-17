@@ -31,6 +31,7 @@ from treesapp import create_refpkg as ts_create_mod
 from treesapp import update_refpkg as ts_update_mod
 from treesapp import phylo_cluster as ts_potu
 from treesapp import hmmer_tbl_parser
+from treesapp import clade_annotation
 
 
 def info(sys_args):
@@ -128,21 +129,30 @@ Use '-h' to get subcommand-specific help, e.g. 'treesapp package view -h'
     treesapp_args.add_package_arguments(parser, refpkg.get_public_attributes())
     args = parser.parse_args(sys_args)
 
-    if not os.path.isdir(args.output):
-        os.mkdir(args.output)
+    if args.output:
+        log_dir = args.output
+        if not os.path.isdir(args.output):
+            os.mkdir(args.output)
+    else:
+        log_dir = "./"
 
-    classy.prep_logging(log_file=os.path.join(args.output, 'TreeSAPP_package_log.txt'))
+    classy.prep_logging(log_file=os.path.join(log_dir, 'TreeSAPP_package_log.txt'))
 
     for refpkg_pkl in args.pkg_path:
         refpkg.f__pkl = refpkg_pkl
         refpkg.slurp()
 
+        if args.output:
+            output_dir = args.output
+        else:
+            output_dir = os.path.dirname(refpkg.f__pkl)
+
         if args.subcommand == "view":
             ts_ref_pkg.view(refpkg, args.attributes)
         elif args.subcommand == "edit":
-            ts_ref_pkg.edit(refpkg, args.attributes, args.output, args.overwrite, args.phenotypes)
+            ts_ref_pkg.edit(refpkg, args.attributes, output_dir, args.overwrite, args.phenotypes)
         elif args.subcommand == "rename":
-            ts_ref_pkg.rename(refpkg, args.attributes, args.output, args.overwrite)
+            ts_ref_pkg.rename(refpkg, args.attributes, output_dir, args.overwrite)
         else:
             logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
             sys.exit(1)
@@ -961,11 +971,16 @@ def colour(sys_args):
 
     # Find the taxa that should be coloured for each reference package
     for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ts_ref_pkg.ReferencePackage)
-        if ts_painter.phenotypes:
-            target_taxa = list(ts_painter.taxa_phenotype_map.keys())
-            taxon_leaf_map = paint.convert_taxa_to_phenotypes(taxon_leaf_map=paint.map_taxa_to_leaf_nodes(target_taxa,
-                                                                                                          ref_pkg),
-                                                              phenotypes_map=ts_painter.taxa_phenotype_map)
+        if args.attribute != 'taxonomy':
+            taxon_leaf_map = {}
+            try:
+                clade_annots = ref_pkg.feature_annotations[ts_painter.feature_name]
+            except KeyError:
+                logging.warning("Reference package '{}' doesn't have the '{}' feature annotated. "
+                                "It is being skipped\n".format(refpkg_name, ts_painter.feature_name))
+                continue
+            for ca in clade_annots:  # type: clade_annotation.CladeAnnotation
+                taxon_leaf_map.update({ca.name: ca.members})
         else:
             ts_painter.find_rank_depth(ref_pkg, ref_pkg.taxa_trie.accepted_ranks_depths[ts_painter.rank])
 
@@ -990,6 +1005,10 @@ def colour(sys_args):
         # Find the intersection or union between reference packages analyzed so far
         ts_painter.harmonize_taxa_colours(taxon_leaf_map, args.set_op)
 
+    if len(ts_painter.refpkg_leaf_nodes_to_colour.keys()) == 0:
+        logging.error("Unable to colour phylogenies by '{}' - attributes were not found in reference packages.\n".format(args.attribute))
+        raise AssertionError
+
     # Sort the nodes by their internal node order
     taxa_order = paint.order_taxa(taxa_to_colour=ts_painter.taxa_to_colour,
                                   taxon_leaf_map=ts_painter.refpkg_leaf_nodes_to_colour[ref_pkg.prefix],
@@ -1003,9 +1022,9 @@ def colour(sys_args):
     for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ts_ref_pkg.ReferencePackage)
         taxon_leaf_map = ts_painter.refpkg_leaf_nodes_to_colour[refpkg_name]
         style_file = os.path.join(ts_painter.output_dir,
-                                  "{}_{}_colours_style.txt".format(ref_pkg.prefix, ts_painter.output_prefix))
+                                  "{}_{}_colours_style.txt".format(ref_pkg.prefix, ts_painter.feature_name))
         strip_file = os.path.join(ts_painter.output_dir,
-                                  "{}_{}_colour_strip.txt".format(ref_pkg.prefix, ts_painter.output_prefix))
+                                  "{}_{}_colour_strip.txt".format(ref_pkg.prefix, ts_painter.feature_name))
 
         # Find the minimum set of monophyletic internal nodes for each taxon
         taxa_clades = ts_painter.find_mono_clades(taxon_leaf_map, ref_pkg)
