@@ -153,7 +153,16 @@ def annotate_internal_nodes(internal_node_map: dict, clade_annotations: list) ->
     leaf_group_members = dict()
     leaves_in_clusters = set()
 
+    if len(clade_annotations) == 0:
+        logging.error("No clade annotations provided for layering.\n")
+        raise AssertionError(17)
+
     for clade_annot in clade_annotations:  # type: CladeAnnotation
+        annotation_internal_nodes = clade_annot.get_internal_nodes(internal_node_map)
+        if len(annotation_internal_nodes) == 0:
+            logging.error("Unable to match leaf node names to internal nodes for the clade annotation:\n"
+                          "{}.".format(str(clade_annot.feature)))
+            sys.exit(17)
         annotation_clusters.update({clade_annot.name: clade_annot.get_internal_nodes(internal_node_map)})
 
     # Create a dictionary to map the cluster name (e.g. Function, Activity, Class, etc) to all the leaf nodes

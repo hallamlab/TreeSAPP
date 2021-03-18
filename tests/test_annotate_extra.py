@@ -65,16 +65,23 @@ class MyTestCase(unittest.TestCase):
 
     def test_annotate_internal_nodes(self):
         from treesapp.annotate_extra import annotate_internal_nodes
+        from treesapp.clade_annotation import CladeAnnotation
+        xmoa_clade_annotations = self.xmoa_refpkg.feature_annotations["Paralog"]
         marker_tree_info, leaves_in_clusters = annotate_internal_nodes(internal_node_map=self.leaf_node_map,
-                                                                       clusters={"PmoA": {'1', '5', '9'}})
+                                                                       clade_annotations=xmoa_clade_annotations)
+        self.assertEqual(4, len(marker_tree_info))
         self.assertTrue('PmoA' in marker_tree_info)
-        self.assertEqual(6, len(marker_tree_info["PmoA"]))
-        self.assertEqual(4, len(leaves_in_clusters))
+        self.assertEqual(16, len(marker_tree_info["PmoA"]))
+        self.assertEqual(46, len(leaves_in_clusters))
 
         # Test an internal node that doesn't exist in the internal node-to-leaf node map
+        bad_ca = CladeAnnotation(name="", key="")
+        bad_ca.members = {'1', '5', '9', '241'}
         with pytest.raises(SystemExit):
-            annotate_internal_nodes(internal_node_map=self.leaf_node_map,
-                                    clusters={"AmoA": {'1', '5', '9', '241'}})
+            annotate_internal_nodes(internal_node_map=self.leaf_node_map, clade_annotations=[bad_ca])
+
+        with pytest.raises(AssertionError):
+            annotate_internal_nodes(internal_node_map=self.leaf_node_map, clade_annotations=[])
         return
 
     def test_map_queries_to_annotations(self):
