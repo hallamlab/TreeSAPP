@@ -5,11 +5,11 @@ __author__ = 'Connor Morgan-Lang'
 
 import sys
 import os
-import re
 
 import logging
 
 from treesapp.classy import Layerer
+from treesapp.clade_annotation import CladeAnnotation
 
 
 def check_arguments(layerer: Layerer, args):
@@ -28,6 +28,9 @@ def check_arguments(layerer: Layerer, args):
     if not os.path.isfile(layerer.final_output_dir + "marker_contig_map.tsv"):
         logging.error("Could not find a classification file in " + layerer.final_output_dir + "\n")
         sys.exit(3)
+    if args.refpkg_dir:
+        layerer.refpkg_dir = args.refpkg_dir
+
     return
 
 
@@ -105,39 +108,6 @@ def parse_marker_classification_table(marker_classification_file):
     return master_dat, field_order
 
 
-def names_for_nodes(clusters: dict, node_map: dict, taxa_map: list) -> dict:
-    """
-    This function is used to convert from a string name of a leaf (e.g. Methylocapsa_acidiphila_|_CAJ01617)
-    to an internal node number when all other nodes are internal nodes. Because consistent parsing is preferred!
-
-    :param clusters: A dictionary of lists where each list is populated by tuples with start and end leaves
-    :param node_map: Dictionary of all internal nodes (keys) and a list of child leaves (values)
-    :param taxa_map: List of TreeLeafReference instances parsed from tax_ids file
-    :return:
-    """
-    node_only_clusters = dict()
-    for annotation in clusters:
-        node_only_clusters[annotation] = list()
-        for inodes in clusters[annotation]:
-            node_1, node_2 = inodes
-            try:
-                int(node_1)  # This is an internal node
-            except ValueError:
-                for leaf in taxa_map:
-                    if re.sub(' ', '_', leaf.description) == node_1:
-                        for inode_key, clade_value in node_map.items():
-                            if len(clade_value) == 1:
-                                leaf_node = clade_value[0]
-                                if int(leaf_node.split('_')[0]) == int(leaf.number):
-                                    node_1, node_2 = inode_key, inode_key
-                                    break
-                        continue
-                    else:
-                        pass
-            node_only_clusters[annotation].append((node_1, node_2))
-    return node_only_clusters
-
-
 def map_queries_to_annotations(marker_tree_info: dict, master_dat: dict):
     """
 
@@ -168,26 +138,31 @@ def map_queries_to_annotations(marker_tree_info: dict, master_dat: dict):
     return master_dat
 
 
-def annotate_internal_nodes(internal_node_map: dict, clusters: dict) -> (dict, set):
+def annotate_internal_nodes(internal_node_map: dict, clade_annotations: list) -> (dict, set):
     """
     A function for mapping the clusters to all internal nodes of the tree.
     It also adds overlapping functional annotations for deep internal nodes and ensures all the leaves are annotated.
 
     :param internal_node_map: A dictionary mapping the internal nodes (keys) to the leaf nodes (values)
-    :param clusters: Dictionary with the cluster names for keys and a list of internal nodes as values
+    :param clade_annotations: A list of CladeAnnotation instances from a single feature annotation type i.e.
+    all of their 'feature' attributes should be the same.
     :return: A dictionary of the annotation (AKA group) as keys and internal nodes as values
     """
     annotated_clade_members = dict()
+    annotation_clusters = dict()
     leaf_group_members = dict()
     leaves_in_clusters = set()
 
+    for clade_annot in clade_annotations:  # type: CladeAnnotation
+        annotation_clusters.update({clade_annot.name: clade_annot.get_internal_nodes(internal_node_map)})
+
     # Create a dictionary to map the cluster name (e.g. Function, Activity, Class, etc) to all the leaf nodes
-    for annotation in clusters:
+    for annotation in annotation_clusters:
         if annotation not in annotated_clade_members:
             annotated_clade_members[annotation] = set()
         if annotation not in leaf_group_members:
             leaf_group_members[annotation] = set()
-        for i_node in clusters[annotation]:
+        for i_node in annotation_clusters[annotation]:
             try:
                 for leaf in internal_node_map[int(i_node)]:
                     leaf_group_members[annotation].add(leaf)
@@ -208,14 +183,14 @@ def annotate_internal_nodes(internal_node_map: dict, clusters: dict) -> (dict, s
     return annotated_clade_members, leaves_in_clusters
 
 
-def write_classification_table(output_dir, field_order, master_dat):
+def write_classification_table(output_dir: str, field_order: dict, master_dat: dict) -> None:
     """
     Writes data in master_dat to a new tabular file with original and extra annotation information
 
-    :param output_dir:
-    :param field_order:
-    :param master_dat:
-    :return:
+    :param output_dir: Path to the directory to write the layered classification table
+    :param field_order: A dictionary mapping the order of the table's fields to the field name
+    :param master_dat: A dictionary mapping reference package prefixes to the list of all ClassifiedSequence instances
+    :return: None
     """
     fields = list()
     # Prepare the new header and write it to the new classification table

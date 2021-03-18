@@ -99,44 +99,6 @@ def get_tip_distances(parent_node):
     return distances
 
 
-# def find_cluster(lost_node: Tree, intra_distances=None):
-#     """
-#     Recursively calculates whether a node in a tree is the root of a cluster,
-#     where a cluster is defined as a sub-tree (clade) whose members satisfy the condition:
-#      the distance to the parent of the current subtree's root multiplied by the logarithm base 2 of the number of
-#      cousins is greater than the mean(intra-cluster root-to-tip distances).
-#     Adding a large number of members to the clade is penalized, as well as large distances from the existing subtree
-#     to a new parent.
-#
-#     :param lost_node: A node within a tree, for which we want to orient
-#     :param intra_distances: A list with the current set of leaf-tip distances
-#     :return: Tree node, a list of float distances
-#     """
-#     if intra_distances is None:
-#         intra_distances = []
-#     parent = lost_node.up
-#     if lost_node.is_root() or parent.is_root():
-#         return lost_node, intra_distances
-#
-#     if not intra_distances:
-#         # If this is the initial attempt at finding lost_node's cluster, find the intra-cluster leaf distances
-#         intra_distances = get_tip_distances(lost_node)
-#
-#     # Penalty for increasing the size of the clade is log-base 2
-#     cousins = lost_node.get_sisters()[0].get_leaf_names()
-#     parent_dist = parent.get_distance(lost_node)
-#     cost = parent_dist * log2(len(cousins) + 1)
-#
-#     if mean(intra_distances) > cost:
-#         return lost_node, intra_distances
-#
-#     # Add the distance from the parent to the
-#     intra_distances = [dist+parent_dist for dist in intra_distances]
-#     for cousin in cousins:
-#         intra_distances.append(parent.get_distance(cousin))
-#     return find_cluster(parent, intra_distances)
-
-
 def load_ete3_tree(newick_tree) -> Tree:
     if isinstance(newick_tree, str):
         return Tree(re.sub(r"{\d+}", '', newick_tree))
@@ -290,3 +252,35 @@ def verify_bifurcations(newick_tree: str) -> str:
     ete_tree = load_ete3_tree(newick_tree)
     ete_tree.resolve_polytomy(recursive=True)
     return ete_tree.write(format=1)
+
+
+def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict):
+    """
+    Find the lowest common ancestor (internal node) for all leaves in the range.
+    This is only necessary if the original nodes parsed from the colours_style.txt file were leaves.
+
+    :param clusters: A dictionary mapping start and end leaves of a clade for a single marker's colours_style.txt layer
+    :param internal_node_map: A dictionary mapping each internal node to a list of all of its descendent leaves
+    :return: A dictionary of annotation strings mapped to a list of internal nodes
+    """
+    leaf_annotation_map = dict()
+    for annotation in clusters:
+        leaf_annotation_map[annotation] = list()
+        for leaf_nodes in clusters[annotation]:
+            start, end = leaf_nodes
+            try:
+                if int(start) == int(end) and int(start) in internal_node_map:
+                    leaf_annotation_map[annotation].append(int(start))
+            except ValueError:
+                # Find the minimum set that includes both start and end
+                warm_front = dict()
+                # Add all the potential internal nodes
+                for inode in internal_node_map:
+                    clade = internal_node_map[inode]
+                    if start in clade:
+                        warm_front[inode] = clade
+                for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
+                    if end in warm_front[inode]:
+                        leaf_annotation_map[annotation].append(inode)
+                        break
+    return leaf_annotation_map

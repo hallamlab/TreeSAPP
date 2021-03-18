@@ -256,27 +256,27 @@ class TreesappTester(unittest.TestCase):
         from treesapp.commands import layer
         from .testing_utils import get_test_data
         from treesapp.file_parsers import read_classification_table
-        # Layering annotations from multiple reference packages
-        original_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
-        layered_table = os.path.join(self.ts_assign_output, "final_outputs",
-                                     "extra_annotated_marker_contig_map.tsv")
-        pre_lines = read_classification_table(get_test_data(original_table))
+
+        # Layering annotations from multiple reference packages without feature_annotations
         layer_command_list = ["--treesapp_output", self.ts_assign_output]
         layer_command_list += ["--refpkg_dir", self.refpkg_dir]
         layer(layer_command_list)
-        post_lines = read_classification_table(get_test_data(layered_table))
-        self.assertEqual(len(pre_lines), len(post_lines))
 
         # With a different reference package, XmoA, just to be sure
         classification_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
                                             "final_outputs", "marker_contig_map.tsv")
+        layered_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"), "final_outputs",
+                                     "extra_annotated_marker_contig_map.tsv")
         pre_lines = read_classification_table(get_test_data(classification_table))
-        layer_command_list = ["--colours_style", get_test_data("XmoA_Function.txt"),
-                              "--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
+        layer_command_list = ["--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
                               "--refpkg_dir", self.refpkg_dir]
         layer(layer_command_list)
         post_lines = read_classification_table(get_test_data(classification_table))
+
+        layered_classifications = read_classification_table(layered_table)
         self.assertEqual(len(pre_lines), len(post_lines))
+        for line in layered_classifications:
+            self.assertEqual(13, len(line))
         return
 
     def test_purity(self):

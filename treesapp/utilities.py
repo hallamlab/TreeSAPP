@@ -308,38 +308,6 @@ def mean(num_list: list):
     return float(sum(num_list) / len(num_list))
 
 
-def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict):
-    """
-    Find the lowest common ancestor (internal node) for all leaves in the range.
-    This is only necessary if the original nodes parsed from the colours_style.txt file were leaves.
-
-    :param clusters: A dictionary mapping start and end leaves of a clade for a single marker's colours_style.txt layer
-    :param internal_node_map: A dictionary mapping each internal node to a list of all of its descendent leaves
-    :return: A dictionary of annotation strings mapped to a list of internal nodes
-    """
-    leaf_annotation_map = dict()
-    for annotation in clusters:
-        leaf_annotation_map[annotation] = list()
-        for leaf_nodes in clusters[annotation]:
-            start, end = leaf_nodes
-            try:
-                if int(start) == int(end) and int(start) in internal_node_map:
-                    leaf_annotation_map[annotation].append(int(start))
-            except ValueError:
-                # Find the minimum set that includes both start and end
-                warm_front = dict()
-                # Add all the potential internal nodes
-                for inode in internal_node_map:
-                    clade = internal_node_map[inode]
-                    if start in clade:
-                        warm_front[inode] = clade
-                for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
-                    if end in warm_front[inode]:
-                        leaf_annotation_map[annotation].append(inode)
-                        break
-    return leaf_annotation_map
-
-
 def reformat_fasta_to_phy(fasta_dict: dict) -> dict:
     """
     The fasta_dict input is a dictionary of sequence names (seq_name) keys indexing their respective sequences.

@@ -1064,7 +1064,7 @@ def layer(sys_args):
     #       3.3) Add the annotation information to every sequence classified as marker in master_dat
     #   4. Write the new classification file called "extra_annotated_marker_contig_map.tsv"
     ##
-    marker_subgroups = dict()
+    marker_subgroups = set()
     unique_markers_annotated = set()
     marker_tree_info = dict()
     master_dat, field_order = annotate_extra.parse_marker_classification_table(ts_layer.final_output_dir +
@@ -1074,35 +1074,23 @@ def layer(sys_args):
     # structure of master dat:
     # {"Sequence_1": {"Field1": x, "Field2": y, "Extra": n},
     #  "Sequence_2": {"Field1": i, "Field2": j, "Extra": n}}
-    for annot_f in ts_layer.annot_files:
-        # Determine the marker being annotated
-        data_type, refpkg_prefix = "", ""
-        for refpkg_name in refpkg_dict:  # type: str
-            annot_marker_re = re.compile(r"^{0}_(\w+)_colours_style.txt$".format(refpkg_name))
-            if annot_marker_re.match(os.path.basename(annot_f)):
-                data_type = annot_marker_re.match(os.path.basename(annot_f)).group(1)
-                refpkg_prefix = refpkg_name
-                break
-            else:
-                data_type, refpkg_prefix = "", ""
+    for refpkg_prefix, ref_pkg in refpkg_dict.items():  # type: (str, ts_ref_pkg.ReferencePackage)
         if refpkg_prefix not in master_dat.keys():
             continue
-        if refpkg_prefix and data_type:
+        if len(ref_pkg.feature_annotations) > 0:
             unique_markers_annotated.add(refpkg_prefix)
-            if data_type not in marker_subgroups:
-                marker_subgroups[data_type] = dict()
-            marker_subgroups[data_type][refpkg_prefix] = file_parsers.read_colours_file(annot_f, refpkg_prefix)
-        else:
-            logging.warning("Unable to parse the reference package name and/or annotation type from {}.\n"
-                            "Is it possible this reference package is not in {}?".format(annot_f, ts_layer.refpkg_dir))
+            for data_type in ref_pkg.feature_annotations:
+                marker_subgroups.add(data_type)
+
     # Instantiate every query sequence in marker_contig_map with an empty string for each data_type
     for data_type in marker_subgroups:
         for refpkg_name in master_dat:
             for assignment in master_dat[refpkg_name]:  # type: annotate_extra.ClassifiedSequence
                 assignment.layers[data_type] = "NA"
+
     # Update the field_order dictionary with new fields
     field_acc = len(field_order)
-    for new_datum in sorted(marker_subgroups.keys()):
+    for new_datum in sorted(marker_subgroups):
         field_order[field_acc] = new_datum
         field_acc += 1
 
@@ -1114,21 +1102,18 @@ def layer(sys_args):
         for refpkg_name in unique_markers_annotated:  # type: str
             jplace = os.path.join(ts_layer.treesapp_output, "iTOL_output", refpkg_name,
                                   refpkg_name + "_complete_profile.jplace")
-
-            if refpkg_name in marker_subgroups[data_type]:
-                refpkg = refpkg_dict[refpkg_name]  # type: ts_ref_pkg.ReferencePackage
+            ref_pkg = refpkg_dict[refpkg_name]  # type: ts_ref_pkg.ReferencePackage
+            if data_type in ref_pkg.feature_annotations:
                 logging.info("\t" + refpkg_name + "\n")
                 # Create the dictionary mapping an internal node to all leaves
                 internal_node_map = entish.map_internal_nodes_leaves(jplace_utils.jplace_parser(jplace).tree)
                 # Routine for exchanging any organism designations for their respective node number
-                taxa_map = refpkg.generate_tree_leaf_references_from_refpkg()
+                taxa_map = ref_pkg.generate_tree_leaf_references_from_refpkg()
 
-                clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][refpkg_name],
-                                                          internal_node_map, taxa_map)
-                clusters = utilities.convert_outer_to_inner_nodes(clusters, internal_node_map)
+                annotated_edges, leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
+                                                                                             ref_pkg.feature_annotations[data_type])
+                marker_tree_info[data_type][refpkg_name] = annotated_edges
 
-                marker_tree_info[data_type][refpkg_name], leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
-                                                                                                                 clusters)
                 diff = len(taxa_map) - len(leaves_in_clusters)
                 if diff != 0:
                     unannotated = set()
