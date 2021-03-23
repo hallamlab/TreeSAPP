@@ -1476,6 +1476,7 @@ class Abundance(TreeSAPP):
         self.aln_file = ""
         self.append_abundance = False
         self.fq_suffix_re = re.compile(r"([._-])+(pe|fq|fastq|fwd|R1|1)$")
+        self.idx_extensions = ["amb", "ann", "bwt", "pac", "sa"]
         self.stages = {0: ModuleFunction("align_map", 0),
                        1: ModuleFunction("sam_sum", 1),
                        2: ModuleFunction("summarise", 2)}
@@ -1534,10 +1535,15 @@ class Abundance(TreeSAPP):
         if not clean_up:
             return
 
-        files_to_be_deleted = [self.aln_file]
+        files_to_be_deleted = glob(self.stage_lookup("align_map").dir_path + "*.sam")
         files_to_be_deleted += glob(self.stage_lookup("align_map").dir_path + "*.stderr")
+        for ext in self.idx_extensions:
+            files_to_be_deleted += glob(self.stage_lookup("align_map").dir_path + "*." + ext)
 
-        for file_path in files_to_be_deleted:
+        if self.aln_file not in files_to_be_deleted:
+            files_to_be_deleted.append(self.aln_file)
+
+        for file_path in set(files_to_be_deleted):
             if os.path.exists(file_path):
                 os.remove(file_path)
         return

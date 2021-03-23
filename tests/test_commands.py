@@ -46,7 +46,7 @@ class TreesappTester(unittest.TestCase):
                                   "--reverse", get_test_data("test_TarA.2.fq"),
                                   "--pairing", "pe",
                                   "--num_procs", str(self.num_procs),
-                                  "--delete"]
+                                  "--overwrite"]
         abund_dict = abundance(abundance_command_list)["test_TarA"]
         post_lines = read_classification_table(get_test_data(classification_table))
         # Ensure no lines were added or removed
@@ -62,7 +62,7 @@ class TreesappTester(unittest.TestCase):
                                   "--pairing", "pe",
                                   "--metric", "tpm",
                                   "--num_procs", str(self.num_procs),
-                                  "--delete"]
+                                  "--delete", "--overwrite"]
         abundance(abundance_command_list)
 
         pqueries = assignments_to_pqueries(read_classification_table(get_test_data(classification_table)))

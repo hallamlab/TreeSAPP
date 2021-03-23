@@ -733,7 +733,7 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
         logging.info("Alignment map file {} found.\n".format(sam_file))
         return sam_file
 
-    index_path = os.path.join(aln_output_dir, reference_fasta)
+    index_path = os.path.join(aln_output_dir, os.path.basename(reference_fasta))
     index_command = [bwa_exe, "index"]
     index_command += [reference_fasta]
     index_command += ["-p", index_path]
