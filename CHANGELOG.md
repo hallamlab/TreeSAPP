@@ -14,12 +14,14 @@ We recommend updating to this version, and updating reference packages you have 
   It can store what was previously saved to iTOL-compatible annotation files by `treesapp colour`.
 - `treesapp package edit` accepts a taxonomy-phenotype mapping file to populate the feature_annotations attribute.
   See [Wiki](https://github.com/hallamlab/TreeSAPP/wiki/Reference-package-operations#edit) for details.
+-  `treesapp package view tree` will print a Newick tree with each leaf node's accession and description.
 
 ### Fixed
 
 ### Changed
 - `treesapp colour` accesses and uses the 'feature_annotations' to write iTOL-compatible annotation files
   (i.e. colour_strip.txt and colours_styles.txt). It no longer accepts taxonomy-phenotype tables.
+- `treesapp layer` uses the 'feature_annotations' attribute in reference packages to annotate classified sequences.
 
 ## [0.10.3] - 2021-03-23
 ### Fixed

@@ -465,6 +465,15 @@ class ReferencePackage:
         self.taxa_trie.validate_rank_prefixes()
         return
 
+    def create_viewable_newick(self) -> str:
+        """Takes the reference package's tree and replaces the node IDs with proper organism name and accessions."""
+        ete_tree = self.get_ete_tree()
+        ref_leaf_index = {ref_leaf.number + '_' + self.prefix: ref_leaf for ref_leaf
+                          in self.generate_tree_leaf_references_from_refpkg()}
+        for leaf_node in ete_tree.get_leaves():
+            leaf_node.name = ref_leaf_index[leaf_node.name].description
+        return ete_tree.get_tree_root().write(features="name")
+
     def create_itol_labels(self, output_dir) -> None:
         """
         Create the marker_labels.txt file for each marker gene that was used for classification
@@ -1100,6 +1109,8 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
 
     for k, v in view_dict.items():
         logging.info("{}:\t".format(k))
+        if k == "tree":
+            v = refpkg.create_viewable_newick()
         if type(v) is list and k not in ["pfit"]:  # various file contents
             v = ''.join(v)
         if type(v) is dict:  # feature_annotations, lineage_ids
