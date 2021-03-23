@@ -5,6 +5,11 @@
 
 ### Changed
 
+## [0.10.3] - 2021-03-23
+### Fixed
+- Replaced duplicate SAM file paths for unique ones when multiple fastqs are provided to `treesapp abundance`
+- Prevent `treesapp abundance` from overwriting `treesapp assign` outputs when '--overwrite' is used
+
 ## [0.10.2] - 2021-03-08
 ### Added
 - New flag '--deduplicate' for `treesapp create` to remove redundant sequences within 99.9% similarity before querying Entrez.
