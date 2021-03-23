@@ -1495,12 +1495,21 @@ class Abundance(TreeSAPP):
         if not os.path.isdir(self.var_output_dir):
             os.makedirs(self.var_output_dir)
 
+        # Set the directory paths for each stage. Usually done in TreeSAPP.check_previous_output() but can't use here.
+        for stage_order, stage in self.stages.items():  # type: (int, ModuleFunction)
+            stage.dir_path = self.var_output_dir + stage.name + os.sep
+
+        # Remove the directory containing SAM and BWA index files
+        if os.path.isdir(self.stage_lookup("align_map").dir_path) and args.overwrite:
+            logging.debug("Removing directory with BWA outputs '{}'.\n".format(self.stage_lookup("align_map").dir_path))
+            rmtree(self.stage_lookup("align_map").dir_path)
+
         self.aln_file = self.stage_lookup("align_map").dir_path + \
                         '.'.join(os.path.basename(self.ref_nuc_seqs).split('.')[0:-1]) + ".sam"
 
         if len(args.reverse) > 0:
             if len(args.reads) != len(args.reverse):
-                logging.error("Number of fastq files differs between reads () and reverse () arguments!.\n"
+                logging.error("Number of fastq files differs between reads ({}) and reverse ({}) arguments!.\n"
                               "".format(len(args.reads), len(args.reverse)))
                 sys.exit(3)
 

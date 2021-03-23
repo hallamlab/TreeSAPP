@@ -36,7 +36,6 @@ def abundance(sys_args) -> dict:
 
     ts_abund = classy.Abundance()
     ts_abund.furnish_with_arguments(args)
-    ts_abund.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_abundance_log.txt"
     classy.prep_logging(log_file_name, args.verbose)
@@ -52,13 +51,15 @@ def abundance(sys_args) -> dict:
     while args.reads:
         fwd_reads = args.reads.pop(0)
         ts_abund.strip_file_to_sample_name(fwd_reads)
+        ts_abund.aln_file = ts_abund.stage_lookup("align_map").dir_path + ts_abund.sample_prefix + ".sam"
         logging.info("Working on sample '{}'.\n".format(ts_abund.sample_prefix))
         if args.pairing == 'pe' and args.reverse:
             rev_reads = args.reverse.pop(0)
+
         if ts_abund.stage_status("align_map"):
             wrapper.align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.ref_nuc_seqs,
-                                        ts_abund.stage_output_dir, fwd_reads, args.pairing, rev_reads,
-                                        args.num_threads)
+                                        ts_abund.stage_output_dir, fwd_reads, args.pairing,
+                                        reverse=rev_reads, sam_file=ts_abund.aln_file, num_threads=args.num_threads)
             ts_abund.increment_stage_dir()
 
         if ts_abund.stage_status("sam_sum"):

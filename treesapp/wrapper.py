@@ -701,7 +701,7 @@ def hmmsearch_orfs(hmmsearch_exe: str, refpkg_dict: dict, fasta_file: str, outpu
 
 
 def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
-                        reads: str, pairing: str, reverse=None, num_threads=2) -> str:
+                        reads: str, pairing: str, reverse=None, sam_file="", num_threads=2) -> str:
     """
     Align the predicted ORFs to the reads using BWA MEM
 
@@ -711,6 +711,7 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
     :param reads: FASTQ file containing reads to be aligned to the reference FASTA file
     :param pairing: Either 'se' or 'pe' indicating the reads are single-end or paired-end, respectively
     :param reverse: Path to reverse-orientation mate pair reads [OPTIONAL]
+    :param sam_file: Path to a SAM file for bwa to write to [OPTIONAL]
     :param num_threads: Number of threads for BWA MEM to use
     :return: Path to the SAM file
     """
@@ -725,12 +726,17 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
 
     logging.info("Aligning reads to ORFs with BWA MEM... ")
 
-    sam_file = aln_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
+    if len(sam_file) == 0:
+        sam_file = aln_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
+
     if os.path.isfile(sam_file):
         logging.info("Alignment map file {} found.\n".format(sam_file))
         return sam_file
+
+    index_path = os.path.join(aln_output_dir, reference_fasta)
     index_command = [bwa_exe, "index"]
     index_command += [reference_fasta]
+    index_command += ["-p", index_path]
     index_command += ["1>", "/dev/null", "2>", aln_output_dir + "treesapp_bwa_index.stderr"]
 
     launch_write_command(index_command)
@@ -743,7 +749,7 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
     elif pairing == "se":
         bwa_command += ["-S", "-P"]
 
-    bwa_command.append(reference_fasta)
+    bwa_command.append(index_path)
     bwa_command.append(reads)
     if pairing == "pe" and reverse:
         bwa_command.append(reverse)
