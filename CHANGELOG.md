@@ -1,9 +1,25 @@
-## [0.11.0] - 2021
+## [0.11.0] - 2021-03
+TreeSAPP version 0.11.0 changes how users store and interact with reference package feature annotations.
+These feature annotations are clade-specific labels that indicate some extra-taxonomic features that are characteristic of sequences in the reference package.
+
+For example, in the particulate methane monooxygenase and ammonia monooxygenase subunit A reference package, XmoA, 
+the feature annotations indicate which paralog is represented by a clade (PmoA, AmoA, EmoA, etc.)
+As another example, the methyl coenzyme M reductase subunit A (McrA) reference package contains feature annotations for
+each pathway of methanogenesis that is used by the different clades.
+
+We recommend updating to this version, and updating reference packages you have created.
+
 ### Added
+- A new attribute called 'feature_annotations' has been introduced to reference packages.
+  It can store what was previously saved to iTOL-compatible annotation files by `treesapp colour`.
+- `treesapp package edit` accepts a taxonomy-phenotype mapping file to populate the feature_annotations attribute.
+  See [Wiki](https://github.com/hallamlab/TreeSAPP/wiki/Reference-package-operations#edit) for details.
 
 ### Fixed
 
 ### Changed
+- `treesapp colour` accesses and uses the 'feature_annotations' to write iTOL-compatible annotation files
+  (i.e. colour_strip.txt and colours_styles.txt). It no longer accepts taxonomy-phenotype tables.
 
 ## [0.10.3] - 2021-03-23
 ### Fixed
