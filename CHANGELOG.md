@@ -1,4 +1,4 @@
-## [0.11.0] - 2021-03
+## [0.11.0] - 2021-04
 TreeSAPP version 0.11.0 changes how users store and interact with reference package feature annotations.
 These feature annotations are clade-specific labels that indicate some extra-taxonomic features that are characteristic of sequences in the reference package.
 
@@ -22,6 +22,15 @@ We recommend updating to this version, and updating reference packages you have 
 - `treesapp colour` accesses and uses the 'feature_annotations' to write iTOL-compatible annotation files
   (i.e. colour_strip.txt and colours_styles.txt). It no longer accepts taxonomy-phenotype tables.
 - `treesapp layer` uses the 'feature_annotations' attribute in reference packages to annotate classified sequences.
+
+## [0.10.4] - 2021-03-25
+### Fixed
+- Checkpoint determination in `treesapp abundance`
+- '--report append' and 'report update' was not working properly in `treesapp abundance`.
+  Fixed by deduplicating PQueries prior to appending. 
+
+### Changed
+- Checks whether all FASTQ file paths exist earlier in `treesapp abundance`
 
 ## [0.10.3] - 2021-03-23
 ### Fixed
