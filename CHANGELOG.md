@@ -1,3 +1,10 @@
+## [0.10.4] - 2021-03-25
+### Added
+- Checks for FASTQ files earlier in `treesapp abundance`
+
+### Fixed
+- Checkpoint determination in `treesapp abundance`
+
 ## [0.10.3] - 2021-03-23
 ### Fixed
 - Replaced duplicate SAM file paths for unique ones when multiple fastqs are provided to `treesapp abundance`

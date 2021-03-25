@@ -45,6 +45,7 @@ class TreesappTester(unittest.TestCase):
                                   "--reads", get_test_data("test_TarA.1.fq"),
                                   "--reverse", get_test_data("test_TarA.2.fq"),
                                   "--pairing", "pe",
+                                  "--metric", "fpkm",
                                   "--num_procs", str(self.num_procs),
                                   "--overwrite"]
         abund_dict = abundance(abundance_command_list)["test_TarA"]
