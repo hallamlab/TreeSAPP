@@ -229,6 +229,11 @@ class RefPkgTester(unittest.TestCase):
         self.assertTrue("Something" in self.mutable_ref_pkg.feature_annotations)
         return
 
+    def test_create_viewable_newick(self):
+        newick_str = self.db.create_viewable_newick()
+        self.assertEqual(15243, len(newick_str))
+        return
+
     def test_edit(self):
         from treesapp.refpkg import edit
         new_value = "Z0002"
@@ -242,6 +247,23 @@ class RefPkgTester(unittest.TestCase):
 
         self.mutable_ref_pkg.slurp()
         self.assertEqual(new_value, self.mutable_ref_pkg.refpkg_code)
+
+        # Test updating a feature_annotation using a taxonomy-phenotype map with internal nodes
+        edit(refpkg=self.mutable_ref_pkg,
+             output_dir=os.path.dirname(self.mutable_ref_pkg.f__pkl),
+             attributes=["feature_annotations", "Paralog"],
+             phenotypes=utils.get_test_data("McrA_paralog_map.tsv"),
+             overwrite=True)
+        self.assertEqual(1, len(self.mutable_ref_pkg.feature_annotations))
+        self.assertEqual(2, len(self.mutable_ref_pkg.feature_annotations["Paralog"]))
+        for clade_annot in self.mutable_ref_pkg.feature_annotations["Paralog"]:
+            if clade_annot.name == "McrA":
+                self.assertEqual(225, len(clade_annot.members))
+            elif clade_annot.name == "AcrA":
+                self.assertEqual(13, len(clade_annot.members))
+            else:
+                self.assertTrue(False)
+
         return
 
 

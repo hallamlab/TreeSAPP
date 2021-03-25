@@ -259,7 +259,6 @@ class TreesappTester(unittest.TestCase):
 
         # Layering annotations from multiple reference packages without feature_annotations
         layer_command_list = ["--treesapp_output", self.ts_assign_output]
-        layer_command_list += ["--refpkg_dir", self.refpkg_dir]
         layer(layer_command_list)
 
         # With a different reference package, XmoA, just to be sure
@@ -327,9 +326,9 @@ class TreesappTester(unittest.TestCase):
         self.assertEqual(5, len(test_refpkg.feature_annotations["Function"]))
         self.assertIsInstance(test_refpkg.feature_annotations["Function"][0], CladeAnnotation)
 
-        # Test viewer
+        # Test view with a complex attribute (feature_annotations)
         view_command_list = ["view",
-                             "lineage_ids", "feature_annotations",
+                             "lineage_ids", "feature_annotations", "tree",
                              "--refpkg_path", output_dir + os.path.basename(self.mcra_pkl),
                              "--output", output_dir]
         package(view_command_list)
