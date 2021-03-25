@@ -112,14 +112,15 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                           "for it to be considered. [ DEFAULT = 20 ]")
 
     def add_abundance_params(self):
-        self.fpkm_opts.add_argument("--metric", required=False, default="fpkm", choices=["fpkm", "tpm"],
-                                    help="Selects which normalization metric to use, FPKM or TPM.")
+        self.fpkm_opts.add_argument("--metric", required=False, default="tpm", choices=["fpkm", "tpm"],
+                                    help="Selects which normalization metric to use, FPKM or TPM. [ DEFAULT = tpm ]")
         self.fpkm_opts.add_argument("-r", "--reads", required=False, nargs='+',
                                     help="FASTQ file containing to be aligned to predicted genes using BWA MEM")
         self.fpkm_opts.add_argument("-2", "--reverse", required=False, nargs='+', default=[],
                                     help="FASTQ file containing to reverse mate-pair reads to be aligned using BWA MEM")
         self.fpkm_opts.add_argument("-p", "--pairing", required=False, default='pe', choices=['pe', 'se'],
-                                    help="Indicating whether the reads are paired-end (pe) or single-end (se)")
+                                    help="Indicating whether the reads are paired-end (pe) or single-end (se). "
+                                         "[ DEFAULT = pe ]")
 
     def add_phylogeny_params(self):
         self.optopt.add_argument("-b", "--bootstraps",

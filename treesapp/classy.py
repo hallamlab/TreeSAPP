@@ -1508,11 +1508,22 @@ class Abundance(TreeSAPP):
         self.aln_file = self.stage_lookup("align_map").dir_path + \
                         '.'.join(os.path.basename(self.ref_nuc_seqs).split('.')[0:-1]) + ".sam"
 
+        # Ensure all the FASTQ file paths are valid for the forward reads
+        for reads_file in args.reads:
+            if not os.path.isfile(reads_file):
+                logging.error("Unable to find forward reads file '{}'.\n".format(reads_file))
+                sys.exit(1)
+
         if len(args.reverse) > 0:
             if len(args.reads) != len(args.reverse):
                 logging.error("Number of fastq files differs between reads ({}) and reverse ({}) arguments!.\n"
                               "".format(len(args.reads), len(args.reverse)))
                 sys.exit(3)
+            # Ensure all the FASTQ file paths are valid for the reverse reads
+            for reads_file in args.reverse:
+                if not os.path.isfile(reads_file):
+                    logging.error("Unable to find reverse reads files '{}'.\n".format(reads_file))
+                    sys.exit(5)
 
         if args.report == "update":
             self.append_abundance = False
@@ -1529,6 +1540,14 @@ class Abundance(TreeSAPP):
         :return: None
         """
         self.validate_continue(args)
+
+        # Not necessary for either 'update'
+        for reads_file in args.reads:
+            self.strip_file_to_sample_name(reads_file)
+            if not os.path.isfile(self.stage_lookup("align_map").dir_path + self.sample_prefix + ".sam"):
+                self.change_stage_status("align_map", True)
+                break
+
         return
 
     def delete_intermediates(self, clean_up: bool) -> None:
