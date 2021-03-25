@@ -45,6 +45,7 @@ class TreesappTester(unittest.TestCase):
                                   "--reads", get_test_data("test_TarA.1.fq"),
                                   "--reverse", get_test_data("test_TarA.2.fq"),
                                   "--pairing", "pe",
+                                  "--report", "update",
                                   "--metric", "fpkm",
                                   "--num_procs", str(self.num_procs),
                                   "--overwrite"]
@@ -62,6 +63,7 @@ class TreesappTester(unittest.TestCase):
                                   "--reads", get_test_data("test_TarA.fastq.gz"),
                                   "--pairing", "pe",
                                   "--metric", "tpm",
+                                  "--report", "append",
                                   "--num_procs", str(self.num_procs),
                                   "--delete", "--overwrite"]
         abundance(abundance_command_list)
@@ -70,7 +72,7 @@ class TreesappTester(unittest.TestCase):
         abundant_pqueries = []
         for rp in pqueries:
             abundant_pqueries += [pq for pq in pqueries[rp] if pq.abundance > 0.0]
-        self.assertEqual(33702, round(sum([pq.abundance for pq in abundant_pqueries])))
+        self.assertEqual(33850, round(sum([pq.abundance for pq in abundant_pqueries])))
 
         # Replace the classification table
         copyfile(os.path.join(self.ts_assign_output, "tmp.tsv"), classification_table)

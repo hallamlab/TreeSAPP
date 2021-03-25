@@ -1474,7 +1474,7 @@ class Abundance(TreeSAPP):
         self.ref_nuc_seqs = ""
         self.classifications = ""
         self.aln_file = ""
-        self.append_abundance = False
+        self.append_abundance = True
         self.fq_suffix_re = re.compile(r"([._-])+(pe|fq|fastq|fwd|R1|1)$")
         self.idx_extensions = ["amb", "ann", "bwt", "pac", "sa"]
         self.stages = {0: ModuleFunction("align_map", 0),
@@ -1525,7 +1525,9 @@ class Abundance(TreeSAPP):
                     logging.error("Unable to find reverse reads files '{}'.\n".format(reads_file))
                     sys.exit(5)
 
-        if args.report == "update":
+        if args.report == "append":
+            self.append_abundance = True
+        else:
             self.append_abundance = False
 
         return
