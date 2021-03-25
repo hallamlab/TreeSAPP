@@ -58,7 +58,7 @@ def abundance(sys_args) -> dict:
 
         if ts_abund.stage_status("align_map"):
             wrapper.align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.ref_nuc_seqs,
-                                        ts_abund.stage_output_dir, fwd_reads, args.pairing,
+                                        ts_abund.stage_lookup("align_map").dir_path, fwd_reads, args.pairing,
                                         reverse=rev_reads, sam_file=ts_abund.aln_file, num_threads=args.num_threads)
             ts_abund.increment_stage_dir()
 
@@ -89,12 +89,26 @@ def abundance(sys_args) -> dict:
     ts_abund.delete_intermediates(args.delete)
 
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
-        pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir)
+        refpkg_pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir)
 
         # Collect the names of all classified PQueries
         classified_seqs = set()
-        for rp_pqs in pqueries.values():
+        for rp_pqs in refpkg_pqueries.values():
             classified_seqs.update({pq.seq_name for pq in rp_pqs})
+
+        # Select a unique set of PQuery instances to use in the updated classification table
+        for refpkg_name, pqueries in refpkg_pqueries.items():
+            unique_pqueries = []
+            seq_name_list = list({pq.place_name for pq in pqueries})
+            for pquery in pqueries:
+                i = 0
+                while i < len(seq_name_list):
+                    if pquery.place_name == seq_name_list[i]:
+                        unique_pqueries.append(pquery)
+                        seq_name_list.pop(i)
+                        i = len(seq_name_list)
+                    i += 1
+            refpkg_pqueries[refpkg_name] = unique_pqueries
 
         # Fill PQuery.abundance attribute
         for sample_name, abundance_map in abundance_dict.items():
@@ -102,8 +116,8 @@ def abundance(sys_args) -> dict:
             absentee = set(abundance_map.keys()).difference(classified_seqs)
             while absentee:
                 abundance_map.pop(absentee.pop())
-            phylo_seq.abundify_tree_saps(pqueries, abundance_map)
-            file_parsers.write_classification_table(pqueries, sample_name, ts_abund.classifications,
+            phylo_seq.abundify_tree_saps(refpkg_pqueries, abundance_map)
+            file_parsers.write_classification_table(refpkg_pqueries, sample_name, ts_abund.classifications,
                                                     append=ts_abund.append_abundance)
             ts_abund.append_abundance = True
 

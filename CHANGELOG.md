@@ -1,3 +1,12 @@
+## [0.10.4] - 2021-03-25
+### Fixed
+- Checkpoint determination in `treesapp abundance`
+- '--report append' and 'report update' was not working properly in `treesapp abundance`.
+  Fixed by deduplicating PQueries prior to appending. 
+
+### Changed
+- Checks whether all FASTQ file paths exist earlier in `treesapp abundance`
+
 ## [0.10.3] - 2021-03-23
 ### Fixed
 - Replaced duplicate SAM file paths for unique ones when multiple fastqs are provided to `treesapp abundance`
