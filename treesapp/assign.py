@@ -64,6 +64,10 @@ class Assigner(classy.TreeSAPP):
         :param args: object with parameters returned by argparse.parse_args()
         :return: 'args', a summary of TreeSAPP settings.
         """
+        if not os.path.isfile(self.input_sequences):
+            logging.error("FASTX input file '{}' doesn't exist.\n".format(self.input_sequences))
+            sys.exit(5)
+
         self.classification_table = self.final_output_dir + os.sep + self.classification_tbl_name
         self.itol_out = self.output_dir + 'iTOL_output' + os.sep
         self.classified_aa_seqs = self.final_output_dir + self.sample_prefix + "_classified.faa"
