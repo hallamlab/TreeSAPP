@@ -120,12 +120,12 @@ class ReferencePackage:
 
     def pickle_package(self) -> None:
         """
-        Dumps a new joblib pickled file of the ReferencePackage instance dictionary to self.f__json.
+        Dumps a new joblib pickled file of the ReferencePackage instance dictionary to self.f__pkl.
 
         :return: None.
         """
         if len(self.f__pkl) == 0:
-            self.bail("ReferencePackage.f__json not set. ReferencePackage band() cannot be completed.\n")
+            self.bail("ReferencePackage.f__pkl not set. ReferencePackage band() cannot be completed.\n")
             raise AttributeError
 
         output_dir = os.path.dirname(self.f__pkl)
@@ -258,7 +258,7 @@ class ReferencePackage:
         """
         new_path = self.f__pkl
         if len(self.f__pkl) == 0:
-            logging.error("ReferencePackage.f__json was not set.\n")
+            logging.error("ReferencePackage.f__pkl was not set.\n")
             sys.exit(11)
 
         if not os.path.isfile(self.f__pkl):
@@ -1104,10 +1104,10 @@ class ReferencePackage:
 
         return internal_node_feature_map
 
-    def add_feature_annotations(self, feature_name: str, **kwargs) -> None:
+    def add_feature_annotations(self, feature_name: str, feature_map: dict, reset=False) -> None:
         """Triages the different formats of feature maps to their respective functions."""
         # Sort labels by taxa or internal nodes
-        inode_features = self.convert_feature_indices_to_inodes(kwargs["feature_map"])
+        inode_features = self.convert_feature_indices_to_inodes(feature_map)
 
         inode_leaf_map = self.get_internal_node_leaf_map()
         # Pull the current annotations in case it can be appended to
@@ -1116,6 +1116,9 @@ class ReferencePackage:
         except KeyError:
             clade_annots = []
             self.feature_annotations[feature_name] = clade_annots
+        if reset:
+            self.feature_annotations[feature_name].clear()
+            clade_annots = []
 
         # Invert the dictionary to map annotation names to taxa
         feature_map = {}
@@ -1140,8 +1143,13 @@ class ReferencePackage:
 
             # Populate the taxa and members attributes
             for index in indices:
-                ca.members.update(set(inode_leaf_map[index]))
-            ca.taxa.update(taxon)
+                ca.members.update(inode_leaf_map[index])
+            if taxon:
+                ca.taxa.update([taxon])
+
+        # Remove the feature from feature_annotations it there are no CladeAnnotation entries
+        if len(self.feature_annotations[feature_name]) == 0:
+            self.feature_annotations.pop(feature_name)
 
         return
 
@@ -1186,7 +1194,7 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
     return
 
 
-def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrite: bool, phenotypes=None) -> None:
+def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) -> None:
     if len(attributes) > 2:
         logging.error("`treesapp package edit` only edits a single attribute at a time.\n")
         sys.exit(3)
@@ -1218,12 +1226,12 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrite:
             logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, refpkg.f__pkl))
             sys.exit(7)
     elif k == "feature_annotations":
-        taxa_phenotype_map = read_phenotypes(phenotypes)
-        refpkg.add_feature_annotations(feature_name=v, feature_map=taxa_phenotype_map)
+        taxa_phenotype_map = read_phenotypes(kwargs["phenotypes"])
+        refpkg.add_feature_annotations(feature_name=v, feature_map=taxa_phenotype_map, reset=kwargs["reset"])
         v = refpkg.feature_annotations
     refpkg.__dict__[k] = v
 
-    write_edited_pkl(refpkg, output_dir, overwrite)
+    write_edited_pkl(refpkg, output_dir, kwargs["overwrite"])
 
     return
 

@@ -150,7 +150,8 @@ Use '-h' to get subcommand-specific help, e.g. 'treesapp package view -h'
         if args.subcommand == "view":
             ts_ref_pkg.view(refpkg, args.attributes)
         elif args.subcommand == "edit":
-            ts_ref_pkg.edit(refpkg, args.attributes, output_dir, args.overwrite, args.phenotypes)
+            ts_ref_pkg.edit(refpkg, args.attributes, output_dir,
+                            overwrite=args.overwrite, phenotypes=args.phenotypes, reset=args.reset)
         elif args.subcommand == "rename":
             ts_ref_pkg.rename(refpkg, args.attributes, output_dir, args.overwrite)
         else:
@@ -943,12 +944,13 @@ def update(sys_args):
         ts_updater.updated_refpkg.pfit = ts_updater.ref_pkg.pfit
         ts_updater.updated_refpkg.svc = ts_updater.ref_pkg.svc
 
+    ts_update_mod.update_features(old_refpkg=ts_updater.ref_pkg, new_refpkg=ts_updater.updated_refpkg)
+
     ##
     # Summarize some key parts of the new reference package, compared to the old one
     ##
     ts_updater.updated_refpkg.validate()
-    ts_updater.ref_pkg.change_file_paths(ts_updater.final_output_dir)
-    ts_updater.update_refpkg_fields()
+    ts_updater.update_refpkg_fields(output_dir=os.path.dirname(ts_updater.updated_refpkg_path))
 
     return
 

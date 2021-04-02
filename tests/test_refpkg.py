@@ -259,6 +259,22 @@ class RefPkgTester(unittest.TestCase):
         self.assertTrue(39, k)
         return
 
+    def test_add_feature_annotations(self):
+        self.mutable_ref_pkg.add_feature_annotations(feature_name="test", feature_map={"g__Methanosarcina": "Aceticlastic",
+                                                                                       "p__Candidatus Helarchaeota": "SCAO",
+                                                                                       "c__Methanobacteria": "Hydrogenotrophic",
+                                                                                       "116_McrA": "Hydrogenotrophic"})
+        self.assertEqual(1, len(self.mutable_ref_pkg.feature_annotations))
+        self.assertEqual(3, len(self.mutable_ref_pkg.feature_annotations["test"]))
+
+        self.mutable_ref_pkg.add_feature_annotations(feature_name="test", feature_map={"p__Candidatus Bathyarchaeota": "SCAO",
+                                                                                       "g__Candidatus Methanoperedens": "Methanotrophy"}, reset=True)
+        self.assertEqual(2, len(self.mutable_ref_pkg.feature_annotations["test"]))
+
+        self.mutable_ref_pkg.add_feature_annotations(feature_name="test", feature_map={}, reset=True)
+        self.assertNotIn("test", self.mutable_ref_pkg.feature_annotations)
+        return
+
     def test_edit(self):
         from treesapp.refpkg import edit
         new_value = "Z0002"

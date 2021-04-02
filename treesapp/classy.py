@@ -683,7 +683,7 @@ class Updater(TreeSAPP):
 
         return info_string
 
-    def update_refpkg_fields(self) -> None:
+    def update_refpkg_fields(self, output_dir=None) -> None:
         """
         Using the original ReferencePackage as a template modify the following updated ReferencePackage attributes:
 1. original creation date
@@ -692,7 +692,10 @@ class Updater(TreeSAPP):
 4. description
         :return: None
         """
+        if not output_dir:
+            output_dir = self.final_output_dir
         # Change the creation and update dates, code name and description
+        self.updated_refpkg.change_file_paths(output_dir)
         self.updated_refpkg.date = self.ref_pkg.date
         self.updated_refpkg.update = dt.now().strftime("%Y-%m-%d")
         self.updated_refpkg.refpkg_code = self.ref_pkg.refpkg_code
