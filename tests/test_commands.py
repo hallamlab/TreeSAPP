@@ -328,6 +328,9 @@ class TreesappTester(unittest.TestCase):
         self.assertTrue('Function' in test_refpkg.feature_annotations)
         self.assertEqual(5, len(test_refpkg.feature_annotations["Function"]))
         self.assertIsInstance(test_refpkg.feature_annotations["Function"][0], CladeAnnotation)
+        for ca in test_refpkg.feature_annotations["Function"]:
+            if ca.name == "Short-chain alkane oxidation":
+                self.assertEqual(8, len(ca.members))
 
         # Test view with a complex attribute (feature_annotations)
         view_command_list = ["view",

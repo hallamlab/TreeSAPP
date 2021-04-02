@@ -244,11 +244,6 @@ def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
     pkg_parser.editors.add_argument("-t", "--taxa_map", dest="phenotypes", required=False, default=None,
                                     help="A file mapping unique taxonomic labels to non-unique features "
                                          "(e.g. activity, pathway, or other phenotype)")
-    pkg_parser.editors.add_argument("-c", "--colours_style", required=False, nargs='+',
-                                    help="The colours_style file exported from iTOL with the annotation information. "
-                                         "To automatically infer the variable name (rather than through `names`). "
-                                         "File name format should be `marker`_`var`.txt. For example: McrA_Metabolism.txt "
-                                         "would create a new column in marker_contig_map.tsv named 'Metabolism'.")
     pkg_parser.optopt.add_argument('-o', '--output', default=None, required=False,
                                    help='Path to an output directory. '
                                         'Default is the current working directory.')
@@ -545,6 +540,10 @@ def check_parser_arguments(args, sys_args):
     if sys.version_info <= (2, 9):
         logging.error("Python 2 is not supported by TreeSAPP.\n")
         sys.exit(3)
+
+    if hasattr(args, "input") and not os.path.isfile(args.input):
+        logging.error("FASTX input file '{}' doesn't exist.\n".format(args.input))
+        sys.exit(5)
 
     if "num_threads" in vars(args) and args.num_threads > available_cpu_count():
         logging.warning("Number of threads specified is greater than those available! "

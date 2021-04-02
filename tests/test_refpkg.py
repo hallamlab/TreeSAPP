@@ -124,6 +124,18 @@ class RefPkgTester(unittest.TestCase):
         self.assertEqual(self.db.num_seqs, len(node_map[max(node_map.keys())]))
         return
 
+    def test_match_taxon_to_internal_nodes(self):
+        self.assertEqual([],
+                         self.db.match_taxon_to_internal_nodes("c__Methanococcus"))
+        self.assertEqual([132],
+                         self.db.match_taxon_to_internal_nodes("g__Methanopyrus"))
+        self.assertEqual([212, 378, 110, 273, 477, 26, 409, 131, 436, 287, 36, 448, 386,
+                          294, 41, 415, 276, 495, 439, 438, 437, 417, 410, 296, 295, 27],
+                         self.db.match_taxon_to_internal_nodes("d__Archaea"))
+        self.assertEqual([497],
+                         self.db.match_taxon_to_internal_nodes("r__Root"))
+        return
+
     def test_enumerate_taxonomic_lineages(self):
         from treesapp.refpkg import ReferencePackage
         mock_rp = ReferencePackage()
@@ -234,6 +246,19 @@ class RefPkgTester(unittest.TestCase):
         self.assertEqual(15243, len(newick_str))
         return
 
+    def test_convert_feature_indices_to_inodes(self):
+        test_feature_map = {"11_McrA": "Hydrogenotrophic"}
+        internal_node_feature_map = self.db.convert_feature_indices_to_inodes(test_feature_map)
+        k, v = internal_node_feature_map.popitem()
+        self.assertIsInstance(k, int)
+        self.assertTrue(296, k)
+
+        test_feature_map = {'Gom-Arc1-GOS | MSRB0112': "Methanotrophic"}
+        internal_node_feature_map = self.db.convert_feature_indices_to_inodes(test_feature_map)
+        k, v = internal_node_feature_map.popitem()
+        self.assertTrue(39, k)
+        return
+
     def test_edit(self):
         from treesapp.refpkg import edit
         new_value = "Z0002"
@@ -260,7 +285,7 @@ class RefPkgTester(unittest.TestCase):
             if clade_annot.name == "McrA":
                 self.assertEqual(225, len(clade_annot.members))
             elif clade_annot.name == "AcrA":
-                self.assertEqual(13, len(clade_annot.members))
+                self.assertEqual(14, len(clade_annot.members))
             else:
                 self.assertTrue(False)
 

@@ -450,6 +450,10 @@ class ReferencePackage:
             if self.taxa_trie.root_taxon != lineage.split(self.taxa_trie.lin_sep)[0]:
                 lineage = self.taxa_trie.root_taxon + self.taxa_trie.lin_sep + lineage
             ref.lineage = lineage
+            try:
+                ref.accession = ref.description.split(' | ')[1]
+            except IndexError:
+                pass
             ref_leaf_nodes.append(ref)
         return ref_leaf_nodes
 
@@ -587,6 +591,26 @@ class ReferencePackage:
             logging.warning("Unable to find leaf '{}' in {} reference package leaves.\n".format(leaf_name, self.prefix))
 
         return leaves
+
+    def match_taxon_to_internal_nodes(self, taxon_name: str) -> list:
+        """Returns the minimal set of internal nodes that cover all leaf nodes belonging to taxon_name."""
+        internal_nodes = []
+        try:
+            taxon_name, leaf_node_names = self.map_taxa_to_leaf_nodes([taxon_name]).popitem()
+        except KeyError:
+            logging.warning("Unable to match taxon '{}' to internal nodes as taxon isn't in reference package.\n"
+                            "".format(taxon_name))
+            return internal_nodes
+
+        leaf_node_names = set(leaf_node_names)
+        inode_leaf_map = self.get_internal_node_leaf_map()
+        for i_node in reversed(sorted(inode_leaf_map, key=lambda x: len(inode_leaf_map[x]))):
+            if not leaf_node_names:
+                break
+            if leaf_node_names.issuperset(inode_leaf_map[i_node]) or leaf_node_names == inode_leaf_map[i_node]:
+                internal_nodes.append(i_node)
+                leaf_node_names = leaf_node_names.difference(inode_leaf_map[i_node])
+        return internal_nodes
 
     def map_rank_representatives_to_leaves(self, rank_name: str) -> (dict, dict):
         """
@@ -1044,14 +1068,48 @@ class ReferencePackage:
 
         return rt
 
+    def convert_feature_indices_to_inodes(self, feature_map: dict) -> dict:
+        """Capable of sorting taxa from lineages, internal nodes, leaf names, and descriptions organism names"""
+        internal_node_feature_map = {}
+        unmapped = []
+
+        # Generate the sets for taxa and internal nodes to compare to
+        taxa_names = self.taxa_trie.get_taxon_names(with_prefix=True)
+        internal_nodes = {str(k): v for k, v in self.get_internal_node_leaf_map().items()}
+        leaf_names = {ref.number + '_' + self.prefix for ref in self.generate_tree_leaf_references_from_refpkg()}
+        leaf_descriptions = {ref.description: ref for ref in self.generate_tree_leaf_references_from_refpkg()}
+
+        for index, feature in feature_map.items():  # type: (str, str)
+            if index in taxa_names:
+                for i_node in self.match_taxon_to_internal_nodes(index):
+                    internal_node_feature_map[i_node] = (feature, index)
+            elif index in internal_nodes:
+                internal_node_feature_map[int(index)] = (feature, '')
+            elif index in leaf_names:
+                for i_node in internal_nodes:
+                    if internal_nodes[i_node] == [index]:
+                        internal_node_feature_map[int(i_node)] = (feature, '')
+            elif index in leaf_descriptions:
+                ref_leaf = leaf_descriptions[index]
+                for i_node in internal_nodes:
+                    if internal_nodes[i_node] == [ref_leaf.number + '_' + self.prefix]:
+                        internal_node_feature_map[int(i_node)] = (feature, index)
+                        break
+            else:
+                unmapped.append(index)
+
+        if unmapped:
+            logging.warning("Unable to find the following feature indices in taxa, leaves or internal nodes:\n\t" +
+                            "\n\t".join(unmapped) + "\n")
+
+        return internal_node_feature_map
+
     def add_feature_annotations(self, feature_name: str, **kwargs) -> None:
         """Triages the different formats of feature maps to their respective functions."""
-        if "taxon_feature_map" in kwargs:
-            self.add_taxonomic_features(feature_name, taxon_feature_map=kwargs["taxon_feature_map"])
-        return
+        # Sort labels by taxa or internal nodes
+        inode_features = self.convert_feature_indices_to_inodes(kwargs["feature_map"])
 
-    def add_taxonomic_features(self, feature_name: str, taxon_feature_map: dict) -> None:
-        """Adds feature annotations from a taxonomy-phenotype mapping file."""
+        inode_leaf_map = self.get_internal_node_leaf_map()
         # Pull the current annotations in case it can be appended to
         try:
             clade_annots = self.feature_annotations[feature_name]
@@ -1061,14 +1119,15 @@ class ReferencePackage:
 
         # Invert the dictionary to map annotation names to taxa
         feature_map = {}
-        for taxon, annotation in taxon_feature_map.items():
+        for index, annotation in inode_features.items():  # type: (int, tuple)
             try:
-                feature_map[annotation].append(taxon)
+                feature_map[annotation].append(index)
             except KeyError:
-                feature_map[annotation] = [taxon]
+                feature_map[annotation] = [index]
 
         # Create a new CladeAnnotation instance for each feature
-        for annotation, taxa in feature_map.items():  # type: (str, list)
+        for feat_tup, indices in feature_map.items():  # type: (tuple, list)
+            annotation, taxon = feat_tup  # type: (str, str)
             # Determine whether the feature is already in clade_annots and if so, update it
             ca = None
             for prev_annot in clade_annots:  # type: CladeAnnotation
@@ -1080,10 +1139,9 @@ class ReferencePackage:
                 self.feature_annotations[feature_name].append(ca)
 
             # Populate the taxa and members attributes
-            ca.taxa.update(set(taxa))
-            ca.taxa_leaf_map = self.map_taxa_to_leaf_nodes(taxa)
-            for t, l in ca.taxa_leaf_map.items():
-                ca.members.update(set(l))
+            for index in indices:
+                ca.members.update(set(inode_leaf_map[index]))
+            ca.taxa.update(taxon)
 
         return
 
@@ -1161,7 +1219,7 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrite:
             sys.exit(7)
     elif k == "feature_annotations":
         taxa_phenotype_map = read_phenotypes(phenotypes)
-        refpkg.add_feature_annotations(feature_name=v, taxon_feature_map=taxa_phenotype_map)
+        refpkg.add_feature_annotations(feature_name=v, feature_map=taxa_phenotype_map)
         v = refpkg.feature_annotations
     refpkg.__dict__[k] = v
 

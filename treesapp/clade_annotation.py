@@ -3,7 +3,6 @@ class CladeAnnotation:
         """A class to store clade-level annotations for a reference package"""
         self.name = name  # The sub-group feature annotation
         self.feature = key  # The group annotation name e.g. Function, Activity, Substrate
-        self.taxa_leaf_map = {}
         self.members = set()  # List of reference package leaf nodes
         self.taxa = set()  # List of representative taxa
         self.colour = ""
