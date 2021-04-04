@@ -408,9 +408,10 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
         tt_obj.filter_assignments(ref_pkg.prefix)
         tt_obj.distances = parse_distances(assigned_lines)
     else:
-        logging.error("marker_contig_map.tsv is missing from output directory '" +
-                      os.path.dirname(tt_obj.classification_table) + "'\n" +
-                      "Please remove this directory and re-run.\n")
+        logging.error("{} is missing from output directory '{}'\n"
+                      "Please remove this directory and re-run.\n"
+                      "".format(os.path.basename(tt_obj.classification_table),
+                                os.path.dirname(tt_obj.classification_table)))
         sys.exit(21)
     return
 

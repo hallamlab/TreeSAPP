@@ -297,7 +297,7 @@ def train(sys_args):
         try:
             ts_assign_mod.assign(assign_params)
             plain_pqueries = ts_phylo_seq.assignments_to_pqueries(file_parsers.read_classification_table(
-                os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")))
+                os.path.join(assign_prefix, "final_outputs", "classifications.tsv")))
         except (SystemExit, IOError):
             logging.info("failed.\n")
             logging.error("treesapp assign did not complete successfully.\n")
@@ -1048,23 +1048,23 @@ def layer(sys_args):
     treesapp_args.add_layer_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_layer = classy.Layerer()
+    ts_layer = annotate_extra.Layerer()
 
     log_file_name = args.output + os.sep + "TreeSAPP_layer_log.txt"
     classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\t\tLayering extra annotations on TreeSAPP classifications\t\t\t\t##\n\n")
 
-    annotate_extra.check_arguments(ts_layer, args)
+    ts_layer.check_arguments(args)
 
     ##
     # Worklow:
     #   1. Slurp up reference packages into a dictionary
-    #   2. Read the marker_contig_map.tsv file from the output directory to create the master data structure
+    #   2. Read the classifications.tsv file from the output directory to create the master data structure
     #   3. For each of the colours_styles files provided (potentially multiple for the same marker):
     #       3.1) Add the annotation variable to master_dat for every sequence (instantiate with "NA")
     #       3.2) Read the .jplace file for every sequence classified as marker
     #       3.3) Add the annotation information to every sequence classified as marker in master_dat
-    #   4. Write the new classification file called "extra_annotated_marker_contig_map.tsv"
+    #   4. Write the new classification file called "layered_classifications.tsv"
     ##
     marker_subgroups = set()
     unique_markers_annotated = set()
@@ -1084,7 +1084,7 @@ def layer(sys_args):
             for data_type in ref_pkg.feature_annotations:
                 marker_subgroups.add(data_type)
 
-    # Instantiate every query sequence in marker_contig_map with an empty string for each data_type
+    # Instantiate every query sequence in classifications with an empty string for each data_type
     for data_type in marker_subgroups:
         for refpkg_name in master_dat:
             for assignment in master_dat[refpkg_name]:  # type: annotate_extra.ClassifiedSequence
@@ -1129,7 +1129,7 @@ def layer(sys_args):
                 pass
     marker_subgroups.clear()
     master_dat = annotate_extra.map_queries_to_annotations(marker_tree_info, master_dat)
-    annotate_extra.write_classification_table(ts_layer.final_output_dir, field_order, master_dat)
+    annotate_extra.write_classification_table(ts_layer.layered_table, field_order, master_dat)
 
     return
 
@@ -1186,9 +1186,10 @@ def purity(sys_args):
             assigned_lines = file_parsers.read_classification_table(ts_purity.classifications)
             ts_purity.assignments = file_parsers.parse_assignments(assigned_lines)
         else:
-            logging.error("marker_contig_map.tsv is missing from output directory '" +
-                          os.path.dirname(ts_purity.classifications) + "'\n" +
-                          "Please remove this directory and re-run.\n")
+            logging.error("{} is missing from output directory '{}'\n"
+                          "Please remove this directory and re-run.\n"
+                          "".format(ts_purity.classification_tbl_name,
+                                    os.path.dirname(ts_purity.classifications)))
             sys.exit(5)
 
         logging.info("\nSummarizing assignments for reference package " + ts_purity.ref_pkg.prefix + "\n")

@@ -38,7 +38,7 @@ class TreesappTester(unittest.TestCase):
         from treesapp.file_parsers import read_classification_table
         from treesapp.phylo_seq import assignments_to_pqueries
         from .testing_utils import get_test_data
-        classification_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
+        classification_table = os.path.join(self.ts_assign_output, "final_outputs", "classifications.tsv")
         # Copy the classification table to replace after overwrite
         copyfile(classification_table, os.path.join(self.ts_assign_output, "tmp.tsv"))
         pre_lines = read_classification_table(get_test_data(classification_table))
@@ -97,7 +97,7 @@ class TreesappTester(unittest.TestCase):
                                 "--placement_summary", "max_lwr",
                                 "--trim_align", "--overwrite", "--delete", "--svm"]
         assign.assign(assign_commands_list)
-        lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
+        lines = read_classification_table("./TreeSAPP_assign/final_outputs/classifications.tsv")
         self.assertEqual(15, len(lines))
         self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.faa"))
 
@@ -116,7 +116,7 @@ class TreesappTester(unittest.TestCase):
                                  "--reads", get_test_data("SRR3669912_1.fastq"),
                                  "--reverse", get_test_data("SRR3669912_2.fastq")]
         assign.assign(assign_commands_list)
-        assignments_tbl = "./TreeSAPP_assign/final_outputs/marker_contig_map.tsv"
+        assignments_tbl = "./TreeSAPP_assign/final_outputs/classifications.tsv"
         lines = read_classification_table(assignments_tbl)
         self.assertEqual(6, len(lines))
         classified_seqs = set()
@@ -266,9 +266,9 @@ class TreesappTester(unittest.TestCase):
 
         # With a different reference package, XmoA, just to be sure
         classification_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
-                                            "final_outputs", "marker_contig_map.tsv")
+                                            "final_outputs", "classifications.tsv")
         layered_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"), "final_outputs",
-                                     "extra_annotated_marker_contig_map.tsv")
+                                     "extra_annotated_classifications.tsv")
         pre_lines = read_classification_table(get_test_data(classification_table))
         layer_command_list = ["--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
                               "--refpkg_dir", self.refpkg_dir]

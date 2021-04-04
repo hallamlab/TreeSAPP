@@ -276,7 +276,7 @@ class TreeSAPP:
         self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
         self.acc_to_lin = ""  # Path to an accession-lineage mapping file
         self.ref_pkg = ReferencePackage()
-        self.classification_tbl_name = "marker_contig_map.tsv"
+        self.classification_tbl_name = "classifications.tsv"
 
         # Values derived from the command-line arguments
         self.input_sequences = ""
@@ -638,7 +638,7 @@ class Updater(TreeSAPP):
         self.seq_names_to_taxa = ""  # Optional user-provided file mapping query sequence contigs to lineages
         self.lineage_map_file = ""  # File that is passed to create() containing lineage info for all sequences
         self.treesapp_output = ""  # Path to the TreeSAPP output directory - modified by args
-        self.assignment_table = ""  # Path to the marker_contig_map.tsv file written by treesapp assign
+        self.assignment_table = ""  # Path to the classifications.tsv file written by treesapp assign
         self.combined_fasta = ""  # Holds the newly identified candidate reference sequences and the original ref seqs
         self.old_ref_fasta = ""  # Contains only the original reference sequences
         self.cluster_input = ""  # Used only if resolve is True
@@ -869,9 +869,13 @@ class Purity(TreeSAPP):
         ##
         # Define locations of files TreeSAPP outputs
         ##
-        self.classifications = self.stage_lookup("assign").dir_path + "final_outputs" + os.sep + "marker_contig_map.tsv"
-        self.assign_jplace_file = os.path.join(self.stage_lookup("assign").dir_path, "iTOL_output",
-                                               self.ref_pkg.prefix, self.ref_pkg.prefix + "_complete_profile.jplace")
+        self.classifications = os.path.join(self.stage_lookup("assign").dir_path,
+                                            "final_outputs",
+                                            self.classification_tbl_name)
+        self.assign_jplace_file = os.path.join(self.stage_lookup("assign").dir_path,
+                                               "iTOL_output",
+                                               self.ref_pkg.prefix,
+                                               self.ref_pkg.prefix + "_complete_profile.jplace")
         self.metadata_file = args.extra_info
 
         if not os.path.isdir(self.var_output_dir):
@@ -1056,7 +1060,7 @@ class TaxonTest:
             self.classification_table = self.classifications_root + taxon_path + os.sep + taxon_path + "_read_tax.tsv"
             self.refpkg_path = self.intermediates_dir + refpkg.prefix + '_' + taxon_path + ".gpkg"
         else:
-            self.classification_table = self.classifications_root + "final_outputs" + os.sep + "marker_contig_map.tsv"
+            self.classification_table = self.classifications_root + "final_outputs" + os.sep + "classifications.tsv"
             self.refpkg_path = os.path.join(self.intermediates_dir, refpkg.prefix + refpkg.refpkg_suffix)
 
         return 
@@ -1406,14 +1410,6 @@ class Evaluator(TreeSAPP):
 
         output_handler.close()
         return
-
-
-class Layerer(TreeSAPP):
-    def __init__(self):
-        super(Layerer, self).__init__("layer")
-        self.stages = {}
-        self.target_refpkgs = list()
-        self.treesapp_output = ""
 
 
 class Abundance(TreeSAPP):

@@ -66,7 +66,7 @@ class ConfusionTest:
     def map_data(self, output_dir, tool: str):
         if tool == "treesapp":
             self.data_dir = output_dir + os.sep + "TreeSAPP_output" + os.sep
-            self.classification_table = self.data_dir + "final_outputs" + os.sep + "marker_contig_map.tsv"
+            self.classification_table = self.data_dir + "final_outputs" + os.sep + "classifications.tsv"
         elif tool == "graftm":
             self.data_dir = output_dir + os.sep + "GraftM_output" + os.sep
         elif tool == "diamond":
@@ -821,7 +821,7 @@ def mcc_calculator(sys_args):
     classification_lines = []
     if args.tool == "treesapp":
         ref_pkgs = ','.join(test_obj.ref_packages.keys())
-        classification_table = os.path.join(args.output, "TreeSAPP_output", "final_outputs", "marker_contig_map.tsv")
+        classification_table = os.path.join(args.output, "TreeSAPP_output", "final_outputs", "classifications.tsv")
         if not os.path.isfile(classification_table):
             classify_args = ["-i", args.input,
                              "-t", ref_pkgs,

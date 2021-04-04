@@ -103,7 +103,7 @@ def write_classification_table(tree_saps: dict, sample_name: str, output_file: s
 
 def parse_assignments(classified_lines: list) -> dict:
     """
-    Parses the marker_contig_map.tsv lines loaded to retrieve lineage assignment and marker information
+    Parses the classifications.tsv lines loaded to retrieve lineage assignment and marker information
 
      Now also looks for fragments of identical parent sequences that were individually classified.
      If these are found, the longest fragment is selected for classification.
@@ -149,7 +149,7 @@ def parse_assignments(classified_lines: list) -> dict:
 
 def read_classification_table(assignment_file) -> list:
     """
-    Function for reading the tabular assignments file (currently marker_contig_map.tsv)
+    Function for reading the tabular assignments file (currently classifications.tsv)
     Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
     (leaving 1 for marker name and 4 for numerical abundance)
 

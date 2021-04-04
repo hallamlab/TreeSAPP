@@ -8,30 +8,34 @@ import os
 
 import logging
 
-from treesapp.classy import Layerer
+from treesapp.classy import TreeSAPP
 from treesapp.clade_annotation import CladeAnnotation
 
 
-def check_arguments(layerer: Layerer, args):
-    """
-    Check that the required files (e.g. jplace, marker_contig_map, annotation files) exist
+class Layerer(TreeSAPP):
+    def __init__(self):
+        super(Layerer, self).__init__("layer")
+        self.stages = {}
+        self.target_refpkgs = list()
+        self.treesapp_output = ""
+        self.layered_table = ""
 
-    :param layerer:
-    :param args:
-    :return:
-    """
-    layerer.treesapp_output = args.output
-    if layerer.treesapp_output[-1] != os.sep:
-        layerer.treesapp_output += os.sep
-    layerer.var_output_dir = layerer.treesapp_output + "intermediates" + os.sep
-    layerer.final_output_dir = layerer.treesapp_output + "final_outputs" + os.sep
-    if not os.path.isfile(layerer.final_output_dir + "marker_contig_map.tsv"):
-        logging.error("Could not find a classification file in " + layerer.final_output_dir + "\n")
-        sys.exit(3)
-    if args.refpkg_dir:
-        layerer.refpkg_dir = args.refpkg_dir
+    def check_arguments(self, args) -> None:
+        """Check that the required files (e.g. jplace, classifications, annotation files) exist."""
+        self.treesapp_output = args.output
+        if self.treesapp_output[-1] != os.sep:
+            self.treesapp_output += os.sep
+        self.var_output_dir = self.treesapp_output + "intermediates" + os.sep
+        self.final_output_dir = self.treesapp_output + "final_outputs" + os.sep
 
-    return
+        if not os.path.isfile(self.final_output_dir + self.classification_tbl_name):
+            logging.error("Could not find a classification file in " + self.final_output_dir + "\n")
+            sys.exit(3)
+        if args.refpkg_dir:
+            self.refpkg_dir = args.refpkg_dir
+
+        self.layered_table = self.final_output_dir + "layered_" + self.classification_tbl_name
+        return
 
 
 def identify_field_position(field_name: str, header_fields: list):
@@ -40,7 +44,7 @@ def identify_field_position(field_name: str, header_fields: list):
         if field == field_name:
             return x
         x += 1
-    logging.error("Unable to find field name '" + field_name + "' in marker_contig_map.tsv header!\n")
+    logging.error("Unable to find field name '" + field_name + "' in classifications.tsv header!\n")
     sys.exit()
 
 
@@ -57,7 +61,7 @@ class ClassifiedSequence:
 
     def load_assignment_line(self, fields, header_fields, query_pos, node_pos):
         if header_fields != self.expected_header:
-            logging.error("Header in marker_contig_map.tsv is unexpected!\n")
+            logging.error("Header in classifications.tsv is unexpected!\n")
             sys.exit(7)
         self.query_name = fields[query_pos]
         self.i_node = fields[node_pos]
@@ -67,7 +71,7 @@ class ClassifiedSequence:
 
 def parse_marker_classification_table(marker_classification_file):
     """
-    Function to read marker_contig_map.tsv and gather the relevant information for adding extra annotations
+    Function to read classifications.tsv and gather the relevant information for adding extra annotations
     This function is different from Clade_exclusion_analyzer::read_classification_table(assignment_file)
     as we are interested in all fields in this function.
     :param marker_classification_file:
@@ -192,11 +196,11 @@ def annotate_internal_nodes(internal_node_map: dict, clade_annotations: list) ->
     return annotated_clade_members, leaves_in_clusters
 
 
-def write_classification_table(output_dir: str, field_order: dict, master_dat: dict) -> None:
+def write_classification_table(table_name: str, field_order: dict, master_dat: dict) -> None:
     """
     Writes data in master_dat to a new tabular file with original and extra annotation information
 
-    :param output_dir: Path to the directory to write the layered classification table
+    :param table_name: Path to the layered classification table to write to
     :param field_order: A dictionary mapping the order of the table's fields to the field name
     :param master_dat: A dictionary mapping reference package prefixes to the list of all ClassifiedSequence instances
     :return: None
@@ -216,11 +220,10 @@ def write_classification_table(output_dir: str, field_order: dict, master_dat: d
                     assignment.assignment_fields.append(assignment.layers[field])
             new_classification_lines.append("\t".join(assignment.assignment_fields))
 
-    output_file = output_dir + "extra_annotated_marker_contig_map.tsv"
     try:
-        table_handler = open(output_file, 'w')
+        table_handler = open(table_name, 'w')
     except IOError:
-        logging.error("Unable to open " + output_file + " for writing!\n")
+        logging.error("Unable to open " + table_name + " for writing!\n")
         sys.exit(3)
     table_handler.write("\n".join(new_classification_lines) + "\n")
     table_handler.close()

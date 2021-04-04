@@ -720,7 +720,7 @@ def check_updater_arguments(updater: Updater, args):
     updater.old_ref_fasta = updater.var_output_dir + "original_refs.fasta"
     updater.combined_fasta = updater.var_output_dir + "all_refs.fasta"
     updater.lineage_map_file = updater.var_output_dir + "accession_id_lineage_map.tsv"
-    updater.assignment_table = updater.final_output_dir + "marker_contig_map.tsv"
+    updater.assignment_table = updater.final_output_dir + updater.classification_tbl_name
     updater.cluster_input = updater.var_output_dir + updater.sample_prefix + "_cluster_input.fasta"
     updater.clusters_prefix = updater.var_output_dir + updater.sample_prefix + "_cluster" + str(updater.prop_sim)
     classified_seqs = glob(updater.final_output_dir + "*_classified.faa")
