@@ -150,7 +150,7 @@ class TreesappTester(unittest.TestCase):
 
         phenotypes = read_phenotypes(mcra_metabolism)
         self.assertIsInstance(cls=dict, obj=phenotypes)
-        self.assertEqual(15, len(phenotypes))
+        self.assertEqual(19, len(phenotypes))
 
 
 if __name__ == '__main__':

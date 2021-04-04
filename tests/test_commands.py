@@ -268,7 +268,7 @@ class TreesappTester(unittest.TestCase):
         classification_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
                                             "final_outputs", "classifications.tsv")
         layered_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"), "final_outputs",
-                                     "extra_annotated_classifications.tsv")
+                                     "layered_classifications.tsv")
         pre_lines = read_classification_table(get_test_data(classification_table))
         layer_command_list = ["--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
                               "--refpkg_dir", self.refpkg_dir]

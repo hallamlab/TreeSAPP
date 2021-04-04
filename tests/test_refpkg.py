@@ -294,7 +294,8 @@ class RefPkgTester(unittest.TestCase):
              output_dir=os.path.dirname(self.mutable_ref_pkg.f__pkl),
              attributes=["feature_annotations", "Paralog"],
              phenotypes=utils.get_test_data("McrA_paralog_map.tsv"),
-             overwrite=True)
+             overwrite=True,
+             reset=False)
         self.assertEqual(1, len(self.mutable_ref_pkg.feature_annotations))
         self.assertEqual(2, len(self.mutable_ref_pkg.feature_annotations["Paralog"]))
         for clade_annot in self.mutable_ref_pkg.feature_annotations["Paralog"]:
