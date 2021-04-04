@@ -9,7 +9,7 @@ from shutil import copy
 
 from packaging import version
 from ete3 import Tree
-import numpy as np
+from pandas import DataFrame
 import joblib
 
 from treesapp.phylo_seq import TreeLeafReference
@@ -52,7 +52,7 @@ class ReferencePackage:
         self.model_info = []
         self.f__model_info = self.prefix + "_epa.model"  # RAxML-NG --evaluate model file
         self.svc = None
-        self.train_ar = None
+        self.training_df = DataFrame()
         self.lineage_ids = dict()  # Reference sequence lineage map
 
         # These are metadata values
