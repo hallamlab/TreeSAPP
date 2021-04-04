@@ -826,12 +826,8 @@ class Creator(TreeSAPP):
         return
 
     def print_terminal_commands(self):
-        logging.info("\nTo integrate this package for use in TreeSAPP the following steps must be performed:\n"
-                     "1. Replace the current refpkg_code 'Z1111' with:\n"
-                     "`treesapp package edit refpkg_code $code --overwrite --refpkg_path {0}`"
-                     " where $code is a unique identifier.\n"
-                     "2. Copy {0} to a directory containing other reference packages you want to analyse. "
-                     "This may be in {1}/data/ or elsewhere\n"
+        logging.info("\nTo integrate this package for use in TreeSAPP you must copy {0} to a directory containing other"
+                     " reference packages you want to analyse. This may be in {1}/data/ or elsewhere\n"
                      "".format(self.ref_pkg.f__pkl, self.treesapp_dir))
         return
 

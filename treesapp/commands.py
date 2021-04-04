@@ -940,6 +940,7 @@ def update(sys_args):
                                                         ts_updater.ref_pkg.prefix + ts_updater.ref_pkg.refpkg_suffix)
         ts_updater.updated_refpkg.slurp()
     else:
+        ts_updater.updated_refpkg.training_df = ts_updater.ref_pkg.training_df
         ts_updater.updated_refpkg.pfit = ts_updater.ref_pkg.pfit
         ts_updater.updated_refpkg.svc = ts_updater.ref_pkg.svc
 

@@ -4,7 +4,6 @@ import sys
 import re
 import logging
 from glob import glob
-from datetime import datetime as dt
 
 from treesapp.classy import Evaluator, Creator, PhyTrainer, Updater
 from treesapp.utilities import available_cpu_count
@@ -616,7 +615,6 @@ def check_create_arguments(creator: Creator, args) -> None:
     creator.ref_pkg.molecule = args.molecule
     creator.ref_pkg.kind = args.kind
     creator.ref_pkg.sub_model = args.raxml_model
-    creator.ref_pkg.date = dt.now().strftime("%Y-%m-%d")
     creator.ref_pkg.f__pkl = creator.final_output_dir + creator.ref_pkg.prefix + creator.ref_pkg.refpkg_suffix
     # TODO: Create placement trainer output directory and make it an attribute
     if not args.output:

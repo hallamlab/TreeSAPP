@@ -6,6 +6,7 @@ import json
 import inspect
 from glob import glob
 from shutil import copy
+from datetime import datetime as dt
 
 from packaging import version
 from ete3 import Tree
@@ -34,7 +35,8 @@ class ReferencePackage:
     """
     def __init__(self, refpkg_name=""):
         self.prefix = refpkg_name
-        self.refpkg_code = "Z1111"  # AKA denominator
+        self.date = dt.now().strftime("%Y-%m-%d")  # Date the reference package was created
+        self.refpkg_code = refpkg_name + dt.now().strftime("%m%d.%s")  # AKA denominator
 
         # These are files (with '_f' suffix) and their respective data (read with file.readlines())
         self.refpkg_suffix = "_build.pkl"
@@ -58,7 +60,6 @@ class ReferencePackage:
         # These are metadata values
         self.ts_version = ts_version
         self.sub_model = ""  # EPA-NG compatible substitution model
-        self.date = ""  # Date the reference package was created
         self.update = ""  # Date the reference package was last updated
         self.num_seqs = 0  # Number of reference sequences in the MSA, phylogeny
         self.profile_length = 0  # LENG of the profile HMM (not search profile)
@@ -84,6 +85,11 @@ class ReferencePackage:
         """
         for attr, value in self.__dict__.items():
             yield attr, value
+
+    def __str__(self):
+        return "TreeSAPP '{}' ReferencePackage {} with {} sequences".format(self.ts_version,
+                                                                            self.prefix,
+                                                                            self.num_seqs)
 
     def get_public_attributes(self) -> list:
         return [attr[0] for attr in inspect.getmembers(self) if
@@ -234,7 +240,7 @@ class ReferencePackage:
                           "TreeSAPP will only create a single directory at a time.\n".format(output_dir, self.prefix))
             sys.exit(3)
 
-        output_prefix = os.path.join(output_dir, '_'.join([self.prefix, self.refpkg_code, self.date])) + os.sep
+        output_prefix = os.path.join(output_dir, self.refpkg_code) + os.sep
 
         if not os.path.isdir(output_prefix):
             os.mkdir(output_prefix)

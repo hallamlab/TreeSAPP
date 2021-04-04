@@ -23,6 +23,9 @@ We recommend updating to this version, and updating reference packages you have 
 
 ### Changed
 - Renamed the classification table made by `treesapp assign` (and used by subcommands like `layer`) 'classifications.tsv'.
+- The reference package attribute 'refpkg_code' is automatically set and
+  does not need to be changed as it is guaranteed to be unique.
+- The reference package disband path has been changed to just the reference package code.
 - `treesapp colour` accesses and uses the 'feature_annotations' to write iTOL-compatible annotation files
   (i.e. colour_strip.txt and colours_styles.txt). It no longer accepts taxonomy-phenotype tables.
 - `treesapp layer` uses the 'feature_annotations' attribute in reference packages to annotate classified sequences.

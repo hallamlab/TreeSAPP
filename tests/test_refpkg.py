@@ -23,7 +23,7 @@ class RefPkgTester(unittest.TestCase):
         from shutil import copyfile
         self.pkl_path = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.new_pkl_path = "./test_write_json" + self.db.refpkg_suffix
-        self.disband_path = os.path.join("tests", "_".join([self.db.prefix, self.db.refpkg_code, self.db.date]))
+        self.disband_path = os.path.join("tests", self.db.refpkg_code)
         if os.path.isdir(self.disband_path):
             rmtree(self.disband_path)
         self.intermediates_dir = os.path.join("tests", "refpkg_test_dir") + os.sep
