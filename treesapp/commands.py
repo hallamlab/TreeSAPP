@@ -31,7 +31,6 @@ from treesapp import create_refpkg as ts_create_mod
 from treesapp import update_refpkg as ts_update_mod
 from treesapp import phylo_cluster as ts_potu
 from treesapp import hmmer_tbl_parser
-from treesapp import clade_annotation
 
 
 def info(sys_args):
@@ -981,7 +980,7 @@ def colour(sys_args):
                 logging.warning("Reference package '{}' doesn't have the '{}' feature annotated. "
                                 "It is being skipped\n".format(refpkg_name, ts_painter.feature_name))
                 continue
-            for ca in clade_annots:  # type: clade_annotation.CladeAnnotation
+            for ca in clade_annots:
                 taxon_leaf_map.update({ca.name: ca.members})
         else:
             ts_painter.find_rank_depth(ref_pkg, ref_pkg.taxa_trie.accepted_ranks_depths[ts_painter.rank])

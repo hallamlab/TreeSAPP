@@ -9,6 +9,7 @@ from shutil import copy
 
 from packaging import version
 from ete3 import Tree
+import numpy as np
 import joblib
 
 from treesapp.phylo_seq import TreeLeafReference
@@ -51,6 +52,7 @@ class ReferencePackage:
         self.model_info = []
         self.f__model_info = self.prefix + "_epa.model"  # RAxML-NG --evaluate model file
         self.svc = None
+        self.train_ar = None
         self.lineage_ids = dict()  # Reference sequence lineage map
 
         # These are metadata values
@@ -1177,9 +1179,9 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
         logging.info("{}:\t".format(k))
         if k == "tree":
             v = refpkg.create_viewable_newick()
-        if type(v) is list and k not in ["pfit"]:  # various file contents
+        if isinstance(v, list) and k not in ["pfit"]:  # various file contents
             v = ''.join(v)
-        if type(v) is dict:  # feature_annotations, lineage_ids
+        if isinstance(v, dict):  # feature_annotations, lineage_ids
             buffer = "\n"
             if len(v.items()) > 0:
                 for sk, sv in v.items():

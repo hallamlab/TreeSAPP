@@ -743,8 +743,8 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
         # Report the number of sequences that are removed by BMGE
         for trimmed_msa_file in trimmed_msa_files[ref_pkg.prefix]:
             try:
-                prefix, tool = re.search('(' + re.escape(ref_pkg.prefix) + r"_.*_group\d+)-(BMGE|trimAl).fasta$",
-                                         os.path.basename(trimmed_msa_file)).groups()
+                prefix = re.search('(' + re.escape(ref_pkg.prefix) + r"_.*_group\d+)-(BMGE|trimAl).fasta$",
+                                   os.path.basename(trimmed_msa_file)).group(1)
             except TypeError:
                 logging.error("Unexpected file name format for a trimmed MSA.\n")
                 sys.exit(3)

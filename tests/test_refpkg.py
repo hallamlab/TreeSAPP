@@ -249,13 +249,13 @@ class RefPkgTester(unittest.TestCase):
     def test_convert_feature_indices_to_inodes(self):
         test_feature_map = {"11_McrA": "Hydrogenotrophic"}
         internal_node_feature_map = self.db.convert_feature_indices_to_inodes(test_feature_map)
-        k, v = internal_node_feature_map.popitem()
+        k, _ = internal_node_feature_map.popitem()
         self.assertIsInstance(k, int)
         self.assertTrue(296, k)
 
         test_feature_map = {'Gom-Arc1-GOS | MSRB0112': "Methanotrophic"}
         internal_node_feature_map = self.db.convert_feature_indices_to_inodes(test_feature_map)
-        k, v = internal_node_feature_map.popitem()
+        k, _ = internal_node_feature_map.popitem()
         self.assertTrue(39, k)
         return
 
