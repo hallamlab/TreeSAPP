@@ -33,6 +33,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.fpkm_opts = self.add_argument_group("Abundance options")
         self.io = self.add_argument_group("Inputs and Outputs")
         self.aes = self.add_argument_group("Aesthetic options")
+        self.editors = self.add_argument_group("Package edit options")
         self.optopt = self.add_argument_group("Optional options")
         self.taxa_args = self.add_argument_group("Taxonomic-lineage arguments")
         self.svc_opts = self.add_argument_group("Classifier arguments")
@@ -237,10 +238,15 @@ def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
     pkg_parser.add_refpkg_file_param()
 
     pkg_parser.reqs.add_argument("attributes", nargs="+",
-                                 help="One or more reference package attributes to view. "
+                                 help="One or more reference package attributes to view or edit. "
                                       "Note: edit will only modify a single attribute at a time. "
                                       "Choices include: {}\n".format(', '.join(attributes)))
-    pkg_parser.optopt.add_argument('-o', '--output', default="./", required=False,
+    pkg_parser.editors.add_argument("-t", "--taxa_map", dest="phenotypes", required=False, default=None,
+                                    help="A file mapping unique taxonomic labels to non-unique features "
+                                         "(e.g. activity, pathway, or other phenotype)")
+    pkg_parser.editors.add_argument("--reset", default=False, action="store_true",
+                                    help="Flag to reset the reference package attribute when editing.")
+    pkg_parser.optopt.add_argument('-o', '--output', default=None, required=False,
                                    help='Path to an output directory. '
                                         'Default is the current working directory.')
     return
@@ -249,14 +255,12 @@ def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
 def add_colour_arguments(colour_parser: TreeSAPPArgumentParser) -> None:
     colour_parser.add_refpkg_file_param()
 
-    colour_parser.io.add_argument("-n", "--name", required=False, default=None,
-                                  help="The prefix name to use when creating iTOL-compatible output files. "
-                                       "By default the taxonomic rank is used or file name of taxa_map if provided.")
+    colour_parser.io.add_argument("-n", "--attribute", required=False, default="taxonomy",
+                                  help="The reference package attribute to colour by. "
+                                       "Either 'taxonomy' or a reference package's layering annotation name. "
+                                       "[ DEFAULT = 'taxonomy' ]")
     colour_parser.io.add_argument("-o", "--output_dir", dest="output", default="./", required=False,
                                   help="Path to the output directory to write the output files. [ DEFAULT = ./ ]")
-    colour_parser.io.add_argument("-t", "--taxa_map", dest="phenotypes", required=False, default=None,
-                                  help="A file mapping unique taxonomic labels to non-unique features "
-                                       "(e.g. activity, pathway, or other phenotype)")
 
     colour_parser.aes.add_argument('-l', "--rank_level", dest="rank", default="order", required=False,
                                    help="The rank to generate unique colours for [ DEFAULT = 'order' ]")
@@ -285,13 +289,6 @@ def add_layer_arguments(parser: TreeSAPPArgumentParser):
     parser.add_refpkg_opt()
     parser.reqs.add_argument("-o", "--treesapp_output", dest="output", required=True,
                              help="The TreeSAPP output directory.")
-    parser.optopt.add_argument("-c", "--colours_style", required=False, nargs='+',
-                               help="The colours_style file exported from iTOL with the annotation information. "
-                                     "To automatically infer the variable name (rather than through `names`). "
-                                     "File name format should be `marker`_`var`.txt. For example: McrA_Metabolism.txt "
-                                     "would create a new column in marker_contig_map.tsv named 'Metabolism'.")
-    parser.optopt.add_argument("-d", "--annot_dir", required=False, default=None,
-                               help="Path to a directory containing iTOL annotation files for layering.")
     return
 
 
@@ -558,7 +555,7 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
     for rank in args.taxon_rank:
         evaluator_instance.ranks.append(rank)
 
-    evaluator_instance.ref_pkg.f__json = args.pkg_path
+    evaluator_instance.ref_pkg.f__pkl = args.pkg_path
     evaluator_instance.ref_pkg.slurp()
 
     if args.length:
@@ -581,7 +578,7 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
 
 
 def check_trainer_arguments(phy_trainer: PhyTrainer, args):
-    phy_trainer.ref_pkg.f__json = args.pkg_path
+    phy_trainer.ref_pkg.f__pkl = args.pkg_path
     phy_trainer.ref_pkg.slurp()
     phy_trainer.ref_pkg.validate()
 
@@ -620,7 +617,7 @@ def check_create_arguments(creator: Creator, args) -> None:
     creator.ref_pkg.kind = args.kind
     creator.ref_pkg.sub_model = args.raxml_model
     creator.ref_pkg.date = dt.now().strftime("%Y-%m-%d")
-    creator.ref_pkg.f__json = creator.final_output_dir + creator.ref_pkg.prefix + creator.ref_pkg.refpkg_suffix
+    creator.ref_pkg.f__pkl = creator.final_output_dir + creator.ref_pkg.prefix + creator.ref_pkg.refpkg_suffix
     # TODO: Create placement trainer output directory and make it an attribute
     if not args.output:
         args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
@@ -685,10 +682,10 @@ def check_create_arguments(creator: Creator, args) -> None:
 
 
 def check_updater_arguments(updater: Updater, args):
-    updater.ref_pkg.f__json = args.pkg_path
+    updater.ref_pkg.f__pkl = args.pkg_path
     updater.ref_pkg.slurp()
     updater.updated_refpkg_path = os.path.join(updater.output_dir, "final_outputs",
-                                               os.path.basename(updater.ref_pkg.f__json))
+                                               os.path.basename(updater.ref_pkg.f__pkl))
     updater.ref_pkg.disband(os.path.join(updater.output_dir, "intermediates"))
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     # updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
@@ -723,7 +720,7 @@ def check_updater_arguments(updater: Updater, args):
     updater.old_ref_fasta = updater.var_output_dir + "original_refs.fasta"
     updater.combined_fasta = updater.var_output_dir + "all_refs.fasta"
     updater.lineage_map_file = updater.var_output_dir + "accession_id_lineage_map.tsv"
-    updater.assignment_table = updater.final_output_dir + "marker_contig_map.tsv"
+    updater.assignment_table = updater.final_output_dir + updater.classification_tbl_name
     updater.cluster_input = updater.var_output_dir + updater.sample_prefix + "_cluster_input.fasta"
     updater.clusters_prefix = updater.var_output_dir + updater.sample_prefix + "_cluster" + str(updater.prop_sim)
     classified_seqs = glob(updater.final_output_dir + "*_classified.faa")

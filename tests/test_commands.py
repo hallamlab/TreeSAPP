@@ -17,6 +17,7 @@ class TreesappTester(unittest.TestCase):
         self.mcra_pkl = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.mcrb_pkl = get_test_data(os.path.join("refpkgs", "McrB_build.pkl"))
         self.puha_pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+        self.xmoa_pkl = get_test_data(os.path.join("refpkgs", "XmoA_build.pkl"))
 
         # Output examples
         self.ts_assign_output = get_test_data("test_output_TarA/")
@@ -37,7 +38,7 @@ class TreesappTester(unittest.TestCase):
         from treesapp.file_parsers import read_classification_table
         from treesapp.phylo_seq import assignments_to_pqueries
         from .testing_utils import get_test_data
-        classification_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
+        classification_table = os.path.join(self.ts_assign_output, "final_outputs", "classifications.tsv")
         # Copy the classification table to replace after overwrite
         copyfile(classification_table, os.path.join(self.ts_assign_output, "tmp.tsv"))
         pre_lines = read_classification_table(get_test_data(classification_table))
@@ -96,7 +97,7 @@ class TreesappTester(unittest.TestCase):
                                 "--placement_summary", "max_lwr",
                                 "--trim_align", "--overwrite", "--delete", "--svm"]
         assign.assign(assign_commands_list)
-        lines = read_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
+        lines = read_classification_table("./TreeSAPP_assign/final_outputs/classifications.tsv")
         self.assertEqual(15, len(lines))
         self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.faa"))
 
@@ -115,7 +116,7 @@ class TreesappTester(unittest.TestCase):
                                  "--reads", get_test_data("SRR3669912_1.fastq"),
                                  "--reverse", get_test_data("SRR3669912_2.fastq")]
         assign.assign(assign_commands_list)
-        assignments_tbl = "./TreeSAPP_assign/final_outputs/marker_contig_map.tsv"
+        assignments_tbl = "./TreeSAPP_assign/final_outputs/classifications.tsv"
         lines = read_classification_table(assignments_tbl)
         self.assertEqual(6, len(lines))
         classified_seqs = set()
@@ -128,6 +129,7 @@ class TreesappTester(unittest.TestCase):
 
     def test_colour(self):
         from treesapp.commands import colour
+        # Test creating iTOL files for a taxonomic rank
         colour_commands = ["-r", self.mcra_pkl, self.mcrb_pkl,
                            "-l", "family",
                            "-o", "./TreeSAPP_colour",
@@ -135,17 +137,26 @@ class TreesappTester(unittest.TestCase):
                            "--min_proportion", str(0.01),
                            "--no_polyphyletic"]
         colour(colour_commands)
-        self.assertEqual(True, True)
+        self.assertTrue(os.path.isfile(os.path.join("TreeSAPP_colour", "McrA_family_colour_strip.txt")))
 
-    def test_colour_phenotypes(self):
-        from treesapp.commands import colour
-        from .testing_utils import get_test_data
-        colour_commands = ["-r", self.mcra_pkl,
+        # Test a failure when the desired attribute doesn't exist in the reference package(s)
+        with pytest.raises(AssertionError):
+            colour(["-r", self.mcra_pkl, self.mcrb_pkl,
+                    "-o", "./TreeSAPP_colour",
+                    "--palette", "viridis",
+                    "--attribute", "Pathway"])
+
+        # Test creating strip and styles file for an annotated feature
+        colour_commands = ["-r", self.xmoa_pkl,
                            "-o", "./TreeSAPP_colour",
                            "--palette", "viridis",
-                           "--taxa_map", get_test_data("Mcr_taxonomy-phenotype_map.tsv")]
+                           "--attribute", "Paralog"]
         colour(colour_commands)
-        self.assertTrue(True)
+        itol_strip_file = os.path.join("TreeSAPP_colour", "XmoA_Paralog_colour_strip.txt")
+        self.assertTrue(os.path.isfile(itol_strip_file))
+        with open(itol_strip_file) as strip_dat:
+            self.assertEqual(25, len(strip_dat.readlines()))
+        return
 
     def test_create(self):
         from treesapp.commands import create
@@ -167,7 +178,7 @@ class TreesappTester(unittest.TestCase):
                                 "--overwrite", "--delete", "--deduplicate"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
+        test_refpkg.f__pkl = "./TreeSAPP_create/final_outputs/Crt_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(77, test_refpkg.num_seqs)
@@ -191,7 +202,7 @@ class TreesappTester(unittest.TestCase):
                                 "--overwrite", "--delete"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_create/final_outputs/PuhA_build.pkl"
+        test_refpkg.f__pkl = "./TreeSAPP_create/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(39, test_refpkg.num_seqs)
@@ -212,7 +223,7 @@ class TreesappTester(unittest.TestCase):
                     "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
         create(cmd_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_create/final_outputs/PF01280_build.pkl"
+        test_refpkg.f__pkl = "./TreeSAPP_create/final_outputs/PF01280_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(51, test_refpkg.num_seqs)
@@ -248,27 +259,26 @@ class TreesappTester(unittest.TestCase):
         from treesapp.commands import layer
         from .testing_utils import get_test_data
         from treesapp.file_parsers import read_classification_table
-        # Layering annotations from multiple reference packages
-        original_table = os.path.join(self.ts_assign_output, "final_outputs", "marker_contig_map.tsv")
-        layered_table = os.path.join(self.ts_assign_output, "final_outputs",
-                                     "extra_annotated_marker_contig_map.tsv")
-        pre_lines = read_classification_table(get_test_data(original_table))
+
+        # Layering annotations from multiple reference packages without feature_annotations
         layer_command_list = ["--treesapp_output", self.ts_assign_output]
-        layer_command_list += ["--refpkg_dir", self.refpkg_dir]
         layer(layer_command_list)
-        post_lines = read_classification_table(get_test_data(layered_table))
-        self.assertEqual(len(pre_lines), len(post_lines))
 
         # With a different reference package, XmoA, just to be sure
         classification_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
-                                            "final_outputs", "marker_contig_map.tsv")
+                                            "final_outputs", "classifications.tsv")
+        layered_table = os.path.join(get_test_data("p_amoA_FunGene9.5_isolates_assign/"), "final_outputs",
+                                     "layered_classifications.tsv")
         pre_lines = read_classification_table(get_test_data(classification_table))
-        layer_command_list = ["--colours_style", get_test_data("XmoA_Function.txt"),
-                              "--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
+        layer_command_list = ["--treesapp_output", get_test_data("p_amoA_FunGene9.5_isolates_assign/"),
                               "--refpkg_dir", self.refpkg_dir]
         layer(layer_command_list)
         post_lines = read_classification_table(get_test_data(classification_table))
+
+        layered_classifications = read_classification_table(layered_table)
         self.assertEqual(len(pre_lines), len(post_lines))
+        for line in layered_classifications:
+            self.assertEqual(13, len(line))
         return
 
     def test_purity(self):
@@ -287,21 +297,48 @@ class TreesappTester(unittest.TestCase):
     def test_package(self):
         from treesapp.commands import package
         from treesapp.refpkg import ReferencePackage
-        view_command_list = ["view", "lineage_ids",
-                             "--refpkg_path", self.mcra_pkl,
-                             "--output", "./TreeSAPP_package"]
-        package(view_command_list)
+        from treesapp.clade_annotation import CladeAnnotation
+        from .testing_utils import get_test_data
+
+        test_refpkg = ReferencePackage()
+        output_dir = "./TreeSAPP_package" + os.sep
+        test_refpkg.f__pkl = output_dir + "McrA_build.pkl"
+
+        # Test editing a component file's contents
         edit_command_list = ["edit",
                              "f__msa", self.aa_test_fa,
                              "--refpkg_path", self.mcra_pkl,
-                             "--output", "./TreeSAPP_package"]
+                             "--output", output_dir]
         package(edit_command_list)
-        test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_package/McrA_build.pkl"
         test_refpkg.slurp()
         self.assertFalse(test_refpkg.validate())
         with pytest.raises(SystemExit):
             package(["rename", "-h"])
+
+        # Test adding to a reference package's feature_annotations attribute
+        edit_command_list = ["edit",
+                             "feature_annotations", "Function",
+                             "--taxa_map", get_test_data("Mcr_taxonomy-phenotype_map.tsv"),
+                             "--refpkg_path", self.mcra_pkl,
+                             "--output", output_dir,
+                             "--overwrite"]
+        package(edit_command_list)
+        test_refpkg.slurp()
+        self.assertIsInstance(test_refpkg.feature_annotations, dict)
+        self.assertTrue('Function' in test_refpkg.feature_annotations)
+        self.assertEqual(5, len(test_refpkg.feature_annotations["Function"]))
+        self.assertIsInstance(test_refpkg.feature_annotations["Function"][0], CladeAnnotation)
+        for ca in test_refpkg.feature_annotations["Function"]:
+            if ca.name == "Short-chain alkane oxidation":
+                self.assertEqual(8, len(ca.members))
+
+        # Test view with a complex attribute (feature_annotations)
+        view_command_list = ["view",
+                             "lineage_ids", "feature_annotations", "tree",
+                             "--refpkg_path", output_dir + os.path.basename(self.mcra_pkl),
+                             "--output", output_dir]
+        package(view_command_list)
+
         return
 
     def test_train(self):
@@ -349,10 +386,11 @@ class TreesappTester(unittest.TestCase):
                                "--overwrite", "--delete", "--skip_assign", "--resolve"]
         update(update_command_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
+        test_refpkg.f__pkl = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(49, test_refpkg.num_seqs)
+        self.assertEqual(2, len(test_refpkg.feature_annotations["test"]))
 
         # Test the workflow when seqs2lineage table is provided and no training
         update_command_list = ["--refpkg_path", self.puha_pkl,
@@ -366,7 +404,7 @@ class TreesappTester(unittest.TestCase):
                                "--overwrite", "--delete", "--skip_assign"]
         update(update_command_list)
         test_refpkg = ReferencePackage()
-        test_refpkg.f__json = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
+        test_refpkg.f__pkl = "./TreeSAPP_update/final_outputs/PuhA_build.pkl"
         test_refpkg.slurp()
         self.assertTrue(test_refpkg.validate())
         self.assertEqual(49, test_refpkg.num_seqs)

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 __author__ = "Connor Morgan-Lang"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL-3.0"
@@ -20,7 +18,7 @@ from sklearn import preprocessing
 from treesapp import abundance
 from treesapp import classy
 from treesapp import phylo_seq
-from treesapp.refpkg import ReferencePackage
+from treesapp import refpkg
 from treesapp import treesapp_args
 from treesapp.entish import index_tree_edges, map_internal_nodes_leaves
 from treesapp import lca_calculations as ts_lca
@@ -66,6 +64,10 @@ class Assigner(classy.TreeSAPP):
         :param args: object with parameters returned by argparse.parse_args()
         :return: 'args', a summary of TreeSAPP settings.
         """
+        if not os.path.isfile(self.input_sequences):
+            logging.error("FASTX input file '{}' doesn't exist.\n".format(self.input_sequences))
+            sys.exit(5)
+
         self.classification_table = self.final_output_dir + os.sep + self.classification_tbl_name
         self.itol_out = self.output_dir + 'iTOL_output' + os.sep
         self.classified_aa_seqs = self.final_output_dir + self.sample_prefix + "_classified.faa"
@@ -378,7 +380,7 @@ def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
     Used for extracting query sequences that mapped to reference package HMM profiles. These are binned into groups
     based on the location on the HMM profile they mapped to such that MSAs downstream will have more conserved positions
 
-    The first nested dictionary returned "extracted_seq_dict" contains marker (i.e. refpkg names) strings mapped
+    The first nested dictionary returned "extracted_seq_dict" contains marker (i.e. ref_pkg names) strings mapped
     to bin numbers mapped to query sequence negative integer code names mapped to their extracted, or sliced, sequence.
 
     The second dictionary returned "numeric_contig_index" is used for mapping query sequence negative integer code names
@@ -457,7 +459,7 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, r
     logging.info("Writing the grouped sequences to FASTA files... ")
 
     for marker in extracted_seq_dict:
-        refpkg = refpkg_dict[marker]  # type: ReferencePackage
+        ref_pkg = refpkg_dict[marker]  # type: refpkg.ReferencePackage
         f_acc = 0  # For counting the number of files for a marker. Will exceed groups if len(queries) > len(references)
         for group in sorted(extracted_seq_dict[marker]):
             if extracted_seq_dict[marker][group]:
@@ -469,7 +471,7 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, r
                     # Add the query sequence to this bin's FASTA file
                     bin_fasta[str(num)] = group_sequences[num]
                     # Ensuring the number of query sequences doesn't exceed the number of reference sequences
-                    if len(bin_fasta) >= refpkg.num_seqs:
+                    if len(bin_fasta) >= ref_pkg.num_seqs:
                         fasta.write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
                         hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
                         f_acc += 1
@@ -541,7 +543,7 @@ def prep_reference_packages_for_assign(refpkg_dict: dict, output_dir: str) -> No
     :return: None
     """
     for refpkg_name in refpkg_dict:
-        ref_pkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
+        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
         ref_pkg.disband(os.path.join(output_dir, ref_pkg.prefix + "_RefPkg"))
     return
 
@@ -555,7 +557,7 @@ def get_alignment_dims(refpkg_dict: dict):
     """
     alignment_dimensions_dict = dict()
     for refpkg_name in refpkg_dict:  # type: str
-        ref_pkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
+        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
         alignment_dimensions_dict[ref_pkg.prefix] = ref_pkg.alignment_dims()
 
     return alignment_dimensions_dict
@@ -590,21 +592,21 @@ def create_ref_phy_files(refpkgs: dict, output_dir: str, query_fasta_files: list
     :param refpkgs: A dictionary of ReferencePackage instances indexed by their prefix values
     :param output_dir: Path to a directory for writing the Phylip files
     :param query_fasta_files: A list containing paths to FASTA files that are to be converted to Phylip format
-    :param ref_aln_dimensions: A dictionary of refpkg.prefix keys mapping to a tuple of the nrow, ncol for a MSA
+    :param ref_aln_dimensions: A dictionary of ref_pkg.prefix keys mapping to a tuple of the nrow, ncol for a MSA
     :return: None
     """
 
     # Convert the reference sequence alignments to .phy files for every marker identified
     for query_fasta in query_fasta_files:
         marker = re.match("(.*)_hmm_purified.*", os.path.basename(query_fasta)).group(1)
-        refpkg = refpkgs[marker]  # type: ReferencePackage
+        ref_pkg = refpkgs[marker]  # type: refpkg.ReferencePackage
 
         ref_alignment_phy = output_dir + marker + ".phy"
         if os.path.isfile(ref_alignment_phy):
             continue
 
-        num_ref_seqs, ref_align_len = ref_aln_dimensions[refpkg.prefix]
-        aligned_fasta_dict = fasta.read_fasta_to_dict(refpkg.f__msa)
+        num_ref_seqs, ref_align_len = ref_aln_dimensions[ref_pkg.prefix]
+        aligned_fasta_dict = fasta.read_fasta_to_dict(ref_pkg.f__msa)
         phy_dict = utilities.reformat_fasta_to_phy(aligned_fasta_dict)
 
         utilities.write_phy_file(ref_alignment_phy, phy_dict, (num_ref_seqs, ref_align_len))
@@ -643,20 +645,20 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
         query_mfa_out = os.path.join(output_dir,
                                      re.sub('.' + re.escape(extension) + r"$", ".sto", os.path.basename(query_fa_in)))
 
-        refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
-        if refpkg.prefix not in hmmalign_singlehit_files:
-            hmmalign_singlehit_files[refpkg.prefix] = []
+        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
+        if ref_pkg.prefix not in hmmalign_singlehit_files:
+            hmmalign_singlehit_files[ref_pkg.prefix] = []
         try:
-            mfa_out_dict[refpkg.prefix].append(query_mfa_out)
+            mfa_out_dict[ref_pkg.prefix].append(query_mfa_out)
         except KeyError:
-            mfa_out_dict[refpkg.prefix] = [query_mfa_out]
+            mfa_out_dict[ref_pkg.prefix] = [query_mfa_out]
 
         # Get the paths to either the HMM or CM profile files
-        if refpkg.kind == "phylogenetic_rRNA":
-            task_list.append(wrapper.hmmalign_command(execs["cmalign"], refpkg.f__msa, refpkg.f__profile,
+        if ref_pkg.kind == "phylogenetic_rRNA":
+            task_list.append(wrapper.hmmalign_command(execs["cmalign"], ref_pkg.f__msa, ref_pkg.f__profile,
                                                       query_fa_in, query_mfa_out))
         else:
-            task_list.append(wrapper.hmmalign_command(execs["hmmalign"], refpkg.f__msa, refpkg.f__profile,
+            task_list.append(wrapper.hmmalign_command(execs["hmmalign"], ref_pkg.f__msa, ref_pkg.f__profile,
                                                       query_fa_in, query_mfa_out))
 
     if len(task_list) > 0:
@@ -692,7 +694,7 @@ def gather_split_msa(refpkg_names: list, align_dir: str) -> dict:
     :param refpkg_names: A list of reference package prefix attributes to look for in the align_dir
     :param align_dir: Dictionary path containing the
     :return: A dictionary containing paired reference and query multiple alignments:
-        d = {refpkg.prefix: MSA(ref.mfa, query.mfa)}
+        d = {ref_pkg.prefix: MSA(ref.mfa, query.mfa)}
     """
     split_msa_map = {}
     MSAs = namedtuple("MSAs", "ref query")
@@ -717,7 +719,7 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
 
     :param trimmed_msa_files:
     :param msa_files: A dictionary containing the untrimmed MSA files indexed by reference package code (denominator)
-    :param refpkg_dict: A dictionary of ReferencePackage objects indexed by their refpkg names
+    :param refpkg_dict: A dictionary of ReferencePackage objects indexed by their ref_pkg names
     :param min_len: The minimum allowable sequence length after trimming (not including gap characters)
     :return: A dictionary of denominators, with multiple alignment dictionaries as values. Example:
         {M0702: { "McrB_hmm_purified.phy-BMGE.fasta": {'1': seq1, '2': seq2}}}
@@ -730,32 +732,32 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
     logging.debug("Validating trimmed multiple sequence alignment files... ")
 
     for refpkg_name in sorted(trimmed_msa_files.keys()):
-        refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
-        trimmed_away_seqs[refpkg.prefix] = 0
+        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
+        trimmed_away_seqs[ref_pkg.prefix] = 0
         # Create a set of the reference sequence names
-        ref_headers = fasta.get_headers(refpkg.f__msa)
-        unique_refs = set([re.sub('_' + re.escape(refpkg.prefix), '', x)[1:] for x in ref_headers])
-        msa_passed, msa_failed, summary_str = file_parsers.validate_alignment_trimming(trimmed_msa_files[refpkg.prefix],
+        ref_headers = fasta.get_headers(ref_pkg.f__msa)
+        unique_refs = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x)[1:] for x in ref_headers])
+        msa_passed, msa_failed, summary_str = file_parsers.validate_alignment_trimming(trimmed_msa_files[ref_pkg.prefix],
                                                                                        unique_refs, True, min_len)
 
         # Report the number of sequences that are removed by BMGE
-        for trimmed_msa_file in trimmed_msa_files[refpkg.prefix]:
+        for trimmed_msa_file in trimmed_msa_files[ref_pkg.prefix]:
             try:
-                prefix, tool = re.search('(' + re.escape(refpkg.prefix) + r"_.*_group\d+)-(BMGE|trimAl).fasta$",
-                                         os.path.basename(trimmed_msa_file)).groups()
+                prefix = re.search('(' + re.escape(ref_pkg.prefix) + r"_.*_group\d+)-(BMGE|trimAl).fasta$",
+                                   os.path.basename(trimmed_msa_file)).group(1)
             except TypeError:
                 logging.error("Unexpected file name format for a trimmed MSA.\n")
                 sys.exit(3)
             # Find the untrimmed query sequence MSA file - the trimmed MSA file's 'pair'
             pair = ""
-            for msa_file in msa_files[refpkg.prefix]:
+            for msa_file in msa_files[ref_pkg.prefix]:
                 if re.search(re.escape(prefix) + r'\.', msa_file):
                     pair = msa_file
                     break
             if pair:
                 if trimmed_msa_file in msa_failed:
                     untrimmed_msa_failed.append(pair)
-                trimmed_away_seqs[refpkg.prefix] += len(set(fasta.get_headers(pair)).difference(set(fasta.get_headers(trimmed_msa_file))))
+                trimmed_away_seqs[ref_pkg.prefix] += len(set(fasta.get_headers(pair)).difference(set(fasta.get_headers(trimmed_msa_file))))
             else:
                 logging.error("Unable to map trimmed MSA file '" + trimmed_msa_file + "' to its original MSA.\n")
                 sys.exit(5)
@@ -764,13 +766,13 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
             if len(untrimmed_msa_failed) != len(msa_failed):
                 logging.error("Not all of the failed ({}/{}),"
                               " trimmed MSA files were mapped to their original MSAs."
-                              "\n".format(len(msa_failed), len(trimmed_msa_files[refpkg.prefix])))
+                              "\n".format(len(msa_failed), len(trimmed_msa_files[ref_pkg.prefix])))
                 sys.exit(3)
             untrimmed_msa_passed, _, _ = file_parsers.validate_alignment_trimming(untrimmed_msa_failed, unique_refs,
                                                                                   True, min_len)
             msa_passed.update(untrimmed_msa_passed)
         num_successful_alignments += len(msa_passed)
-        qc_ma_dict[refpkg.prefix] = msa_passed
+        qc_ma_dict[ref_pkg.prefix] = msa_passed
         discarded_seqs_string += summary_str
         untrimmed_msa_failed.clear()
 
@@ -913,17 +915,17 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
     unclassified_seqs = dict()  # A dictionary tracking the seqs unclassified for each marker
 
     for refpkg_name, pqueries in tree_saps.items():  # type: (str, list)
-        refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
-        unclassified_seqs[refpkg.prefix] = dict()
-        unclassified_seqs[refpkg.prefix]["low_lwr"] = list()
-        unclassified_seqs[refpkg.prefix]["big_pendant"] = list()
-        unclassified_seqs[refpkg.prefix]["svm"] = list()
+        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
+        unclassified_seqs[ref_pkg.prefix] = dict()
+        unclassified_seqs[ref_pkg.prefix]["low_lwr"] = list()
+        unclassified_seqs[ref_pkg.prefix]["big_pendant"] = list()
+        unclassified_seqs[ref_pkg.prefix]["svm"] = list()
         svc_attempt = False
 
         for tree_sap in sorted(pqueries, key=lambda x: x.seq_name):  # type: phylo_seq.PQuery
             tree_sap.filter_min_weight_threshold(min_lwr)
             if not tree_sap.classified:
-                unclassified_seqs[refpkg.prefix]["low_lwr"].append(tree_sap)
+                unclassified_seqs[ref_pkg.prefix]["low_lwr"].append(tree_sap)
                 continue
             elif not tree_sap.placements:
                 continue
@@ -939,18 +941,18 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
             tree_sap.avg_evo_dist = pplace.total_distance()
             tree_sap.distances = ','.join([str(distal_length), str(pendant_length), str(avg_tip_dist)])
 
-            # hmm_perc = round((int(tree_sap.seq_len) * 100) / refpkg.profile_length, 1)
+            # hmm_perc = round((int(tree_sap.seq_len) * 100) / ref_pkg.profile_length, 1)
 
             if pendant_length > max_pendant:
-                unclassified_seqs[refpkg.prefix]["big_pendant"].append(tree_sap)
+                unclassified_seqs[ref_pkg.prefix]["big_pendant"].append(tree_sap)
                 tree_sap.classified = False
 
             if svc:
-                if refpkg.svc is None:
+                if ref_pkg.svc is None:
                     svc_attempt = True
                     call = 1
                 else:
-                    call = refpkg.svc.predict(preprocessing.normalize(np_array([len(leaf_children),
+                    call = ref_pkg.svc.predict(preprocessing.normalize(np_array([len(leaf_children),
                                                                                 tree_sap.evalue,
                                                                                 round(pplace.like_weight_ratio, 2),
                                                                                 distal_length,
@@ -962,7 +964,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
                     tree_sap.classified = False
 
         if svc_attempt:
-            logging.warning("SVM classifier unavailable for reference package '{}'\n".format(refpkg.prefix))
+            logging.warning("SVM classifier unavailable for reference package '{}'\n".format(ref_pkg.prefix))
 
     logging.info("done.\n")
 
@@ -981,7 +983,7 @@ def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"
     """
 
 
-    :return: Dictionary of PQuery instances indexed by denominator (refpkg code e.g. M0701)
+    :return: Dictionary of PQuery instances indexed by denominator (ref_pkg code e.g. M0701)
     """
 
     logging.info('Selecting the optimal query placements... ')
@@ -990,8 +992,8 @@ def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"
     classified_seqs = 0
 
     for refpkg_code in pquery_dict:  # type: str
-        refpkg = refpkg_dict[refpkg_code]  # type: ReferencePackage
-        taxa_tree = refpkg.taxonomically_label_tree()
+        ref_pkg = refpkg_dict[refpkg_code]  # type: refpkg.ReferencePackage
+        taxa_tree = ref_pkg.taxonomically_label_tree()
         for pquery in pquery_dict[refpkg_code]:  # type: phylo_seq.PQuery
             if mode == "max_lwr":
                 pquery.process_max_weight_placement(taxa_tree)
@@ -1030,8 +1032,8 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :param pqueries: A list of instantiated PQuery instances
     :return:
-        1. Dictionary of PQuery instances indexed by denominator (refpkg code e.g. M0701)
-        2. Dictionary of an JPlace instance (values) mapped to a refpkg prefix.
+        1. Dictionary of PQuery instances indexed by denominator (ref_pkg code e.g. M0701)
+        2. Dictionary of an JPlace instance (values) mapped to a ref_pkg prefix.
          These instances store all PQuery instances from all JPlace files
     """
 
@@ -1049,9 +1051,9 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
         pquery_map = None
 
     for refpkg_name, jplace_list in jplace_utils.organize_jplace_files(jplace_files).items():
-        refpkg = refpkg_dict[refpkg_name]
-        if refpkg.prefix not in tree_saps:
-            tree_saps[refpkg.prefix] = list()
+        ref_pkg = refpkg_dict[refpkg_name]
+        if ref_pkg.prefix not in tree_saps:
+            tree_saps[ref_pkg.prefix] = list()
         for filename in jplace_list:
             # Load the JSON placement (jplace) file containing >= 1 pquery into JPlace object
             jplace_data = jplace_utils.jplace_parser(filename)
@@ -1062,21 +1064,21 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
             jplace_utils.calc_pquery_mean_tip_distances(jplace_data, internal_node_leaf_map)
             for pquery in jplace_data.pqueries:  # type: phylo_seq.PQuery
                 # Flesh out the internal-leaf node map
-                pquery.ref_name = refpkg.prefix
+                pquery.ref_name = ref_pkg.prefix
                 if not pquery.seq_name:
                     seq_info = re.match(r"(.*)\|" + re.escape(pquery.ref_name) + r"\|(\d+)_(\d+)$", pquery.place_name)
                     pquery.seq_name, pquery.start, pquery.end = seq_info.groups()
                 pquery.seq_len = int(pquery.end) - int(pquery.start)
                 pquery.node_map = internal_node_leaf_map
                 pquery.check_jplace_edge_lengths(edge_dist_index)
-                tree_saps[refpkg.prefix].append(pquery)
+                tree_saps[ref_pkg.prefix].append(pquery)
 
-            if refpkg.prefix not in itol_data:
-                itol_data[refpkg.prefix] = jplace_data
-                itol_data[refpkg.prefix].ref_name = refpkg.prefix
+            if ref_pkg.prefix not in itol_data:
+                itol_data[ref_pkg.prefix] = jplace_data
+                itol_data[ref_pkg.prefix].ref_name = ref_pkg.prefix
             else:
                 # If a JPlace file for that tree has already been parsed, just append the placements
-                itol_data[refpkg.prefix].pqueries = itol_data[refpkg.prefix].pqueries + jplace_data.pqueries
+                itol_data[ref_pkg.prefix].pqueries = itol_data[ref_pkg.prefix].pqueries + jplace_data.pqueries
 
             # I have decided to not remove the original JPlace files since some may find these useful
             # os.remove(filename)
@@ -1161,7 +1163,7 @@ def determine_confident_lineage(tree_saps: dict, refpkg_dict: dict, mode="max_lw
     leaf_taxa_map = dict()
     for refpkg_name in tree_saps:
         # All the leaves for that tree [number, translation, lineage]
-        ref_pkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
+        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
         for leaf in ref_pkg.generate_tree_leaf_references_from_refpkg():
             leaf_taxa_map[leaf.number] = leaf.lineage
 
@@ -1196,7 +1198,7 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
     Function to create outputs for the interactive tree of life (iTOL) webservice.
     There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
 
-    :param pqueries: Dictionary of PQuery instances indexed by denominator (refpkg code e.g. M0701)
+    :param pqueries: Dictionary of PQuery instances indexed by denominator (ref_pkg code e.g. M0701)
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :param jplaces: Dictionary of an JPlace instance (values) mapped to marker name
     :param itol_base_dir: Output directory to write the iTOL_output files, with the outputs stored within a directory
@@ -1216,38 +1218,38 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
         if len(pqueries[refpkg_name]) == 0:
             # No sequences that were mapped met the minimum likelihood weight ration threshold. Skipping!
             continue
-        refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
-        if not os.path.exists(itol_base_dir + refpkg.prefix):
-            os.mkdir(itol_base_dir + refpkg.prefix)
-        jplace_data = jplaces[refpkg.prefix]
+        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
+        if not os.path.exists(itol_base_dir + ref_pkg.prefix):
+            os.mkdir(itol_base_dir + ref_pkg.prefix)
+        jplace_data = jplaces[ref_pkg.prefix]
         refpkg_pqueries = pqueries[refpkg_name]
 
-        if os.path.isfile(refpkg.f__boot_tree):
-            jplace_utils.add_bipartitions(jplace_data, refpkg.f__boot_tree)
+        if os.path.isfile(ref_pkg.f__boot_tree):
+            jplace_utils.add_bipartitions(jplace_data, ref_pkg.f__boot_tree)
 
         # Make a master jplace file from the set of placements in all jplace files for each marker
-        master_jplace = os.path.join(itol_base_dir, refpkg.prefix, refpkg.prefix + "_complete_profile.jplace")
+        master_jplace = os.path.join(itol_base_dir, ref_pkg.prefix, ref_pkg.prefix + "_complete_profile.jplace")
         # TODO: validate no distal lengths exceed their corresponding edge lengths
 
         jplace_data.write_jplace(master_jplace)
-        jplaces[refpkg.prefix].clear_object()
+        jplaces[ref_pkg.prefix].clear_object()
         jplace_data.clear_object()
         # Create a labels file from the tax_ids_marker.txt
-        refpkg.create_itol_labels(itol_base_dir)
+        ref_pkg.create_itol_labels(itol_base_dir)
 
-        annotation_style_files = glob.glob(os.sep.join([treesapp_data_dir, "iTOL_data", refpkg.prefix + "*"]))
+        annotation_style_files = glob.glob(os.sep.join([treesapp_data_dir, "iTOL_data", ref_pkg.prefix + "*"]))
         # Copy the respective colours and styles files for each marker found to the itol_output directories
-        colours_styles = os.sep.join([treesapp_data_dir, "iTOL_data", refpkg.prefix + "_colours_style.txt"])
-        colour_strip = os.sep.join([treesapp_data_dir, "iTOL_data", refpkg.prefix + "_colour_strip.txt"])
+        colours_styles = os.sep.join([treesapp_data_dir, "iTOL_data", ref_pkg.prefix + "_colours_style.txt"])
+        colour_strip = os.sep.join([treesapp_data_dir, "iTOL_data", ref_pkg.prefix + "_colour_strip.txt"])
         if colours_styles not in annotation_style_files:
-            style_missing.append(refpkg.prefix)
+            style_missing.append(ref_pkg.prefix)
         if colour_strip not in annotation_style_files:
-            strip_missing.append(refpkg.prefix)
+            strip_missing.append(ref_pkg.prefix)
 
         for annotation_file in annotation_style_files:
-            shutil.copy(annotation_file, itol_base_dir + refpkg.prefix)
-        itol_bar_file = os.path.join(itol_base_dir, refpkg.prefix, refpkg.prefix + "_abundance_simplebar.txt")
-        generate_simplebar(refpkg.prefix, refpkg_pqueries, itol_bar_file)
+            shutil.copy(annotation_file, itol_base_dir + ref_pkg.prefix)
+        itol_bar_file = os.path.join(itol_base_dir, ref_pkg.prefix, ref_pkg.prefix + "_abundance_simplebar.txt")
+        generate_simplebar(ref_pkg.prefix, refpkg_pqueries, itol_bar_file)
 
     logging.info("done.\n")
     if style_missing:
@@ -1256,6 +1258,24 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
     if strip_missing:
         logging.debug("A colours_strip.txt file does not yet exist for markers:\n\t" +
                       "\n\t".join(strip_missing) + "\n")
+
+    return
+
+
+def alert_for_refpkg_feature_annotations(pqueries: dict, refpkg_dict: dict) -> None:
+    feature_positive = []
+    for refpkg_name in pqueries:
+        if len(pqueries[refpkg_name]) == 0:
+            continue
+        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
+        if len(ref_pkg.feature_annotations) > 0:
+            feature_positive.append(ref_pkg.prefix)
+
+    if len(feature_positive) > 0:
+        logging.info("Alert: {} reference packages have feature annotations."
+                     "Consider running treesapp layer.\n".format(len(feature_positive)))
+        logging.debug("Reference packages with clade_annotations attribute filled:\n\t{}\n"
+                      "".format("\n\t".join(feature_positive)))
 
     return
 
@@ -1280,7 +1300,7 @@ def assign(sys_args):
     ts_assign.decide_stage(args)
     n_proc = args.num_threads
 
-    refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
+    refpkg_dict = refpkg.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
     prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
     ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
 
@@ -1412,6 +1432,8 @@ def assign(sys_args):
 
         produce_itol_inputs(tree_saps, refpkg_dict, itol_data, ts_assign.itol_out, ts_assign.refpkg_dir)
         delete_files(args.delete, ts_assign.stage_lookup("place").dir_path, 4)
+
+        alert_for_refpkg_feature_annotations(tree_saps, refpkg_dict)
 
     # Clear out the rest of the intermediates
     delete_files(args.delete, ts_assign.var_output_dir, 5)

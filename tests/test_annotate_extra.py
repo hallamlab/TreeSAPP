@@ -10,11 +10,11 @@ class MyTestCase(unittest.TestCase):
         from treesapp import refpkg
         from treesapp import annotate_extra
         self.mcra_refpkg = refpkg.ReferencePackage("McrA")
-        self.mcra_refpkg.f__json = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        self.mcra_refpkg.f__pkl = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.mcra_refpkg.slurp()
 
         self.xmoa_refpkg = refpkg.ReferencePackage("XmoA")
-        self.xmoa_refpkg.f__json = utils.get_test_data(os.path.join("refpkgs", "XmoA_build.pkl"))
+        self.xmoa_refpkg.f__pkl = utils.get_test_data(os.path.join("refpkgs", "XmoA_build.pkl"))
         self.xmoa_refpkg.slurp()
 
         self.leaf_node_map = self.xmoa_refpkg.get_internal_node_leaf_map()
@@ -29,18 +29,8 @@ class MyTestCase(unittest.TestCase):
 
         return
 
-    def test_names_for_nodes_range(self):
-        from treesapp.annotate_extra import names_for_nodes
-        from treesapp.file_parsers import read_colours_file
-        range_annot_file = utils.get_test_data("McrA_Metabolism.txt")
-        groups_dict = read_colours_file(range_annot_file, "McrA")
-        clusters = names_for_nodes(groups_dict, self.mcra_refpkg.get_internal_node_leaf_map(),
-                                   self.mcra_refpkg.generate_tree_leaf_references_from_refpkg())
-        self.assertEqual(6, len(clusters))
-        return
-
     def test_convert_outer_to_inner_nodes(self):
-        from treesapp.utilities import convert_outer_to_inner_nodes
+        from treesapp.entish import convert_outer_to_inner_nodes
         group_dict = {'AmoA_AOB': [('40', '40'), ('96', '96')],
                       'PxmA': [('109', '109')],
                       'BmoA': [('148', '148')],
@@ -68,16 +58,6 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(14, len(annot_i_nodes))
         return
 
-    def test_names_for_nodes_inodes(self):
-        from treesapp.annotate_extra import names_for_nodes
-        from treesapp.file_parsers import read_colours_file
-        inode_annot_file = utils.get_test_data("XmoA_Function.txt")
-        groups_dict = read_colours_file(inode_annot_file, "XmoA")
-        clusters = names_for_nodes(groups_dict,
-                                   self.xmoa_refpkg.get_internal_node_leaf_map(),
-                                   self.xmoa_refpkg.generate_tree_leaf_references_from_refpkg())
-        self.assertEqual(6, len(clusters))
-
     def test_read_colours_file(self):
         from treesapp.file_parsers import read_colours_file
         cols_dict = read_colours_file(annotation_file=utils.get_test_data("colours_file.txt"), refpkg_name="McrA")
@@ -85,16 +65,23 @@ class MyTestCase(unittest.TestCase):
 
     def test_annotate_internal_nodes(self):
         from treesapp.annotate_extra import annotate_internal_nodes
+        from treesapp.clade_annotation import CladeAnnotation
+        xmoa_clade_annotations = self.xmoa_refpkg.feature_annotations["Paralog"]
         marker_tree_info, leaves_in_clusters = annotate_internal_nodes(internal_node_map=self.leaf_node_map,
-                                                                       clusters={"PmoA": {'1', '5', '9'}})
+                                                                       clade_annotations=xmoa_clade_annotations)
+        self.assertEqual(4, len(marker_tree_info))
         self.assertTrue('PmoA' in marker_tree_info)
-        self.assertEqual(6, len(marker_tree_info["PmoA"]))
-        self.assertEqual(4, len(leaves_in_clusters))
+        self.assertEqual(16, len(marker_tree_info["PmoA"]))
+        self.assertEqual(46, len(leaves_in_clusters))
 
         # Test an internal node that doesn't exist in the internal node-to-leaf node map
+        bad_ca = CladeAnnotation(name="", key="")
+        bad_ca.members = {'1', '5', '9', '241'}
         with pytest.raises(SystemExit):
-            annotate_internal_nodes(internal_node_map=self.leaf_node_map,
-                                    clusters={"AmoA": {'1', '5', '9', '241'}})
+            annotate_internal_nodes(internal_node_map=self.leaf_node_map, clade_annotations=[bad_ca])
+
+        with pytest.raises(AssertionError):
+            annotate_internal_nodes(internal_node_map=self.leaf_node_map, clade_annotations=[])
         return
 
     def test_map_queries_to_annotations(self):

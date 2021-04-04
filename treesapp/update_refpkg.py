@@ -5,11 +5,13 @@ import logging
 from pygtrie import StringTrie
 
 from treesapp.utilities import load_taxonomic_trie
-from treesapp.classy import Cluster, Updater
+from treesapp.classy import Updater
+from treesapp.seq_clustering import Cluster
 from treesapp.entrez_utils import EntrezRecord
 from treesapp.fasta import FASTA
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp import refpkg as ts_ref_pkg
+from treesapp import clade_annotation
 
 
 def reformat_ref_seq_descriptions(original_header_map):
@@ -354,3 +356,24 @@ def formulate_create_command(ts_updater: Updater, args, final_stage) -> list:
     if args.min_taxonomic_rank:
         create_cmd += ["--min_taxonomic_rank", args.min_taxonomic_rank]
     return create_cmd
+
+
+def update_features(old_refpkg: ts_ref_pkg.ReferencePackage, new_refpkg: ts_ref_pkg.ReferencePackage) -> None:
+    # Match leaf node identifiers to each other
+    leaf_node_name_map = {}
+    old_leaf_desc_map = {leaf.description: leaf for leaf in old_refpkg.generate_tree_leaf_references_from_refpkg()}
+    # Dictionary is indexed by the new leaf node names
+    for desc, leaf in {ln.description: ln for ln in new_refpkg.generate_tree_leaf_references_from_refpkg()}.items():
+        if desc in old_leaf_desc_map:
+            leaf_node_name_map[old_leaf_desc_map[desc].number + '_' + old_refpkg.prefix] = leaf.number + '_' + new_refpkg.prefix
+
+    for feature in old_refpkg.feature_annotations:
+        new_refpkg.feature_annotations[feature] = []
+        for clade_annot in old_refpkg.feature_annotations[feature]:  # type: clade_annotation.CladeAnnotation
+            new_annotation = clade_annotation.CladeAnnotation(name=clade_annot.name, key=feature)
+            for leaf_node in clade_annot.members:
+                new_annotation.members.add(leaf_node_name_map[leaf_node])
+            new_annotation.taxa = clade_annot.taxa
+            new_annotation.colour = clade_annot.colour
+            new_refpkg.feature_annotations[feature].append(new_annotation)
+    return

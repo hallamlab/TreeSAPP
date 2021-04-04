@@ -7,12 +7,12 @@ import logging
 import sys
 import re
 
+from treesapp import seq_clustering
 from treesapp.wrapper import run_odseq, run_mafft
 from treesapp.lca_calculations import megan_lca, clean_lineage_list
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp import entrez_utils
 from treesapp import fasta
-from treesapp import classy
 
 
 def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
@@ -430,7 +430,7 @@ def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:
     nonredundant_guarantee_cluster_dict = dict()  # Will be used to replace cluster_dict
     expanded_cluster_id = 0
     for cluster_id in sorted(cluster_dict, key=int):
-        cluster_inst = cluster_dict[cluster_id]  # type: classy.Cluster
+        cluster_inst = cluster_dict[cluster_id]  # type: seq_clustering.Cluster
         representative = cluster_inst.representative
         if len(cluster_inst.members) == 0:
             if representative in important_seqs:
@@ -443,7 +443,7 @@ def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:
             while x < len(cluster_inst.members):
                 member = cluster_inst.members[x]
                 if member[0] in important_seqs:
-                    nonredundant_guarantee_cluster_dict[expanded_cluster_id] = classy.Cluster(member[0])
+                    nonredundant_guarantee_cluster_dict[expanded_cluster_id] = seq_clustering.Cluster(member[0])
                     nonredundant_guarantee_cluster_dict[expanded_cluster_id].members = []
                     nonredundant_guarantee_cluster_dict[expanded_cluster_id].lca = cluster_inst.lca
                     expanded_cluster_id += 1
@@ -491,7 +491,7 @@ def find_cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_regi
 
     lineages = list()
     for cluster_id in sorted(cluster_dict, key=int):
-        cluster_inst = cluster_dict[cluster_id]  # type: classy.Cluster
+        cluster_inst = cluster_dict[cluster_id]  # type: seq_clustering.Cluster
         members = [cluster_inst.representative]
         # format of member list is: [header, identity, member_seq_length/representative_seq_length]
         members += [member[0] for member in cluster_inst.members]
@@ -514,7 +514,7 @@ def find_cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_regi
 
 def formulate_train_command(input_seqs: str, ref_pkg, output_dir: str, args, acc_to_lin=None, seqs_to_lin=None) -> list:
     trainer_cmd = ["-i", input_seqs,
-                   "-r", ref_pkg.f__json,
+                   "-r", ref_pkg.f__pkl,
                    "-o", output_dir,
                    "-m", ref_pkg.molecule,
                    "--num_procs", str(args.num_threads),

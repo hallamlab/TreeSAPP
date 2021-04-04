@@ -12,7 +12,7 @@ from .testing_utils import get_test_data, get_treesapp_root
 def refpkg(request):
     from treesapp import refpkg
     request.cls.db = refpkg.ReferencePackage()
-    request.cls.db.f__json = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+    request.cls.db.f__pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
     request.cls.db.slurp()
     request.cls.db.validate()
     return

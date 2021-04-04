@@ -82,7 +82,7 @@ def info(sys_args):
     logging.info(utilities.executable_dependency_versions(ts_info.executables))
 
     if args.verbose:
-        refpkg_dict = file_parsers.gather_ref_packages(ts_info.refpkg_dir)
+        refpkg_dict = ts_ref_pkg.gather_ref_packages(ts_info.refpkg_dir)
         refpkg_summary_str = "\t".join(["Name", "Code-name",
                                         "Molecule", "Tree builder", "RefPkg-type", "Leaf nodes",
                                         "Description", "Created", "Last-updated"]) + "\n"
@@ -128,21 +128,31 @@ Use '-h' to get subcommand-specific help, e.g. 'treesapp package view -h'
     treesapp_args.add_package_arguments(parser, refpkg.get_public_attributes())
     args = parser.parse_args(sys_args)
 
-    if not os.path.isdir(args.output):
-        os.mkdir(args.output)
+    if args.output:
+        log_dir = args.output
+        if not os.path.isdir(args.output):
+            os.mkdir(args.output)
+    else:
+        log_dir = "./"
 
-    classy.prep_logging(log_file=os.path.join(args.output, 'TreeSAPP_package_log.txt'))
+    classy.prep_logging(log_file=os.path.join(log_dir, 'TreeSAPP_package_log.txt'))
 
     for refpkg_pkl in args.pkg_path:
-        refpkg.f__json = refpkg_pkl
+        refpkg.f__pkl = refpkg_pkl
         refpkg.slurp()
+
+        if args.output:
+            output_dir = args.output
+        else:
+            output_dir = os.path.dirname(refpkg.f__pkl)
 
         if args.subcommand == "view":
             ts_ref_pkg.view(refpkg, args.attributes)
         elif args.subcommand == "edit":
-            ts_ref_pkg.edit(refpkg, args.attributes, args.output, args.overwrite)
+            ts_ref_pkg.edit(refpkg, args.attributes, output_dir,
+                            overwrite=args.overwrite, phenotypes=args.phenotypes, reset=args.reset)
         elif args.subcommand == "rename":
-            ts_ref_pkg.rename(refpkg, args.attributes, args.output, args.overwrite)
+            ts_ref_pkg.rename(refpkg, args.attributes, output_dir, args.overwrite)
         else:
             logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
             sys.exit(1)
@@ -276,7 +286,7 @@ def train(sys_args):
         assign_params = ["-i", train_seqs.file,
                          "-o", assign_prefix,
                          "--num_procs", str(args.num_threads),
-                         "--refpkg_dir", os.path.dirname(ts_trainer.ref_pkg.f__json),
+                         "--refpkg_dir", os.path.dirname(ts_trainer.ref_pkg.f__pkl),
                          "--targets", ts_trainer.ref_pkg.prefix,
                          "--molecule", ts_trainer.ref_pkg.molecule,
                          "--delete"]
@@ -286,7 +296,7 @@ def train(sys_args):
         try:
             ts_assign_mod.assign(assign_params)
             plain_pqueries = ts_phylo_seq.assignments_to_pqueries(file_parsers.read_classification_table(
-                os.path.join(assign_prefix, "final_outputs", "marker_contig_map.tsv")))
+                os.path.join(assign_prefix, "final_outputs", "classifications.tsv")))
         except (SystemExit, IOError):
             logging.info("failed.\n")
             logging.error("treesapp assign did not complete successfully.\n")
@@ -366,8 +376,8 @@ def train(sys_args):
             ts_trainer.ref_pkg.pfit = [0.0, 7.0]
 
         ts_trainer.ref_pkg.svc = refpkg_classifiers[ts_trainer.ref_pkg.prefix]
-        ts_trainer.ref_pkg.f__json = os.path.join(ts_trainer.final_output_dir,
-                                                  os.path.basename(ts_trainer.ref_pkg.f__json))
+        ts_trainer.ref_pkg.f__pkl = os.path.join(ts_trainer.final_output_dir,
+                                                 os.path.basename(ts_trainer.ref_pkg.f__pkl))
 
         ts_trainer.ref_pkg.validate()
         ts_trainer.ref_pkg.pickle_package()
@@ -703,8 +713,8 @@ def create(sys_args):
     # Finish validating the file and append the reference package build parameters to the master table
     ##
     if ts_create.stage_status("update"):
-        ts_create.ref_pkg.f__json = os.path.join(ts_create.var_output_dir, "placement_trainer", "final_outputs",
-                                                 ts_create.ref_pkg.prefix + ts_create.ref_pkg.refpkg_suffix)
+        ts_create.ref_pkg.f__pkl = os.path.join(ts_create.var_output_dir, "placement_trainer", "final_outputs",
+                                                ts_create.ref_pkg.prefix + ts_create.ref_pkg.refpkg_suffix)
         ts_create.ref_pkg.slurp()
         ts_create.ref_pkg.validate()
         ts_create.ref_pkg.change_file_paths(ts_create.final_output_dir)
@@ -918,7 +928,7 @@ def update(sys_args):
     ##
     create_cmd = ts_update_mod.formulate_create_command(ts_updater, args, final_stage="support")
     create(create_cmd)
-    ts_updater.updated_refpkg.f__json = ts_updater.updated_refpkg_path
+    ts_updater.updated_refpkg.f__pkl = ts_updater.updated_refpkg_path
     ts_updater.updated_refpkg.slurp()
 
     if ts_updater.stage_status("train"):
@@ -926,26 +936,28 @@ def update(sys_args):
                                                     ref_pkg=ts_updater.updated_refpkg,
                                                     output_dir=ts_updater.training_dir,
                                                     args=args))
-        ts_updater.updated_refpkg.f__json = os.path.join(ts_updater.training_dir, "final_outputs",
-                                                         ts_updater.ref_pkg.prefix + ts_updater.ref_pkg.refpkg_suffix)
+        ts_updater.updated_refpkg.f__pkl = os.path.join(ts_updater.training_dir, "final_outputs",
+                                                        ts_updater.ref_pkg.prefix + ts_updater.ref_pkg.refpkg_suffix)
         ts_updater.updated_refpkg.slurp()
     else:
         ts_updater.updated_refpkg.pfit = ts_updater.ref_pkg.pfit
         ts_updater.updated_refpkg.svc = ts_updater.ref_pkg.svc
 
+    ts_update_mod.update_features(old_refpkg=ts_updater.ref_pkg, new_refpkg=ts_updater.updated_refpkg)
+
     ##
     # Summarize some key parts of the new reference package, compared to the old one
     ##
     ts_updater.updated_refpkg.validate()
-    ts_updater.ref_pkg.change_file_paths(ts_updater.final_output_dir)
-    ts_updater.update_refpkg_fields()
+    ts_updater.update_refpkg_fields(output_dir=os.path.dirname(ts_updater.updated_refpkg_path))
 
     return
 
 
 def colour(sys_args):
-    parser = treesapp_args.TreeSAPPArgumentParser(description="Colours a reference package's phylogeny based on"
-                                                              " taxonomic or phenotypic data.")
+    parser = treesapp_args.TreeSAPPArgumentParser(description="Generates colour style and strip files for visualizing "
+                                                              "a reference package's phylogeny in iTOL based on "
+                                                              "taxonomic or phenotypic data.")
     treesapp_args.add_colour_arguments(parser)
     args = parser.parse_args(sys_args)
 
@@ -958,16 +970,18 @@ def colour(sys_args):
     ts_painter = paint.PhyPainter()
     ts_painter.primer(args)
 
-    if ts_painter.phenotypes:
-        ts_painter.taxa_phenotype_map = paint.read_phenotypes(args.phenotypes)
-
     # Find the taxa that should be coloured for each reference package
     for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ts_ref_pkg.ReferencePackage)
-        if ts_painter.phenotypes:
-            target_taxa = list(ts_painter.taxa_phenotype_map.keys())
-            taxon_leaf_map = paint.convert_taxa_to_phenotypes(taxon_leaf_map=paint.map_taxa_to_leaf_nodes(target_taxa,
-                                                                                                          ref_pkg),
-                                                              phenotypes_map=ts_painter.taxa_phenotype_map)
+        if args.attribute != 'taxonomy':
+            taxon_leaf_map = {}
+            try:
+                clade_annots = ref_pkg.feature_annotations[ts_painter.feature_name]
+            except KeyError:
+                logging.warning("Reference package '{}' doesn't have the '{}' feature annotated. "
+                                "It is being skipped\n".format(refpkg_name, ts_painter.feature_name))
+                continue
+            for ca in clade_annots:
+                taxon_leaf_map.update({ca.name: ca.members})
         else:
             ts_painter.find_rank_depth(ref_pkg, ref_pkg.taxa_trie.accepted_ranks_depths[ts_painter.rank])
 
@@ -992,6 +1006,10 @@ def colour(sys_args):
         # Find the intersection or union between reference packages analyzed so far
         ts_painter.harmonize_taxa_colours(taxon_leaf_map, args.set_op)
 
+    if len(ts_painter.refpkg_leaf_nodes_to_colour.keys()) == 0:
+        logging.error("Unable to colour phylogenies by '{}' - attributes were not found in reference packages.\n".format(args.attribute))
+        raise AssertionError
+
     # Sort the nodes by their internal node order
     taxa_order = paint.order_taxa(taxa_to_colour=ts_painter.taxa_to_colour,
                                   taxon_leaf_map=ts_painter.refpkg_leaf_nodes_to_colour[ref_pkg.prefix],
@@ -1005,9 +1023,9 @@ def colour(sys_args):
     for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ts_ref_pkg.ReferencePackage)
         taxon_leaf_map = ts_painter.refpkg_leaf_nodes_to_colour[refpkg_name]
         style_file = os.path.join(ts_painter.output_dir,
-                                  "{}_{}_colours_style.txt".format(ref_pkg.prefix, ts_painter.output_prefix))
+                                  "{}_{}_colours_style.txt".format(ref_pkg.prefix, ts_painter.feature_name))
         strip_file = os.path.join(ts_painter.output_dir,
-                                  "{}_{}_colour_strip.txt".format(ref_pkg.prefix, ts_painter.output_prefix))
+                                  "{}_{}_colour_strip.txt".format(ref_pkg.prefix, ts_painter.feature_name))
 
         # Find the minimum set of monophyletic internal nodes for each taxon
         taxa_clades = ts_painter.find_mono_clades(taxon_leaf_map, ref_pkg)
@@ -1022,71 +1040,58 @@ def colour(sys_args):
 
 def layer(sys_args):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
-    parser = treesapp_args.TreeSAPPArgumentParser(description="This script is generally used for layering extra "
-                                                              "annotations such as Subgroup or Metabolism on TreeSAPP "
-                                                              "outputs. This is accomplished by adding an extra column "
-                                                              "(to all rows) of an existing marker_contig_map.tsv and "
-                                                              "annotating the relevant sequences.")
+    parser = treesapp_args.TreeSAPPArgumentParser(description="This script adds extra feature annotations, such as "
+                                                              "Subgroup and Metabolic Pathway, to an existing "
+                                                              "classification table made by treesapp assign. "
+                                                              "A new column is bound to the table for each feature.")
     treesapp_args.add_layer_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_layer = classy.Layerer()
+    ts_layer = annotate_extra.Layerer()
 
     log_file_name = args.output + os.sep + "TreeSAPP_layer_log.txt"
     classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\t\tLayering extra annotations on TreeSAPP classifications\t\t\t\t##\n\n")
 
-    annotate_extra.check_arguments(ts_layer, args)
+    ts_layer.check_arguments(args)
 
     ##
     # Worklow:
     #   1. Slurp up reference packages into a dictionary
-    #   2. Read the marker_contig_map.tsv file from the output directory to create the master data structure
+    #   2. Read the classifications.tsv file from the output directory to create the master data structure
     #   3. For each of the colours_styles files provided (potentially multiple for the same marker):
     #       3.1) Add the annotation variable to master_dat for every sequence (instantiate with "NA")
     #       3.2) Read the .jplace file for every sequence classified as marker
     #       3.3) Add the annotation information to every sequence classified as marker in master_dat
-    #   4. Write the new classification file called "extra_annotated_marker_contig_map.tsv"
+    #   4. Write the new classification file called "layered_classifications.tsv"
     ##
-    marker_subgroups = dict()
+    marker_subgroups = set()
     unique_markers_annotated = set()
     marker_tree_info = dict()
     master_dat, field_order = annotate_extra.parse_marker_classification_table(ts_layer.final_output_dir +
-                                                                               "marker_contig_map.tsv")
-    refpkg_dict = file_parsers.gather_ref_packages(ts_layer.refpkg_dir)
+                                                                               ts_layer.classification_tbl_name)
+    refpkg_dict = ts_ref_pkg.gather_ref_packages(ts_layer.refpkg_dir)
 
     # structure of master dat:
     # {"Sequence_1": {"Field1": x, "Field2": y, "Extra": n},
     #  "Sequence_2": {"Field1": i, "Field2": j, "Extra": n}}
-    for annot_f in ts_layer.annot_files:
-        # Determine the marker being annotated
-        data_type, refpkg_prefix = "", ""
-        for refpkg_name in refpkg_dict:  # type: str
-            annot_marker_re = re.compile(r"^{0}_(\w+)_colours_style.txt$".format(refpkg_name))
-            if annot_marker_re.match(os.path.basename(annot_f)):
-                data_type = annot_marker_re.match(os.path.basename(annot_f)).group(1)
-                refpkg_prefix = refpkg_name
-                break
-            else:
-                data_type, refpkg_prefix = "", ""
+    for refpkg_prefix, ref_pkg in refpkg_dict.items():  # type: (str, ts_ref_pkg.ReferencePackage)
         if refpkg_prefix not in master_dat.keys():
             continue
-        if refpkg_prefix and data_type:
+        if len(ref_pkg.feature_annotations) > 0:
             unique_markers_annotated.add(refpkg_prefix)
-            if data_type not in marker_subgroups:
-                marker_subgroups[data_type] = dict()
-            marker_subgroups[data_type][refpkg_prefix] = file_parsers.read_colours_file(annot_f, refpkg_prefix)
-        else:
-            logging.warning("Unable to parse the reference package name and/or annotation type from {}.\n"
-                            "Is it possible this reference package is not in {}?".format(annot_f, ts_layer.refpkg_dir))
-    # Instantiate every query sequence in marker_contig_map with an empty string for each data_type
+            for data_type in ref_pkg.feature_annotations:
+                marker_subgroups.add(data_type)
+
+    # Instantiate every query sequence in classifications with an empty string for each data_type
     for data_type in marker_subgroups:
         for refpkg_name in master_dat:
             for assignment in master_dat[refpkg_name]:  # type: annotate_extra.ClassifiedSequence
                 assignment.layers[data_type] = "NA"
+
     # Update the field_order dictionary with new fields
     field_acc = len(field_order)
-    for new_datum in sorted(marker_subgroups.keys()):
+    for new_datum in sorted(marker_subgroups):
         field_order[field_acc] = new_datum
         field_acc += 1
 
@@ -1098,21 +1103,18 @@ def layer(sys_args):
         for refpkg_name in unique_markers_annotated:  # type: str
             jplace = os.path.join(ts_layer.treesapp_output, "iTOL_output", refpkg_name,
                                   refpkg_name + "_complete_profile.jplace")
-
-            if refpkg_name in marker_subgroups[data_type]:
-                refpkg = refpkg_dict[refpkg_name]  # type: ts_ref_pkg.ReferencePackage
+            ref_pkg = refpkg_dict[refpkg_name]  # type: ts_ref_pkg.ReferencePackage
+            if data_type in ref_pkg.feature_annotations:
                 logging.info("\t" + refpkg_name + "\n")
                 # Create the dictionary mapping an internal node to all leaves
                 internal_node_map = entish.map_internal_nodes_leaves(jplace_utils.jplace_parser(jplace).tree)
                 # Routine for exchanging any organism designations for their respective node number
-                taxa_map = refpkg.generate_tree_leaf_references_from_refpkg()
+                taxa_map = ref_pkg.generate_tree_leaf_references_from_refpkg()
 
-                clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][refpkg_name],
-                                                          internal_node_map, taxa_map)
-                clusters = utilities.convert_outer_to_inner_nodes(clusters, internal_node_map)
+                annotated_edges, leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
+                                                                                             ref_pkg.feature_annotations[data_type])
+                marker_tree_info[data_type][refpkg_name] = annotated_edges
 
-                marker_tree_info[data_type][refpkg_name], leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
-                                                                                                                 clusters)
                 diff = len(taxa_map) - len(leaves_in_clusters)
                 if diff != 0:
                     unannotated = set()
@@ -1126,7 +1128,7 @@ def layer(sys_args):
                 pass
     marker_subgroups.clear()
     master_dat = annotate_extra.map_queries_to_annotations(marker_tree_info, master_dat)
-    annotate_extra.write_classification_table(ts_layer.final_output_dir, field_order, master_dat)
+    annotate_extra.write_classification_table(ts_layer.layered_table, field_order, master_dat)
 
     return
 
@@ -1183,9 +1185,10 @@ def purity(sys_args):
             assigned_lines = file_parsers.read_classification_table(ts_purity.classifications)
             ts_purity.assignments = file_parsers.parse_assignments(assigned_lines)
         else:
-            logging.error("marker_contig_map.tsv is missing from output directory '" +
-                          os.path.dirname(ts_purity.classifications) + "'\n" +
-                          "Please remove this directory and re-run.\n")
+            logging.error("{} is missing from output directory '{}'\n"
+                          "Please remove this directory and re-run.\n"
+                          "".format(ts_purity.classification_tbl_name,
+                                    os.path.dirname(ts_purity.classifications)))
             sys.exit(5)
 
         logging.info("\nSummarizing assignments for reference package " + ts_purity.ref_pkg.prefix + "\n")

@@ -9,7 +9,7 @@ class RelDistTester(unittest.TestCase):
         from treesapp.refpkg import ReferencePackage
         from ete3 import Tree
         self.test_refpkg = ReferencePackage()
-        self.test_refpkg.f__json = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        self.test_refpkg.f__pkl = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.test_refpkg.slurp()
 
         self.label_tree = self.test_refpkg.taxonomically_label_tree()

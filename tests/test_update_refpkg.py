@@ -8,7 +8,7 @@ class UpdaterTester(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp import refpkg as ts_rp
         self.ref_pkg = ts_rp.ReferencePackage()
-        self.ref_pkg.f__json = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        self.ref_pkg.f__pkl = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
         self.ref_pkg.slurp()
         return
 

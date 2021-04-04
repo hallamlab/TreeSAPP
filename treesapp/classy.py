@@ -171,56 +171,6 @@ def dedup_records(ref_seqs: fasta.FASTA, ref_seq_records: dict) -> dict:
     return ref_seq_records
 
 
-class Cluster:
-    def __init__(self, rep_name):
-        self.representative = rep_name
-        self.members = list()
-        self.lca = ''
-
-    def get_info(self):
-        info_string = "Representative: " + str(self.representative) + "\n" + \
-                      "LCA: " + self.lca + "\n" + \
-                      "Members:\n\t" + "\n\t".join([', '.join(member) for member in self.members]) + "\n"
-        return info_string
-
-
-class BlastAln:
-    def __init__(self):
-        self.subject = ""
-        self.query = ""
-        self.start = 0
-        self.end = 0
-        self.alnlen = 0
-        self.gapopen = 0
-        self.mismatch = 0
-        self.qstart = 0
-        self.qend = 0
-        self.tstart = 0
-        self.tend = 0
-        self.evalue = 0.0
-        self.pident = 0.0
-        self.bits = 0.0
-
-    def load_blast_tab(self, line: str, sep="\t") -> None:
-        try:
-            fields = line.strip().split(sep)
-        except ValueError:
-            logging.error("Unable to parse line in from alignment table:\n{}\n".format(line))
-            sys.exit(7)
-
-        try:
-            self.subject, self.query = fields[0], fields[1]
-            self.pident, self.alnlen, self.mismatch, self.gapopen = fields[2:6]
-            self.qstart, self.qend, self.tstart, self.tend = fields[6:10]
-            self.evalue, self.bits = fields[10], fields[11]
-        except ValueError:
-            logging.error("Incorrect format for line in alignment file. Twelve were expected, found {}.\n{}\n"
-                          "".format(len(fields), line))
-            sys.exit(7)
-
-        return
-
-
 class MyFormatter(logging.Formatter):
 
     error_fmt = "%(levelname)s - %(module)s, line %(lineno)d:\n%(message)s"
@@ -326,7 +276,7 @@ class TreeSAPP:
         self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
         self.acc_to_lin = ""  # Path to an accession-lineage mapping file
         self.ref_pkg = ReferencePackage()
-        self.classification_tbl_name = "marker_contig_map.tsv"
+        self.classification_tbl_name = "classifications.tsv"
 
         # Values derived from the command-line arguments
         self.input_sequences = ""
@@ -688,7 +638,7 @@ class Updater(TreeSAPP):
         self.seq_names_to_taxa = ""  # Optional user-provided file mapping query sequence contigs to lineages
         self.lineage_map_file = ""  # File that is passed to create() containing lineage info for all sequences
         self.treesapp_output = ""  # Path to the TreeSAPP output directory - modified by args
-        self.assignment_table = ""  # Path to the marker_contig_map.tsv file written by treesapp assign
+        self.assignment_table = ""  # Path to the classifications.tsv file written by treesapp assign
         self.combined_fasta = ""  # Holds the newly identified candidate reference sequences and the original ref seqs
         self.old_ref_fasta = ""  # Contains only the original reference sequences
         self.cluster_input = ""  # Used only if resolve is True
@@ -733,7 +683,7 @@ class Updater(TreeSAPP):
 
         return info_string
 
-    def update_refpkg_fields(self) -> None:
+    def update_refpkg_fields(self, output_dir=None) -> None:
         """
         Using the original ReferencePackage as a template modify the following updated ReferencePackage attributes:
 1. original creation date
@@ -742,7 +692,10 @@ class Updater(TreeSAPP):
 4. description
         :return: None
         """
+        if not output_dir:
+            output_dir = self.final_output_dir
         # Change the creation and update dates, code name and description
+        self.updated_refpkg.change_file_paths(output_dir)
         self.updated_refpkg.date = self.ref_pkg.date
         self.updated_refpkg.update = dt.now().strftime("%Y-%m-%d")
         self.updated_refpkg.refpkg_code = self.ref_pkg.refpkg_code
@@ -879,7 +832,7 @@ class Creator(TreeSAPP):
                      " where $code is a unique identifier.\n"
                      "2. Copy {0} to a directory containing other reference packages you want to analyse. "
                      "This may be in {1}/data/ or elsewhere\n"
-                     "".format(self.ref_pkg.f__json, self.treesapp_dir))
+                     "".format(self.ref_pkg.f__pkl, self.treesapp_dir))
         return
 
     def overcluster_warning(self, pre_count: int, post_count: int) -> None:
@@ -907,18 +860,22 @@ class Purity(TreeSAPP):
                        2: ModuleFunction("summarize", 2)}
 
     def check_purity_arguments(self, args):
-        self.ref_pkg.f__json = args.pkg_path
+        self.ref_pkg.f__pkl = args.pkg_path
         self.ref_pkg.slurp()
-        self.refpkg_dir = os.path.dirname(self.ref_pkg.f__json)
+        self.refpkg_dir = os.path.dirname(self.ref_pkg.f__pkl)
 
         self.formatted_input = self.stage_lookup("clean").dir_path + self.sample_prefix + "_formatted.fasta"
 
         ##
         # Define locations of files TreeSAPP outputs
         ##
-        self.classifications = self.stage_lookup("assign").dir_path + "final_outputs" + os.sep + "marker_contig_map.tsv"
-        self.assign_jplace_file = os.path.join(self.stage_lookup("assign").dir_path, "iTOL_output",
-                                               self.ref_pkg.prefix, self.ref_pkg.prefix + "_complete_profile.jplace")
+        self.classifications = os.path.join(self.stage_lookup("assign").dir_path,
+                                            "final_outputs",
+                                            self.classification_tbl_name)
+        self.assign_jplace_file = os.path.join(self.stage_lookup("assign").dir_path,
+                                               "iTOL_output",
+                                               self.ref_pkg.prefix,
+                                               self.ref_pkg.prefix + "_complete_profile.jplace")
         self.metadata_file = args.extra_info
 
         if not os.path.isdir(self.var_output_dir):
@@ -1103,7 +1060,7 @@ class TaxonTest:
             self.classification_table = self.classifications_root + taxon_path + os.sep + taxon_path + "_read_tax.tsv"
             self.refpkg_path = self.intermediates_dir + refpkg.prefix + '_' + taxon_path + ".gpkg"
         else:
-            self.classification_table = self.classifications_root + "final_outputs" + os.sep + "marker_contig_map.tsv"
+            self.classification_table = self.classifications_root + "final_outputs" + os.sep + "classifications.tsv"
             self.refpkg_path = os.path.join(self.intermediates_dir, refpkg.prefix + refpkg.refpkg_suffix)
 
         return 
@@ -1453,18 +1410,6 @@ class Evaluator(TreeSAPP):
 
         output_handler.close()
         return
-
-
-class Layerer(TreeSAPP):
-    def __init__(self):
-        super(Layerer, self).__init__("layer")
-        self.c_style_re = re.compile(".*_style.txt$")
-        self.c_strip_re = re.compile(".*_strip.txt$")
-        self.stages = {}
-        self.annot_files = list()
-        self.target_refpkgs = list()
-        self.treesapp_output = ""
-        self.colours_file = ""
 
 
 class Abundance(TreeSAPP):

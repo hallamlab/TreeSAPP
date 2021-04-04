@@ -140,7 +140,7 @@ class EvaluatorTester(unittest.TestCase):
         self.eval.var_output_dir = self.output_dir
         # Set the instance's reference package
         self.eval.ref_pkg = ReferencePackage()
-        self.eval.ref_pkg.f__json = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
+        self.eval.ref_pkg.f__pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
         self.eval.ref_pkg.slurp()
 
         return
@@ -158,7 +158,7 @@ class EvaluatorTester(unittest.TestCase):
         self.assertEqual(os.path.join(self.output_dir, rpp, taxon) + os.sep,
                          taxa_test.intermediates_dir)
         self.assertEqual(os.path.join(self.output_dir, rpp, taxon,
-                                      "treesapp_output", "final_outputs", "marker_contig_map.tsv"),
+                                      "treesapp_output", "final_outputs", "classifications.tsv"),
                          taxa_test.classification_table)
         return
 

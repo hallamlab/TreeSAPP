@@ -371,7 +371,7 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
         # Write the query sequences
         fasta.write_new_fasta(taxon_rep_seqs, tt_obj.test_query_fasta)
         assign_args = ["-i", tt_obj.test_query_fasta, "-o", tt_obj.classifications_root,
-                       "--refpkg_dir", os.path.dirname(ce_refpkg.f__json),
+                       "--refpkg_dir", os.path.dirname(ce_refpkg.f__pkl),
                        "-m", molecule_type, "-n", str(num_threads),
                        "--min_seq_length", str(min_seq_length),
                        "--overwrite", "--delete"]
@@ -395,10 +395,10 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
     else:
         # Valid number of queries and these sequences have already been classified
         ce_refpkg = refpkg.ReferencePackage()
-        ce_refpkg.f__json = os.path.join(tt_obj.intermediates_dir,
+        ce_refpkg.f__pkl = os.path.join(tt_obj.intermediates_dir,
                                          '_'.join([ref_pkg.prefix, ref_pkg.refpkg_code,
                                                    ref_pkg.date]),
-                                         ref_pkg.prefix + ref_pkg.refpkg_suffix)
+                                        ref_pkg.prefix + ref_pkg.refpkg_suffix)
         ce_refpkg.slurp()
 
     tt_obj.taxonomic_tree = ce_refpkg.all_possible_assignments()
@@ -408,9 +408,10 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
         tt_obj.filter_assignments(ref_pkg.prefix)
         tt_obj.distances = parse_distances(assigned_lines)
     else:
-        logging.error("marker_contig_map.tsv is missing from output directory '" +
-                      os.path.dirname(tt_obj.classification_table) + "'\n" +
-                      "Please remove this directory and re-run.\n")
+        logging.error("{} is missing from output directory '{}'\n"
+                      "Please remove this directory and re-run.\n"
+                      "".format(os.path.basename(tt_obj.classification_table),
+                                os.path.dirname(tt_obj.classification_table)))
         sys.exit(21)
     return
 

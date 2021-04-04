@@ -320,8 +320,7 @@ def augment_training_set(row: np.array, n_reps=3, feature_scale=0.2):
 def vectorize_placement_data(condition_names: dict, classifieds: dict, refpkg_map: dict,
                              annot_map=None) -> (np.array, list):
     """
-    Parses out the relevant fields from the *treesapp assign* classification table (marker_contig_map.tsv) to create
-a numpy array from each query's data:
+    Creates a numpy array from each PQuery's attributes:
 
 1. the percentage of HMM profile covered
 2. number of nodes in reference phylogeny

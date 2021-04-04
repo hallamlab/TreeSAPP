@@ -4,7 +4,7 @@ import unittest
 class CreateRefPkgTester(unittest.TestCase):
     def test_present_cluster_rep_options(self):
         from treesapp.create_refpkg import present_cluster_rep_options
-        from treesapp.classy import Cluster
+        from treesapp.seq_clustering import Cluster
         from treesapp.entrez_utils import EntrezRecord
         from treesapp.fasta import Header
         # Make the mock test data
