@@ -3,9 +3,9 @@ import pytest
 import os
 
 from collections import namedtuple
-from shutil import rmtree
+from shutil import rmtree, copyfile
 
-from .testing_utils import get_test_data
+from .testing_utils import get_test_data, get_treesapp_file
 
 
 @pytest.fixture(scope="class")
@@ -160,6 +160,40 @@ class EvaluatorTester(unittest.TestCase):
         self.assertEqual(os.path.join(self.output_dir, rpp, taxon,
                                       "treesapp_output", "final_outputs", "classifications.tsv"),
                          taxa_test.classification_table)
+        return
+
+
+class PurityTester(unittest.TestCase):
+    def setUp(self) -> None:
+        from treesapp.classy import Purity
+        self.purity_inst = Purity()
+        copyfile(get_test_data(os.path.join("refpkgs", "PuhA_build.pkl")), "PuhA_build.pkl")
+        return
+
+    def tearDown(self) -> None:
+        if os.path.isfile("PuhA_build.pkl"):
+            os.remove("PuhA_build.pkl")
+        return
+
+    def test_check_purity_arguments(self):
+        from treesapp.treesapp_args import add_purity_arguments, TreeSAPPArgumentParser
+        # Set up the command-line arguments
+        cli_args = ["--fastx_input", get_treesapp_file("dev_utils/TIGRFAM_seed_named.faa"),
+                    "--extra_info", get_treesapp_file("dev_utils/TIGRFAM_info.tsv"),
+                    "--output", "./TreeSAPP_purity",
+                    "--trim_align", "--molecule", "prot"]
+        parser = TreeSAPPArgumentParser()
+        add_purity_arguments(parser)
+        # Test the file in the current working directory
+        args = parser.parse_args(cli_args + ["--refpkg_path", "PuhA_build.pkl"])
+        self.purity_inst.furnish_with_arguments(args)
+        self.purity_inst.check_purity_arguments(args)
+        self.assertEqual(os.getcwd(), self.purity_inst.refpkg_dir)
+        # Ensure the './' is handled properly
+        args = parser.parse_args(cli_args + ["--refpkg_path", "./PuhA_build.pkl"])
+        self.purity_inst.furnish_with_arguments(args)
+        self.purity_inst.check_purity_arguments(args)
+        self.assertEqual(os.getcwd(), self.purity_inst.refpkg_dir)
         return
 
 

@@ -858,7 +858,7 @@ class Purity(TreeSAPP):
     def check_purity_arguments(self, args):
         self.ref_pkg.f__pkl = args.pkg_path
         self.ref_pkg.slurp()
-        self.refpkg_dir = os.path.dirname(self.ref_pkg.f__pkl)
+        self.refpkg_dir = os.path.dirname(os.path.realpath(self.ref_pkg.f__pkl))
 
         self.formatted_input = self.stage_lookup("clean").dir_path + self.sample_prefix + "_formatted.fasta"
 
