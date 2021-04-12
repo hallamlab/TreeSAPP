@@ -1266,6 +1266,11 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
         x = 0
         while x < len(treesapp_nums):
             header = header_registry[treesapp_nums[x]]
+            if not header.first_split:
+                logging.error("Sequence header '{}'s first_split attribute hasn't been set.\n".format(header.original))
+                raise AssertionError("Sequence header '{}'s first_split attribute hasn't been set.\n"
+                                     .format(header.original))
+
             assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(refpkg_name), '', header.original)
             if parent_re.search(assigned_seq_name):
                 curr_match = parent_re.search(assigned_seq_name)  # type: re.Match

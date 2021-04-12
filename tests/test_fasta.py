@@ -202,6 +202,12 @@ class HeaderTester(unittest.TestCase):
         h.original = self.eggnog_three
         h.find_accession()
         self.assertEqual(self.eggnog_three, h.version)
+
+        bin_ex = "SI072_165m_bin.14_k147_157247_1"
+        h = Header(bin_ex)
+        h.find_accession()
+        self.assertEqual("SI072_165m_bin", h.accession)
+        self.assertEqual(bin_ex, h.version)
         return
 
     def test_get_info(self):

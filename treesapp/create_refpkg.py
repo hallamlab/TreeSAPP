@@ -327,30 +327,36 @@ def summarize_reference_taxa(reference_dict: dict, t_hierarchy: TaxonomicHierarc
     return taxonomic_summary_string
 
 
-def lineages_to_dict(fasta_replace_dict: dict, taxa_lca=False) -> dict:
+def lineages_to_dict(fasta_entrez_records: dict, taxa_lca=False) -> dict:
     """
     Populates the organism, accession ID and lineage information contained in ReferencePackage.lineage_ids
 
-    :param fasta_replace_dict: Dictionary mapping numbers (internal treesapp identifiers) to ReferenceSequence objects
+    :param fasta_entrez_records: Dictionary mapping numbers (internal treesapp identifiers) to ReferenceSequence objects
     :param taxa_lca: Flag indicating whether a cluster's lineage is just the representatives or the LCA of all members
     :return: A dictionary mapping TreeSAPP reference node IDs to a string with their organism, accession and lineage
     """
     no_lineage = list()
     ref_lineage_map = {}
-    for treesapp_id in sorted(fasta_replace_dict.keys(), key=int):  # type: str
+    for treesapp_id in sorted(fasta_entrez_records.keys(), key=int):  # type: str
         # Definitely will not uphold phylogenetic relationships but at least sequences
         # will be in the right neighbourhood rather than ordered by their position in the FASTA file
-        reference_sequence = fasta_replace_dict[treesapp_id]  # type: entrez_utils.EntrezRecord
+        reference_sequence = fasta_entrez_records[treesapp_id]  # type: entrez_utils.EntrezRecord
+
+        if not reference_sequence.versioned:
+            logging.error("'versioned' attribute has not been set for the following EntrezRecord:\n"
+                          "{}\n".format(reference_sequence.get_info()))
+            raise AssertionError("Unable to create the sequence lineage map.")
+
         if taxa_lca:
             lineage = reference_sequence.cluster_lca
         else:
             lineage = reference_sequence.lineage
         if not lineage:
-            no_lineage.append(reference_sequence.accession)
+            no_lineage.append(reference_sequence.versioned)
             lineage = ''
 
         ref_lineage_map[treesapp_id] = "{0} | {1}\t{2}".format(reference_sequence.organism,
-                                                               reference_sequence.accession,
+                                                               reference_sequence.versioned,
                                                                lineage)
 
     if len(no_lineage) > 0:
@@ -358,28 +364,6 @@ def lineages_to_dict(fasta_replace_dict: dict, taxa_lca=False) -> dict:
                                                                                           "\n\t".join(no_lineage)))
 
     return ref_lineage_map
-
-
-def parse_model_parameters(placement_trainer_file):
-    """
-    Returns the model parameters on the line formatted like
-     'Regression parameters = (m,b)'
-    in the file placement_trainer_results.txt
-    :return: tuple
-    """
-    trainer_result_re = re.compile(r"^Regression parameters = \(([0-9,.-]+)\)$")
-    try:
-        trainer_handler = open(placement_trainer_file, 'r')
-    except IOError:
-        logging.error("Unable to open '" + placement_trainer_file + "' for reading!\n")
-        sys.exit(3)
-    params = None
-    for line in trainer_handler:
-        match = trainer_result_re.match(line)
-        if match:
-            params = match.group(1).split(',')
-    trainer_handler.close()
-    return params
 
 
 def remove_outlier_sequences(fasta_record_objects: dict, od_seq_exe: str, mafft_exe: str,
