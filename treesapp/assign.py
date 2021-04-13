@@ -544,7 +544,9 @@ def prep_reference_packages_for_assign(refpkg_dict: dict, output_dir: str) -> No
     """
     for refpkg_name in refpkg_dict:
         ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
-        ref_pkg.disband(os.path.join(output_dir, ref_pkg.prefix + "_RefPkg"))
+        prefix_dir = os.path.join(output_dir, ref_pkg.prefix + "_RefPkg")
+        ref_pkg.disband(prefix_dir)
+        ref_pkg.pickle_package(new_output_dir=prefix_dir)
     return
 
 
@@ -859,42 +861,6 @@ def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
         if os.path.exists(useless_file):
             os.remove(useless_file)
     return
-
-
-def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
-    """
-    From the basic abundance output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
-
-    :param target_marker:
-    :param tree_protein_list: A list of PQuery objects, for single sequences
-    :param itol_bar_file: The name of the file to write the simple-bar data for iTOL
-    :return:
-    """
-    leaf_abundance_sums = dict()
-
-    for tree_sap in tree_protein_list:  # type: phylo_seq.PQuery
-        if tree_sap.ref_name == target_marker and tree_sap.classified:
-            leaf_abundance_sums = tree_sap.sum_abundances_per_node(leaf_abundance_sums)
-
-    # Only make the file if there is something to write
-    if len(leaf_abundance_sums.keys()) > 0:
-        try:
-            itol_abundance_out = open(itol_bar_file, 'w')
-        except IOError:
-            logging.error("Unable to open " + itol_bar_file + " for writing.\n")
-            sys.exit(3)
-
-        # Write the header
-        header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,ABUNDANCE\nCOLOR,#ff0000\n"
-        itol_abundance_out.write(header)
-        # Write the abundance sums for each leaf
-        itol_abundance_out.write("DATA\n")
-        data_lines = [','.join([str(k), str(v)]) for k, v in leaf_abundance_sums.items()]
-        itol_abundance_out.write("\n".join(data_lines))
-
-        itol_abundance_out.close()
-
-    return tree_protein_list
 
 
 def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: float, max_pendant: float) -> None:
@@ -1249,7 +1215,7 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
         for annotation_file in annotation_style_files:
             shutil.copy(annotation_file, itol_base_dir + ref_pkg.prefix)
         itol_bar_file = os.path.join(itol_base_dir, ref_pkg.prefix, ref_pkg.prefix + "_abundance_simplebar.txt")
-        generate_simplebar(ref_pkg.prefix, refpkg_pqueries, itol_bar_file)
+        abundance.generate_simplebar(ref_pkg.prefix, refpkg_pqueries, itol_bar_file)
 
     logging.info("done.\n")
     if style_missing:

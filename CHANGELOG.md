@@ -17,6 +17,7 @@ We recommend updating to this version, and updating reference packages you have 
 - `treesapp update` with automatically propagate feature annotations from the original reference package by mapping
   the reference sequences through their unique descriptions (organism name and accession).
 -  `treesapp package view tree` will print a Newick tree with each leaf node's accession and description.
+- `treesapp abundance` creates a simple_bar.txt file for each sample analyzed.
 
 ### Fixed
 - Segmentation fault from Prodigal is no longer possible as `treesapp assign` verifies input presence earlier.
@@ -30,6 +31,8 @@ We recommend updating to this version, and updating reference packages you have 
 - `treesapp colour` accesses and uses the 'feature_annotations' to write iTOL-compatible annotation files
   (i.e. colour_strip.txt and colours_styles.txt). It no longer accepts taxonomy-phenotype tables.
 - `treesapp layer` uses the 'feature_annotations' attribute in reference packages to annotate classified sequences.
+- The versioned sequence accessions (or first split for unformatted sequence headers) are used in the
+  ReferencePackage lineage_ids attribute. This ensures unique sequence IDs and helps with iterative updates.
 
 ## [0.10.4] - 2021-03-25
 ### Fixed

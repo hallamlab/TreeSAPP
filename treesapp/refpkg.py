@@ -87,9 +87,9 @@ class ReferencePackage:
             yield attr, value
 
     def __str__(self):
-        return "TreeSAPP '{}' ReferencePackage {} with {} sequences".format(self.ts_version,
-                                                                            self.prefix,
-                                                                            self.num_seqs)
+        return "TreeSAPP ({}) ReferencePackage '{}' with {} sequences".format(self.ts_version,
+                                                                              self.prefix,
+                                                                              self.num_seqs)
 
     def get_public_attributes(self) -> list:
         return [attr[0] for attr in inspect.getmembers(self) if
@@ -126,16 +126,20 @@ class ReferencePackage:
         refpkg_clone.f__pkl = clone_path
         return refpkg_clone
 
-    def pickle_package(self) -> None:
+    def pickle_package(self, new_output_dir=None) -> None:
         """
         Dumps a new joblib pickled file of the ReferencePackage instance dictionary to self.f__pkl.
 
+        :param new_output_dir: Will copy the ReferencePackage pkl to this new directory (its form of 'cp').
         :return: None.
         """
         if len(self.f__pkl) == 0:
             self.bail("ReferencePackage.f__pkl not set. ReferencePackage band() cannot be completed.\n")
             raise AttributeError
 
+        # Ensure the pickled RefPkg can be written to a valid directory
+        if new_output_dir:
+            self.f__pkl = new_output_dir + os.sep + os.path.basename(self.f__pkl)
         output_dir = os.path.dirname(self.f__pkl)
         if not output_dir:
             output_dir = "./"
@@ -1277,6 +1281,24 @@ def rename(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrit
     write_edited_pkl(refpkg, output_dir, overwrite)
 
     return
+
+
+def load_refpkgs_from_assign_output(assign_intermediates_dir: str) -> dict:
+    """Returns a dictionary of prefix keys to ReferencePackage instance values found in an assign intermediates dir."""
+    refpkg_dict = dict()
+    refpkg_dirs = glob(assign_intermediates_dir + os.sep + "*_RefPkg")
+    if len(refpkg_dirs) == 0:
+        logging.error("Unable to find reference packages written to '{}'.\n".format(assign_intermediates_dir))
+        return refpkg_dict
+
+    for dir_path in refpkg_dirs:
+        rp_name = re.match(r"(.*)_RefPkg", os.path.basename(dir_path)).group(1)
+        ref_pkg = ReferencePackage()
+        ref_pkg.f__pkl = dir_path + os.sep + rp_name + ref_pkg.refpkg_suffix
+        ref_pkg.slurp()
+        refpkg_dict[ref_pkg.prefix] = ref_pkg
+
+    return refpkg_dict
 
 
 def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:

@@ -34,6 +34,46 @@ class AbundanceTester(unittest.TestCase):
             shutil.rmtree(self.mock_abund_dir)
         return
 
+    def test_generate_simplebar(self):
+        from treesapp.abundance import generate_simplebar
+        from treesapp.phylo_seq import PQuery, PhyloPlace
+        test_file = os.path.join(self.mock_abund_dir, "test_McrA_abundance_simplebar.txt")
+        refpkg_name = "McrA"
+        mock_node_map = {28: ['198_McrA'],
+                         170: ['123_McrA', '114_McrA', '118_McrA', '121_McrA', '116_McrA'],
+                         394: ['36_McrA']}
+        leaves = sum(mock_node_map.values(), [])
+        mock_placement_edges = [28, 170, 394]
+        mock_pqueries = []
+        # Instantiate the PQuery instances
+        for name in ["seq1", "seq2", "seq3"]:
+            pq = PQuery()
+            pq.seq_name = name
+            pq.ref_name = refpkg_name
+            pq.consensus_placement = PhyloPlace()
+            pq.consensus_placement.edge_num = mock_placement_edges.pop()
+            pq.node_map = mock_node_map
+            pq.abundance = 1000.0
+            mock_pqueries.append(pq)
+
+        generate_simplebar(target_marker=refpkg_name,
+                           itol_bar_file=test_file,
+                           pqueries=mock_pqueries)
+
+        # Evaluate the output file
+        self.assertTrue(os.path.isfile(test_file))
+        abundance_sum = 0.0
+        with open(test_file) as simplebar:
+            for line in simplebar:
+                try:
+                    leaf, tpm = line.split(',')
+                except ValueError:
+                    continue
+                if leaf in leaves:
+                    abundance_sum += float(tpm)
+        self.assertEqual(3000.0, abundance_sum)
+        return
+
     def test_strip_file_to_sample_name(self):
         from treesapp.classy import Abundance
         mock_abund = Abundance()

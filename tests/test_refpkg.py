@@ -309,5 +309,37 @@ class RefPkgTester(unittest.TestCase):
         return
 
 
+class RefpkgUtilitiesTester(unittest.TestCase):
+    def test_gather_ref_packages(self):
+        from treesapp.refpkg import gather_ref_packages
+        refpkg_dir = utils.get_test_data(os.path.join("refpkgs"))
+        #
+        refpkg_dict = gather_ref_packages(refpkg_data_dir=refpkg_dir, targets=["McrA"])
+        self.assertEqual(1, len(refpkg_dict))
+
+        # Test to ensure all core reference packages are present in the main refpkg pkl directory
+        core = {"McrA", "McrB", "McrG", "DsrAB", "XmoA",
+                "NapA", "NxrA", "NifD", "NirK", "NirS", "NxrB", "NorB", "NosZ",
+                "HydA", "PilA"}
+        refpkg_dict = gather_ref_packages(refpkg_data_dir=os.path.join(utils.get_treesapp_root(), "data"))
+        self.assertEqual(0, len(core.difference(set(refpkg_dict.keys()))))
+        return
+
+    def test_load_refpkgs_from_assign_output(self):
+        from treesapp.refpkg import load_refpkgs_from_assign_output, ReferencePackage
+        test_assign_out = utils.get_test_data("test_output_TarA")
+        self.assertTrue(os.path.isdir(test_assign_out))
+
+        # Test failure due to file not existing
+        self.assertEqual(0, len(load_refpkgs_from_assign_output(test_assign_out)))
+        # Test as intended
+        refpkg_dict = load_refpkgs_from_assign_output(os.path.join(test_assign_out, "intermediates"))
+        self.assertEqual(3, len(refpkg_dict))
+        self.assertEqual(["DsrAB", "McrA", "McrB"], sorted(list(refpkg_dict.keys())))
+        self.assertIsInstance(refpkg_dict["DsrAB"], ReferencePackage)
+
+        return
+
+
 if __name__ == '__main__':
     unittest.main()

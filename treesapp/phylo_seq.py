@@ -245,8 +245,7 @@ class PQuery:
         :param leaf_abundance_sums: A dictionary mapping tree leaf numbers to abundances (RPKM sums)
         :return: A dictionary mapping numerical leaf node identifiers to normalized abundance values
         """
-        jplace_node = self.consensus_placement.edge_num
-        tree_leaves = self.node_map[jplace_node]
+        tree_leaves = self.node_map[self.consensus_placement.edge_num]
         try:
             normalized_abundance = float(self.abundance/len(tree_leaves))
         except TypeError:
@@ -487,6 +486,7 @@ def assignments_to_pqueries(classified_lines: list) -> dict:
         pquery.lct = pquery.recommended_lineage
         con_place.distal_length, con_place.pendant_length, con_place.mean_tip_length = [float(d) for d in
                                                                                         pquery.distances.split(',')]
+        con_place.edge_num = int(con_place.edge_num)
         pquery.consensus_placement = con_place
         try:
             pqueries[pquery.ref_name].append(pquery)
