@@ -1,6 +1,3 @@
-
-__author__ = 'Connor Morgan-Lang'
-
 import sys
 import os
 import re
@@ -19,6 +16,8 @@ from treesapp import utilities as ts_utils
 from treesapp import lca_calculations
 from treesapp import entrez_utils
 from treesapp.wrapper import estimate_ml_model
+
+__author__ = 'Connor Morgan-Lang'
 
 
 class ModuleFunction:

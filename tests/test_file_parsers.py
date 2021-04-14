@@ -35,6 +35,9 @@ class TreesappTester(unittest.TestCase):
 
     def test_read_graftm_classifications(self):
         from treesapp.file_parsers import read_graftm_classifications
+        assignments = read_graftm_classifications(get_test_data("graftm_raw_read_tax.tsv"))
+        self.assertEqual(8, len(assignments))
+        self.assertEqual(9, len(sum(assignments.values(), [])))
         return
 
     def test_grab_graftm_taxa(self):

@@ -9,7 +9,6 @@ from treesapp import wrapper
 from treesapp import treesapp_args
 from treesapp import phylo_seq
 from treesapp import file_parsers
-from treesapp import refpkg
 
 
 def generate_simplebar(target_marker: str, pqueries: list, itol_bar_file: str, data_label="ABUNDANCE") -> None:
@@ -71,7 +70,7 @@ def abundance(sys_args) -> dict:
     :param sys_args: treesapp abundance arguments with the treesapp subcommand removed
     :return: A dictionary containing the abundance values indexed by the reference sequence (e.g. ORF, contig) names
     """
-    parser = treesapp_args.TreeSAPPArgumentParser(description="Calculate classified sequence abundances from read coverage.")
+    parser = treesapp_args.TreeSAPPArgumentParser(description="Calculate query sequence abundances from read coverage.")
     treesapp_args.add_abundance_arguments(parser)
     args = parser.parse_args(sys_args)
 
