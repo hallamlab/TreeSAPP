@@ -89,9 +89,6 @@ def abundance(sys_args) -> dict:
     abundance_dict = {}
     rev_reads = None
 
-    # Load the reference packages in intermediates/, or the reference packages provided through refpkg_dir
-    refpkg_dict = refpkg.load_refpkgs_from_assign_output(ts_abund.var_output_dir)
-
     while args.reads:
         fwd_reads = args.reads.pop(0)
         ts_abund.strip_file_to_sample_name(fwd_reads)
@@ -134,6 +131,7 @@ def abundance(sys_args) -> dict:
 
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
         assigner_instance = classy.TreeSAPP("phylotu")
+        ts_abund.fetch_refpkgs_used(args.refpkg_dir)
         refpkg_pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir,
                                                                                     assigner_instance)
 
@@ -144,7 +142,11 @@ def abundance(sys_args) -> dict:
 
         # Select a unique set of PQuery instances to use in the updated classification table
         for refpkg_name, pqueries in refpkg_pqueries.items():
-            inode_map = refpkg_dict[refpkg_name].get_internal_node_leaf_map()
+            try:
+                inode_map = ts_abund.target_refpkgs[refpkg_name].get_internal_node_leaf_map()
+            except KeyError:
+                logging.error("Unable to find reference package '{}' in {}.\n".format(refpkg_name, ts_abund.refpkg_dir))
+                sys.exit(17)
             unique_pqueries = []
             seq_name_list = list({pq.place_name for pq in pqueries})
             for pquery in pqueries:

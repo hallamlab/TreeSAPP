@@ -328,20 +328,22 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
     return
 
 
-def add_abundance_arguments(parser: TreeSAPPArgumentParser):
-    parser.add_abundance_params()
-    parser.add_compute_miscellany()
-    parser.add_delete()
-    parser.reqs.add_argument("--treesapp_output", dest="output", required=True,
-                             help="Path to the directory containing TreeSAPP outputs, "
-                                  "including sequences to be used for the update.")
-    parser.optopt.add_argument("--report", choices=["update", "nothing", "append"], required=False, default="append",
-                               help="What should be done with the abundance values? The TreeSAPP classification table "
-                                    "can be overwritten (update), appended or left unchanged. "
-                                    "[ DEFAULT = append ]")
-    parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "align_map", "sam_sum", "summarise"],
-                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+def add_abundance_arguments(abundance_parser: TreeSAPPArgumentParser):
+    abundance_parser.add_abundance_params()
+    abundance_parser.add_refpkg_opt()
+    abundance_parser.add_compute_miscellany()
+    abundance_parser.add_delete()
+    abundance_parser.reqs.add_argument("--treesapp_output", dest="output", required=True,
+                                       help="Path to the directory containing TreeSAPP outputs, "
+                                            "including sequences to be used for the update.")
+    abundance_parser.optopt.add_argument("--report", choices=["update", "nothing", "append"],
+                                         required=False, default="append",
+                                         help="What should be done with the abundance values? "
+                                              "The TreeSAPP classification table can be overwritten (update), "
+                                              "appended or left unchanged. [ DEFAULT = append ]")
+    abundance_parser.optopt.add_argument("--stage", default="continue", required=False,
+                                         choices=["continue", "align_map", "sam_sum", "summarise"],
+                                         help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
     return
 
 

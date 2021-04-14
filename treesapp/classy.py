@@ -13,7 +13,7 @@ from collections import namedtuple
 from numpy import var
 
 from treesapp import phylo_seq
-from treesapp.refpkg import ReferencePackage
+from treesapp import refpkg
 from treesapp import fasta
 from treesapp import utilities as ts_utils
 from treesapp import lca_calculations
@@ -275,7 +275,7 @@ class TreeSAPP:
         # Necessary for Evaluator, Creator and PhyTrainer:
         self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
         self.acc_to_lin = ""  # Path to an accession-lineage mapping file
-        self.ref_pkg = ReferencePackage()
+        self.ref_pkg = refpkg.ReferencePackage()
         self.classification_tbl_name = "classifications.tsv"
 
         # Values derived from the command-line arguments
@@ -648,7 +648,7 @@ class Updater(TreeSAPP):
         # self.rank_depth_map = None
         self.prop_sim = 1.0
         self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the refpkg
-        self.updated_refpkg = ReferencePackage()
+        self.updated_refpkg = refpkg.ReferencePackage()
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("lineages", 0),
@@ -794,35 +794,35 @@ class Creator(TreeSAPP):
             rmtree(self.var_output_dir)
         return
 
-    def determine_model(self, refpkg: ReferencePackage, estimate=False) -> None:
-        if refpkg.tree_tool == "FastTree":
-            if refpkg.molecule == "prot":
+    def determine_model(self, ref_pkg: refpkg.ReferencePackage, estimate=False) -> None:
+        if ref_pkg.tree_tool == "FastTree":
+            if ref_pkg.molecule == "prot":
                 evo_model = "LG+G4"
-            elif refpkg.molecule == "rrna" or refpkg.molecule == "dna":
+            elif ref_pkg.molecule == "rrna" or ref_pkg.molecule == "dna":
                 evo_model = "GTR+G"
             else:
-                logging.error("Unrecognized reference package molecule type: '{}'.\n".format(refpkg.molecule))
+                logging.error("Unrecognized reference package molecule type: '{}'.\n".format(ref_pkg.molecule))
                 sys.exit(3)
-            if refpkg.sub_model:
+            if ref_pkg.sub_model:
                 logging.warning("Model provided '{}' will be ignored when FastTree is used to infer phylogeny.\n"
-                                "".format(refpkg.sub_model))
-        elif refpkg.tree_tool == "RAxML-NG":
+                                "".format(ref_pkg.sub_model))
+        elif ref_pkg.tree_tool == "RAxML-NG":
             if estimate:
                 evo_model = estimate_ml_model(modeltest_exe=self.executables["ModelTest-NG"],
-                                              msa=refpkg.f__msa, output_prefix=self.phy_dir, molecule=refpkg.molecule)
-            elif not refpkg.sub_model:
-                if refpkg.molecule == "prot":
+                                              msa=ref_pkg.f__msa, output_prefix=self.phy_dir, molecule=ref_pkg.molecule)
+            elif not ref_pkg.sub_model:
+                if ref_pkg.molecule == "prot":
                     evo_model = "LG+G4"
                 else:
                     evo_model = "GTR+G"
             else:
-                logging.debug("Using specified RAxML-NG-compatible model: '{}'.\n".format(refpkg.sub_model))
-                evo_model = refpkg.sub_model
+                logging.debug("Using specified RAxML-NG-compatible model: '{}'.\n".format(ref_pkg.sub_model))
+                evo_model = ref_pkg.sub_model
         else:
-            logging.error("Unexpected phylogenetic inference tool: '{}'.\n".format(refpkg.tree_tool))
+            logging.error("Unexpected phylogenetic inference tool: '{}'.\n".format(ref_pkg.tree_tool))
             sys.exit(3)
 
-        refpkg.sub_model = evo_model
+        ref_pkg.sub_model = evo_model
         return
 
     def print_terminal_commands(self):
@@ -1033,11 +1033,11 @@ class TaxonTest:
                                 "\t\n".join(off_targets[marker]) + "\n")
         return
     
-    def clade_exclusion_outputs(self, refpkg: ReferencePackage, output_dir: str, tool: str) -> None:
+    def clade_exclusion_outputs(self, ref_pkg: refpkg.ReferencePackage, output_dir: str, tool: str) -> None:
         """
         Creates a TaxonTest instance that stores file paths and settings relevant to a clade exclusion analysis
 
-        :param refpkg: The ReferencePackage object that is to be used for clade exclusion
+        :param ref_pkg: The ReferencePackage object that is to be used for clade exclusion
         :param output_dir: Root directory for the various outputs for this TaxonTest
         :param tool: Name of the tool used for classifying query sequences: 'graft', 'diamond' or 'treesapp'
         :return: TaxonTest instance
@@ -1045,7 +1045,7 @@ class TaxonTest:
         taxon_path = re.sub(r"([ /])", '_', self.taxon)
         taxon_path = re.sub(r"([()'\[\]])", '', taxon_path)
 
-        self.intermediates_dir = os.path.join(output_dir, refpkg.prefix, taxon_path) + os.sep
+        self.intermediates_dir = os.path.join(output_dir, ref_pkg.prefix, taxon_path) + os.sep
         if not os.path.isdir(self.intermediates_dir):
             os.makedirs(self.intermediates_dir)
 
@@ -1054,10 +1054,10 @@ class TaxonTest:
 
         if tool in ["graftm", "diamond"]:
             self.classification_table = self.classifications_root + taxon_path + os.sep + taxon_path + "_read_tax.tsv"
-            self.refpkg_path = self.intermediates_dir + refpkg.prefix + '_' + taxon_path + ".gpkg"
+            self.refpkg_path = self.intermediates_dir + ref_pkg.prefix + '_' + taxon_path + ".gpkg"
         else:
             self.classification_table = self.classifications_root + "final_outputs" + os.sep + "classifications.tsv"
-            self.refpkg_path = os.path.join(self.intermediates_dir, refpkg.prefix + refpkg.refpkg_suffix)
+            self.refpkg_path = os.path.join(self.intermediates_dir, ref_pkg.prefix + ref_pkg.refpkg_suffix)
 
         return 
 
@@ -1139,7 +1139,7 @@ class Evaluator(TreeSAPP):
         taxa_test_inst = TaxonTest(lineage)
         self.taxa_tests[rank].append(taxa_test_inst)
 
-        taxa_test_inst.clade_exclusion_outputs(output_dir=self.var_output_dir, refpkg=self.ref_pkg, tool=tool)
+        taxa_test_inst.clade_exclusion_outputs(output_dir=self.var_output_dir, ref_pkg=self.ref_pkg, tool=tool)
         
         return taxa_test_inst
 
@@ -1411,7 +1411,7 @@ class Evaluator(TreeSAPP):
 class Abundance(TreeSAPP):
     def __init__(self):
         super(Abundance, self).__init__("abundance")
-        self.target_refpkgs = list()
+        self.target_refpkgs = dict()
         self.ref_nuc_seqs = ""
         self.classifications = ""
         self.aln_file = ""
@@ -1516,6 +1516,21 @@ class Abundance(TreeSAPP):
             file_name, suffix = os.path.splitext(file_name)
         file_prefix = '.'.join(file_name.split('.'))
         self.sample_prefix = self.fq_suffix_re.sub('', file_prefix)
+        return
+
+    def fetch_refpkgs_used(self, refpkg_dir=None) -> None:
+        if refpkg_dir:
+            self.target_refpkgs = refpkg.gather_ref_packages(refpkg_data_dir=refpkg_dir)
+            self.refpkg_dir = refpkg_dir
+        else:
+            # Load the reference packages in intermediates/, or the reference packages provided through refpkg_dir
+            self.target_refpkgs = refpkg.load_refpkgs_from_assign_output(self.var_output_dir)
+            if not self.target_refpkgs:
+                self.target_refpkgs = refpkg.gather_ref_packages(self.refpkg_dir)
+            else:
+                self.refpkg_dir = self.var_output_dir
+        if os.sep != self.refpkg_dir[-1]:
+            self.refpkg_dir += os.sep
         return
 
 

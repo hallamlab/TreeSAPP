@@ -197,5 +197,30 @@ class PurityTester(unittest.TestCase):
         return
 
 
+class AbundanceTester(unittest.TestCase):
+    def test_fetch_refpkgs_used(self):
+        from treesapp.classy import Abundance
+        from .testing_utils import get_treesapp_root, get_test_data
+        mock_abund = Abundance()
+        assign_output_intermediates = get_test_data(os.path.join("test_output_TarA", "intermediates"))
+        test_refpkg_dir = get_test_data("refpkgs")
+        # Test using the packaged reference packages
+        mock_abund.fetch_refpkgs_used()
+        self.assertEqual(os.path.join(get_treesapp_root(), "data"), os.path.dirname(mock_abund.refpkg_dir))
+        self.assertEqual(33, len(mock_abund.target_refpkgs))
+
+        # Test with the reference packages stashed in the treesapp assign output
+        mock_abund.var_output_dir = assign_output_intermediates
+        mock_abund.fetch_refpkgs_used()
+        self.assertEqual(assign_output_intermediates, os.path.dirname(mock_abund.refpkg_dir))
+        self.assertEqual(["DsrAB", "McrA", "McrB"], sorted(list(mock_abund.target_refpkgs)))
+
+        # Test with the reference package path provided
+        mock_abund.fetch_refpkgs_used(test_refpkg_dir)
+        self.assertEqual(test_refpkg_dir, os.path.dirname(mock_abund.refpkg_dir))
+        self.assertEqual(5, len(mock_abund.target_refpkgs))
+        return
+
+
 if __name__ == '__main__':
     unittest.main()
