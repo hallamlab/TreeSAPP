@@ -53,7 +53,7 @@ class ClassifierTester(unittest.TestCase):
         return
 
     def test_find_msa_type(self):
-        from utilities import find_msa_type
+        from treesapp.utilities import find_msa_type
         # Test failure with an unrecognized file extension
         with pytest.raises(SystemExit):
             find_msa_type({"PuhA": ["mock_msa.stk"]})
