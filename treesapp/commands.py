@@ -235,7 +235,8 @@ def train(sys_args):
     ##
     # STAGE 3: Download the taxonomic lineages for each query sequence
     ##
-    entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule,
+    entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs,
+                                                          molecule=ts_trainer.ref_pkg.molecule,
                                                           acc_to_taxid=args.acc_to_taxid,
                                                           seqs_to_lineage=args.seq_names_to_taxa)
 
@@ -787,7 +788,8 @@ def update(sys_args):
                                                          ts_updater.ref_pkg.prefix)
         querying_classified_fasta.synchronize_seqs_n_headers()
         querying_classified_fasta.swap_headers(name_map)
-        fasta_records = ts_updater.fetch_entrez_lineages(ref_seqs=querying_classified_fasta, molecule=args.molecule,
+        fasta_records = ts_updater.fetch_entrez_lineages(ref_seqs=querying_classified_fasta,
+                                                         molecule=ts_updater.ref_pkg.molecule,
                                                          seqs_to_lineage=ts_updater.seq_names_to_taxa)
         entrez_utils.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
         ref_leaf_nodes = ts_phylo_seq.convert_entrez_to_tree_leaf_references(fasta_records)
@@ -1246,11 +1248,11 @@ def evaluate(sys_args):
 
     # Load FASTA data
     query_fasta = fasta.FASTA(args.input)
-    query_fasta.load_fasta(format_it=True, molecule=args.molecule)
+    query_fasta.load_fasta(format_it=True, molecule=ts_evaluate.molecule_type)
     if args.length:
         query_fasta.trim_to_length(args.length)
 
-    fasta_records = ts_evaluate.fetch_entrez_lineages(query_fasta, args.molecule, args.acc_to_taxid)
+    fasta_records = ts_evaluate.fetch_entrez_lineages(query_fasta, ts_evaluate.molecule_type, args.acc_to_taxid)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
     query_leaf_nodes = ts_phylo_seq.convert_entrez_to_tree_leaf_references(fasta_records)
     ts_evaluate.ref_pkg.taxa_trie.feed_leaf_nodes(query_leaf_nodes)

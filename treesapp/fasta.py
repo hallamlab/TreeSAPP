@@ -844,14 +844,14 @@ def guess_sequence_type(max_eval=100, req_perc=0.95, **kwargs) -> str:
         raise ValueError
 
     seqs_read = 0
-    seq_counts = {"aa": 0, "nuc": 0}
+    seq_counts = {"prot": 0, "dna": 0}
     for seq in fasta_seqs:
         seq = seq.lower()
 
         if is_nucleotide(seq, req_perc):
-            seq_counts["nuc"] += 1
+            seq_counts["dna"] += 1
         elif is_protein(seq, req_perc):
-            seq_counts["aa"] += 1
+            seq_counts["prot"] += 1
 
         seqs_read += 1
         if seqs_read > max_eval:
@@ -859,6 +859,7 @@ def guess_sequence_type(max_eval=100, req_perc=0.95, **kwargs) -> str:
 
     majority = max(seq_counts, key=seq_counts.get)
     if seq_counts[majority] > 0.95*seqs_read:
+        logging.debug("Sequences appear to be '{}'.\n".format(majority))
         return majority
     else:
         return ""

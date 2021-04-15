@@ -324,7 +324,15 @@ class TreeSAPP:
             self.set_output_dirs()
             if set(vars(args)).issuperset({"molecule", "input"}):
                 self.input_sequences = args.input
-                self.molecule_type = args.molecule
+                if args.molecule:
+                    self.molecule_type = args.molecule
+                else:
+                    self.molecule_type = fasta.guess_sequence_type(fasta_file=self.input_sequences)
+                    if not self.molecule_type:
+                        logging.error("Unable to automatically detect the molecule type of '{}'.\n"
+                                      "Please rerun with the argument '--molecule'.\n".format(self.input_sequences))
+                        sys.exit(7)
+
                 file_name, suffix1 = os.path.splitext(os.path.basename(self.input_sequences))
                 if suffix1 == ".gz":
                     file_name, suffix2 = os.path.splitext(file_name)

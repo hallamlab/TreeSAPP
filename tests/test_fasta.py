@@ -236,11 +236,11 @@ class FastaUtilitiesTester(unittest.TestCase):
 
         # Test with fasta file for amino acid sequences
         seq_type = guess_sequence_type(fasta_file=self.test_aa_fa)
-        self.assertEqual("aa", seq_type)
+        self.assertEqual("prot", seq_type)
 
         # Test with fasta file and nucleotide sequences
         seq_type = guess_sequence_type(fasta_file=self.test_nuc_fa)
-        self.assertEqual("nuc", seq_type)
+        self.assertEqual("dna", seq_type)
 
         # Test with dictionary and a lot of ambiguity characters
         fa_dict = read_fasta_to_dict(self.troublesome_fa)

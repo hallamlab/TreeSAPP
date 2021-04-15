@@ -18,6 +18,7 @@ We recommend updating to this version, and updating reference packages you have 
   the reference sequences through their unique descriptions (organism name and accession).
 -  `treesapp package view tree` will print a Newick tree with each leaf node's accession and description.
 - `treesapp abundance` creates a simple_bar.txt file for each sample analyzed.
+- Ability to automatically detect the sequence type based on the input provided.
 
 ### Fixed
 - Segmentation fault from Prodigal is no longer possible as `treesapp assign` verifies input presence earlier.

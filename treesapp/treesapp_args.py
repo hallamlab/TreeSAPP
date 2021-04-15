@@ -98,9 +98,9 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       " [DEFAULT = False]")
         self.optopt.add_argument('-w', '--min_seq_length', default=30, type=int,
                                  help='minimal sequence length after alignment trimming [DEFAULT = 30]')
-        self.optopt.add_argument('-m', '--molecule', default='dna', choices=['prot', 'dna', 'rrna'],
-                                 help="Type of input sequences "
-                                      "(prot = protein; dna = nucleotide [DEFAULT]; rrna = rRNA)")
+        self.optopt.add_argument('-m', '--molecule', choices=['prot', 'dna', 'rrna'], required=False, default="",
+                                 help="Type of input sequences (prot = protein; dna = nucleotide; rrna = rRNA). "
+                                      "TreeSAPP will guess by default but this may be required if ambiguous.")
 
     def add_search_params(self):
         self.hmmer_args.add_argument("-s", "--stringency",
@@ -614,7 +614,7 @@ def check_create_arguments(creator: Creator, args) -> None:
         creator.ref_pkg.tree_tool = "RAxML-NG"
     creator.ref_pkg.prefix = args.refpkg_name
     creator.ref_pkg.pid = args.similarity
-    creator.ref_pkg.molecule = args.molecule
+    creator.ref_pkg.molecule = creator.molecule_type
     creator.ref_pkg.kind = args.kind
     creator.ref_pkg.sub_model = args.raxml_model
     creator.ref_pkg.f__pkl = creator.final_output_dir + creator.ref_pkg.prefix + creator.ref_pkg.refpkg_suffix
