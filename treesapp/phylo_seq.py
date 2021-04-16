@@ -551,6 +551,17 @@ class TreeLeafReference:
         self.accession = ""
         self.complete = False
 
+    def match_tree_leaf(self, leaf_name: str, refpkg_name="") -> bool:
+        if leaf_name == self.description:
+            return True
+        elif leaf_name in self.description.split(" | "):
+            return True
+        elif leaf_name == self.number:
+            return True
+        elif refpkg_name and leaf_name == self.number + "_" + refpkg_name:
+            return True
+        return False
+
     def summarize_tree_leaf(self):
         summary_string = "Leaf ID:\n\t{}\n".format(str(self.number)) +\
                          "Description:\n\t'{}'\n".format(str(self.description))

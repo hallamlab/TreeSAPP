@@ -148,8 +148,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                            "beyond which EPA placements are unclassified. [ DEFAULT = 2.0 ]")
         self.pplace_args.add_argument("--placement_summary", default="max_lwr", choices=["aelw", "max_lwr"],
                                       dest="p_sum",
-                                      help="Controls the algorithm for consolidating multiple phylogenetic placements."
-                                           "Max LWR will take use the phylogenetic placement with greatest LWR."
+                                      help="Controls the algorithm for consolidating multiple phylogenetic placements. "
+                                           "Max LWR will take use the phylogenetic placement with greatest LWR. "
                                            "aELW uses the taxon with greatest accumulated LWR across placements.")
 
     def add_compute_miscellany(self):

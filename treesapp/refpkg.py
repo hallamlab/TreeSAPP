@@ -584,23 +584,29 @@ class ReferencePackage:
                 leaf_names.pop(i)
 
         # The remaining names in leaf_names refer to individual leaf nodes, not higher-level taxa
-        for leaf_name in leaf_names:
-            leaves = self.get_leaf_node_by_name(leaf_name)
-            if leaves:
-                taxon_leaf_map[leaf_name] = [leaf.number + '_' + self.prefix for leaf in leaves]
+        matched_leaves = self.get_leaf_nodes_by_name(leaf_names)
+        mia_leaves = []
+        for ref_leaf in leaf_names:  # type: str
+            try:
+                taxon_leaf_map[ref_leaf] = [leaf.number + '_' + self.prefix for leaf in matched_leaves[ref_leaf]]
+            except KeyError:
+                mia_leaves.append(ref_leaf)
+
+        if len(mia_leaves) > 0:
+            logging.warning("Unable to find all leaves '{}' in {} reference package leaves.\n"
+                            "".format(", ".join(mia_leaves), self.prefix))
         return taxon_leaf_map
 
-    def get_leaf_node_by_name(self, leaf_name: str) -> list:
-        leaves = []
-        for leaf_node in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
-            if leaf_name == leaf_node.description:
-                leaves.append(leaf_node)
-            desc, acc = leaf_node.description.split(" | ")
-            if leaf_name == desc or leaf_name == acc:
-                leaves.append(leaf_node)
-
-        if len(leaves) == 0:
-            logging.warning("Unable to find leaf '{}' in {} reference package leaves.\n".format(leaf_name, self.prefix))
+    def get_leaf_nodes_by_name(self, leaf_names) -> dict:
+        leaves = {}
+        leaf_nodes = self.generate_tree_leaf_references_from_refpkg()
+        for leaf_name in leaf_names:  # type: str
+            for tree_leaf in leaf_nodes:  # type: TreeLeafReference
+                if tree_leaf.match_tree_leaf(leaf_name, refpkg_name=self.prefix):
+                    try:
+                        leaves[leaf_name].append(tree_leaf)
+                    except KeyError:
+                        leaves[leaf_name] = [tree_leaf]
 
         return leaves
 
@@ -1122,6 +1128,7 @@ class ReferencePackage:
         inode_features = self.convert_feature_indices_to_inodes(feature_map)
 
         inode_leaf_map = self.get_internal_node_leaf_map()
+        all_leaves = set(sum(inode_leaf_map.values(), []))
         # Pull the current annotations in case it can be appended to
         try:
             clade_annots = self.feature_annotations[feature_name]
@@ -1156,12 +1163,27 @@ class ReferencePackage:
             # Populate the taxa and members attributes
             for index in indices:
                 ca.members.update(inode_leaf_map[index])
+                for leaf in inode_leaf_map[index]:
+                    try:
+                        all_leaves.remove(leaf)
+                    except KeyError:
+                        pass
             if taxon:
                 ca.taxa.update([taxon])
 
         # Remove the feature from feature_annotations it there are no CladeAnnotation entries
         if len(self.feature_annotations[feature_name]) == 0:
             self.feature_annotations.pop(feature_name)
+
+        # Report the leaves that were not annotated by their descriptions and lineages
+        missing_leaf_map = self.get_leaf_nodes_by_name(all_leaves)
+        missing_ref_leaves = sum(missing_leaf_map.values(), [])
+        unique_lineages = sorted(set([ref_leaf.lineage for ref_leaf in missing_ref_leaves]))
+        unique_descs = sorted([ref_leaf.description for ref_leaf in missing_ref_leaves])
+        logging.info("{} references were not annotated. More info can be found in log.\n".format(len(all_leaves)))
+        logging.debug("Unique lineages remaining unannotated:\n\t{}\n"
+                      "Descriptions of unannotated reference leaves:\n\t{}\n".format("\n\t".join(unique_lineages),
+                                                                                     "\n\t".join(unique_descs)))
 
         return
 
@@ -1238,6 +1260,9 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) 
             logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, refpkg.f__pkl))
             sys.exit(7)
     elif k == "feature_annotations":
+        if not os.path.isfile(kwargs["phenotypes"]):
+            logging.error("A taxonomy-phenotype table must be provided to update the feature_annotations attribute.\n")
+            sys.exit(7)
         taxa_phenotype_map = read_phenotypes(kwargs["phenotypes"])
         refpkg.add_feature_annotations(feature_name=v, feature_map=taxa_phenotype_map, reset=kwargs["reset"])
         v = refpkg.feature_annotations
