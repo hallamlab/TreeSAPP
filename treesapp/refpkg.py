@@ -14,7 +14,7 @@ from pandas import DataFrame
 import joblib
 
 from treesapp.phylo_seq import TreeLeafReference
-from treesapp.entish import annotate_partition_tree, label_internal_nodes_ete, verify_bifurcations
+from treesapp import entish
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
@@ -353,7 +353,7 @@ class ReferencePackage:
                                                                                       self.num_seqs,
                                                                                       len(rt)))
             return False
-        self.tree = verify_bifurcations(self.tree)
+        self.tree = entish.verify_bifurcations(self.tree)
 
         # Compare the number of sequences in lineage IDs
         n_leaf_nodes = len(self.generate_tree_leaf_references_from_refpkg())
@@ -411,7 +411,7 @@ class ReferencePackage:
                 self.tree = self.tree.pop(0)
 
         rt = Tree(self.tree)
-        label_internal_nodes_ete(rt)
+        entish.label_internal_nodes_ete(rt)
         return rt
 
     def get_internal_node_leaf_map(self) -> dict:
@@ -821,7 +821,7 @@ class ReferencePackage:
     def recover_raxmlng_supports(self, phylogeny_dir: str) -> None:
         # Annotate the bootstrapped phylogeny
         bootstrap_tree = match_file(phylogeny_dir + "*.raxml.support")
-        annotate_partition_tree(self.prefix, self.generate_tree_leaf_references_from_refpkg(), bootstrap_tree)
+        entish.annotate_partition_tree(self.prefix, self.generate_tree_leaf_references_from_refpkg(), bootstrap_tree)
         copy(bootstrap_tree, self.f__boot_tree)
         return
 
@@ -1094,8 +1094,6 @@ class ReferencePackage:
         # Generate the sets for taxa and internal nodes to compare to
         taxa_names = self.taxa_trie.get_taxon_names(with_prefix=True)
         internal_nodes = {str(k): v for k, v in self.get_internal_node_leaf_map().items()}
-        leaf_names = {ref.number + '_' + self.prefix for ref in self.generate_tree_leaf_references_from_refpkg()}
-        leaf_descriptions = {ref.description: ref for ref in self.generate_tree_leaf_references_from_refpkg()}
 
         for index, feature in feature_map.items():  # type: (str, str)
             if index in taxa_names:
@@ -1103,18 +1101,20 @@ class ReferencePackage:
                     internal_node_feature_map[i_node] = (feature, index)
             elif index in internal_nodes:
                 internal_node_feature_map[int(index)] = (feature, '')
-            elif index in leaf_names:
-                for i_node in internal_nodes:
-                    if internal_nodes[i_node] == [index]:
-                        internal_node_feature_map[int(i_node)] = (feature, '')
-            elif index in leaf_descriptions:
-                ref_leaf = leaf_descriptions[index]
-                for i_node in internal_nodes:
-                    if internal_nodes[i_node] == [ref_leaf.number + '_' + self.prefix]:
-                        internal_node_feature_map[int(i_node)] = (feature, index)
-                        break
             else:
                 unmapped.append(index)
+
+        taxon_leaf_map = self.map_taxa_to_leaf_nodes(unmapped)
+        for index, feature in feature_map.items():  # type: (str, str)
+            if index not in unmapped:
+                continue
+            try:
+                for i_node in entish.match_leaves_to_internal_nodes(leaf_names=taxon_leaf_map[index],
+                                                                    internal_node_leaf_map=internal_nodes):
+                    internal_node_feature_map[int(i_node)] = (feature, '')
+                unmapped.remove(index)
+            except KeyError:
+                pass
 
         if unmapped:
             logging.warning("Unable to find the following feature indices in taxa, leaves or internal nodes:\n\t" +
@@ -1163,17 +1163,22 @@ class ReferencePackage:
             # Populate the taxa and members attributes
             for index in indices:
                 ca.members.update(inode_leaf_map[index])
-                for leaf in inode_leaf_map[index]:
-                    try:
-                        all_leaves.remove(leaf)
-                    except KeyError:
-                        pass
             if taxon:
                 ca.taxa.update([taxon])
 
         # Remove the feature from feature_annotations it there are no CladeAnnotation entries
         if len(self.feature_annotations[feature_name]) == 0:
             self.feature_annotations.pop(feature_name)
+            logging.warning("No clade annotations were made for feature '{}'.\n".format(feature_name))
+            return
+
+        # Identify the reference package leaves that are not annotated
+        for ca in self.feature_annotations[feature_name]:
+            for leaf_name in ca.members:
+                try:
+                    all_leaves.remove(leaf_name)
+                except KeyError:
+                    pass  # Probably already present in one or more CladeAnnotation.members
 
         # Report the leaves that were not annotated by their descriptions and lineages
         missing_leaf_map = self.get_leaf_nodes_by_name(all_leaves)
@@ -1260,7 +1265,7 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) 
             logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, refpkg.f__pkl))
             sys.exit(7)
     elif k == "feature_annotations":
-        if not os.path.isfile(kwargs["phenotypes"]):
+        if "phenotypes" not in kwargs or not os.path.isfile(kwargs["phenotypes"]):
             logging.error("A taxonomy-phenotype table must be provided to update the feature_annotations attribute.\n")
             sys.exit(7)
         taxa_phenotype_map = read_phenotypes(kwargs["phenotypes"])

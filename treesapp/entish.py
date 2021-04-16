@@ -38,6 +38,18 @@ def label_internal_nodes_ete(ete_tree: Tree) -> None:
     return
 
 
+def match_leaves_to_internal_nodes(leaf_names: list, internal_node_leaf_map: dict) -> list:
+    """Finds the minimal set of internal nodes that represent all tree leaves in leaf_names."""
+    node_leaf_map = []
+    leaf_set = set(leaf_names)
+    for i_node in sorted(internal_node_leaf_map, key=lambda x: len(internal_node_leaf_map[x]), reverse=True):
+        if leaf_set.issuperset(internal_node_leaf_map[i_node]):
+            node_leaf_map.append(i_node)
+            for leaf_name in internal_node_leaf_map[i_node]:
+                leaf_set.remove(leaf_name)
+    return node_leaf_map
+
+
 def edge_from_node_name(ete_tree: Tree, node_name) -> int:
     """
     Returns the number corresponding to a node's proximal edge (i.e. the edge connecting the node to its parent)

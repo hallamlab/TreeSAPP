@@ -263,9 +263,19 @@ class RefPkgTester(unittest.TestCase):
         self.mutable_ref_pkg.add_feature_annotations(feature_name="test", feature_map={"g__Methanosarcina": "Aceticlastic",
                                                                                        "p__Candidatus Helarchaeota": "SCAO",
                                                                                        "c__Methanobacteria": "Hydrogenotrophic",
-                                                                                       "116_McrA": "Hydrogenotrophic"})
+                                                                                       "116_McrA": "Hydrogenotrophic",
+                                                                                       "Methanoflorens stordalenmirensis": "Hydrogenotrophic"})
         self.assertEqual(1, len(self.mutable_ref_pkg.feature_annotations))
         self.assertEqual(3, len(self.mutable_ref_pkg.feature_annotations["test"]))
+        for ca in self.mutable_ref_pkg.feature_annotations["test"]:
+            if ca.name == "Hydrogenotrophic":
+                self.assertEqual(52, len(ca.members))
+            elif ca.name == "SCAO":
+                self.assertEqual(2, len(ca.members))
+            elif ca.name == "Aceticlastic":
+                self.assertEqual(13, len(ca.members))
+            else:
+                self.assertTrue(False)
 
         self.mutable_ref_pkg.add_feature_annotations(feature_name="test", feature_map={"p__Candidatus Bathyarchaeota": "SCAO",
                                                                                        "g__Candidatus Methanoperedens": "Methanotrophy"}, reset=True)
@@ -288,6 +298,12 @@ class RefPkgTester(unittest.TestCase):
 
         self.mutable_ref_pkg.slurp()
         self.assertEqual(new_value, self.mutable_ref_pkg.refpkg_code)
+
+        # Test a bad edit command where feature_annotations isn't provided with a taxa-phenotype map
+        with pytest.raises(SystemExit):
+            edit(refpkg=self.mutable_ref_pkg,
+                 output_dir=os.path.dirname(self.mutable_ref_pkg.f__pkl),
+                 attributes=["feature_annotations", "Paralog"])
 
         # Test updating a feature_annotation using a taxonomy-phenotype map with internal nodes
         edit(refpkg=self.mutable_ref_pkg,
