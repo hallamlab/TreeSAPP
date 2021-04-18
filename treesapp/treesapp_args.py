@@ -579,6 +579,7 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
 
 
 def check_trainer_arguments(phy_trainer: PhyTrainer, args):
+    phy_trainer.find_sequence_molecule_type()
     phy_trainer.ref_pkg.f__pkl = args.pkg_path
     phy_trainer.ref_pkg.slurp()
     phy_trainer.ref_pkg.validate()
@@ -607,6 +608,7 @@ def check_trainer_arguments(phy_trainer: PhyTrainer, args):
 
 
 def check_create_arguments(creator: Creator, args) -> None:
+    creator.find_sequence_molecule_type()
     # Populate ReferencePackage attributes from command-line arguments
     if args.fast:
         creator.ref_pkg.tree_tool = "FastTree"
@@ -689,6 +691,11 @@ def check_updater_arguments(updater: Updater, args):
     updater.ref_pkg.disband(os.path.join(updater.output_dir, "intermediates"))
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     # updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
+
+    if updater.input_sequences:
+        updater.find_sequence_molecule_type()
+    else:
+        updater.molecule_type = updater.ref_pkg.molecule
 
     if args.similarity == 1.0:
         updater.prop_sim = updater.ref_pkg.pid

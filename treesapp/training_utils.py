@@ -307,7 +307,9 @@ def augment_training_set(row: np.array, n_reps=3, feature_scale=0.2):
     n_features = len(row)
     # make copies of row
     training_set = np.array([])
-    for _ in range(n_reps):
+    if not n_reps:
+        n_reps = 1
+    for _i in range(n_reps):
         # create vector of random gaussians
         gauss = np.random.normal(loc=0.0, scale=feature_scale, size=len(row))
         # add to test case
@@ -317,99 +319,121 @@ def augment_training_set(row: np.array, n_reps=3, feature_scale=0.2):
     return training_set.reshape(n_reps, n_features)
 
 
-def vectorize_placement_data(condition_names: dict, classifieds: dict, refpkg_map: dict,
-                             annot_map=None) -> (np.array, list):
+def load_training_data_frame(pqueries: dict, refpkg_map: dict, refpkg_positive_annots: dict) -> pd.DataFrame:
     """
-    Creates a numpy array from each PQuery's attributes:
+    Uses attributes from PQuery and ReferencePackage instances to generate data that can be used for training a
+    classifier, such as sklearn.svm().
 
-1. the percentage of HMM profile covered
-2. number of nodes in reference phylogeny
-3. number of leaf node descendents of the query's placement edge
-4. the likelihood weight ratio and
-5. 6, 7, distal, pendant and average distance from placement position on an edge to all leaf tips.
-
-    :param condition_names: A dictionary of header names indexed by refpkg names. Used to determine whether the query
-     belongs to this class condition (e.g. true positive, false positive)
-    :param classifieds: A dictionary of JPlace instances, indexed by their respective RefPkg codes (denominators)
-    :param refpkg_map: A dictionary of ReferencePackage instances indexed by their respective prefix values
-    :param annot_map: A dictionary mapping ReferencePackage.prefix values to the names of database sequence names
-    :return: Summary of the distances and internal nodes for each of the false positives
+    :param pqueries: A dictionary of ReferencePackage.prefix keys indexing a list of all PQuery instances
+    classified as that reference package.
+    :param refpkg_map: A dictionary of ReferencePackage.prefix keys indexing that reference package.
+    :param refpkg_positive_annots: A dictionary listing the PQuery.seq_name strings indexed by ReferencePackage.prefix
+    :return: A pandas.DataFrame with the relevant data for training a classifier.
     """
-    rank_feature_vectors = {}
-    feature_vectors = np.array([])
-    pqueries_used = []
+    training_dat = dict(refpkg=[], tp=[], tax_rank=[],
+                        evalue=[], hmm_cov=[],
+                        leaves=[], lwr=[], distal=[], pendant=[], avg_tip_dist=[])
 
-    if len(condition_names) == 0:
-        return np.array(feature_vectors), pqueries_used
+    if len(refpkg_positive_annots) == 0:
+        return pd.DataFrame(training_dat)
 
-    # Generate feature vectors for each rank and index them in the rank_feature_vectors dictionary
-    for refpkg_name, pqueries in classifieds.items():
+    for refpkg_name, pqueries in pqueries.items():
         refpkg = refpkg_map[refpkg_name]  # type: ReferencePackage
         if not refpkg.profile_length:
             refpkg.hmm_length()
         internal_nodes = refpkg.get_internal_node_leaf_map()
 
         for pquery in pqueries:  # type: PQuery
+            if not pquery.classified:
+                continue
+
             placement = pquery.consensus_placement  # type: PhyloPlace
-            if annot_map:
-                ref_name = annot_map[pquery.ref_name]
-            else:
-                ref_name = pquery.ref_name
-            if pquery.seq_name in condition_names[ref_name]:
-                # Calculate the features
-                try:
-                    distal, pendant, avg = placement.distal_length, placement.pendant_length, placement.mean_tip_length
-                except AttributeError:
-                    distal, pendant, avg = [round(float(x), 3) for x in pquery.distances.split(',')]
+            # Calculate the features
+            try:
+                leaf_children = len(internal_nodes[int(placement.edge_num)])
+            except KeyError:
+                logging.error("Unable to find internal node '{}' in the {} node-leaf map indicating a discrepancy "
+                              "between reference package versions used by treesapp assign and those used here.\n"
+                              "Was the correct output directory provided?"
+                              "".format(placement.edge_num, pquery.ref_name))
+                sys.exit(5)
 
-                lwr_bin = round(float(placement.like_weight_ratio), 2)
-                # hmm_perc = round((int(pquery.seq_len)*100)/refpkg.profile_length, 1)
+            training_dat["refpkg"].append(refpkg.prefix)
+            training_dat["tp"].append(pquery.seq_name in refpkg_positive_annots[refpkg.prefix])
+            training_dat["tax_rank"].append(pquery.rank)
+            training_dat["evalue"].append(pquery.evalue)
+            training_dat["hmm_cov"].append(round((int(pquery.seq_len)*100)/refpkg.profile_length, 1))
+            training_dat["leaves"].append(leaf_children)
+            training_dat["lwr"].append(round(float(placement.like_weight_ratio), 3))
+            training_dat["distal"].append(placement.distal_length)
+            training_dat["pendant"].append(placement.pendant_length)
+            training_dat["avg_tip_dist"].append(placement.mean_tip_length)
 
-                try:
-                    leaf_children = len(internal_nodes[int(placement.edge_num)])
-                except KeyError:
-                    logging.error("Unable to find internal node '{}' in the {} node-leaf map indicating a discrepancy "
-                                  "between reference package versions used by treesapp assign and those used here.\n"
-                                  "Was the correct output directory provided?"
-                                  "".format(placement.edge_num, pquery.ref_name))
-                    sys.exit(5)
+    training_df = pd.DataFrame(training_dat)
+    return training_df
 
-                raw_array = np.array([leaf_children, pquery.evalue, lwr_bin, distal, pendant, avg])
-                try:
-                    rank_feature_vectors[pquery.rank].append(raw_array)
-                except KeyError:
-                    rank_feature_vectors[pquery.rank] = [raw_array]
-                pqueries_used.append(pquery)
+
+def split_placement_data_to_class_vectors(placement_training_df: pd.DataFrame) -> (np.array, np.array):
+    """
+    Creates a numpy array for true positives and false positives from a DataFrame.
+
+    :param placement_training_df: A pandas.DataFrame with the relevant data for training a classifier.
+    :return: Two numpy.array() instances holding data for true positives and false positives
+    """
+    tp_feature_vectors = np.array([])
+    fp_feature_vectors = np.array([])
+
+    if len(placement_training_df) == 0:
+        return np.array(tp_feature_vectors), np.array(fp_feature_vectors)
+
+    tp_feature_vectors = vectorize_placement_data_by_rank(placement_training_df[placement_training_df["tp"] == True])
+    fp_feature_vectors = vectorize_placement_data_by_rank(placement_training_df[placement_training_df["tp"] == False])
+
+    return tp_feature_vectors, fp_feature_vectors
+
+
+def vectorize_placement_data_by_rank(placement_training_df: pd.DataFrame) -> np.array:
+    """
+    Creates an array of numpy array for placement data and indexed by taxonomic rank.
+
+    :param placement_training_df: A pandas.DataFrame with the relevant data for training a classifier.
+    :return: Two numpy.array() instances holding data for true positives and false positives
+    """
+    rank_feature_vectors = {}
+    feature_vectors = np.array([])
+    columns = ["evalue", "hmm_cov", "leaves", "lwr", "distal", "pendant", "avg_tip_dist"]
+
+    if len(placement_training_df) == 0:
+        return np.array(feature_vectors)
+
+    # Generate feature vectors for each rank and index them in the rank_feature_vectors dictionary
+    for rank in placement_training_df.tax_rank.unique():
+        if not rank:
+            continue
+        rank_df = placement_training_df[placement_training_df["tax_rank"] == rank].filter(columns)
+        rank_feature_vectors[rank] = rank_df.to_numpy()
 
     # Match the normalized feature vectors with their respective PQuery instance and set PQuery.feature_vec
     if len(rank_feature_vectors) == 0:
-        return np.array(feature_vectors), pqueries_used
-    else:
-        for rank in rank_feature_vectors:
-            if len(rank_feature_vectors[rank]) > 0:
-                # rank_feature_vectors[rank] = preprocessing.normalize(rank_feature_vectors[rank], norm='l1')
-                i = 0
-                end = len(rank_feature_vectors[rank])
-                while i < end:
-                    pqueries_used[i].feature_vec = rank_feature_vectors[rank][i]
-                    i += 1
+        return np.array(feature_vectors)
 
-    # Augment the training data based on the number of samples available at each rank
+    # Augment the training data based on the number of examples available at each rank
     limit = max(len(rank_feature_vectors[r]) for r in rank_feature_vectors)
-    for rank in rank_feature_vectors:
-        for sample in rank_feature_vectors[rank]:
-            if len(rank_feature_vectors[rank]) < limit:
-                synthetic_samples = augment_training_set(sample)
-                rank_feature_vectors[rank] = np.append(rank_feature_vectors[rank], synthetic_samples, axis=0)
+    for rank, examples in rank_feature_vectors.items():
+        diff = limit - len(examples)
+        for row in examples:
+            if len(examples) < limit:
+                synthetic_samples = augment_training_set(row, n_reps=round(diff/len(rank_feature_vectors[rank])))
+                examples = np.append(examples, synthetic_samples, axis=0)
             else:
                 break
         # TODO: replace this, seems hacky
         try:
-            feature_vectors = np.append(feature_vectors, rank_feature_vectors[rank], axis=0)
+            feature_vectors = np.append(feature_vectors, examples, axis=0)
         except ValueError:
-            feature_vectors = np.array(rank_feature_vectors[rank])
+            feature_vectors = np.array(examples)
 
-    return feature_vectors, pqueries_used
+    return feature_vectors
 
 
 def generate_tsne(x, y, tsne_file):
@@ -670,7 +694,7 @@ def train_oc_classifier(x_train: np.array, kernel: str):
     return clf
 
 
-def train_classification_filter(true_pos: dict, true_pqueries: list, classified_data, conditions,
+def train_classification_filter(true_pos: dict, classified_data, conditions,
                                 x_train: np.array, x_test: np.array, y_train: np.array, y_test: np.array, kernel: str,
                                 tsne="", grid_search=False, num_procs=2) -> (dict, dict):
     """
@@ -688,7 +712,6 @@ def train_classification_filter(true_pos: dict, true_pqueries: list, classified_
     :param x_test:
     :param y_train:
     :param y_test:
-    :param true_pqueries: A list of PQuery instances for the true positive examples
     :param kernel: Specifies the kernel type to be used in the SVM algorithm. Choices are 'lin' 'poly' or 'rbf'.
     [ DEFAULT = lin ]
     :param tsne: Path to a file for writing the tSNE plot. Also used to decide whether to create the tSNE plot

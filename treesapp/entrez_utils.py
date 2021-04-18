@@ -1276,9 +1276,12 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
                 curr_match = parent_re.search(assigned_seq_name)  # type: re.Match
                 if assigned_seq_name not in seq_name:
                     # Prevent seq_lineage_tbl 'seq_name's that are incomplete words from matching header names
-                    if not re.match(string=assigned_seq_name[curr_match.end()], pattern=r"[_\-\.,;: |]"):
-                        x += 1
-                        continue
+                    try:
+                        if not re.match(string=assigned_seq_name[curr_match.end()], pattern=r"[_\-\.,;: |]"):
+                            x += 1
+                            continue
+                    except IndexError:
+                        pass
                 # Now ensure that this is the best+longest match
                 if header.first_split not in classified_seq_lineage_map:
                     classified_seq_lineage_map[header.first_split] = seq_name

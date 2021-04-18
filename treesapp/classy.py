@@ -326,13 +326,6 @@ class TreeSAPP:
                 self.input_sequences = args.input
                 if args.molecule:
                     self.molecule_type = args.molecule
-                else:
-                    self.molecule_type = fasta.guess_sequence_type(fasta_file=self.input_sequences)
-                    if not self.molecule_type:
-                        logging.error("Unable to automatically detect the molecule type of '{}'.\n"
-                                      "Please rerun with the argument '--molecule'.\n".format(self.input_sequences))
-                        sys.exit(7)
-
                 file_name, suffix1 = os.path.splitext(os.path.basename(self.input_sequences))
                 if suffix1 == ".gz":
                     file_name, suffix2 = os.path.splitext(file_name)
@@ -537,6 +530,15 @@ class TreeSAPP:
             logging.debug("Proceeding with '{}'\n".format(args.stage))
             self.edit_stages(desired_stage, desired_stage)
 
+        return
+
+    def find_sequence_molecule_type(self):
+        if not self.molecule_type:
+            self.molecule_type = fasta.guess_sequence_type(fasta_file=self.input_sequences)
+            if not self.molecule_type:
+                logging.error("Unable to automatically detect the molecule type of '{}'.\n"
+                              "Please rerun with the argument '--molecule'.\n".format(self.input_sequences))
+                sys.exit(7)
         return
 
     def find_executables(self, args) -> dict:
@@ -863,6 +865,7 @@ class Purity(TreeSAPP):
                        2: ModuleFunction("summarize", 2)}
 
     def check_purity_arguments(self, args):
+        self.find_sequence_molecule_type()
         self.ref_pkg.f__pkl = args.pkg_path
         self.ref_pkg.slurp()
         self.refpkg_dir = os.path.dirname(os.path.realpath(self.ref_pkg.f__pkl))
@@ -901,7 +904,7 @@ class Purity(TreeSAPP):
     def summarize_groups_assigned(self, ortholog_map: dict, metadata=None):
         unique_orthologs = dict()
         tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
-        for refpkg, info in self.assignments.items():
+        for _ref_pkg, info in self.assignments.items():
             for lineage in info:
                 for seq_name in info[lineage]:
                     bits_pieces = seq_name.split('_')
@@ -1614,8 +1617,8 @@ class PhyTrainer(TreeSAPP):
 
 
 class EvaluateStats:
-    def __init__(self, refpkg: str, rank: str, dist: int):
-        self.refpkg = refpkg
+    def __init__(self, ref_pkg: str, rank: str, dist: int):
+        self.ref_pkg = ref_pkg
         self.rank = rank
         self.offset = dist
         self.n_qs = 0  # The number of query sequences used to evaluate this Rank
@@ -1626,7 +1629,7 @@ class EvaluateStats:
         self.proportion = 0.0
 
     def get_info(self):
-        info_str = "# Evaluation stats for '" + self.refpkg + "' at rank: " + self.rank + "\n"
+        info_str = "# Evaluation stats for '" + self.ref_pkg + "' at rank: " + self.rank + "\n"
         info_str += "Taxonomic rank distance = " + str(self.offset) + "\n"
         info_str += "Queries\tCorrect\tCumulative\tOver-Pred\tUnder-Pred\n"
         info_str += "\t".join([str(val) for val in
@@ -1634,7 +1637,7 @@ class EvaluateStats:
         return info_str
 
     def linear_stats(self):
-        stat_fields = [self.refpkg, self.rank, self.offset,
+        stat_fields = [self.ref_pkg, self.rank, self.offset,
                        self.n_qs, self.correct, self.cumulative, self.over_p, self.under_p]
         return "\t".join([str(val) for val in stat_fields])
 

@@ -350,7 +350,6 @@ class TreesappTester(unittest.TestCase):
                               "--profile",
                               "--max_examples", str(max_ex),
                               "--num_proc", str(self.num_procs),
-                              "--molecule", "prot",
                               "--svm_kernel", "rbf",
                               "--classifier", "bin",
                               "--trim_align", "--delete", "--overwrite"]
@@ -376,7 +375,6 @@ class TreesappTester(unittest.TestCase):
                                "--treesapp_output", get_test_data("assign_SwissProt_PuhA/"),
                                "--output", "./TreeSAPP_update",
                                "--num_proc", str(self.num_procs),
-                               "--molecule", "prot",
                                "--trim_align", "--cluster", "--fast", "--headless",
                                "--overwrite", "--delete", "--skip_assign", "--resolve"]
         update(update_command_list)
@@ -393,7 +391,6 @@ class TreesappTester(unittest.TestCase):
                                "--seqs2lineage", get_test_data("SwissProt_PuhA_seqs2lineage.txt"),
                                "--output", "./TreeSAPP_update",
                                "--num_procs", str(self.num_procs),
-                               "--molecule", "prot",
                                "-b", str(0),
                                "--trim_align", "--cluster", "--fast", "--headless",
                                "--overwrite", "--delete", "--skip_assign"]

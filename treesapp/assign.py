@@ -68,6 +68,7 @@ class Assigner(classy.TreeSAPP):
             logging.error("FASTX input file '{}' doesn't exist.\n".format(self.input_sequences))
             sys.exit(5)
 
+        self.find_sequence_molecule_type()
         self.classification_table = self.final_output_dir + os.sep + self.classification_tbl_name
         self.itol_out = self.output_dir + 'iTOL_output' + os.sep
         self.classified_aa_seqs = self.final_output_dir + self.sample_prefix + "_classified.faa"

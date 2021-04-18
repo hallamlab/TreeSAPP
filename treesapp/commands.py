@@ -349,10 +349,11 @@ def train(sys_args):
                 fp_names[refpkg_name] = [qseq.seq_name for qseq in fp_query_seqs]
 
         logging.info("Extracting features from TreeSAPP classifications... ")
-        tp, t_pqs = training_utils.vectorize_placement_data(condition_names=tp_names, classifieds=refpkg_pqueries,
-                                                            refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
-        fp, f_pqs = training_utils.vectorize_placement_data(condition_names=fp_names, classifieds=refpkg_pqueries,
-                                                            refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+        training_df = training_utils.load_training_data_frame(pqueries=refpkg_pqueries,
+                                                              refpkg_map={ts_trainer.ref_pkg.prefix:
+                                                                          ts_trainer.ref_pkg},
+                                                              refpkg_positive_annots=tp_names)
+        tp, fp = training_utils.split_placement_data_to_class_vectors(training_df)
         logging.info("done.\n")
 
         # Split the training and testing data from the classifications
@@ -361,14 +362,14 @@ def train(sys_args):
         training_utils.save_np_array(classified_data, ts_trainer.feature_vector_file)
         training_utils.save_np_array(conditions, ts_trainer.conditions_file)
         # Train the classifier
-        refpkg_classifiers = training_utils.train_classification_filter(tp_names, t_pqs, classified_data, conditions,
-                                                                        x_train, x_test, y_train, y_test,
-                                                                        kernel=args.kernel, tsne=ts_trainer.tsne_plot,
-                                                                        grid_search=args.grid_search,
-                                                                        num_procs=args.num_threads)
+        training_utils.train_classification_filter(tp_names, classified_data, conditions,
+                                                   x_train, x_test, y_train, y_test,
+                                                   kernel=args.kernel, tsne=ts_trainer.tsne_plot,
+                                                   grid_search=args.grid_search,
+                                                   num_procs=args.num_threads)
         ts_trainer.increment_stage_dir()
     else:
-        refpkg_classifiers = {}
+        training_df = training_utils.load_training_data_frame({}, {}, {})
 
     if ts_trainer.stage_status("update"):
         if not ts_trainer.ref_pkg.pfit:
@@ -376,7 +377,7 @@ def train(sys_args):
                             "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
             ts_trainer.ref_pkg.pfit = [0.0, 7.0]
 
-        ts_trainer.ref_pkg.svc = refpkg_classifiers[ts_trainer.ref_pkg.prefix]
+        ts_trainer.ref_pkg.training_df = training_df
         ts_trainer.ref_pkg.f__pkl = os.path.join(ts_trainer.final_output_dir,
                                                  os.path.basename(ts_trainer.ref_pkg.f__pkl))
 
