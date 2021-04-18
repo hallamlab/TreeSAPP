@@ -165,7 +165,7 @@ def train(sys_args):
     treesapp_args.add_trainer_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_trainer = classy.PhyTrainer()
+    ts_trainer = training_utils.PhyTrainer()
     ts_trainer.furnish_with_arguments(args)
     ts_trainer.check_previous_output(args.overwrite)
 
@@ -174,7 +174,7 @@ def train(sys_args):
     logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
-    treesapp_args.check_trainer_arguments(ts_trainer, args)
+    ts_trainer.check_trainer_arguments(args)
     ts_trainer.set_file_paths()
     ts_trainer.decide_stage(args)
     ts_trainer.ref_pkg.disband(os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_RefPkg"))
@@ -353,20 +353,11 @@ def train(sys_args):
                                                               refpkg_map={ts_trainer.ref_pkg.prefix:
                                                                           ts_trainer.ref_pkg},
                                                               refpkg_positive_annots=tp_names)
-        tp, fp = training_utils.split_placement_data_to_class_vectors(training_df)
         logging.info("done.\n")
-
-        # Split the training and testing data from the classifications
-        classified_data, conditions, x_train, x_test, y_train, y_test = training_utils.generate_train_test_data(tp, fp)
-        # Save the feature vectors and condition vectors
-        training_utils.save_np_array(classified_data, ts_trainer.feature_vector_file)
-        training_utils.save_np_array(conditions, ts_trainer.conditions_file)
-        # Train the classifier
-        training_utils.train_classification_filter(tp_names, classified_data, conditions,
-                                                   x_train, x_test, y_train, y_test,
-                                                   kernel=args.kernel, tsne=ts_trainer.tsne_plot,
-                                                   grid_search=args.grid_search,
-                                                   num_procs=args.num_threads)
+        training_utils.train_classifier_from_dataframe(training_df, args.kernel,
+                                                       grid_search=args.grid_search,
+                                                       num_threads=args.num_threads,
+                                                       tsne=ts_trainer.tsne_plot)
         ts_trainer.increment_stage_dir()
     else:
         training_df = training_utils.load_training_data_frame({}, {}, {})

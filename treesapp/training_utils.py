@@ -17,6 +17,7 @@ from sklearn import model_selection, svm, metrics, preprocessing, manifold
 from treesapp import file_parsers
 from treesapp import wrapper
 from treesapp import fasta
+from treesapp import classy
 from treesapp.phylo_seq import PQuery, PhyloPlace
 from treesapp.external_command_interface import launch_write_command, create_dir_from_taxon_name
 from treesapp.jplace_utils import jplace_parser, demultiplex_pqueries, calc_pquery_mean_tip_distances
@@ -40,6 +41,105 @@ class QuerySequence(PQuery):
         self.tax_dist = 0
         return
 
+
+class PhyTrainer(classy.TreeSAPP):
+    def __init__(self):
+        super(PhyTrainer, self).__init__("train")
+        self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
+        self.placement_table = ""
+        self.placement_summary = ""
+        self.clade_ex_pquery_pkl = ""
+        self.plain_pquery_pkl = ""
+        self.feature_vector_file = ""
+        self.conditions_file = ""
+        self.tsne_plot = ""
+        self.pkg_dbname_dict = dict()
+        self.target_refpkgs = list()
+        self.training_ranks = {}
+        self.pqueries = {}
+
+        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
+        self.stages = {0: classy.ModuleFunction("clean", 0),
+                       1: classy.ModuleFunction("search", 1),
+                       2: classy.ModuleFunction("lineages", 2),
+                       3: classy.ModuleFunction("place", 3),
+                       4: classy.ModuleFunction("train", 4),
+                       5: classy.ModuleFunction("update", 5)}
+
+    def decide_stage(self, args):
+        if not args.profile:
+            self.change_stage_status("search", False)
+
+        if args.acc_to_lin:
+            self.acc_to_lin = args.acc_to_lin
+            if os.path.isfile(self.acc_to_lin):
+                self.change_stage_status("lineages", False)
+            else:
+                logging.error("Unable to find accession-lineage mapping file '{}'\n".format(self.acc_to_lin))
+                sys.exit(3)
+
+        if os.path.isfile(self.clade_ex_pquery_pkl) and os.path.isfile(self.plain_pquery_pkl):
+            self.change_stage_status("place", False)
+
+        self.validate_continue(args)
+        return
+
+    def check_trainer_arguments(self, args):
+        self.find_sequence_molecule_type()
+        self.ref_pkg.f__pkl = args.pkg_path
+        self.ref_pkg.slurp()
+        self.ref_pkg.validate()
+
+        # Make the directory for storing intermediate outputs
+        if not os.path.isdir(self.var_output_dir):
+            os.makedirs(self.var_output_dir)
+
+        for rank in args.taxon_rank:
+            self.training_ranks[rank] = self.ref_pkg.taxa_trie.accepted_ranks_depths[rank]
+
+        # Check whether the parameters for the classifier make sense
+        if args.classifier == "bin":
+            if not args.annot_map:
+                logging.error("An annotation mapping file is required when building a binary classifier.\n")
+                sys.exit(3)
+            else:
+                self.annot_map = args.annot_map
+        elif args.classifier == "occ" and args.annot_map:
+            logging.warning("Annotation mapping file is ignored when building a One-Class Classifier (OCC).\n")
+
+        if args.tsne:
+            self.tsne_plot = os.path.join(self.var_output_dir, "train", "tSNE.png")
+
+        return
+
+    def set_file_paths(self) -> None:
+        """
+        Define the file path locations of treesapp train outputs
+
+        :return: None
+        """
+        self.placement_table = os.path.join(self.final_output_dir, "placement_info.tsv")
+        self.placement_summary = os.path.join(self.final_output_dir, "placement_trainer_results.txt")
+        self.clade_ex_pquery_pkl = os.path.join(self.final_output_dir, "clade_exclusion_pqueries.pkl")
+        self.plain_pquery_pkl = os.path.join(self.final_output_dir, "raw_refpkg_pqueries.pkl")
+        self.formatted_input = os.path.join(self.var_output_dir, "clean", self.ref_pkg.prefix + "_formatted.fa")
+        self.hmm_purified_seqs = os.path.join(self.var_output_dir, "search", self.ref_pkg.prefix + "_hmm_purified.fa")
+        self.acc_to_lin = os.path.join(self.var_output_dir, "lineages", "accession_id_lineage_map.tsv")
+        self.conditions_file = os.path.join(self.var_output_dir, "train", "conditions.npy")
+        self.feature_vector_file = os.path.join(self.var_output_dir, "train", "examples.npy")
+        return
+
+    def get_info(self):
+        info_string = "PhyTrainer instance summary:\n"
+        info_string += super(PhyTrainer, self).get_info() + "\n\t"
+        info_string += "\n\t".join(["Target reference packages = " + str(self.ref_pkg.prefix),
+                                    "Taxonomy map: " + self.ref_pkg.lineage_ids,
+                                    "Reference tree: " + self.ref_pkg.tree,
+                                    "Reference FASTA: " + self.ref_pkg.msa,
+                                    "Lineage map: " + str(self.acc_to_lin),
+                                    "Ranks tested: " + ','.join(self.training_ranks.keys())]) + "\n"
+
+        return info_string
 
 def summarize_query_classes(positives: set, query_seq_names: set) -> None:
     logging.info("Enumeration of potential query sequence classes:\n")
@@ -645,9 +745,9 @@ def generate_train_test_data(true_ps: np.array, false_ps: np.array, test_pr=0.4)
     Conditions [0|1] are set for the dataset based on whether they are false positives (0) or true positives (1).
     If no false positives are present, a numpy.array of length true_ps is used.
 
-    :param true_ps:
-    :param test_pr:
-    :param false_ps:
+    :param true_ps: A numpy.array instance holding data for true positives
+    :param false_ps: A numpy.array instance holding data for false positives
+    :param test_pr: Proportion of the training data to use for testing (default = 0.4)
     :return:
     """
     if len(false_ps) > 0:
@@ -694,9 +794,11 @@ def train_oc_classifier(x_train: np.array, kernel: str):
     return clf
 
 
-def train_classification_filter(true_pos: dict, classified_data, conditions,
-                                x_train: np.array, x_test: np.array, y_train: np.array, y_test: np.array, kernel: str,
-                                tsne="", grid_search=False, num_procs=2) -> (dict, dict):
+def train_classification_filter(classified_data: np.array, conditions: np.array,
+                                x_train: np.array, x_test: np.array,
+                                y_train: np.array, y_test: np.array,
+                                kernel: str, index_names: set,
+                                grid_search=False, num_procs=2) -> dict:
     """
     Trains a sklearn classifier (e.g. Support Vector Machine) using the TreeSAPP assignments and writes
     the trained model to a pickle file.
@@ -705,7 +807,7 @@ def train_classification_filter(true_pos: dict, classified_data, conditions,
     Optionally, a grid search can be performed that will automatically test multiple different classifiers and kernels,
     not just the one specified, and return (classifier isn't written).
 
-    :param true_pos: A dictionary of true positive query names indexed by refpkg names
+    :param index_names: A dictionary of true positive query names indexed by refpkg names
     :param classified_data: A numpy array of feature vectors for the true positive examples
     :param conditions:
     :param x_train:
@@ -714,7 +816,6 @@ def train_classification_filter(true_pos: dict, classified_data, conditions,
     :param y_test:
     :param kernel: Specifies the kernel type to be used in the SVM algorithm. Choices are 'lin' 'poly' or 'rbf'.
     [ DEFAULT = lin ]
-    :param tsne: Path to a file for writing the tSNE plot. Also used to decide whether to create the tSNE plot
     :param grid_search: Flag indicating whether to perform a grid search across available classifier kernels
     :param num_procs: The number of threads to run the grid search
     :return: None
@@ -724,25 +825,22 @@ def train_classification_filter(true_pos: dict, classified_data, conditions,
         logging.error("No positive examples are available for training.\n")
         sys.exit(17)
     elif 0 in y_train:  # See if there are any negative examples for binary classification
-        if tsne:
-            generate_tsne(classified_data, conditions, tsne)
-
         if grid_search:
             # Test all the available kernels and return/exit
             kernels = ["lin", "rbf", "poly"]
             for k in kernels:
                 evaluate_grid_scores(k, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, jobs=num_procs)
-            return
+            return classifiers
 
         # pquery_test_map = map_test_indices_to_pqueries(x_test, true_pqueries)
         clf = train_binary_classifier(x_train, y_train, kernel)
 
-        for refpkg_prefix in true_pos:
+        for refpkg_prefix in index_names:
             classifiers[refpkg_prefix] = clf
             preds = evaluate_classifier(clf, x_test, y_test, classified_data, conditions)
             # characterize_predictions(preds, pquery_test_map)
     else:
-        for refpkg_prefix in true_pos:
+        for refpkg_prefix in index_names:
             # pquery_test_map = map_test_indices_to_pqueries(x_test, true_pqueries)
 
             clf = train_oc_classifier(x_train, kernel)
@@ -751,4 +849,35 @@ def train_classification_filter(true_pos: dict, classified_data, conditions,
             preds = evaluate_classifier(clf, x_test, y_test, classified_data, conditions)
             # characterize_predictions(preds, pquery_test_map)
 
+    return classifiers
+
+
+def train_classifier_from_dataframe(training_df: pd.DataFrame, kernel: str, num_threads: int,
+                                    tsne=False, grid_search=False, trainer=None) -> dict:
+    """
+
+    :param training_df:
+    :param kernel: Specifies the kernel type to be used in the SVM algorithm. Choices are 'lin' 'poly' or 'rbf'.
+    :param num_threads: The number of threads to run the grid search
+    :param tsne: Path to a file for writing the tSNE plot. Also used to decide whether to create the tSNE plot
+    :param grid_search: Flag indicating whether to perform a grid search across available classifier kernels
+    :param trainer: A PhyTrainer instance
+    :return: A dictionary of reference package names indexing scikit classifiers
+    """
+    tp, fp = split_placement_data_to_class_vectors(training_df)
+    refpkg_names = set(training_df["refpkg"].unique())
+    # Split the training and testing data from the classifications
+    classified_data, conditions, x_train, x_test, y_train, y_test = generate_train_test_data(tp, fp)
+    # Train the classifier
+    classifiers = train_classification_filter(classified_data, conditions,
+                                              x_train, x_test, y_train, y_test,
+                                              kernel=kernel, index_names=set(refpkg_names),
+                                              grid_search=grid_search,
+                                              num_procs=num_threads)
+    if trainer:
+        # Save the feature vectors and condition vectors
+        save_np_array(classified_data, trainer.feature_vector_file)
+        save_np_array(conditions, trainer.conditions_file)
+        if tsne and 0 in y_train:
+            generate_tsne(classified_data, conditions, trainer.tsne_plot)
     return classifiers

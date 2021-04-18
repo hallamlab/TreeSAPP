@@ -5,7 +5,7 @@ import re
 import logging
 from glob import glob
 
-from treesapp.classy import Evaluator, Creator, PhyTrainer, Updater
+from treesapp.classy import Evaluator, Creator, Updater
 from treesapp.utilities import available_cpu_count
 
 
@@ -207,13 +207,17 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       " [ DEFAULT = class species ]",
                                  choices=["domain", "phylum", "class", "order", "family", "genus", "species"])
 
-    def add_basic_classifier_model_params(self):
-        self.svc_opts.add_argument("--max_examples", required=False, default=1000, type=int,
-                                   help="Limits the number of examples used for training models. [ DEFAULT = 1000 ]")
+    def add_classifier_kernel_param(self):
         self.svc_opts.add_argument("-k", "--svm_kernel", required=False, default="lin",
                                    choices=["lin", "rbf", "poly"], dest="kernel",
                                    help="Specifies the kernel type to be used in the SVM algorithm. "
                                         "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
+        return
+
+    def add_basic_classifier_model_params(self):
+        self.add_classifier_kernel_param()
+        self.svc_opts.add_argument("--max_examples", required=False, default=1000, type=int,
+                                   help="Limits the number of examples used for training models. [ DEFAULT = 1000 ]")
         return
 
     def add_advanced_classifier_params(self):
@@ -305,6 +309,7 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
     assign_parser.add_search_params()
     assign_parser.add_pplace_params()
     assign_parser.add_compute_miscellany()
+    assign_parser.add_classifier_kernel_param()
     # The required parameters... for which there are currently none. But they would go here!
 
     assign_parser.optopt.add_argument("--svm", default=False, required=False, action="store_true",
@@ -574,35 +579,6 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
 
     if not os.path.isdir(evaluator_instance.var_output_dir):
         os.makedirs(evaluator_instance.var_output_dir)
-
-    return
-
-
-def check_trainer_arguments(phy_trainer: PhyTrainer, args):
-    phy_trainer.find_sequence_molecule_type()
-    phy_trainer.ref_pkg.f__pkl = args.pkg_path
-    phy_trainer.ref_pkg.slurp()
-    phy_trainer.ref_pkg.validate()
-
-    # Make the directory for storing intermediate outputs
-    if not os.path.isdir(phy_trainer.var_output_dir):
-        os.makedirs(phy_trainer.var_output_dir)
-
-    for rank in args.taxon_rank:
-        phy_trainer.training_ranks[rank] = phy_trainer.ref_pkg.taxa_trie.accepted_ranks_depths[rank]
-
-    # Check whether the parameters for the classifier make sense
-    if args.classifier == "bin":
-        if not args.annot_map:
-            logging.error("An annotation mapping file is required when building a binary classifier.\n")
-            sys.exit(3)
-        else:
-            phy_trainer.annot_map = args.annot_map
-    elif args.classifier == "occ" and args.annot_map:
-        logging.warning("Annotation mapping file is ignored when building a One-Class Classifier (OCC).\n")
-
-    if args.tsne:
-        phy_trainer.tsne_plot = os.path.join(phy_trainer.var_output_dir, "train", "tSNE.png")
 
     return
 

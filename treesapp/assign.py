@@ -12,6 +12,7 @@ import logging
 from collections import namedtuple
 
 import pyfastx
+import pandas as pd
 from numpy import array as np_array
 from sklearn import preprocessing
 
@@ -28,6 +29,7 @@ from treesapp import phylo_dist
 from treesapp import utilities
 from treesapp import wrapper
 from treesapp import fasta
+from treesapp import training_utils
 from treesapp.hmmer_tbl_parser import HmmMatch
 
 
@@ -94,6 +96,45 @@ class Assigner(classy.TreeSAPP):
             self.svc_filter = True
 
         return args
+
+    def load_refpkg_classifiers(self, refpkg_dict: dict, kernel: str, threads: int, combine=False) -> None:
+        if not self.svc_filter:
+            return
+
+        untrained_refpkgs = []
+        classifiers = dict()
+        if combine:
+            training_frames = []
+            for _name, ref_pkg in refpkg_dict.items():  # type: refpkg.ReferencePackage
+                if len(ref_pkg.training_df) == 0:
+                    continue
+                training_frames.append(ref_pkg.training_df)
+            classifiers = training_utils.train_classifier_from_dataframe(training_df=pd.concat(training_frames),
+                                                                         kernel=kernel,
+                                                                         num_threads=threads)
+        else:
+            for _name, ref_pkg in refpkg_dict.items():  # type: refpkg.ReferencePackage
+                if len(ref_pkg.training_df) == 0:
+                    continue
+                classifiers.update(training_utils.train_classifier_from_dataframe(training_df=ref_pkg.training_df,
+                                                                                  kernel=kernel,
+                                                                                  num_threads=threads))
+
+        # Set the svc attribute of each ReferencePackage to its respective classifier
+        for _name, ref_pkg in refpkg_dict.items():
+            try:
+                ref_pkg.svc = classifiers[ref_pkg.prefix]
+            except KeyError:
+                if not ref_pkg.svc:
+                    untrained_refpkgs.append(ref_pkg.prefix)
+
+        if untrained_refpkgs:
+            logging.warning("Unable to train classifiers for {} reference packages.\n".format(len(untrained_refpkgs)))
+            logging.debug("Reference packages that will not use SVC for filtering placements:\n\t"
+                          "{}\n".format("\n\t".join(untrained_refpkgs)))
+
+        return
+
 
     @staticmethod
     def define_hmm_domtbl_thresholds(args):
@@ -1270,6 +1311,7 @@ def assign(sys_args):
     refpkg_dict = refpkg.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
     prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
     ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
+    ts_assign.load_refpkg_classifiers(refpkg_dict, kernel=args.kernel, threads=n_proc)
 
     ##
     # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
