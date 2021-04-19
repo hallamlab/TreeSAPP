@@ -1249,7 +1249,7 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) 
         logging.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(k))
         sys.exit(1)
 
-    logging.info("Replacing attribute '{}' (currently '{}')\n".format(k, current_v))
+    logging.info("Updating attribute '{}' (currently '{}')\n".format(k, current_v))
 
     if k.startswith("f__"):  # This is a file that is being modified and the contents need to be read
         k_content = re.sub(r"^f__", '', k)

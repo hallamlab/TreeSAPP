@@ -12,20 +12,25 @@ import seaborn
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-from sklearn import model_selection, svm, metrics, preprocessing, manifold
+from sklearn import model_selection, svm, metrics, manifold
+from collections import namedtuple
 
 from treesapp import file_parsers
 from treesapp import wrapper
 from treesapp import fasta
 from treesapp import classy
-from treesapp.phylo_seq import PQuery, PhyloPlace
+from treesapp import phylo_seq
 from treesapp.external_command_interface import launch_write_command, create_dir_from_taxon_name
 from treesapp.jplace_utils import jplace_parser, demultiplex_pqueries, calc_pquery_mean_tip_distances
 from treesapp.entish import map_internal_nodes_leaves
 from treesapp.refpkg import ReferencePackage
 
 
-class QuerySequence(PQuery):
+_named_vec = namedtuple("_named_vec", ["refpkg", "tp", "tax_rank", "evalue", "hmm_cov",
+                                       "leaves", "lwr", "distal", "pendant", "avg_tip_dist"])
+
+
+class QuerySequence(phylo_seq.PQuery):
     def __init__(self, header: str, lineage_str="", rank_str=""):
         """
         Initialization function for QuerySequence objects. Sets self.ref_name attribute to header if provided
@@ -211,7 +216,7 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
         tp[refpkg_name] = list()
         fp[refpkg_name] = set()
         fn[refpkg_name] = set()
-        for pquery in sorted(pqueries, key=lambda x: x.seq_name):  # type: PQuery
+        for pquery in sorted(pqueries, key=lambda x: x.seq_name):  # type: phylo_seq.PQuery
             # Populate the relevant information for the classified sequence
             tp_inst = QuerySequence(pquery.seq_name)
             tp_inst.ref = refpkg_name
@@ -383,7 +388,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     node_map = map_internal_nodes_leaves(placement_tree)
     jplace_data.pqueries = demultiplex_pqueries(jplace_data=jplace_data)
     calc_pquery_mean_tip_distances(jplace_data, internal_node_leaf_map=node_map)
-    for pquery in jplace_data.pqueries:  # type: PQuery
+    for pquery in jplace_data.pqueries:  # type: phylo_seq.PQuery
         pquery.ref_name = ref_pkg.prefix
         pquery.rank = rank
         pquery.lineage = taxon
@@ -419,6 +424,25 @@ def augment_training_set(row: np.array, n_reps=3, feature_scale=0.2):
     return training_set.reshape(n_reps, n_features)
 
 
+def pquery_to_vector(pquery: phylo_seq.PQuery, ref_pkg: ReferencePackage,
+                     positives=None, internal_nodes=None) -> namedtuple:
+    if not internal_nodes:
+        internal_nodes = ref_pkg.get_internal_node_leaf_map()
+    if not positives:
+        tp = True
+    else:
+        tp = pquery.seq_name in positives[ref_pkg.prefix]
+    pquery_vec = _named_vec(refpkg=ref_pkg.prefix, tp=tp,
+                            tax_rank=pquery.rank, evalue=pquery.evalue,
+                            hmm_cov=round((int(pquery.seq_len)*100)/ref_pkg.profile_length, 1),
+                            leaves=len(internal_nodes[int(pquery.consensus_placement.edge_num)]),
+                            lwr=round(float(pquery.consensus_placement.like_weight_ratio), 3),
+                            distal=pquery.consensus_placement.distal_length,
+                            pendant=pquery.consensus_placement.pendant_length,
+                            avg_tip_dist=pquery.consensus_placement.mean_tip_length)
+    return pquery_vec
+
+
 def load_training_data_frame(pqueries: dict, refpkg_map: dict, refpkg_positive_annots: dict) -> pd.DataFrame:
     """
     Uses attributes from PQuery and ReferencePackage instances to generate data that can be used for training a
@@ -438,36 +462,34 @@ def load_training_data_frame(pqueries: dict, refpkg_map: dict, refpkg_positive_a
         return pd.DataFrame(training_dat)
 
     for refpkg_name, pqueries in pqueries.items():
-        refpkg = refpkg_map[refpkg_name]  # type: ReferencePackage
-        if not refpkg.profile_length:
-            refpkg.hmm_length()
-        internal_nodes = refpkg.get_internal_node_leaf_map()
+        ref_pkg = refpkg_map[refpkg_name]  # type: ReferencePackage
+        if not ref_pkg.profile_length:
+            ref_pkg.hmm_length()
+        internal_nodes = ref_pkg.get_internal_node_leaf_map()
 
-        for pquery in pqueries:  # type: PQuery
+        for pquery in pqueries:  # type: phylo_seq.PQuery
             if not pquery.classified:
                 continue
 
-            placement = pquery.consensus_placement  # type: PhyloPlace
-            # Calculate the features
-            try:
-                leaf_children = len(internal_nodes[int(placement.edge_num)])
-            except KeyError:
+            if int(pquery.consensus_placement.edge_num) not in internal_nodes:
                 logging.error("Unable to find internal node '{}' in the {} node-leaf map indicating a discrepancy "
                               "between reference package versions used by treesapp assign and those used here.\n"
                               "Was the correct output directory provided?"
-                              "".format(placement.edge_num, pquery.ref_name))
+                              "".format(pquery.consensus_placement.edge_num, pquery.ref_name))
                 sys.exit(5)
 
-            training_dat["refpkg"].append(refpkg.prefix)
-            training_dat["tp"].append(pquery.seq_name in refpkg_positive_annots[refpkg.prefix])
-            training_dat["tax_rank"].append(pquery.rank)
-            training_dat["evalue"].append(pquery.evalue)
-            training_dat["hmm_cov"].append(round((int(pquery.seq_len)*100)/refpkg.profile_length, 1))
-            training_dat["leaves"].append(leaf_children)
-            training_dat["lwr"].append(round(float(placement.like_weight_ratio), 3))
-            training_dat["distal"].append(placement.distal_length)
-            training_dat["pendant"].append(placement.pendant_length)
-            training_dat["avg_tip_dist"].append(placement.mean_tip_length)
+            classification_vec = pquery_to_vector(pquery, ref_pkg, refpkg_positive_annots, internal_nodes)
+
+            training_dat["refpkg"].append(classification_vec.refpkg)
+            training_dat["tp"].append(classification_vec.tp)
+            training_dat["tax_rank"].append(classification_vec.tax_rank)
+            training_dat["evalue"].append(classification_vec.evalue)
+            training_dat["hmm_cov"].append(classification_vec.hmm_cov)
+            training_dat["leaves"].append(classification_vec.leaves)
+            training_dat["lwr"].append(classification_vec.lwr)
+            training_dat["distal"].append(classification_vec.distal)
+            training_dat["pendant"].append(classification_vec.pendant)
+            training_dat["avg_tip_dist"].append(classification_vec.avg_tip_dist)
 
     training_df = pd.DataFrame(training_dat)
     return training_df
@@ -681,7 +703,7 @@ def evaluate_classifier(clf, x_test: np.array, y_test: np.array,
 def summarize_pquery_ranks(pqueries: list) -> None:
     rank_counts = {}
     n_skipped = 0
-    for pq in pqueries:  # type: PQuery
+    for pq in pqueries:  # type: phylo_seq.PQuery
         try:
             rank_counts[pq.rank] += 1
         except KeyError:
@@ -724,7 +746,7 @@ def map_test_indices_to_pqueries(feature_vectors, pqueries) -> dict:
     while i < len(feature_vectors):
         vec = feature_vectors[i]  # type: np.ndarray
         index_pquery_map[i] = []
-        for pquery in pqueries:  # type: PQuery
+        for pquery in pqueries:  # type: phylo_seq.PQuery
             if np.array_equal(vec, pquery.feature_vec):
                 index_pquery_map[i].append(pquery)
         i += 1
@@ -853,7 +875,7 @@ def train_classification_filter(classified_data: np.array, conditions: np.array,
 
 
 def train_classifier_from_dataframe(training_df: pd.DataFrame, kernel: str, num_threads: int,
-                                    tsne=False, grid_search=False, trainer=None) -> dict:
+                                    tsne=False, grid_search=False, trainer=None, refpkg_names=None) -> dict:
     """
 
     :param training_df:
@@ -862,10 +884,12 @@ def train_classifier_from_dataframe(training_df: pd.DataFrame, kernel: str, num_
     :param tsne: Path to a file for writing the tSNE plot. Also used to decide whether to create the tSNE plot
     :param grid_search: Flag indicating whether to perform a grid search across available classifier kernels
     :param trainer: A PhyTrainer instance
+    :param refpkg_names: An iterable of reference package names that the classifier will be applied to
     :return: A dictionary of reference package names indexing scikit classifiers
     """
     tp, fp = split_placement_data_to_class_vectors(training_df)
-    refpkg_names = set(training_df["refpkg"].unique())
+    if refpkg_names is None:
+        refpkg_names = set(training_df["refpkg"].unique())
     # Split the training and testing data from the classifications
     classified_data, conditions, x_train, x_test, y_train, y_test = generate_train_test_data(tp, fp)
     # Train the classifier

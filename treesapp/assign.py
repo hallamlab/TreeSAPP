@@ -14,7 +14,6 @@ from collections import namedtuple
 import pyfastx
 import pandas as pd
 from numpy import array as np_array
-from sklearn import preprocessing
 
 from treesapp import abundance
 from treesapp import classy
@@ -105,13 +104,21 @@ class Assigner(classy.TreeSAPP):
         classifiers = dict()
         if combine:
             training_frames = []
-            for _name, ref_pkg in refpkg_dict.items():  # type: refpkg.ReferencePackage
+            refpkg_names = set()
+            for name, ref_pkg in refpkg_dict.items():  # type: refpkg.ReferencePackage
+                refpkg_names.add(name)
                 if len(ref_pkg.training_df) == 0:
                     continue
                 training_frames.append(ref_pkg.training_df)
+            if len(training_frames) == 0:
+                logging.error("All reference package training data frames are empty.\n"
+                              "Unable to train a classifier from combined training data.\n")
+                sys.exit(5)
+
             classifiers = training_utils.train_classifier_from_dataframe(training_df=pd.concat(training_frames),
                                                                          kernel=kernel,
-                                                                         num_threads=threads)
+                                                                         num_threads=threads,
+                                                                         refpkg_names=refpkg_names)
         else:
             for _name, ref_pkg in refpkg_dict.items():  # type: refpkg.ReferencePackage
                 if len(ref_pkg.training_df) == 0:
@@ -918,6 +925,8 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
     PQueries with pendant length > max_pendant will be unclassified.
     :return: None
     """
+    # The following list must match that of training_utils.vectorize_placement_data_by_rank()
+    features = ["evalue", "hmm_cov", "leaves", "lwr", "distal", "pendant", "avg_tip_dist"]
 
     logging.info("Filtering low-quality placements... ")
     unclassified_seqs = dict()  # A dictionary tracking the seqs unclassified for each marker
@@ -938,34 +947,20 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
             elif not tree_sap.placements:
                 continue
 
-            pplace = tree_sap.consensus_placement  # type: phylo_seq.PhyloPlace
+            tree_sap.avg_evo_dist = tree_sap.consensus_placement.total_distance()
+            tree_sap.string_distances()
 
-            leaf_children = tree_sap.node_map[int(pplace.edge_num)]
-
-            avg_tip_dist = round(pplace.mean_tip_length, 4)
-            pendant_length = round(pplace.pendant_length, 4)
-            distal_length = round(pplace.distal_length, 4)
-
-            tree_sap.avg_evo_dist = pplace.total_distance()
-            tree_sap.distances = ','.join([str(distal_length), str(pendant_length), str(avg_tip_dist)])
-
-            # hmm_perc = round((int(tree_sap.seq_len) * 100) / ref_pkg.profile_length, 1)
-
-            if pendant_length > max_pendant:
+            if tree_sap.consensus_placement.pendant_length > max_pendant:
                 unclassified_seqs[ref_pkg.prefix]["big_pendant"].append(tree_sap)
                 tree_sap.classified = False
 
             if svc:
-                if ref_pkg.svc is None:
+                if ref_pkg.svc is None or len(features) != ref_pkg.svc.n_features_in_:
                     svc_attempt = True
                     call = 1
                 else:
-                    call = ref_pkg.svc.predict(preprocessing.normalize(np_array([len(leaf_children),
-                                                                                tree_sap.evalue,
-                                                                                round(pplace.like_weight_ratio, 2),
-                                                                                distal_length,
-                                                                                pendant_length,
-                                                                                avg_tip_dist]).reshape(1, -1)))
+                    classification_tup = training_utils.pquery_to_vector(tree_sap, ref_pkg)
+                    call = ref_pkg.svc.predict(np_array([getattr(classification_tup, feat) for feat in features]).reshape(1, -1))
                 # Discard this placement as a false positive if classifier calls this a 0
                 if call == 0:
                     unclassified_seqs[tree_sap.ref_name]["svm"].append(tree_sap)

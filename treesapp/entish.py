@@ -26,13 +26,13 @@ def get_node(tree: str, pos: int) -> (int, int):
     return int(node), pos
 
 
-def label_internal_nodes_ete(ete_tree: Tree) -> None:
+def label_internal_nodes_ete(ete_tree: Tree, relabel=False) -> None:
     i = 0
     if len(ete_tree.children) > 2:
         ete_tree.resolve_polytomy(recursive=True)
     for n in ete_tree.traverse(strategy="postorder"):  # type: Tree
         # Name the edge by it's unique internal node number
-        if not n.name:
+        if not n.name or relabel:
             n.name = str(i)
         i += 1
     return
@@ -75,7 +75,7 @@ def edge_from_node_name(ete_tree: Tree, node_name) -> int:
 
 def get_ete_edge(ete_tree: Tree, edge_name) -> (TreeNode, TreeNode):
     """
-    Traverses an ETE3 Tree structure in post-order, looking to match the desired edge_num to the current edge number,
+    Traverses an ETE3 Tree structure in post-order, looking to match the desired edge_name to the current edge number,
     which is equal to node.number. Edge numbers are zero-indexed.
 
     :param ete_tree: An ETE3 Tree instance
@@ -85,7 +85,7 @@ def get_ete_edge(ete_tree: Tree, edge_name) -> (TreeNode, TreeNode):
 
     edge_n = 0
     if len(ete_tree.children) > 2:
-        ete_tree.resolve_polytomy(recursive=False)
+        ete_tree.resolve_polytomy(recursive=True)
     ete_tree = ete_tree.get_tree_root()
     for node in ete_tree.traverse(strategy="postorder"):  # type: Tree
         if len(node.children) > 2:

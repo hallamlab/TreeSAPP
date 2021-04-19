@@ -3,6 +3,7 @@ import sys
 import re
 
 from ete3 import Tree
+import numpy as np
 
 from treesapp.phylo_dist import parent_to_tip_distances
 from treesapp.entish import load_ete3_tree, get_ete_edge, edge_from_node_name
@@ -169,6 +170,11 @@ class PQuery:
         self.end = 0
         self.seq_len = 0
 
+    def __str__(self):
+        return "PQuery instance for '{}' placed on RefPkg '{}' with {} placements".format(self.place_name,
+                                                                                          self.ref_name,
+                                                                                          len(self.placements))
+
     def clear(self):
         self.node_map.clear()
         self.placements.clear()
@@ -195,6 +201,13 @@ class PQuery:
         summary_str += "\tLCA taxonomic lineage is {}\n"
         summary_str += "\tTaxonomic rank resolved to is {}\n"
         return summary_str
+
+    def string_distances(self) -> None:
+        dist_ar = [self.consensus_placement.distal_length,
+                   self.consensus_placement.pendant_length,
+                   self.consensus_placement.mean_tip_length]
+        self.distances = ','.join([str(round(x, 4)) for x in dist_ar])
+        return
 
     def name_placed_sequence(self) -> None:
         names = set()
