@@ -901,7 +901,7 @@ class Purity(TreeSAPP):
         self.validate_continue(args)
         return
 
-    def summarize_groups_assigned(self, ortholog_map: dict, metadata=None):
+    def summarize_groups_assigned(self, ortholog_map: dict, metadata=None) -> None:
         unique_orthologs = dict()
         tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
         for _ref_pkg, info in self.assignments.items():
@@ -915,7 +915,7 @@ class Purity(TreeSAPP):
         # Summarize the counts in the log file
         summary_str = "Ortholog\tHits\tLeaves\tTree-coverage\tDescription\n" + '-'*80 + "\n"
         for og_name in sorted(ortholog_map, key=lambda x: len(ortholog_map[x])):
-            n_leaves = len(ortholog_map[og_name])
+            n_leaves = len(set(ortholog_map[og_name]))
             perc_coverage = round(float((n_leaves*100)/len(tree_leaves)), 1)
             try:
                 desc = metadata[og_name].de

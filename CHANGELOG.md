@@ -1,4 +1,4 @@
-## [0.11.0] - 2021-04
+## [0.11.0] - 2021-04-20
 TreeSAPP version 0.11.0 changes how users store and interact with reference package feature annotations.
 These feature annotations are clade-specific labels that indicate some extra-taxonomic features that are characteristic of sequences in the reference package.
 
@@ -19,10 +19,12 @@ We recommend updating to this version, and updating reference packages you have 
 -  `treesapp package view tree` will print a Newick tree with each leaf node's accession and description.
 - `treesapp abundance` creates a simple_bar.txt file for each sample analyzed.
 - Ability to automatically detect the sequence type based on the input provided.
+- PQuery classification data is stored in each reference package in the 'training_df' attribute as a pandas.DataFrame.
 
 ### Fixed
 - Segmentation fault from Prodigal is no longer possible as `treesapp assign` verifies input presence earlier.
 - `treesapp purity` bug where the reference package path was not correctly passed to `treesapp assign` if in the same directory
+- Calculation of tree coverage in `treesapp purity`
 
 ### Changed
 - Renamed the classification table made by `treesapp assign` (and used by subcommands like `layer`) 'classifications.tsv'.
