@@ -10,7 +10,7 @@ from json import load, dumps
 from ete3 import Tree
 
 from treesapp.phylo_seq import PQuery, PhyloPlace, split_placements
-from treesapp.entish import load_ete3_tree
+from treesapp import entish
 from treesapp.phylo_dist import parent_to_tip_distances
 
 
@@ -173,7 +173,7 @@ def calc_pquery_mean_tip_distances(jplace_data: JPlace, internal_node_leaf_map: 
     This function calls PhyloPlace.calc_mean_tip_length() on each PhyloPlace object in all PQuery.placements collection
     for all PQuery's in a JPlace's pqueries collection. It's just a convenience function.
     """
-    jplace_tree = load_ete3_tree(jplace_data.tree)
+    jplace_tree = entish.load_ete3_tree(jplace_data.tree)
     parent_leaf_memoizer = dict()
 
     for pquery in jplace_data.pqueries:  # type: PQuery
@@ -270,11 +270,10 @@ def add_bipartitions(jplace_data: JPlace, bipartitions) -> None:
     num_buffer = ''
 
     # Load the bipartition support for each node
-    i = 0
     supp_ete_tree = Tree(bootstrap_tree, format=2)
+    entish.label_internal_nodes_ete(supp_ete_tree, relabel=True)
     for node in supp_ete_tree.traverse(strategy="preorder"):
-        internal_node_bipart_map[str(i)] = str(node.support)
-        i += 1
+        internal_node_bipart_map[str(node.name)] = str(node.support)
 
     x = 0
     while x < len(jplace_data.tree):
@@ -286,8 +285,7 @@ def add_bipartitions(jplace_data: JPlace, bipartitions) -> None:
                 num_buffer += c
                 x += 1
                 c = jplace_data.tree[x]
-            if num_buffer in internal_node_bipart_map.keys():
-                bootstrapped_jplace_tree += '[' + internal_node_bipart_map[num_buffer] + ']'
+            bootstrapped_jplace_tree += '[' + internal_node_bipart_map.pop(num_buffer) + ']'
             bootstrapped_jplace_tree += '{' + num_buffer
             num_buffer = ''
             x -= 1
@@ -296,4 +294,3 @@ def add_bipartitions(jplace_data: JPlace, bipartitions) -> None:
         x += 1
     jplace_data.tree = bootstrapped_jplace_tree
     return
-

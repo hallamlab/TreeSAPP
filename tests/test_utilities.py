@@ -52,6 +52,20 @@ class ClassifierTester(unittest.TestCase):
         os.remove("cat_test.fasta")
         return
 
+    def test_find_msa_type(self):
+        from treesapp.utilities import find_msa_type
+        # Test failure with an unrecognized file extension
+        with pytest.raises(SystemExit):
+            find_msa_type({"PuhA": ["mock_msa.stk"]})
+        # Test failure with multiple different file extensions
+        with pytest.raises(SystemExit):
+            find_msa_type({"PuhA": ["f1.mfa"],
+                           "TyrA": ["f2.sto"]})
+
+        # Test success
+        self.assertEqual("Phylip", find_msa_type({"PuhA": ["f1.phy"]}))
+        return
+
     def test_match_file(self):
         from treesapp.utilities import match_file
         test_dir = "./tests/test_data/s__[Mycobacterium]_[s]tephanolepidis/"
@@ -65,6 +79,20 @@ class ClassifierTester(unittest.TestCase):
 
         if os.path.isdir(test_dir):
             shutil.rmtree(test_dir)
+        return
+
+    def test_complement_nucs(self):
+        from treesapp.utilities import complement_nucs
+        self.assertEqual("AAAA", complement_nucs("TTTT"))
+        self.assertEqual("ANNN", complement_nucs("UXBY"))
+
+        return
+
+    def test_reverse_complement(self):
+        from treesapp.utilities import reverse_complement
+        self.assertEqual("AAAA", reverse_complement("TTTT"))
+        self.assertEqual("TCGA", reverse_complement("TCGA"))
+        self.assertEqual("GTCC", reverse_complement("GGAC"))
         return
 
 

@@ -1,4 +1,5 @@
 import os
+import pytest
 import unittest
 
 
@@ -202,6 +203,12 @@ class HeaderTester(unittest.TestCase):
         h.original = self.eggnog_three
         h.find_accession()
         self.assertEqual(self.eggnog_three, h.version)
+
+        bin_ex = "SI072_165m_bin.14_k147_157247_1"
+        h = Header(bin_ex)
+        h.find_accession()
+        self.assertEqual("SI072_165m_bin", h.accession)
+        self.assertEqual(bin_ex, h.version)
         return
 
     def test_get_info(self):
@@ -209,6 +216,41 @@ class HeaderTester(unittest.TestCase):
         h = Header(self.eggnog_one)
         info = h.get_info()
         self.assertEqual(3, len(info.split('\n')))
+        return
+
+
+class FastaUtilitiesTester(unittest.TestCase):
+    def setUp(self) -> None:
+        from .testing_utils import get_test_data
+
+        self.test_aa_fa = get_test_data("McrA_eval.faa")
+        self.test_nuc_fa = get_test_data("marker_test_suite.fna")
+        self.troublesome_fa = get_test_data("fasta_parser_test.fasta")
+        return
+
+    def test_guess_sequence_type(self):
+        from treesapp.fasta import guess_sequence_type, read_fasta_to_dict
+        # Test bad keyword argument
+        with pytest.raises(ValueError):
+            guess_sequence_type(fasta=self.test_aa_fa)
+
+        # Test with fasta file for amino acid sequences
+        seq_type = guess_sequence_type(fasta_file=self.test_aa_fa)
+        self.assertEqual("prot", seq_type)
+
+        # Test with fasta file and nucleotide sequences
+        seq_type = guess_sequence_type(fasta_file=self.test_nuc_fa)
+        self.assertEqual("dna", seq_type)
+
+        # Test with dictionary and a lot of ambiguity characters
+        fa_dict = read_fasta_to_dict(self.troublesome_fa)
+        seq_type = guess_sequence_type(fasta_dict=fa_dict)
+        self.assertEqual('', seq_type)
+
+        # Test with multiple sequence types
+        seq_type = guess_sequence_type(fasta_dict={"s1": "AAAACGGGATCGAGCTACG",
+                                                   "s2": "GORVVVLMMMNOPLC"})
+        self.assertEqual('', seq_type)
         return
 
 

@@ -4,3 +4,5 @@ AB-746_I02_AB-902_NODE_1_length_133761_cov_569.254_ID_1_21 # 20828 # 21934 # 1 #
 AB-746_I02_AB-902_NODE_1_length_133761_cov_569.254_ID_1_110 # 106973 # 109732 # 1 # ID=10766_110;partial=00;start_type=ATG;rbs_motif=None;rbs_spacer=None;gc_cont=0.322	d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__UBA11654;f__UBA11654;g__;s__
 AB-746_I02_AB-902_NODE_1_length_133761_cov_569.254_ID_1_26 # 25226 # 25834 # 1 # ID=10766_26;partial=00;start_type=ATG;rbs_motif=AGGAG(G)/GGAGG;rbs_spacer=13-15bp;gc_cont=0.335	d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__UBA11654;f__UBA11654;g__;s__
 1147.D082_03820	d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Oscillatoriophycideae; f__Chroococcales; g__Synechocystis; s__Synechocystis_sp__PCC_6714
+SI072_135m_bin.14	r__Root; d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Oscillatoriophycideae; f__Chroococcales
+AB-746_F02_AB-902	r__Root

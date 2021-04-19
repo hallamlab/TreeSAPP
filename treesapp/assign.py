@@ -12,8 +12,8 @@ import logging
 from collections import namedtuple
 
 import pyfastx
+import pandas as pd
 from numpy import array as np_array
-from sklearn import preprocessing
 
 from treesapp import abundance
 from treesapp import classy
@@ -28,6 +28,7 @@ from treesapp import phylo_dist
 from treesapp import utilities
 from treesapp import wrapper
 from treesapp import fasta
+from treesapp import training_utils
 from treesapp.hmmer_tbl_parser import HmmMatch
 
 
@@ -68,6 +69,7 @@ class Assigner(classy.TreeSAPP):
             logging.error("FASTX input file '{}' doesn't exist.\n".format(self.input_sequences))
             sys.exit(5)
 
+        self.find_sequence_molecule_type()
         self.classification_table = self.final_output_dir + os.sep + self.classification_tbl_name
         self.itol_out = self.output_dir + 'iTOL_output' + os.sep
         self.classified_aa_seqs = self.final_output_dir + self.sample_prefix + "_classified.faa"
@@ -93,6 +95,53 @@ class Assigner(classy.TreeSAPP):
             self.svc_filter = True
 
         return args
+
+    def load_refpkg_classifiers(self, refpkg_dict: dict, kernel: str, threads: int, combine=False) -> None:
+        if not self.svc_filter:
+            return
+
+        untrained_refpkgs = []
+        classifiers = dict()
+        if combine:
+            training_frames = []
+            refpkg_names = set()
+            for name, ref_pkg in refpkg_dict.items():  # type: refpkg.ReferencePackage
+                refpkg_names.add(name)
+                if len(ref_pkg.training_df) == 0:
+                    continue
+                training_frames.append(ref_pkg.training_df)
+            if len(training_frames) == 0:
+                logging.error("All reference package training data frames are empty.\n"
+                              "Unable to train a classifier from combined training data.\n")
+                sys.exit(5)
+
+            classifiers = training_utils.train_classifier_from_dataframe(training_df=pd.concat(training_frames),
+                                                                         kernel=kernel,
+                                                                         num_threads=threads,
+                                                                         refpkg_names=refpkg_names)
+        else:
+            for _name, ref_pkg in refpkg_dict.items():  # type: refpkg.ReferencePackage
+                if len(ref_pkg.training_df) == 0:
+                    continue
+                classifiers.update(training_utils.train_classifier_from_dataframe(training_df=ref_pkg.training_df,
+                                                                                  kernel=kernel,
+                                                                                  num_threads=threads))
+
+        # Set the svc attribute of each ReferencePackage to its respective classifier
+        for _name, ref_pkg in refpkg_dict.items():
+            try:
+                ref_pkg.svc = classifiers[ref_pkg.prefix]
+            except KeyError:
+                if not ref_pkg.svc:
+                    untrained_refpkgs.append(ref_pkg.prefix)
+
+        if untrained_refpkgs:
+            logging.warning("Unable to train classifiers for {} reference packages.\n".format(len(untrained_refpkgs)))
+            logging.debug("Reference packages that will not use SVC for filtering placements:\n\t"
+                          "{}\n".format("\n\t".join(untrained_refpkgs)))
+
+        return
+
 
     @staticmethod
     def define_hmm_domtbl_thresholds(args):
@@ -544,7 +593,9 @@ def prep_reference_packages_for_assign(refpkg_dict: dict, output_dir: str) -> No
     """
     for refpkg_name in refpkg_dict:
         ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
-        ref_pkg.disband(os.path.join(output_dir, ref_pkg.prefix + "_RefPkg"))
+        prefix_dir = os.path.join(output_dir, ref_pkg.prefix + "_RefPkg")
+        ref_pkg.disband(prefix_dir)
+        ref_pkg.pickle_package(new_output_dir=prefix_dir)
     return
 
 
@@ -861,42 +912,6 @@ def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
     return
 
 
-def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
-    """
-    From the basic abundance output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
-
-    :param target_marker:
-    :param tree_protein_list: A list of PQuery objects, for single sequences
-    :param itol_bar_file: The name of the file to write the simple-bar data for iTOL
-    :return:
-    """
-    leaf_abundance_sums = dict()
-
-    for tree_sap in tree_protein_list:  # type: phylo_seq.PQuery
-        if tree_sap.ref_name == target_marker and tree_sap.classified:
-            leaf_abundance_sums = tree_sap.sum_abundances_per_node(leaf_abundance_sums)
-
-    # Only make the file if there is something to write
-    if len(leaf_abundance_sums.keys()) > 0:
-        try:
-            itol_abundance_out = open(itol_bar_file, 'w')
-        except IOError:
-            logging.error("Unable to open " + itol_bar_file + " for writing.\n")
-            sys.exit(3)
-
-        # Write the header
-        header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,ABUNDANCE\nCOLOR,#ff0000\n"
-        itol_abundance_out.write(header)
-        # Write the abundance sums for each leaf
-        itol_abundance_out.write("DATA\n")
-        data_lines = [','.join([str(k), str(v)]) for k, v in leaf_abundance_sums.items()]
-        itol_abundance_out.write("\n".join(data_lines))
-
-        itol_abundance_out.close()
-
-    return tree_protein_list
-
-
 def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: float, max_pendant: float) -> None:
     """
     Determines the total distance of each placement from its branch point on the tree
@@ -910,6 +925,8 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
     PQueries with pendant length > max_pendant will be unclassified.
     :return: None
     """
+    # The following list must match that of training_utils.vectorize_placement_data_by_rank()
+    features = ["evalue", "hmm_cov", "leaves", "lwr", "distal", "pendant", "avg_tip_dist"]
 
     logging.info("Filtering low-quality placements... ")
     unclassified_seqs = dict()  # A dictionary tracking the seqs unclassified for each marker
@@ -930,34 +947,20 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
             elif not tree_sap.placements:
                 continue
 
-            pplace = tree_sap.consensus_placement  # type: phylo_seq.PhyloPlace
+            tree_sap.avg_evo_dist = tree_sap.consensus_placement.total_distance()
+            tree_sap.string_distances()
 
-            leaf_children = tree_sap.node_map[int(pplace.edge_num)]
-
-            avg_tip_dist = round(pplace.mean_tip_length, 4)
-            pendant_length = round(pplace.pendant_length, 4)
-            distal_length = round(pplace.distal_length, 4)
-
-            tree_sap.avg_evo_dist = pplace.total_distance()
-            tree_sap.distances = ','.join([str(distal_length), str(pendant_length), str(avg_tip_dist)])
-
-            # hmm_perc = round((int(tree_sap.seq_len) * 100) / ref_pkg.profile_length, 1)
-
-            if pendant_length > max_pendant:
+            if tree_sap.consensus_placement.pendant_length > max_pendant:
                 unclassified_seqs[ref_pkg.prefix]["big_pendant"].append(tree_sap)
                 tree_sap.classified = False
 
             if svc:
-                if ref_pkg.svc is None:
+                if ref_pkg.svc is None or len(features) != ref_pkg.svc.n_features_in_:
                     svc_attempt = True
                     call = 1
                 else:
-                    call = ref_pkg.svc.predict(preprocessing.normalize(np_array([len(leaf_children),
-                                                                                tree_sap.evalue,
-                                                                                round(pplace.like_weight_ratio, 2),
-                                                                                distal_length,
-                                                                                pendant_length,
-                                                                                avg_tip_dist]).reshape(1, -1)))
+                    classification_tup = training_utils.pquery_to_vector(tree_sap, ref_pkg)
+                    call = ref_pkg.svc.predict(np_array([getattr(classification_tup, feat) for feat in features]).reshape(1, -1))
                 # Discard this placement as a false positive if classifier calls this a 0
                 if call == 0:
                     unclassified_seqs[tree_sap.ref_name]["svm"].append(tree_sap)
@@ -1249,7 +1252,7 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
         for annotation_file in annotation_style_files:
             shutil.copy(annotation_file, itol_base_dir + ref_pkg.prefix)
         itol_bar_file = os.path.join(itol_base_dir, ref_pkg.prefix, ref_pkg.prefix + "_abundance_simplebar.txt")
-        generate_simplebar(ref_pkg.prefix, refpkg_pqueries, itol_bar_file)
+        abundance.generate_simplebar(ref_pkg.prefix, refpkg_pqueries, itol_bar_file)
 
     logging.info("done.\n")
     if style_missing:
@@ -1303,6 +1306,7 @@ def assign(sys_args):
     refpkg_dict = refpkg.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
     prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
     ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
+    ts_assign.load_refpkg_classifiers(refpkg_dict, kernel=args.kernel, threads=n_proc)
 
     ##
     # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA

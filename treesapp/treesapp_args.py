@@ -4,9 +4,8 @@ import sys
 import re
 import logging
 from glob import glob
-from datetime import datetime as dt
 
-from treesapp.classy import Evaluator, Creator, PhyTrainer, Updater
+from treesapp.classy import Evaluator, Creator, Updater
 from treesapp.utilities import available_cpu_count
 
 
@@ -99,9 +98,9 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       " [DEFAULT = False]")
         self.optopt.add_argument('-w', '--min_seq_length', default=30, type=int,
                                  help='minimal sequence length after alignment trimming [DEFAULT = 30]')
-        self.optopt.add_argument('-m', '--molecule', default='dna', choices=['prot', 'dna', 'rrna'],
-                                 help="Type of input sequences "
-                                      "(prot = protein; dna = nucleotide [DEFAULT]; rrna = rRNA)")
+        self.optopt.add_argument('-m', '--molecule', choices=['prot', 'dna', 'rrna'], required=False, default="",
+                                 help="Type of input sequences (prot = protein; dna = nucleotide; rrna = rRNA). "
+                                      "TreeSAPP will guess by default but this may be required if ambiguous.")
 
     def add_search_params(self):
         self.hmmer_args.add_argument("-s", "--stringency",
@@ -149,8 +148,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                            "beyond which EPA placements are unclassified. [ DEFAULT = 2.0 ]")
         self.pplace_args.add_argument("--placement_summary", default="max_lwr", choices=["aelw", "max_lwr"],
                                       dest="p_sum",
-                                      help="Controls the algorithm for consolidating multiple phylogenetic placements."
-                                           "Max LWR will take use the phylogenetic placement with greatest LWR."
+                                      help="Controls the algorithm for consolidating multiple phylogenetic placements. "
+                                           "Max LWR will take use the phylogenetic placement with greatest LWR. "
                                            "aELW uses the taxon with greatest accumulated LWR across placements.")
 
     def add_compute_miscellany(self):
@@ -208,13 +207,17 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       " [ DEFAULT = class species ]",
                                  choices=["domain", "phylum", "class", "order", "family", "genus", "species"])
 
-    def add_basic_classifier_model_params(self):
-        self.svc_opts.add_argument("--max_examples", required=False, default=1000, type=int,
-                                   help="Limits the number of examples used for training models. [ DEFAULT = 1000 ]")
+    def add_classifier_kernel_param(self):
         self.svc_opts.add_argument("-k", "--svm_kernel", required=False, default="lin",
                                    choices=["lin", "rbf", "poly"], dest="kernel",
                                    help="Specifies the kernel type to be used in the SVM algorithm. "
                                         "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
+        return
+
+    def add_basic_classifier_model_params(self):
+        self.add_classifier_kernel_param()
+        self.svc_opts.add_argument("--max_examples", required=False, default=1000, type=int,
+                                   help="Limits the number of examples used for training models. [ DEFAULT = 1000 ]")
         return
 
     def add_advanced_classifier_params(self):
@@ -306,6 +309,7 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
     assign_parser.add_search_params()
     assign_parser.add_pplace_params()
     assign_parser.add_compute_miscellany()
+    assign_parser.add_classifier_kernel_param()
     # The required parameters... for which there are currently none. But they would go here!
 
     assign_parser.optopt.add_argument("--svm", default=False, required=False, action="store_true",
@@ -329,20 +333,22 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
     return
 
 
-def add_abundance_arguments(parser: TreeSAPPArgumentParser):
-    parser.add_abundance_params()
-    parser.add_compute_miscellany()
-    parser.add_delete()
-    parser.reqs.add_argument("--treesapp_output", dest="output", required=True,
-                             help="Path to the directory containing TreeSAPP outputs, "
-                                  "including sequences to be used for the update.")
-    parser.optopt.add_argument("--report", choices=["update", "nothing", "append"], required=False, default="append",
-                               help="What should be done with the abundance values? The TreeSAPP classification table "
-                                    "can be overwritten (update), appended or left unchanged. "
-                                    "[ DEFAULT = append ]")
-    parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "align_map", "sam_sum", "summarise"],
-                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+def add_abundance_arguments(abundance_parser: TreeSAPPArgumentParser):
+    abundance_parser.add_abundance_params()
+    abundance_parser.add_refpkg_opt()
+    abundance_parser.add_compute_miscellany()
+    abundance_parser.add_delete()
+    abundance_parser.reqs.add_argument("--treesapp_output", dest="output", required=True,
+                                       help="Path to the directory containing TreeSAPP outputs, "
+                                            "including sequences to be used for the update.")
+    abundance_parser.optopt.add_argument("--report", choices=["update", "nothing", "append"],
+                                         required=False, default="append",
+                                         help="What should be done with the abundance values? "
+                                              "The TreeSAPP classification table can be overwritten (update), "
+                                              "appended or left unchanged. [ DEFAULT = append ]")
+    abundance_parser.optopt.add_argument("--stage", default="continue", required=False,
+                                         choices=["continue", "align_map", "sam_sum", "summarise"],
+                                         help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
     return
 
 
@@ -577,35 +583,8 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
     return
 
 
-def check_trainer_arguments(phy_trainer: PhyTrainer, args):
-    phy_trainer.ref_pkg.f__pkl = args.pkg_path
-    phy_trainer.ref_pkg.slurp()
-    phy_trainer.ref_pkg.validate()
-
-    # Make the directory for storing intermediate outputs
-    if not os.path.isdir(phy_trainer.var_output_dir):
-        os.makedirs(phy_trainer.var_output_dir)
-
-    for rank in args.taxon_rank:
-        phy_trainer.training_ranks[rank] = phy_trainer.ref_pkg.taxa_trie.accepted_ranks_depths[rank]
-
-    # Check whether the parameters for the classifier make sense
-    if args.classifier == "bin":
-        if not args.annot_map:
-            logging.error("An annotation mapping file is required when building a binary classifier.\n")
-            sys.exit(3)
-        else:
-            phy_trainer.annot_map = args.annot_map
-    elif args.classifier == "occ" and args.annot_map:
-        logging.warning("Annotation mapping file is ignored when building a One-Class Classifier (OCC).\n")
-
-    if args.tsne:
-        phy_trainer.tsne_plot = os.path.join(phy_trainer.var_output_dir, "train", "tSNE.png")
-
-    return
-
-
 def check_create_arguments(creator: Creator, args) -> None:
+    creator.find_sequence_molecule_type()
     # Populate ReferencePackage attributes from command-line arguments
     if args.fast:
         creator.ref_pkg.tree_tool = "FastTree"
@@ -613,10 +592,9 @@ def check_create_arguments(creator: Creator, args) -> None:
         creator.ref_pkg.tree_tool = "RAxML-NG"
     creator.ref_pkg.prefix = args.refpkg_name
     creator.ref_pkg.pid = args.similarity
-    creator.ref_pkg.molecule = args.molecule
+    creator.ref_pkg.molecule = creator.molecule_type
     creator.ref_pkg.kind = args.kind
     creator.ref_pkg.sub_model = args.raxml_model
-    creator.ref_pkg.date = dt.now().strftime("%Y-%m-%d")
     creator.ref_pkg.f__pkl = creator.final_output_dir + creator.ref_pkg.prefix + creator.ref_pkg.refpkg_suffix
     # TODO: Create placement trainer output directory and make it an attribute
     if not args.output:
@@ -689,6 +667,11 @@ def check_updater_arguments(updater: Updater, args):
     updater.ref_pkg.disband(os.path.join(updater.output_dir, "intermediates"))
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     # updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
+
+    if updater.input_sequences:
+        updater.find_sequence_molecule_type()
+    else:
+        updater.molecule_type = updater.ref_pkg.molecule
 
     if args.similarity == 1.0:
         updater.prop_sim = updater.ref_pkg.pid

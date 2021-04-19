@@ -23,7 +23,7 @@ class ColourTestCase(unittest.TestCase):
         phenotype_leaf_map = convert_taxa_to_phenotypes(phenotypes_map=phenotypes,
                                                         taxon_leaf_map=taxon_leaf_map)
         self.assertEqual(5, len(phenotype_leaf_map))
-        self.assertEqual(17, len(phenotype_leaf_map["Aceticlastic"]))
+        self.assertEqual(19, len(phenotype_leaf_map["Aceticlastic"]))
         return
 
     def test_filter_unwanted_taxa(self):

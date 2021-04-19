@@ -1,6 +1,3 @@
-
-__author__ = 'Connor Morgan-Lang'
-
 import sys
 import os
 import re
@@ -13,12 +10,14 @@ from collections import namedtuple
 from numpy import var
 
 from treesapp import phylo_seq
-from treesapp.refpkg import ReferencePackage
+from treesapp import refpkg
 from treesapp import fasta
 from treesapp import utilities as ts_utils
 from treesapp import lca_calculations
 from treesapp import entrez_utils
 from treesapp.wrapper import estimate_ml_model
+
+__author__ = 'Connor Morgan-Lang'
 
 
 class ModuleFunction:
@@ -275,7 +274,7 @@ class TreeSAPP:
         # Necessary for Evaluator, Creator and PhyTrainer:
         self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
         self.acc_to_lin = ""  # Path to an accession-lineage mapping file
-        self.ref_pkg = ReferencePackage()
+        self.ref_pkg = refpkg.ReferencePackage()
         self.classification_tbl_name = "classifications.tsv"
 
         # Values derived from the command-line arguments
@@ -325,7 +324,8 @@ class TreeSAPP:
             self.set_output_dirs()
             if set(vars(args)).issuperset({"molecule", "input"}):
                 self.input_sequences = args.input
-                self.molecule_type = args.molecule
+                if args.molecule:
+                    self.molecule_type = args.molecule
                 file_name, suffix1 = os.path.splitext(os.path.basename(self.input_sequences))
                 if suffix1 == ".gz":
                     file_name, suffix2 = os.path.splitext(file_name)
@@ -532,6 +532,15 @@ class TreeSAPP:
 
         return
 
+    def find_sequence_molecule_type(self):
+        if not self.molecule_type:
+            self.molecule_type = fasta.guess_sequence_type(fasta_file=self.input_sequences)
+            if not self.molecule_type:
+                logging.error("Unable to automatically detect the molecule type of '{}'.\n"
+                              "Please rerun with the argument '--molecule'.\n".format(self.input_sequences))
+                sys.exit(7)
+        return
+
     def find_executables(self, args) -> dict:
         """
         Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
@@ -648,7 +657,7 @@ class Updater(TreeSAPP):
         # self.rank_depth_map = None
         self.prop_sim = 1.0
         self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the refpkg
-        self.updated_refpkg = ReferencePackage()
+        self.updated_refpkg = refpkg.ReferencePackage()
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("lineages", 0),
@@ -794,44 +803,40 @@ class Creator(TreeSAPP):
             rmtree(self.var_output_dir)
         return
 
-    def determine_model(self, refpkg: ReferencePackage, estimate=False) -> None:
-        if refpkg.tree_tool == "FastTree":
-            if refpkg.molecule == "prot":
+    def determine_model(self, ref_pkg: refpkg.ReferencePackage, estimate=False) -> None:
+        if ref_pkg.tree_tool == "FastTree":
+            if ref_pkg.molecule == "prot":
                 evo_model = "LG+G4"
-            elif refpkg.molecule == "rrna" or refpkg.molecule == "dna":
+            elif ref_pkg.molecule == "rrna" or ref_pkg.molecule == "dna":
                 evo_model = "GTR+G"
             else:
-                logging.error("Unrecognized reference package molecule type: '{}'.\n".format(refpkg.molecule))
+                logging.error("Unrecognized reference package molecule type: '{}'.\n".format(ref_pkg.molecule))
                 sys.exit(3)
-            if refpkg.sub_model:
+            if ref_pkg.sub_model:
                 logging.warning("Model provided '{}' will be ignored when FastTree is used to infer phylogeny.\n"
-                                "".format(refpkg.sub_model))
-        elif refpkg.tree_tool == "RAxML-NG":
+                                "".format(ref_pkg.sub_model))
+        elif ref_pkg.tree_tool == "RAxML-NG":
             if estimate:
                 evo_model = estimate_ml_model(modeltest_exe=self.executables["ModelTest-NG"],
-                                              msa=refpkg.f__msa, output_prefix=self.phy_dir, molecule=refpkg.molecule)
-            elif not refpkg.sub_model:
-                if refpkg.molecule == "prot":
+                                              msa=ref_pkg.f__msa, output_prefix=self.phy_dir, molecule=ref_pkg.molecule)
+            elif not ref_pkg.sub_model:
+                if ref_pkg.molecule == "prot":
                     evo_model = "LG+G4"
                 else:
                     evo_model = "GTR+G"
             else:
-                logging.debug("Using specified RAxML-NG-compatible model: '{}'.\n".format(refpkg.sub_model))
-                evo_model = refpkg.sub_model
+                logging.debug("Using specified RAxML-NG-compatible model: '{}'.\n".format(ref_pkg.sub_model))
+                evo_model = ref_pkg.sub_model
         else:
-            logging.error("Unexpected phylogenetic inference tool: '{}'.\n".format(refpkg.tree_tool))
+            logging.error("Unexpected phylogenetic inference tool: '{}'.\n".format(ref_pkg.tree_tool))
             sys.exit(3)
 
-        refpkg.sub_model = evo_model
+        ref_pkg.sub_model = evo_model
         return
 
     def print_terminal_commands(self):
-        logging.info("\nTo integrate this package for use in TreeSAPP the following steps must be performed:\n"
-                     "1. Replace the current refpkg_code 'Z1111' with:\n"
-                     "`treesapp package edit refpkg_code $code --overwrite --refpkg_path {0}`"
-                     " where $code is a unique identifier.\n"
-                     "2. Copy {0} to a directory containing other reference packages you want to analyse. "
-                     "This may be in {1}/data/ or elsewhere\n"
+        logging.info("\nTo integrate this package for use in TreeSAPP you must copy {0} to a directory containing other"
+                     " reference packages you want to analyse. This may be in {1}/data/ or elsewhere\n"
                      "".format(self.ref_pkg.f__pkl, self.treesapp_dir))
         return
 
@@ -860,9 +865,10 @@ class Purity(TreeSAPP):
                        2: ModuleFunction("summarize", 2)}
 
     def check_purity_arguments(self, args):
+        self.find_sequence_molecule_type()
         self.ref_pkg.f__pkl = args.pkg_path
         self.ref_pkg.slurp()
-        self.refpkg_dir = os.path.dirname(self.ref_pkg.f__pkl)
+        self.refpkg_dir = os.path.dirname(os.path.realpath(self.ref_pkg.f__pkl))
 
         self.formatted_input = self.stage_lookup("clean").dir_path + self.sample_prefix + "_formatted.fasta"
 
@@ -898,7 +904,7 @@ class Purity(TreeSAPP):
     def summarize_groups_assigned(self, ortholog_map: dict, metadata=None):
         unique_orthologs = dict()
         tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
-        for refpkg, info in self.assignments.items():
+        for _ref_pkg, info in self.assignments.items():
             for lineage in info:
                 for seq_name in info[lineage]:
                     bits_pieces = seq_name.split('_')
@@ -1037,11 +1043,11 @@ class TaxonTest:
                                 "\t\n".join(off_targets[marker]) + "\n")
         return
     
-    def clade_exclusion_outputs(self, refpkg: ReferencePackage, output_dir: str, tool: str) -> None:
+    def clade_exclusion_outputs(self, ref_pkg: refpkg.ReferencePackage, output_dir: str, tool: str) -> None:
         """
         Creates a TaxonTest instance that stores file paths and settings relevant to a clade exclusion analysis
 
-        :param refpkg: The ReferencePackage object that is to be used for clade exclusion
+        :param ref_pkg: The ReferencePackage object that is to be used for clade exclusion
         :param output_dir: Root directory for the various outputs for this TaxonTest
         :param tool: Name of the tool used for classifying query sequences: 'graft', 'diamond' or 'treesapp'
         :return: TaxonTest instance
@@ -1049,7 +1055,7 @@ class TaxonTest:
         taxon_path = re.sub(r"([ /])", '_', self.taxon)
         taxon_path = re.sub(r"([()'\[\]])", '', taxon_path)
 
-        self.intermediates_dir = os.path.join(output_dir, refpkg.prefix, taxon_path) + os.sep
+        self.intermediates_dir = os.path.join(output_dir, ref_pkg.prefix, taxon_path) + os.sep
         if not os.path.isdir(self.intermediates_dir):
             os.makedirs(self.intermediates_dir)
 
@@ -1058,10 +1064,10 @@ class TaxonTest:
 
         if tool in ["graftm", "diamond"]:
             self.classification_table = self.classifications_root + taxon_path + os.sep + taxon_path + "_read_tax.tsv"
-            self.refpkg_path = self.intermediates_dir + refpkg.prefix + '_' + taxon_path + ".gpkg"
+            self.refpkg_path = self.intermediates_dir + ref_pkg.prefix + '_' + taxon_path + ".gpkg"
         else:
             self.classification_table = self.classifications_root + "final_outputs" + os.sep + "classifications.tsv"
-            self.refpkg_path = os.path.join(self.intermediates_dir, refpkg.prefix + refpkg.refpkg_suffix)
+            self.refpkg_path = os.path.join(self.intermediates_dir, ref_pkg.prefix + ref_pkg.refpkg_suffix)
 
         return 
 
@@ -1143,7 +1149,7 @@ class Evaluator(TreeSAPP):
         taxa_test_inst = TaxonTest(lineage)
         self.taxa_tests[rank].append(taxa_test_inst)
 
-        taxa_test_inst.clade_exclusion_outputs(output_dir=self.var_output_dir, refpkg=self.ref_pkg, tool=tool)
+        taxa_test_inst.clade_exclusion_outputs(output_dir=self.var_output_dir, ref_pkg=self.ref_pkg, tool=tool)
         
         return taxa_test_inst
 
@@ -1415,7 +1421,7 @@ class Evaluator(TreeSAPP):
 class Abundance(TreeSAPP):
     def __init__(self):
         super(Abundance, self).__init__("abundance")
-        self.target_refpkgs = list()
+        self.target_refpkgs = dict()
         self.ref_nuc_seqs = ""
         self.classifications = ""
         self.aln_file = ""
@@ -1522,82 +1528,25 @@ class Abundance(TreeSAPP):
         self.sample_prefix = self.fq_suffix_re.sub('', file_prefix)
         return
 
-
-class PhyTrainer(TreeSAPP):
-    def __init__(self):
-        super(PhyTrainer, self).__init__("train")
-        self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
-        self.placement_table = ""
-        self.placement_summary = ""
-        self.clade_ex_pquery_pkl = ""
-        self.plain_pquery_pkl = ""
-        self.feature_vector_file = ""
-        self.conditions_file = ""
-        self.tsne_plot = ""
-        self.pkg_dbname_dict = dict()
-        self.target_refpkgs = list()
-        self.training_ranks = {}
-        self.pqueries = {}
-
-        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("clean", 0),
-                       1: ModuleFunction("search", 1),
-                       2: ModuleFunction("lineages", 2),
-                       3: ModuleFunction("place", 3),
-                       4: ModuleFunction("train", 4),
-                       5: ModuleFunction("update", 5)}
-
-    def decide_stage(self, args):
-        if not args.profile:
-            self.change_stage_status("search", False)
-
-        if args.acc_to_lin:
-            self.acc_to_lin = args.acc_to_lin
-            if os.path.isfile(self.acc_to_lin):
-                self.change_stage_status("lineages", False)
+    def fetch_refpkgs_used(self, refpkg_dir=None) -> None:
+        if refpkg_dir:
+            self.target_refpkgs = refpkg.gather_ref_packages(refpkg_data_dir=refpkg_dir)
+            self.refpkg_dir = refpkg_dir
+        else:
+            # Load the reference packages in intermediates/, or the reference packages provided through refpkg_dir
+            self.target_refpkgs = refpkg.load_refpkgs_from_assign_output(self.var_output_dir)
+            if not self.target_refpkgs:
+                self.target_refpkgs = refpkg.gather_ref_packages(self.refpkg_dir)
             else:
-                logging.error("Unable to find accession-lineage mapping file '{}'\n".format(self.acc_to_lin))
-                sys.exit(3)
-
-        if os.path.isfile(self.clade_ex_pquery_pkl) and os.path.isfile(self.plain_pquery_pkl):
-            self.change_stage_status("place", False)
-
-        self.validate_continue(args)
+                self.refpkg_dir = self.var_output_dir
+        if os.sep != self.refpkg_dir[-1]:
+            self.refpkg_dir += os.sep
         return
-    
-    def set_file_paths(self) -> None:
-        """
-        Define the file path locations of treesapp train outputs
-
-        :return: None
-        """
-        self.placement_table = os.path.join(self.final_output_dir, "placement_info.tsv")
-        self.placement_summary = os.path.join(self.final_output_dir, "placement_trainer_results.txt")
-        self.clade_ex_pquery_pkl = os.path.join(self.final_output_dir, "clade_exclusion_pqueries.pkl")
-        self.plain_pquery_pkl = os.path.join(self.final_output_dir, "raw_refpkg_pqueries.pkl")
-        self.formatted_input = os.path.join(self.var_output_dir, "clean", self.ref_pkg.prefix + "_formatted.fa")
-        self.hmm_purified_seqs = os.path.join(self.var_output_dir, "search", self.ref_pkg.prefix + "_hmm_purified.fa")
-        self.acc_to_lin = os.path.join(self.var_output_dir, "lineages", "accession_id_lineage_map.tsv")
-        self.conditions_file = os.path.join(self.var_output_dir, "train", "conditions.npy")
-        self.feature_vector_file = os.path.join(self.var_output_dir, "train", "examples.npy")
-        return
-
-    def get_info(self):
-        info_string = "PhyTrainer instance summary:\n"
-        info_string += super(PhyTrainer, self).get_info() + "\n\t"
-        info_string += "\n\t".join(["Target reference packages = " + str(self.ref_pkg.prefix),
-                                    "Taxonomy map: " + self.ref_pkg.lineage_ids,
-                                    "Reference tree: " + self.ref_pkg.tree,
-                                    "Reference FASTA: " + self.ref_pkg.msa,
-                                    "Lineage map: " + str(self.acc_to_lin),
-                                    "Ranks tested: " + ','.join(self.training_ranks.keys())]) + "\n"
-
-        return info_string
 
 
 class EvaluateStats:
-    def __init__(self, refpkg: str, rank: str, dist: int):
-        self.refpkg = refpkg
+    def __init__(self, ref_pkg: str, rank: str, dist: int):
+        self.ref_pkg = ref_pkg
         self.rank = rank
         self.offset = dist
         self.n_qs = 0  # The number of query sequences used to evaluate this Rank
@@ -1608,7 +1557,7 @@ class EvaluateStats:
         self.proportion = 0.0
 
     def get_info(self):
-        info_str = "# Evaluation stats for '" + self.refpkg + "' at rank: " + self.rank + "\n"
+        info_str = "# Evaluation stats for '" + self.ref_pkg + "' at rank: " + self.rank + "\n"
         info_str += "Taxonomic rank distance = " + str(self.offset) + "\n"
         info_str += "Queries\tCorrect\tCumulative\tOver-Pred\tUnder-Pred\n"
         info_str += "\t".join([str(val) for val in
@@ -1616,7 +1565,7 @@ class EvaluateStats:
         return info_str
 
     def linear_stats(self):
-        stat_fields = [self.refpkg, self.rank, self.offset,
+        stat_fields = [self.ref_pkg, self.rank, self.offset,
                        self.n_qs, self.correct, self.cumulative, self.over_p, self.under_p]
         return "\t".join([str(val) for val in stat_fields])
 

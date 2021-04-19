@@ -169,6 +169,11 @@ class PQuery:
         self.end = 0
         self.seq_len = 0
 
+    def __str__(self):
+        return "PQuery instance for '{}' placed on RefPkg '{}' with {} placements".format(self.place_name,
+                                                                                          self.ref_name,
+                                                                                          len(self.placements))
+
     def clear(self):
         self.node_map.clear()
         self.placements.clear()
@@ -195,6 +200,13 @@ class PQuery:
         summary_str += "\tLCA taxonomic lineage is {}\n"
         summary_str += "\tTaxonomic rank resolved to is {}\n"
         return summary_str
+
+    def string_distances(self) -> None:
+        dist_ar = [self.consensus_placement.distal_length,
+                   self.consensus_placement.pendant_length,
+                   self.consensus_placement.mean_tip_length]
+        self.distances = ','.join([str(round(x, 4)) for x in dist_ar])
+        return
 
     def name_placed_sequence(self) -> None:
         names = set()
@@ -245,8 +257,7 @@ class PQuery:
         :param leaf_abundance_sums: A dictionary mapping tree leaf numbers to abundances (RPKM sums)
         :return: A dictionary mapping numerical leaf node identifiers to normalized abundance values
         """
-        jplace_node = self.consensus_placement.edge_num
-        tree_leaves = self.node_map[jplace_node]
+        tree_leaves = self.node_map[self.consensus_placement.edge_num]
         try:
             normalized_abundance = float(self.abundance/len(tree_leaves))
         except TypeError:
@@ -487,6 +498,7 @@ def assignments_to_pqueries(classified_lines: list) -> dict:
         pquery.lct = pquery.recommended_lineage
         con_place.distal_length, con_place.pendant_length, con_place.mean_tip_length = [float(d) for d in
                                                                                         pquery.distances.split(',')]
+        con_place.edge_num = int(con_place.edge_num)
         pquery.consensus_placement = con_place
         try:
             pqueries[pquery.ref_name].append(pquery)
@@ -550,6 +562,17 @@ class TreeLeafReference:
         self.lineage = ""
         self.accession = ""
         self.complete = False
+
+    def match_tree_leaf(self, leaf_name: str, refpkg_name="") -> bool:
+        if leaf_name == self.description:
+            return True
+        elif leaf_name in self.description.split(" | "):
+            return True
+        elif leaf_name == self.number:
+            return True
+        elif refpkg_name and leaf_name == self.number + "_" + refpkg_name:
+            return True
+        return False
 
     def summarize_tree_leaf(self):
         summary_string = "Leaf ID:\n\t{}\n".format(str(self.number)) +\

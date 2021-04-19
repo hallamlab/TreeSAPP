@@ -165,7 +165,7 @@ def train(sys_args):
     treesapp_args.add_trainer_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_trainer = classy.PhyTrainer()
+    ts_trainer = training_utils.PhyTrainer()
     ts_trainer.furnish_with_arguments(args)
     ts_trainer.check_previous_output(args.overwrite)
 
@@ -174,7 +174,7 @@ def train(sys_args):
     logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
-    treesapp_args.check_trainer_arguments(ts_trainer, args)
+    ts_trainer.check_trainer_arguments(args)
     ts_trainer.set_file_paths()
     ts_trainer.decide_stage(args)
     ts_trainer.ref_pkg.disband(os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_RefPkg"))
@@ -235,7 +235,8 @@ def train(sys_args):
     ##
     # STAGE 3: Download the taxonomic lineages for each query sequence
     ##
-    entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule,
+    entrez_record_dict = ts_trainer.fetch_entrez_lineages(train_seqs,
+                                                          molecule=ts_trainer.ref_pkg.molecule,
                                                           acc_to_taxid=args.acc_to_taxid,
                                                           seqs_to_lineage=args.seq_names_to_taxa)
 
@@ -348,26 +349,18 @@ def train(sys_args):
                 fp_names[refpkg_name] = [qseq.seq_name for qseq in fp_query_seqs]
 
         logging.info("Extracting features from TreeSAPP classifications... ")
-        tp, t_pqs = training_utils.vectorize_placement_data(condition_names=tp_names, classifieds=refpkg_pqueries,
-                                                            refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
-        fp, f_pqs = training_utils.vectorize_placement_data(condition_names=fp_names, classifieds=refpkg_pqueries,
-                                                            refpkg_map={ts_trainer.ref_pkg.prefix: ts_trainer.ref_pkg})
+        training_df = training_utils.load_training_data_frame(pqueries=refpkg_pqueries,
+                                                              refpkg_map={ts_trainer.ref_pkg.prefix:
+                                                                          ts_trainer.ref_pkg},
+                                                              refpkg_positive_annots=tp_names)
         logging.info("done.\n")
-
-        # Split the training and testing data from the classifications
-        classified_data, conditions, x_train, x_test, y_train, y_test = training_utils.generate_train_test_data(tp, fp)
-        # Save the feature vectors and condition vectors
-        training_utils.save_np_array(classified_data, ts_trainer.feature_vector_file)
-        training_utils.save_np_array(conditions, ts_trainer.conditions_file)
-        # Train the classifier
-        refpkg_classifiers = training_utils.train_classification_filter(tp_names, t_pqs, classified_data, conditions,
-                                                                        x_train, x_test, y_train, y_test,
-                                                                        kernel=args.kernel, tsne=ts_trainer.tsne_plot,
-                                                                        grid_search=args.grid_search,
-                                                                        num_procs=args.num_threads)
+        training_utils.train_classifier_from_dataframe(training_df, args.kernel,
+                                                       grid_search=args.grid_search,
+                                                       num_threads=args.num_threads,
+                                                       tsne=ts_trainer.tsne_plot)
         ts_trainer.increment_stage_dir()
     else:
-        refpkg_classifiers = {}
+        training_df = training_utils.load_training_data_frame({}, {}, {})
 
     if ts_trainer.stage_status("update"):
         if not ts_trainer.ref_pkg.pfit:
@@ -375,7 +368,7 @@ def train(sys_args):
                             "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
             ts_trainer.ref_pkg.pfit = [0.0, 7.0]
 
-        ts_trainer.ref_pkg.svc = refpkg_classifiers[ts_trainer.ref_pkg.prefix]
+        ts_trainer.ref_pkg.training_df = training_df
         ts_trainer.ref_pkg.f__pkl = os.path.join(ts_trainer.final_output_dir,
                                                  os.path.basename(ts_trainer.ref_pkg.f__pkl))
 
@@ -787,7 +780,8 @@ def update(sys_args):
                                                          ts_updater.ref_pkg.prefix)
         querying_classified_fasta.synchronize_seqs_n_headers()
         querying_classified_fasta.swap_headers(name_map)
-        fasta_records = ts_updater.fetch_entrez_lineages(ref_seqs=querying_classified_fasta, molecule=args.molecule,
+        fasta_records = ts_updater.fetch_entrez_lineages(ref_seqs=querying_classified_fasta,
+                                                         molecule=ts_updater.ref_pkg.molecule,
                                                          seqs_to_lineage=ts_updater.seq_names_to_taxa)
         entrez_utils.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
         ref_leaf_nodes = ts_phylo_seq.convert_entrez_to_tree_leaf_references(fasta_records)
@@ -940,6 +934,7 @@ def update(sys_args):
                                                         ts_updater.ref_pkg.prefix + ts_updater.ref_pkg.refpkg_suffix)
         ts_updater.updated_refpkg.slurp()
     else:
+        ts_updater.updated_refpkg.training_df = ts_updater.ref_pkg.training_df
         ts_updater.updated_refpkg.pfit = ts_updater.ref_pkg.pfit
         ts_updater.updated_refpkg.svc = ts_updater.ref_pkg.svc
 
@@ -1245,11 +1240,11 @@ def evaluate(sys_args):
 
     # Load FASTA data
     query_fasta = fasta.FASTA(args.input)
-    query_fasta.load_fasta(format_it=True, molecule=args.molecule)
+    query_fasta.load_fasta(format_it=True, molecule=ts_evaluate.molecule_type)
     if args.length:
         query_fasta.trim_to_length(args.length)
 
-    fasta_records = ts_evaluate.fetch_entrez_lineages(query_fasta, args.molecule, args.acc_to_taxid)
+    fasta_records = ts_evaluate.fetch_entrez_lineages(query_fasta, ts_evaluate.molecule_type, args.acc_to_taxid)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
     query_leaf_nodes = ts_phylo_seq.convert_entrez_to_tree_leaf_references(fasta_records)
     ts_evaluate.ref_pkg.taxa_trie.feed_leaf_nodes(query_leaf_nodes)

@@ -89,11 +89,23 @@ class EntishTester(unittest.TestCase):
 
         # Test for different formats with internal node identifiers
         rp_tree = verify_bifurcations(self.refpkg_tree)
-        self.assertEqual(249, len(Tree(rp_tree).get_leaves()))
+        self.assertEqual(251, len(Tree(rp_tree).get_leaves()))
         self.assertTrue(len(Tree(rp_tree).get_edges()) >= len(Tree(self.refpkg_tree).get_edges()))
 
         rf = Tree(rp_tree).robinson_foulds(Tree(self.refpkg_tree), unrooted_trees=True)
         self.assertEqual(0, rf[0])
+        return
+
+    def test_match_leaves_to_internal_nodes(self):
+        from treesapp.entish import match_leaves_to_internal_nodes
+        test_leaves = ["1_R", "2_R", "3_R", "8_R"]
+        test_inodes = {0: ["1_R"], 1: ["2_R"], 3: ["1_R", "2_R"],
+                       4: ["3_R"], 5: ["4_R"], 6: ["3_R", "4_R"], 7: ["1_R", "2_R"] + ["3_R", "4_R"],
+                       8: ["8_R"], 9: ["1_R", "2_R"] + ["3_R", "4_R"] + ["8_R"]}
+        i_nodes = match_leaves_to_internal_nodes(leaf_names=test_leaves, internal_node_leaf_map=test_inodes)
+        self.assertEqual([3, 4, 8], sorted(i_nodes, key=int))
+        self.assertEqual(4, len(test_leaves))
+        self.assertEqual(9, len(test_inodes))
         return
 
 

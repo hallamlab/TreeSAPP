@@ -396,8 +396,7 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
         # Valid number of queries and these sequences have already been classified
         ce_refpkg = refpkg.ReferencePackage()
         ce_refpkg.f__pkl = os.path.join(tt_obj.intermediates_dir,
-                                         '_'.join([ref_pkg.prefix, ref_pkg.refpkg_code,
-                                                   ref_pkg.date]),
+                                        ref_pkg.refpkg_code,
                                         ref_pkg.prefix + ref_pkg.refpkg_suffix)
         ce_refpkg.slurp()
 

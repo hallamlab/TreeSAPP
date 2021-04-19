@@ -6,6 +6,7 @@ import json
 import inspect
 from glob import glob
 from shutil import copy
+from datetime import datetime as dt
 
 from packaging import version
 from ete3 import Tree
@@ -13,7 +14,7 @@ from pandas import DataFrame
 import joblib
 
 from treesapp.phylo_seq import TreeLeafReference
-from treesapp.entish import annotate_partition_tree, label_internal_nodes_ete, verify_bifurcations
+from treesapp import entish
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
@@ -34,7 +35,8 @@ class ReferencePackage:
     """
     def __init__(self, refpkg_name=""):
         self.prefix = refpkg_name
-        self.refpkg_code = "Z1111"  # AKA denominator
+        self.date = dt.now().strftime("%Y-%m-%d")  # Date the reference package was created
+        self.refpkg_code = refpkg_name + dt.now().strftime("%m%d.%s")  # AKA denominator
 
         # These are files (with '_f' suffix) and their respective data (read with file.readlines())
         self.refpkg_suffix = "_build.pkl"
@@ -58,7 +60,6 @@ class ReferencePackage:
         # These are metadata values
         self.ts_version = ts_version
         self.sub_model = ""  # EPA-NG compatible substitution model
-        self.date = ""  # Date the reference package was created
         self.update = ""  # Date the reference package was last updated
         self.num_seqs = 0  # Number of reference sequences in the MSA, phylogeny
         self.profile_length = 0  # LENG of the profile HMM (not search profile)
@@ -84,6 +85,11 @@ class ReferencePackage:
         """
         for attr, value in self.__dict__.items():
             yield attr, value
+
+    def __str__(self):
+        return "TreeSAPP ({}) ReferencePackage '{}' with {} sequences".format(self.ts_version,
+                                                                              self.prefix,
+                                                                              self.num_seqs)
 
     def get_public_attributes(self) -> list:
         return [attr[0] for attr in inspect.getmembers(self) if
@@ -120,16 +126,20 @@ class ReferencePackage:
         refpkg_clone.f__pkl = clone_path
         return refpkg_clone
 
-    def pickle_package(self) -> None:
+    def pickle_package(self, new_output_dir=None) -> None:
         """
         Dumps a new joblib pickled file of the ReferencePackage instance dictionary to self.f__pkl.
 
+        :param new_output_dir: Will copy the ReferencePackage pkl to this new directory (its form of 'cp').
         :return: None.
         """
         if len(self.f__pkl) == 0:
             self.bail("ReferencePackage.f__pkl not set. ReferencePackage band() cannot be completed.\n")
             raise AttributeError
 
+        # Ensure the pickled RefPkg can be written to a valid directory
+        if new_output_dir:
+            self.f__pkl = new_output_dir + os.sep + os.path.basename(self.f__pkl)
         output_dir = os.path.dirname(self.f__pkl)
         if not output_dir:
             output_dir = "./"
@@ -234,7 +244,7 @@ class ReferencePackage:
                           "TreeSAPP will only create a single directory at a time.\n".format(output_dir, self.prefix))
             sys.exit(3)
 
-        output_prefix = os.path.join(output_dir, '_'.join([self.prefix, self.refpkg_code, self.date])) + os.sep
+        output_prefix = os.path.join(output_dir, self.refpkg_code) + os.sep
 
         if not os.path.isdir(output_prefix):
             os.mkdir(output_prefix)
@@ -343,7 +353,7 @@ class ReferencePackage:
                                                                                       self.num_seqs,
                                                                                       len(rt)))
             return False
-        self.tree = verify_bifurcations(self.tree)
+        self.tree = entish.verify_bifurcations(self.tree)
 
         # Compare the number of sequences in lineage IDs
         n_leaf_nodes = len(self.generate_tree_leaf_references_from_refpkg())
@@ -401,7 +411,7 @@ class ReferencePackage:
                 self.tree = self.tree.pop(0)
 
         rt = Tree(self.tree)
-        label_internal_nodes_ete(rt)
+        entish.label_internal_nodes_ete(rt)
         return rt
 
     def get_internal_node_leaf_map(self) -> dict:
@@ -574,23 +584,29 @@ class ReferencePackage:
                 leaf_names.pop(i)
 
         # The remaining names in leaf_names refer to individual leaf nodes, not higher-level taxa
-        for leaf_name in leaf_names:
-            leaves = self.get_leaf_node_by_name(leaf_name)
-            if leaves:
-                taxon_leaf_map[leaf_name] = [leaf.number + '_' + self.prefix for leaf in leaves]
+        matched_leaves = self.get_leaf_nodes_by_name(leaf_names)
+        mia_leaves = []
+        for ref_leaf in leaf_names:  # type: str
+            try:
+                taxon_leaf_map[ref_leaf] = [leaf.number + '_' + self.prefix for leaf in matched_leaves[ref_leaf]]
+            except KeyError:
+                mia_leaves.append(ref_leaf)
+
+        if len(mia_leaves) > 0:
+            logging.warning("Unable to find all leaves '{}' in {} reference package leaves.\n"
+                            "".format(", ".join(mia_leaves), self.prefix))
         return taxon_leaf_map
 
-    def get_leaf_node_by_name(self, leaf_name: str) -> list:
-        leaves = []
-        for leaf_node in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
-            if leaf_name == leaf_node.description:
-                leaves.append(leaf_node)
-            desc, acc = leaf_node.description.split(" | ")
-            if leaf_name == desc or leaf_name == acc:
-                leaves.append(leaf_node)
-
-        if len(leaves) == 0:
-            logging.warning("Unable to find leaf '{}' in {} reference package leaves.\n".format(leaf_name, self.prefix))
+    def get_leaf_nodes_by_name(self, leaf_names) -> dict:
+        leaves = {}
+        leaf_nodes = self.generate_tree_leaf_references_from_refpkg()
+        for leaf_name in leaf_names:  # type: str
+            for tree_leaf in leaf_nodes:  # type: TreeLeafReference
+                if tree_leaf.match_tree_leaf(leaf_name, refpkg_name=self.prefix):
+                    try:
+                        leaves[leaf_name].append(tree_leaf)
+                    except KeyError:
+                        leaves[leaf_name] = [tree_leaf]
 
         return leaves
 
@@ -805,7 +821,7 @@ class ReferencePackage:
     def recover_raxmlng_supports(self, phylogeny_dir: str) -> None:
         # Annotate the bootstrapped phylogeny
         bootstrap_tree = match_file(phylogeny_dir + "*.raxml.support")
-        annotate_partition_tree(self.prefix, self.generate_tree_leaf_references_from_refpkg(), bootstrap_tree)
+        entish.annotate_partition_tree(self.prefix, self.generate_tree_leaf_references_from_refpkg(), bootstrap_tree)
         copy(bootstrap_tree, self.f__boot_tree)
         return
 
@@ -1078,8 +1094,6 @@ class ReferencePackage:
         # Generate the sets for taxa and internal nodes to compare to
         taxa_names = self.taxa_trie.get_taxon_names(with_prefix=True)
         internal_nodes = {str(k): v for k, v in self.get_internal_node_leaf_map().items()}
-        leaf_names = {ref.number + '_' + self.prefix for ref in self.generate_tree_leaf_references_from_refpkg()}
-        leaf_descriptions = {ref.description: ref for ref in self.generate_tree_leaf_references_from_refpkg()}
 
         for index, feature in feature_map.items():  # type: (str, str)
             if index in taxa_names:
@@ -1087,18 +1101,20 @@ class ReferencePackage:
                     internal_node_feature_map[i_node] = (feature, index)
             elif index in internal_nodes:
                 internal_node_feature_map[int(index)] = (feature, '')
-            elif index in leaf_names:
-                for i_node in internal_nodes:
-                    if internal_nodes[i_node] == [index]:
-                        internal_node_feature_map[int(i_node)] = (feature, '')
-            elif index in leaf_descriptions:
-                ref_leaf = leaf_descriptions[index]
-                for i_node in internal_nodes:
-                    if internal_nodes[i_node] == [ref_leaf.number + '_' + self.prefix]:
-                        internal_node_feature_map[int(i_node)] = (feature, index)
-                        break
             else:
                 unmapped.append(index)
+
+        taxon_leaf_map = self.map_taxa_to_leaf_nodes(unmapped)
+        for index, feature in feature_map.items():  # type: (str, str)
+            if index not in unmapped:
+                continue
+            try:
+                for i_node in entish.match_leaves_to_internal_nodes(leaf_names=taxon_leaf_map[index],
+                                                                    internal_node_leaf_map=internal_nodes):
+                    internal_node_feature_map[int(i_node)] = (feature, '')
+                unmapped.remove(index)
+            except KeyError:
+                pass
 
         if unmapped:
             logging.warning("Unable to find the following feature indices in taxa, leaves or internal nodes:\n\t" +
@@ -1112,6 +1128,7 @@ class ReferencePackage:
         inode_features = self.convert_feature_indices_to_inodes(feature_map)
 
         inode_leaf_map = self.get_internal_node_leaf_map()
+        all_leaves = set(sum(inode_leaf_map.values(), []))
         # Pull the current annotations in case it can be appended to
         try:
             clade_annots = self.feature_annotations[feature_name]
@@ -1152,6 +1169,26 @@ class ReferencePackage:
         # Remove the feature from feature_annotations it there are no CladeAnnotation entries
         if len(self.feature_annotations[feature_name]) == 0:
             self.feature_annotations.pop(feature_name)
+            logging.warning("No clade annotations were made for feature '{}'.\n".format(feature_name))
+            return
+
+        # Identify the reference package leaves that are not annotated
+        for ca in self.feature_annotations[feature_name]:
+            for leaf_name in ca.members:
+                try:
+                    all_leaves.remove(leaf_name)
+                except KeyError:
+                    pass  # Probably already present in one or more CladeAnnotation.members
+
+        # Report the leaves that were not annotated by their descriptions and lineages
+        missing_leaf_map = self.get_leaf_nodes_by_name(all_leaves)
+        missing_ref_leaves = sum(missing_leaf_map.values(), [])
+        unique_lineages = sorted(set([ref_leaf.lineage for ref_leaf in missing_ref_leaves]))
+        unique_descs = sorted([ref_leaf.description for ref_leaf in missing_ref_leaves])
+        logging.info("{} references were not annotated. More info can be found in log.\n".format(len(all_leaves)))
+        logging.debug("Unique lineages remaining unannotated:\n\t{}\n"
+                      "Descriptions of unannotated reference leaves:\n\t{}\n".format("\n\t".join(unique_lineages),
+                                                                                     "\n\t".join(unique_descs)))
 
         return
 
@@ -1212,7 +1249,7 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) 
         logging.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(k))
         sys.exit(1)
 
-    logging.info("Replacing attribute '{}' (currently '{}')\n".format(k, current_v))
+    logging.info("Updating attribute '{}' (currently '{}')\n".format(k, current_v))
 
     if k.startswith("f__"):  # This is a file that is being modified and the contents need to be read
         k_content = re.sub(r"^f__", '', k)
@@ -1228,6 +1265,9 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) 
             logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, refpkg.f__pkl))
             sys.exit(7)
     elif k == "feature_annotations":
+        if "phenotypes" not in kwargs or not os.path.isfile(kwargs["phenotypes"]):
+            logging.error("A taxonomy-phenotype table must be provided to update the feature_annotations attribute.\n")
+            sys.exit(7)
         taxa_phenotype_map = read_phenotypes(kwargs["phenotypes"])
         refpkg.add_feature_annotations(feature_name=v, feature_map=taxa_phenotype_map, reset=kwargs["reset"])
         v = refpkg.feature_annotations
@@ -1271,6 +1311,24 @@ def rename(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrit
     write_edited_pkl(refpkg, output_dir, overwrite)
 
     return
+
+
+def load_refpkgs_from_assign_output(assign_intermediates_dir: str) -> dict:
+    """Returns a dictionary of prefix keys to ReferencePackage instance values found in an assign intermediates dir."""
+    refpkg_dict = dict()
+    refpkg_dirs = glob(assign_intermediates_dir + os.sep + "*_RefPkg")
+    if len(refpkg_dirs) == 0:
+        logging.error("Unable to find reference packages written to '{}'.\n".format(assign_intermediates_dir))
+        return refpkg_dict
+
+    for dir_path in refpkg_dirs:
+        rp_name = re.match(r"(.*)_RefPkg", os.path.basename(dir_path)).group(1)
+        ref_pkg = ReferencePackage()
+        ref_pkg.f__pkl = dir_path + os.sep + rp_name + ref_pkg.refpkg_suffix
+        ref_pkg.slurp()
+        refpkg_dict[ref_pkg.prefix] = ref_pkg
+
+    return refpkg_dict
 
 
 def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:

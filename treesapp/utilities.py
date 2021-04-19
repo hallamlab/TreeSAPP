@@ -3,13 +3,13 @@ __author__ = 'Connor Morgan-Lang'
 import os
 import re
 import sys
-import subprocess
 import logging
 import shutil
 from glob import glob
 from csv import Sniffer
 
 from pygtrie import StringTrie
+import multiprocessing
 
 from treesapp.external_command_interface import launch_write_command
 
@@ -132,8 +132,12 @@ def available_cpu_count():
     user/real as output by time(1) when called with an optimally scaling
     userspace-only program"""
 
-    # cpuset
-    # cpuset may restrict the number of *available* processors
+    try:
+        res = multiprocessing.cpu_count()
+        return res
+    except (ImportError, NotImplementedError):
+        pass
+
     try:
         m = re.search(r'(?m)^Cpus_allowed:\s*(.*)$',
                       open('/proc/self/status').read())
@@ -149,76 +153,8 @@ def available_cpu_count():
     except (ImportError, NotImplementedError):
         pass
 
-    # POSIX
-    try:
-        res = int(os.sysconf('SC_NPROCESSORS_ONLN'))
-
-        if res > 0:
-            return res
-    except (AttributeError, ValueError):
-        pass
-
-    # Windows
-    try:
-        res = int(os.environ['NUMBER_OF_PROCESSORS'])
-
-        if res > 0:
-            return res
-    except (KeyError, ValueError):
-        pass
-
-    # BSD
-    try:
-        sysctl = subprocess.Popen(['sysctl', '-n', 'hw.ncpu'],
-                                  stdout=subprocess.PIPE)
-        scStdout = sysctl.communicate()[0]
-        res = int(scStdout)
-
-        if res > 0:
-            return res
-    except (OSError, ValueError):
-        pass
-
-    # Linux
-    try:
-        res = open('/proc/cpuinfo').read().count('processor\t:')
-
-        if res > 0:
-            return res
-    except IOError:
-        pass
-
-    # Solaris
-    try:
-        pseudoDevices = os.listdir('/devices/pseudo/')
-        res = 0
-        for pd in pseudoDevices:
-            if re.match(r'^cpuid@[0-9]+$', pd):
-                res += 1
-
-        if res > 0:
-            return res
-    except OSError:
-        pass
-
-    # Other UNIXes (heuristic)
-    try:
-        try:
-            dmesg = open('/var/run/dmesg.boot').read()
-        except IOError:
-            dmesgProcess = subprocess.Popen(['dmesg'], stdout=subprocess.PIPE)
-            dmesg = dmesgProcess.communicate()[0]
-
-        res = 0
-        while '\ncpu' + str(res) + ':' in dmesg:
-            res += 1
-
-        if res > 0:
-            return res
-    except OSError:
-        pass
-
     logging.error('Can not determine number of CPUs on this system')
+    return
 
 
 def executable_dependency_versions(exe_dict: dict) -> str:
@@ -525,9 +461,8 @@ def complement_nucs(nuc_str: str):
                 comp_str += 'N'
 
     if replacements:
-        logging.warning(str(len(replacements)) +
-                        " ambiguity character(s) (" + ', '.join(sorted(set(replacements))) +
-                        ") replaced by 'N' while complementing\n")
+        logging.warning("{} ambiguity character(s) ({}) replaced by 'N' while complementing\n"
+                        "".format(len(replacements), ', '.join(sorted(set(replacements)))))
     return comp_str
 
 
@@ -535,7 +470,7 @@ def reverse_complement(nuc_sequence: str):
     return complement_nucs(nuc_sequence[::-1])
 
 
-def find_msa_type(msa_files):
+def find_msa_type(msa_files: dict):
     file_types = set()
     for mc in msa_files:
         sample_msa_file = msa_files[mc][0]

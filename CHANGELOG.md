@@ -13,19 +13,27 @@ We recommend updating to this version, and updating reference packages you have 
 - A new attribute called 'feature_annotations' has been introduced to reference packages.
   It can store what was previously saved to iTOL-compatible annotation files by `treesapp colour`.
 - `treesapp package edit` accepts a taxonomy-phenotype mapping file to populate the feature_annotations attribute.
-  See [Wiki](https://github.com/hallamlab/TreeSAPP/wiki/Reference-package-operations#edit) for details.
--  `treesapp package view tree` will print a Newick tree with each leaf node's accession and description.
+  See [Wiki](https://github.com/hallamlab/TreeSAPP/wiki/Reference-package-operations) for details.
 - `treesapp update` with automatically propagate feature annotations from the original reference package by mapping
-  the reference sequences through their unique descriptions (organism name and accession). 
+  the reference sequences through their unique descriptions (organism name and accession).
+-  `treesapp package view tree` will print a Newick tree with each leaf node's accession and description.
+- `treesapp abundance` creates a simple_bar.txt file for each sample analyzed.
+- Ability to automatically detect the sequence type based on the input provided.
 
 ### Fixed
 - Segmentation fault from Prodigal is no longer possible as `treesapp assign` verifies input presence earlier.
+- `treesapp purity` bug where the reference package path was not correctly passed to `treesapp assign` if in the same directory
 
 ### Changed
 - Renamed the classification table made by `treesapp assign` (and used by subcommands like `layer`) 'classifications.tsv'.
+- The reference package attribute 'refpkg_code' is automatically set and
+  does not need to be changed as it is guaranteed to be unique.
+- The reference package disband path has been changed to just the reference package code.
 - `treesapp colour` accesses and uses the 'feature_annotations' to write iTOL-compatible annotation files
   (i.e. colour_strip.txt and colours_styles.txt). It no longer accepts taxonomy-phenotype tables.
 - `treesapp layer` uses the 'feature_annotations' attribute in reference packages to annotate classified sequences.
+- The versioned sequence accessions (or first split for unformatted sequence headers) are used in the
+  ReferencePackage lineage_ids attribute. This ensures unique sequence IDs and helps with iterative updates.
 
 ## [0.10.4] - 2021-03-25
 ### Fixed

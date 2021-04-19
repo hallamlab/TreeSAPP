@@ -10,7 +10,7 @@ def test_pquery(request):
     from treesapp.entish import map_internal_nodes_leaves
     jplace_data = jplace_parser(get_test_data("epa_result.jplace"))
     pqueries = demultiplex_pqueries(jplace_data)
-    request.cls.db = pqueries.pop(4)
+    request.cls.db = pqueries.pop(9)
     request.cls.db.node_map = map_internal_nodes_leaves(jplace_data.tree)
     request.cls.db.abundance = 2.5
     return
@@ -139,7 +139,7 @@ class PhyloSeqTests(unittest.TestCase):
         # Test with multiple placements and the LCA is none of the placements
         self.pquery_test_5.placements = split_placements(self.pquery_test_5.placements)
         self.pquery_test_5.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
-        self.assertEqual(398, self.pquery_test_5.consensus_placement.edge_num)
+        self.assertEqual(397, self.pquery_test_5.consensus_placement.edge_num)
 
         # Ensure none of the likelihood weight ratios exceed 1
         for pq in [self.pquery_test_1, self.pquery_test_3, self.pquery_test_4, self.pquery_test_5]:

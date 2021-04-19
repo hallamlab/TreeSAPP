@@ -175,6 +175,37 @@ class AssignerTester(unittest.TestCase):
                          os.path.basename(split_msa_files["McrA"][0].query))
         return
 
+    def test_load_refpkg_classifiers(self):
+        from treesapp import assign
+        from treesapp.refpkg import ReferencePackage
+        from sklearn import svm
+        ts_assigner = assign.Assigner()
+        ts_assigner.svc_filter = True
+        tmp_refpkg_dict = dict()
+
+        # Test with empty training_df attribute
+        with pytest.raises(SystemExit):
+            ts_assigner.load_refpkg_classifiers(refpkg_dict=self.refpkg_dict, combine=True, threads=1, kernel="lin")
+
+        # Test the combine workflow
+        test_refpkg_names = ["McrA", "McrB", "DsrAB"]
+        for pkg_name in test_refpkg_names:
+            rp = ReferencePackage()
+            rp.f__pkl = get_test_data(os.path.join("refpkgs", pkg_name + "_build.pkl"))
+            rp.slurp()
+            tmp_refpkg_dict[pkg_name] = rp
+        ts_assigner.load_refpkg_classifiers(refpkg_dict=tmp_refpkg_dict, combine=True, threads=1, kernel="rbf")
+        for pkg_name in test_refpkg_names:
+            self.assertIsInstance(tmp_refpkg_dict[pkg_name].svc, svm.OneClassSVM)
+            self.assertEqual("rbf", tmp_refpkg_dict[pkg_name].svc.kernel)
+
+        # Test for a single reference package
+        mcra_rp_map = {"McrA": tmp_refpkg_dict.pop("McrA")}
+        ts_assigner.load_refpkg_classifiers(refpkg_dict=mcra_rp_map, threads=1, kernel="lin")
+        self.assertEqual("linear", mcra_rp_map["McrA"].svc.kernel)
+
+        return
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -15,6 +15,11 @@ from collections import namedtuple
 from treesapp.utilities import median, rekey_dict
 
 
+aa_alphabet = {'a', 'r', 'n', 'd', 'c', 'q', 'e', 'g', 'h', 'i', 'l', 'k', 'm', 'f', 'p', 's', 't', 'w', 'y', 'v'}
+nuc_alphabet = {'a', 'c', 'g', 't'}
+insertion_chars = {'-', '.'}
+
+
 def fastx_split(fastx: str, outdir: str, file_num=1) -> list:
     fastx_type = fastx_format_check(fastx)
 
@@ -761,6 +766,103 @@ class FASTA:
             else:
                 self.fasta_dict[header] = seq
         return
+
+
+def is_nucleotide(seq_str, req_perc=0.95) -> bool:
+    """
+    Check if a file contains sequences in nucleotide space.
+    The check is performed by looking for the characters in
+    {a,c,g,t,n,.,-} and confirming that these comprise the
+    majority of a sequences. A set number of sequences are
+    read and the file assumed to be not be in nucleotide space
+    if none of these sequences are comprised primarily of the
+    defined nucleotide set.
+
+    :param seq_str: A biological sequence string
+    :param req_perc: float
+        Percentage of bases in {a,c,g,t,n,.,-} before
+        declaring the sequences as being in nucleotide
+        space.
+    :return: True is sequences are in nucleotide space.
+    """
+    seq = seq_str.lower()
+
+    nt_bases = 0
+    for c in (nuc_alphabet | {'n'} | insertion_chars):
+        nt_bases += seq.count(c)
+
+    if nt_bases / len(seq) >= req_perc:
+        return True
+
+    return False
+
+
+def is_protein(seq_str: str, req_perc=0.95) -> bool:
+    """
+    Check if a file contains sequences in protein space.
+    The check is performed by looking for the 20 amino acids,
+    along with X, and the insertion characters '-' and '.', in
+    order to confirm that these comprise the majority of a
+    sequences. A set number of sequences are read and the file
+    assumed to be not be in nucleotide space if none of these
+    sequences are comprised primarily of the defined nucleotide set.
+
+    :param seq_str: A biological sequence string
+    :param req_perc: Percentage of amino acid bases before declaring the sequences as being in nucleotide space.
+    :return: True is sequences are in protein space.
+    """
+    prot_bases = 0
+    for c in (aa_alphabet | {'x'} | insertion_chars):
+        prot_bases += seq_str.count(c)
+
+    if prot_bases / len(seq_str) >= req_perc:
+        return True
+
+    return False
+
+
+def guess_sequence_type(max_eval=100, req_perc=0.95, **kwargs) -> str:
+    """
+
+    :param max_eval: The maximum number of sequences to use for guessing the overall sequence type
+    :param req_perc: Percentage of characters before declaring the sequences as being in a molecule space.
+    :param kwargs:
+        See below
+    :Keyword Arguments:
+        * *fasta_file* (``str``) --
+          Extra stuff
+        * *fasta_dict* (``dict``) --
+          Additional content
+    :return: Potential return values are 'nuc' or 'aa'
+    """
+    if "fasta_file" in kwargs:
+        fasta_seqs = read_fasta_to_dict(kwargs["fasta_file"]).values()
+    elif "fasta_dict" in kwargs:
+        fasta_seqs = kwargs["fasta_dict"].values()
+    else:
+        logging.error("Unknown parameter '{}' provided.\n".format(kwargs.popitem()))
+        raise ValueError
+
+    seqs_read = 0
+    seq_counts = {"prot": 0, "dna": 0}
+    for seq in fasta_seqs:
+        seq = seq.lower()
+
+        if is_nucleotide(seq, req_perc):
+            seq_counts["dna"] += 1
+        elif is_protein(seq, req_perc):
+            seq_counts["prot"] += 1
+
+        seqs_read += 1
+        if seqs_read > max_eval:
+            break
+
+    majority = max(seq_counts, key=seq_counts.get)
+    if seq_counts[majority] > 0.95*seqs_read:
+        logging.debug("Sequences appear to be '{}'.\n".format(majority))
+        return majority
+    else:
+        return ""
 
 
 def merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index):

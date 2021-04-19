@@ -11,6 +11,46 @@ from treesapp import phylo_seq
 from treesapp import file_parsers
 
 
+def generate_simplebar(target_marker: str, pqueries: list, itol_bar_file: str, data_label="ABUNDANCE") -> None:
+    """
+    From the basic abundance output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
+
+    :param target_marker: Name of the reference package (i.e. ReferencePackage.prefix)
+    :param pqueries: A list of PQuery objects, for single sequences
+    :param itol_bar_file: The name of the file to write the simple-bar data for iTOL
+    :param data_label: The name of the dataset - for iTOL
+    :return: None
+    """
+    leaf_abundance_sums = dict()
+
+    for tree_sap in pqueries:  # type: phylo_seq.PQuery
+        if tree_sap.ref_name == target_marker and tree_sap.classified:
+            leaf_abundance_sums = tree_sap.sum_abundances_per_node(leaf_abundance_sums)
+
+    # Only make the file if there is something to write
+    if len(leaf_abundance_sums.keys()) > 0:
+        try:
+            itol_abundance_out = open(itol_bar_file, 'w')
+        except IOError:
+            logging.error("Unable to open " + itol_bar_file + " for writing.\n")
+            sys.exit(3)
+
+        # Write the header
+        header = "DATASET_SIMPLEBAR\n" \
+                 "SEPARATOR COMMA\n" \
+                 "DATASET_LABEL,{}\n" \
+                 "COLOR,#ff0000\n".format(data_label)
+        itol_abundance_out.write(header)
+        # Write the abundance sums for each leaf
+        itol_abundance_out.write("DATA\n")
+        data_lines = [','.join([str(k), str(v)]) for k, v in leaf_abundance_sums.items()]
+        itol_abundance_out.write("\n".join(data_lines))
+
+        itol_abundance_out.close()
+
+    return
+
+
 def abundance(sys_args) -> dict:
     """
     TreeSAPP subcommand that is used to add read-inferred abundance information (e.g. FPKM, TPM) to classified sequences
@@ -30,7 +70,7 @@ def abundance(sys_args) -> dict:
     :param sys_args: treesapp abundance arguments with the treesapp subcommand removed
     :return: A dictionary containing the abundance values indexed by the reference sequence (e.g. ORF, contig) names
     """
-    parser = treesapp_args.TreeSAPPArgumentParser(description="Calculate classified sequence abundances from read coverage.")
+    parser = treesapp_args.TreeSAPPArgumentParser(description="Calculate query sequence abundances from read coverage.")
     treesapp_args.add_abundance_arguments(parser)
     args = parser.parse_args(sys_args)
 
@@ -90,7 +130,9 @@ def abundance(sys_args) -> dict:
 
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
         assigner_instance = classy.TreeSAPP("phylotu")
-        refpkg_pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir, assigner_instance)
+        ts_abund.fetch_refpkgs_used(args.refpkg_dir)
+        refpkg_pqueries = file_parsers.load_classified_sequences_from_assign_output(ts_abund.output_dir,
+                                                                                    assigner_instance)
 
         # Collect the names of all classified PQueries
         classified_seqs = set()
@@ -99,6 +141,11 @@ def abundance(sys_args) -> dict:
 
         # Select a unique set of PQuery instances to use in the updated classification table
         for refpkg_name, pqueries in refpkg_pqueries.items():
+            try:
+                inode_map = ts_abund.target_refpkgs[refpkg_name].get_internal_node_leaf_map()
+            except KeyError:
+                logging.error("Unable to find reference package '{}' in {}.\n".format(refpkg_name, ts_abund.refpkg_dir))
+                sys.exit(17)
             unique_pqueries = []
             seq_name_list = list({pq.place_name for pq in pqueries})
             for pquery in pqueries:
@@ -110,6 +157,9 @@ def abundance(sys_args) -> dict:
                         i = len(seq_name_list)
                     i += 1
             refpkg_pqueries[refpkg_name] = unique_pqueries
+            # Set the node_map attribute for each PQuery using the ReferencePackage's node_map
+            for pquery in unique_pqueries:
+                pquery.node_map = inode_map
 
         # Fill PQuery.abundance attribute
         for sample_name, abundance_map in abundance_dict.items():
@@ -120,6 +170,14 @@ def abundance(sys_args) -> dict:
             phylo_seq.abundify_tree_saps(refpkg_pqueries, abundance_map)
             file_parsers.write_classification_table(refpkg_pqueries, sample_name, ts_abund.classifications,
                                                     append=ts_abund.append_abundance)
+            # Write the simple_bar file for iTOL
+            for rp_prefix, rp_pqueries in refpkg_pqueries.items():
+                generate_simplebar(pqueries=rp_pqueries,
+                                   target_marker=rp_prefix,
+                                   itol_bar_file=os.path.join(ts_abund.output_dir, "iTOL_output", rp_prefix,
+                                                              '_'.join([rp_prefix, sample_name,
+                                                                        "abundance", "simplebar.txt"])),
+                                   data_label=args.metric.capitalize())
             ts_abund.append_abundance = True
 
     return abundance_dict
