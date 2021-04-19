@@ -71,15 +71,15 @@ class RefPkgTester(unittest.TestCase):
 
     def test_remove_taxon_from_lineage_ids(self):
         # Ensure the initial state is as expected
-        self.assertEqual(249, self.db.num_seqs)
-        self.assertEqual(249, len(self.db.lineage_ids))
+        self.assertEqual(251, self.db.num_seqs)
+        self.assertEqual(251, len(self.db.lineage_ids))
 
         # Test
         self.db.remove_taxon_from_lineage_ids("r__Root; d__Archaea; p__Euryarchaeota; c__Methanobacteria;"
                                               " o__Methanobacteriales; f__Methanobacteriaceae; g__Methanosphaera")
-        self.assertEqual(191, self.db.num_seqs)
+        self.assertEqual(194, self.db.num_seqs)
         self.db.remove_taxon_from_lineage_ids("r__Root; d__Archaea; p__Euryarchaeota; c__Methanobacteria")
-        self.assertEqual(144, len(self.db.lineage_ids))
+        self.assertEqual(148, len(self.db.lineage_ids))
 
         self.db.remove_taxon_from_lineage_ids("r__Root; d__Archaea")
         self.assertEqual(0, len(self.db.lineage_ids))
@@ -87,13 +87,13 @@ class RefPkgTester(unittest.TestCase):
 
     def test_get_fasta(self):
         refpkg_fa = self.db.get_fasta()
-        self.assertEqual(249, len(refpkg_fa.fasta_dict))
+        self.assertEqual(251, len(refpkg_fa.fasta_dict))
         return
 
     def test_get_ete_tree(self):
         from treesapp.refpkg import ReferencePackage
         rt = self.db.get_ete_tree()
-        self.assertEqual(249, len(rt))
+        self.assertEqual(251, len(rt))
         blank = ReferencePackage()
         with pytest.raises(SystemExit):
             blank.get_ete_tree()
@@ -113,7 +113,7 @@ class RefPkgTester(unittest.TestCase):
     def test_map_taxa_to_leaf_nodes(self):
         leaf_map = self.db.map_taxa_to_leaf_nodes(leaf_names=["g__Methanothrix", "g__Methanosarcina"])
         self.assertEqual(4, len(leaf_map["g__Methanothrix"]))
-        self.assertEqual(13, len(leaf_map["g__Methanosarcina"]))
+        self.assertEqual(15, len(leaf_map["g__Methanosarcina"]))
         return
 
     def test_get_internal_node_leaf_map(self):
@@ -127,12 +127,12 @@ class RefPkgTester(unittest.TestCase):
     def test_match_taxon_to_internal_nodes(self):
         self.assertEqual([],
                          self.db.match_taxon_to_internal_nodes("c__Methanococcus"))
-        self.assertEqual([132],
+        self.assertEqual([130],
                          self.db.match_taxon_to_internal_nodes("g__Methanopyrus"))
-        self.assertEqual([212, 378, 110, 273, 477, 26, 409, 131, 436, 287, 36, 448, 386,
-                          294, 41, 415, 276, 495, 439, 438, 437, 417, 410, 296, 295, 27],
+        self.assertEqual([376, 206, 108, 267, 26, 407, 129, 431, 279, 36, 466, 444, 384, 286, 455, 449, 41, 437, 434,
+                          413, 270, 499, 476, 474, 467, 459, 458, 457, 456, 450, 408, 288, 287, 27],
                          self.db.match_taxon_to_internal_nodes("d__Archaea"))
-        self.assertEqual([497],
+        self.assertEqual([501],
                          self.db.match_taxon_to_internal_nodes("r__Root"))
         return
 
@@ -174,13 +174,13 @@ class RefPkgTester(unittest.TestCase):
         self.db.f__pkl = self.pkl_path
         self.db.slurp()
         self.assertEqual("McrA", self.db.prefix)
-        self.assertEqual(249, self.db.num_seqs)
+        self.assertEqual(251, self.db.num_seqs)
         return
 
     def test_taxonomically_label_tree(self):
         from treesapp.taxonomic_hierarchy import Taxon
         labelled_rt = self.db.taxonomically_label_tree()
-        self.assertEqual(249, len(labelled_rt))
+        self.assertEqual(251, len(labelled_rt))
         self.assertTrue('taxon' in labelled_rt.features)
         self.assertEqual('Root', labelled_rt.taxon.name)
         self.assertEqual('root', labelled_rt.taxon.rank)
@@ -243,7 +243,7 @@ class RefPkgTester(unittest.TestCase):
 
     def test_create_viewable_newick(self):
         newick_str = self.db.create_viewable_newick()
-        self.assertEqual(15243, len(newick_str))
+        self.assertEqual(15468, len(newick_str))
         return
 
     def test_convert_feature_indices_to_inodes(self):
@@ -251,12 +251,12 @@ class RefPkgTester(unittest.TestCase):
         internal_node_feature_map = self.db.convert_feature_indices_to_inodes(test_feature_map)
         k, _ = internal_node_feature_map.popitem()
         self.assertIsInstance(k, int)
-        self.assertTrue(296, k)
+        self.assertEqual(391, k)
 
-        test_feature_map = {'Gom-Arc1-GOS | MSRB0112': "Methanotrophic"}
+        test_feature_map = {'ANME-1 sp. GoMg1 | GOMG1_24_Anme_sp._GoMg1_17': "Methanotrophic"}
         internal_node_feature_map = self.db.convert_feature_indices_to_inodes(test_feature_map)
         k, _ = internal_node_feature_map.popitem()
-        self.assertTrue(39, k)
+        self.assertEqual(45, k)
         return
 
     def test_add_feature_annotations(self):
@@ -269,11 +269,11 @@ class RefPkgTester(unittest.TestCase):
         self.assertEqual(3, len(self.mutable_ref_pkg.feature_annotations["test"]))
         for ca in self.mutable_ref_pkg.feature_annotations["test"]:
             if ca.name == "Hydrogenotrophic":
-                self.assertEqual(52, len(ca.members))
+                self.assertEqual(51, len(ca.members))
             elif ca.name == "SCAO":
                 self.assertEqual(2, len(ca.members))
             elif ca.name == "Aceticlastic":
-                self.assertEqual(13, len(ca.members))
+                self.assertEqual(15, len(ca.members))
             else:
                 self.assertTrue(False)
 
@@ -316,7 +316,7 @@ class RefPkgTester(unittest.TestCase):
         self.assertEqual(2, len(self.mutable_ref_pkg.feature_annotations["Paralog"]))
         for clade_annot in self.mutable_ref_pkg.feature_annotations["Paralog"]:
             if clade_annot.name == "McrA":
-                self.assertEqual(225, len(clade_annot.members))
+                self.assertEqual(112, len(clade_annot.members))
             elif clade_annot.name == "AcrA":
                 self.assertEqual(14, len(clade_annot.members))
             else:

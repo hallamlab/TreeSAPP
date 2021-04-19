@@ -81,7 +81,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_assign(self):
-        ref_pkgs = ["McrA", "M0702", "S0001"]
+        ref_pkgs = ["McrA", "McrB", "DsrAB"]
         from treesapp import assign
         from .testing_utils import get_test_data
         from treesapp.file_parsers import read_classification_table
@@ -101,7 +101,7 @@ class TreesappTester(unittest.TestCase):
         self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.faa"))
 
         # Test nucleotide sequence input
-        ref_pkgs = ["M0701", "M0702"]
+        ref_pkgs = ["McrA", "McrB"]
         assign_commands_list = ["--fastx_input", self.nt_test_fa,
                                 "--targets", ','.join(ref_pkgs),
                                 "--num_procs", str(self.num_procs),
@@ -325,7 +325,7 @@ class TreesappTester(unittest.TestCase):
         self.assertIsInstance(test_refpkg.feature_annotations["Function"][0], CladeAnnotation)
         for ca in test_refpkg.feature_annotations["Function"]:
             if ca.name == "Short-chain alkane oxidation":
-                self.assertEqual(8, len(ca.members))
+                self.assertEqual(2, len(ca.members))
 
         # Test view with a complex attribute (feature_annotations)
         view_command_list = ["view",
