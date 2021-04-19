@@ -3,7 +3,6 @@ import sys
 import re
 
 from ete3 import Tree
-import numpy as np
 
 from treesapp.phylo_dist import parent_to_tip_distances
 from treesapp.entish import load_ete3_tree, get_ete_edge, edge_from_node_name

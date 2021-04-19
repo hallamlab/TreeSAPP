@@ -294,4 +294,3 @@ def add_bipartitions(jplace_data: JPlace, bipartitions) -> None:
         x += 1
     jplace_data.tree = bootstrapped_jplace_tree
     return
-
