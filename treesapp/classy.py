@@ -534,7 +534,7 @@ class TreeSAPP:
 
     def find_sequence_molecule_type(self):
         if not self.molecule_type:
-            self.molecule_type = fasta.guess_sequence_type(fasta_file=self.input_sequences)
+            self.molecule_type = fasta.guess_sequence_type(fastx_file=self.input_sequences)
             if not self.molecule_type:
                 logging.error("Unable to automatically detect the molecule type of '{}'.\n"
                               "Please rerun with the argument '--molecule'.\n".format(self.input_sequences))

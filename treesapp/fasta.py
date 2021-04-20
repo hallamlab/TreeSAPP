@@ -225,6 +225,25 @@ def fq2fa(fastx: str, outdir: str, file_num=1, max_seq_count=0) -> list:
     return outputs
 
 
+def read_fastq_to_dict(fastq_file: str, num_records=0) -> dict:
+    fasta_dict = dict()
+    num_parsed = 0
+
+    try:
+        py_fa = Fastq(fastq_file, build_index=False, full_name=True)
+    except RuntimeError as error:
+        logging.debug(str(error) + "\n")
+        return fasta_dict
+
+    for name, seq, qual in py_fa:  # type: (str, str)
+        fasta_dict[name] = seq.upper()
+        num_parsed += 1
+        if 0 < num_records <= num_parsed:
+            break
+
+    return fasta_dict
+
+
 def read_fasta_to_dict(fasta_file: str) -> dict:
     """
     Reads any fasta file using the pyfastx library
@@ -248,6 +267,26 @@ def read_fasta_to_dict(fasta_file: str) -> dict:
         fasta_dict[name] = seq.upper()
 
     return fasta_dict
+
+
+def read_fastx_to_dict(fastx: str, num_records=0) -> dict:
+    if not os.path.exists(fastx):
+        logging.debug("'{}' fasta file doesn't exist.\n".format(fastx))
+        return {}
+
+    try:
+        fastx_type = fastx_format_check(fastx)
+    except Exception:
+        logging.error("Unable to detect file type for '{}'\n".format(fastx))
+        sys.exit(3)
+
+    if fastx_type == 'fasta':
+        return read_fasta_to_dict(fastx)
+    elif fastx_type == 'fastq':
+        return read_fastq_to_dict(fastx, num_records)
+    else:
+        logging.error("Unknown fastx type: '{}'\n".format(fastx_type))
+        sys.exit(3)
 
 
 class Header:
@@ -835,8 +874,8 @@ def guess_sequence_type(max_eval=100, req_perc=0.95, **kwargs) -> str:
           Additional content
     :return: Potential return values are 'nuc' or 'aa'
     """
-    if "fasta_file" in kwargs:
-        fasta_seqs = read_fasta_to_dict(kwargs["fasta_file"]).values()
+    if "fastx_file" in kwargs:
+        fasta_seqs = read_fastx_to_dict(kwargs["fastx_file"]).values()
     elif "fasta_dict" in kwargs:
         fasta_seqs = kwargs["fasta_dict"].values()
     else:

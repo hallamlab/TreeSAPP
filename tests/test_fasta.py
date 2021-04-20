@@ -2,11 +2,12 @@ import os
 import pytest
 import unittest
 
+from .testing_utils import get_test_data
+
 
 class FastaTester(unittest.TestCase):
     def setUp(self) -> None:
         from treesapp.fasta import load_fasta_header_regexes
-        from .testing_utils import get_test_data
         self.header_regexes = load_fasta_header_regexes(code_name="PuhA")
 
         self.test_fa = get_test_data("McrA_eval.faa")
@@ -89,17 +90,6 @@ class FastaTester(unittest.TestCase):
         self.assertEqual("sp|P06008|RCEH_BLAVI", seq_info_tuple.version)
         self.assertEqual("sp|P06008|RCEH_BLAVI Reaction center protein H chain OS=Blastochloris viridis|PuhA|1_258",
                          seq_info_tuple.description)
-        return
-
-    def test_read_fasta_to_dict(self):
-        from treesapp.fasta import read_fasta_to_dict
-
-        # Test normal functionality with a fasta file
-        fa_dict = read_fasta_to_dict(self.test_fa)
-        self.assertEqual(236, len(fa_dict))
-
-        # Test reading a file that doesn't exist
-        self.assertEqual({}, read_fasta_to_dict("./fake_file.fa"))
         return
 
     def test_split_fa(self):
@@ -221,11 +211,43 @@ class HeaderTester(unittest.TestCase):
 
 class FastaUtilitiesTester(unittest.TestCase):
     def setUp(self) -> None:
-        from .testing_utils import get_test_data
-
         self.test_aa_fa = get_test_data("McrA_eval.faa")
         self.test_nuc_fa = get_test_data("marker_test_suite.fna")
         self.troublesome_fa = get_test_data("fasta_parser_test.fasta")
+        return
+
+    def test_read_fasta_to_dict(self):
+        from treesapp.fasta import read_fasta_to_dict
+
+        # Test normal functionality with a fasta file
+        fa_dict = read_fasta_to_dict(self.test_aa_fa)
+        self.assertEqual(236, len(fa_dict))
+
+        # Test reading a file that doesn't exist
+        self.assertEqual({}, read_fasta_to_dict("./fake_file.fa"))
+        return
+
+    def test_read_fastq_to_dict(self):
+        from treesapp.fasta import read_fastq_to_dict
+        # Test a FASTQ file
+        fasta_dict = read_fastq_to_dict(fastq_file=get_test_data("SRR3669912_1.fastq"),
+                                        num_records=80)
+        self.assertEqual(80, len(fasta_dict))
+        return
+
+    def test_read_fastx_to_dict(self):
+        from treesapp.fasta import read_fastx_to_dict
+        # Test file doesn't exist
+        self.assertEqual({}, read_fastx_to_dict("test_data" + os.sep + "fake.fa"))
+        # Test a file that is neither a FASTA or FASTQ
+        with pytest.raises(SystemExit):
+            read_fastx_to_dict(fastx=get_test_data("test.sto"))
+        # Test a FASTQ file
+        fasta_dict = read_fastx_to_dict(fastx=get_test_data("SRR3669912_1.fastq"))
+        self.assertEqual(160, len(fasta_dict))
+        # Test a FASTA file
+        fasta_dict = read_fastx_to_dict(self.test_aa_fa)
+        self.assertEqual(236, len(fasta_dict))
         return
 
     def test_guess_sequence_type(self):
@@ -235,11 +257,11 @@ class FastaUtilitiesTester(unittest.TestCase):
             guess_sequence_type(fasta=self.test_aa_fa)
 
         # Test with fasta file for amino acid sequences
-        seq_type = guess_sequence_type(fasta_file=self.test_aa_fa)
+        seq_type = guess_sequence_type(fastx_file=self.test_aa_fa)
         self.assertEqual("prot", seq_type)
 
         # Test with fasta file and nucleotide sequences
-        seq_type = guess_sequence_type(fasta_file=self.test_nuc_fa)
+        seq_type = guess_sequence_type(fastx_file=self.test_nuc_fa)
         self.assertEqual("dna", seq_type)
 
         # Test with dictionary and a lot of ambiguity characters
