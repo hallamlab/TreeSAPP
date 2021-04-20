@@ -1117,8 +1117,10 @@ def layer(sys_args):
                         for leaf in internal_node_map[inode]:
                             if leaf not in leaves_in_clusters:
                                 unannotated.add(str(leaf))
-                    logging.warning("The following leaf nodes were not mapped to annotation groups:\n" +
-                                    "\t" + ', '.join(sorted(unannotated, key=lambda x: int(x.split('_')[0]))) + "\n")
+                    logging.warning("{} leaf nodes were not mapped to annotation groups. "
+                                    "More information can be found in the log.\n".format(len(unannotated)))
+                    logging.debug("The following leaf nodes were not mapped to annotation groups:\n" +
+                                  "\t" + ', '.join(sorted(unannotated, key=lambda x: int(x.split('_')[0]))) + "\n")
             else:
                 pass
     marker_subgroups.clear()

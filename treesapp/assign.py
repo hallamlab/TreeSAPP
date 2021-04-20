@@ -1275,7 +1275,7 @@ def alert_for_refpkg_feature_annotations(pqueries: dict, refpkg_dict: dict) -> N
             feature_positive.append(ref_pkg.prefix)
 
     if len(feature_positive) > 0:
-        logging.info("Alert: {} reference packages have feature annotations."
+        logging.info("Alert: {} reference package(s) have feature annotations. "
                      "Consider running treesapp layer.\n".format(len(feature_positive)))
         logging.debug("Reference packages with clade_annotations attribute filled:\n\t{}\n"
                       "".format("\n\t".join(feature_positive)))
