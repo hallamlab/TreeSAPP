@@ -223,6 +223,9 @@ class FastaUtilitiesTester(unittest.TestCase):
         fa_dict = read_fasta_to_dict(self.test_aa_fa)
         self.assertEqual(236, len(fa_dict))
 
+        fa_dict = read_fasta_to_dict(self.test_nuc_fa, num_records=4)
+        self.assertEqual(4, len(fa_dict))
+
         # Test reading a file that doesn't exist
         self.assertEqual({}, read_fasta_to_dict("./fake_file.fa"))
         return

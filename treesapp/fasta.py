@@ -244,14 +244,16 @@ def read_fastq_to_dict(fastq_file: str, num_records=0) -> dict:
     return fasta_dict
 
 
-def read_fasta_to_dict(fasta_file: str) -> dict:
+def read_fasta_to_dict(fasta_file: str, num_records=0) -> dict:
     """
     Reads any fasta file using the pyfastx library
 
     :param fasta_file: Path to a FASTA file to be read into a dict
+    :param num_records: The number of sequence records to parse and return (default is all)
     :return: Dict where headers/record names are keys and sequences are the values
     """
     fasta_dict = dict()
+    num_parsed = 0
 
     if not os.path.exists(fasta_file):
         logging.debug("'{}' fasta file doesn't exist.\n".format(fasta_file))
@@ -265,6 +267,9 @@ def read_fasta_to_dict(fasta_file: str) -> dict:
 
     for name, seq in py_fa:  # type: (str, str)
         fasta_dict[name] = seq.upper()
+        num_parsed += 1
+        if 0 < num_records <= num_parsed:
+            break
 
     return fasta_dict
 
@@ -281,7 +286,7 @@ def read_fastx_to_dict(fastx: str, num_records=0) -> dict:
         sys.exit(3)
 
     if fastx_type == 'fasta':
-        return read_fasta_to_dict(fastx)
+        return read_fasta_to_dict(fastx, num_records)
     elif fastx_type == 'fastq':
         return read_fastq_to_dict(fastx, num_records)
     else:
@@ -875,7 +880,7 @@ def guess_sequence_type(max_eval=100, req_perc=0.95, **kwargs) -> str:
     :return: Potential return values are 'nuc' or 'aa'
     """
     if "fastx_file" in kwargs:
-        fasta_seqs = read_fastx_to_dict(kwargs["fastx_file"]).values()
+        fasta_seqs = read_fastx_to_dict(kwargs["fastx_file"], num_records=max_eval).values()
     elif "fasta_dict" in kwargs:
         fasta_seqs = kwargs["fasta_dict"].values()
     else:
