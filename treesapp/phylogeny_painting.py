@@ -8,7 +8,7 @@ import os
 import logging
 
 from collections import namedtuple
-from seaborn import color_palette
+import seaborn
 
 from treesapp.phylo_seq import TreeLeafReference
 from treesapp.classy import TreeSAPP
@@ -77,6 +77,7 @@ class PhyPainter(TreeSAPP):
             self.feature_name = self.rank
         else:
             self.feature_name = args.attribute
+            self.rank = None
 
         return
 
@@ -253,6 +254,27 @@ class PhyPainter(TreeSAPP):
 
         return
 
+    def get_colours(self) -> list:
+        n_clade = len(self.taxa_to_colour)
+        if n_clade <= 1 and self.rank:
+            logging.warning("{} unique clade(s) identified at rank '{}'."
+                            " Consider using a more resolved rank or adjusting other filtering parameters.\n"
+                            "".format(n_clade, self.feature_name))
+        else:
+            logging.debug("Identified {} unique clades for '{}'.\n".format(n_clade, self.feature_name))
+
+        try:
+            colours = seaborn.color_palette(self.palette, n_clade).as_hex()
+            logging.info("Using palette '{}' for styling.\n".format(self.palette))
+        except ValueError as e:
+            logging.error(str(e) + "\n")
+            sys.exit(4)
+
+        if len(colours) != n_clade:
+            logging.error("Bad colour parsing! len(colours) != number of clades.\n")
+            raise ValueError
+        return colours
+
 
 def convert_clades_to_ranges(taxa_clades: dict, leaf_order: list) -> dict:
     taxa_ranges = dict()
@@ -279,29 +301,6 @@ def create_write_file(file_name: str, text: str) -> None:
     file_handler.write(text)
     file_handler.close()
     return
-
-
-def get_colours(clade_names: set, palette: str, rank: str) -> list:
-    if len(clade_names) <= 1:
-        logging.error("{} unique clade(s) identified at rank '{}'."
-                      " Consider changing rank to something more specific or adjusting other filtering paramters.\n"
-                      "".format(len(clade_names), rank))
-        sys.exit(4)
-    else:
-        logging.debug("Identified {} unique clades at {} rank.\n".format(len(clade_names), rank))
-
-    n_clade = len(clade_names)
-    try:
-        colours = color_palette(palette, n_clade).as_hex()
-        logging.info("Using palette '{}' for styling.\n".format(palette))
-    except ValueError as e:
-        logging.error(str(e) + "\n")
-        sys.exit(4)
-
-    if len(colours) != n_clade:
-        logging.error("Bad colour parsing! len(colours) != number of clades.\n")
-        sys.exit(8)
-    return colours
 
 
 def map_colours_to_taxa(taxa_order, colours):

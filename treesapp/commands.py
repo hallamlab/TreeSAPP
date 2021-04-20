@@ -1011,7 +1011,7 @@ def colour(sys_args):
                                   leaf_order=ref_pkg.leaf_node_order())
 
     # Determine the palette to use for taxa across all reference packages
-    colours = paint.get_colours(ts_painter.taxa_to_colour, ts_painter.palette, ts_painter.rank)
+    colours = ts_painter.get_colours()
     palette_taxa_map = paint.map_colours_to_taxa(taxa_order, colours)
 
     # Create the iTOL colour files
