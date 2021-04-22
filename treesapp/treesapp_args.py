@@ -189,11 +189,11 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                          "[ DEFAULT is no filter ]",
                                     default="", required=False)
         self.taxa_args.add_argument("--min_taxonomic_rank",
-                                    required=False, default='k', choices=['k', 'p', 'c', 'o', 'f', 'g', 's'],
-                                    help="The minimum taxonomic resolution for reference sequences [ DEFAULT = k ].\n")
+                                    required=False, default='r', choices=['r', 'd', 'p', 'c', 'o', 'f', 'g', 's'],
+                                    help="The minimum taxonomic resolution for reference sequences [ DEFAULT = r ].\n")
         self.taxa_args.add_argument("--taxa_lca",
                                     help="Set taxonomy of representative sequences to LCA of cluster member's taxa.\n"
-                                         "[ --cluster or --uc REQUIRED ]",
+                                         "[ --cluster REQUIRED ]",
                                     default=False, required=False, action="store_true")
         self.taxa_args.add_argument("--taxa_norm",
                                     help="[ IN DEVELOPMENT ] Subsample leaves by taxonomic lineage.\n"

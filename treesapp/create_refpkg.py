@@ -234,7 +234,7 @@ def strip_rank_prefix_from_organisms(entrez_record_dict: dict, taxa_trie: Taxono
 
 def remove_by_truncated_lineages(fasta_records: dict, min_taxonomic_rank: str, taxa_hierarchy: TaxonomicHierarchy,
                                  guarantees=None) -> dict:
-    if min_taxonomic_rank == 'k':
+    if min_taxonomic_rank == 'r':
         return fasta_records
 
     num_removed = 0
