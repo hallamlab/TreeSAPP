@@ -1109,6 +1109,8 @@ class Lineage:
             # Cut the lineage at the first empty rank
             for rank in self.rank_attributes:
                 taxon = self.__dict__[rank]
+                if taxon is None:
+                    break
                 taxa.append(taxon)
             self.Lineage = self.lin_sep.join(taxa)
 
@@ -1259,7 +1261,7 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
 
     pbar = tqdm(total=len(seq_lineage_map), ncols=100)
 
-    for seq_name in sorted(seq_lineage_map):  # type: (str, Lineage)
+    for seq_name in sorted(seq_lineage_map):  # type: str
         # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
         # we can't use hash-based data structures to bring it to O(N)
         parent_re = re.compile(re.escape(seq_name))

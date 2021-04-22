@@ -63,20 +63,6 @@ class EntrezUtilitiesTester(unittest.TestCase):
             self.assertEqual("Cypripedioideae", record["ScientificName"])
         return
 
-    def test_lineage_format_check(self):
-        from treesapp.entrez_utils import Lineage
-        tlin = Lineage()
-        tlin.Lineage = ""
-        self.assertFalse(tlin.lineage_format_check())
-        tlin.Lineage = "r__Root"
-        self.assertFalse(tlin.lineage_format_check())
-        tlin.Lineage = "f__Methanomassiliicoccaceae;g__Candidatus Methanoplasma;s__Candidatus Methanoplasma termitum"
-        self.assertTrue(tlin.lineage_format_check())
-        self.assertEqual(3, len(tlin.Lineage.split(tlin.lin_sep)))
-        # Retry now that tlin.Lineage has been reformatted
-        self.assertFalse(tlin.lineage_format_check())
-        return
-
     def test_map_accession2taxid(self):
         from treesapp import entrez_utils as e_utils
         # Test failure if accession2taxid file doesn't exist
@@ -244,6 +230,8 @@ class EntrezUtilitiesTester(unittest.TestCase):
         self.assertFalse("c__Negativicutes" in taxonomy.hierarchy)
         return
 
+
+class LineageTester(unittest.TestCase):
     def test_verify_rank_occupancy(self):
         from treesapp.entrez_utils import Lineage
         tlin = Lineage()
@@ -261,6 +249,29 @@ class EntrezUtilitiesTester(unittest.TestCase):
         # Test three: no prefix
         tlin.Lineage = no_prefix_lin
         self.assertEqual(no_prefix_lin, tlin.Lineage)
+
+    def test_lineage_format_check(self):
+        from treesapp.entrez_utils import Lineage
+        tlin = Lineage()
+        tlin.Lineage = ""
+        self.assertFalse(tlin.lineage_format_check())
+        tlin.Lineage = "r__Root"
+        self.assertFalse(tlin.lineage_format_check())
+        tlin.Lineage = "f__Methanomassiliicoccaceae;g__Candidatus Methanoplasma;s__Candidatus Methanoplasma termitum"
+        self.assertTrue(tlin.lineage_format_check())
+        self.assertEqual(3, len(tlin.Lineage.split(tlin.lin_sep)))
+        # Retry now that tlin.Lineage has been reformatted
+        self.assertFalse(tlin.lineage_format_check())
+        return
+
+    def test_build_lineage(self):
+        from treesapp.entrez_utils import Lineage
+        test_lin = Lineage()
+        lineage = "d__Archaea; p__Euryarchaeota; c__Methanomicrobia; o__Methanophagales"
+        test_lin.Domain, test_lin.Phylum, test_lin.Class, test_lin.Order = lineage.split("; ")
+        test_lin.build_lineage()
+        self.assertEqual(lineage, test_lin.Lineage)
+        return
 
 
 if __name__ == '__main__':
