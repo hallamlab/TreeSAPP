@@ -1,4 +1,3 @@
-import sys
 import re
 import logging
 
@@ -29,36 +28,6 @@ def reformat_ref_seq_descriptions(original_header_map):
         if reformatted_header_map[treesapp_id][0] == '>':
             reformatted_header_map[treesapp_id] = reformatted_header_map[treesapp_id][1:]
     return reformatted_header_map
-
-
-def map_classified_seqs(ref_pkg_name: str, assignments: dict, unmapped_seqs: list) -> dict:
-    """
-    An algorithmically slow, O(n^2), process to assign sequences to their respective taxonomic lineages.
-    This function is necessary as the sequence names in assignments and unmapped_seqs are not identical!
-
-    :param ref_pkg_name: Name of the reference package (e.g. McrA). Necessary for matching regex of classified sequence
-    :param assignments: Dictionary mapping queries assigned to taxonomic lineages, indexed by refpkg name
-    :param unmapped_seqs: List of sequence names
-    :return: Dictionary mapping classified query sequences to their respective taxonomic lineage
-    """
-    classified_seq_lineage_map = dict()
-    for lineage in assignments[ref_pkg_name]:
-        # Map the classified sequence to the header in FASTA
-        x = 0
-        while x < len(unmapped_seqs):
-            seq_name = unmapped_seqs[x]
-            original_name = re.sub(r"\|{0}\|\d+_\d+$".format(ref_pkg_name), '', seq_name)
-            if original_name in assignments[ref_pkg_name][lineage]:
-                classified_seq_lineage_map[seq_name] = lineage
-                unmapped_seqs.pop(x)
-            else:
-                x += 1
-    # Ensure all the classified sequences were mapped to lineages
-    if unmapped_seqs:
-        logging.error("Unable to map all classified sequences in to a lineage. These are missing:\n" +
-                      "\n".join(unmapped_seqs) + "\n")
-        sys.exit(5)
-    return classified_seq_lineage_map
 
 
 def validate_mixed_lineages(mixed_seq_lineage_map: dict) -> None:
@@ -98,32 +67,31 @@ def strip_assigment_pattern(seq_names: list, refpkg_name: str) -> dict:
     return {seq_name: re.sub(r"\|{0}\|\d+_\d+$".format(refpkg_name), '', seq_name) for seq_name in seq_names}
 
 
-def filter_by_lwr(classified_lines: list, min_lwr: float) -> set:
+def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant: float, max_evo_distance: float) -> list:
     """
 
-    :param classified_lines:
-    :param min_lwr: A float representing the minimum acceptable Likelihood Weight Ratio as calculated by EPA-NG
-    :return: A set of sequence names with corresponding placement likelihoods greater than min_lwr
+    :param pqueries: A dictionary of PQuery instances indexed by their respective ReferencePackage's
+    :param min_lwr: Minimum acceptable Likelihood Weight Ratio as calculated by EPA-NG (float)
+    :param max_pendant: Maximum pendant length for a PQuery as calculated by EPA-NG (float)
+    :param max_evo_distance: Maximum total evolutionary distance length for a PQuery (float)
+    :return: A set of PQuery instances that passed all phylogenetic placement thresholds
     """
-    high_lwr_placements = set()
-    num_filtered = 0  # Number of placements with LWR less than min_lwr
-    target_field = 9  # The field index (from the classification table) storing LWR
-    for classification in classified_lines:
-        try:
-            lwr = float(classification[target_field])
-        except TypeError:
-            logging.error("Unable to convert all classifications from column {} to a float.\n".format(target_field))
-            sys.exit(17)
-
-        assert 0.0 < lwr <= 1.0
-        if lwr >= min_lwr:
-            high_lwr_placements.add(classification[1])
-        else:
-            num_filtered += 1
+    good_placements = list()
+    num_filtered = 0  # Number of placements removed
+    for refpkg_pqueries in pqueries.values():
+        for pquery in refpkg_pqueries:
+            if pquery.consensus_placement.like_weight_ratio < min_lwr:
+                num_filtered += 1
+            elif pquery.consensus_placement.pendant_length > max_pendant:
+                num_filtered += 1
+            elif pquery.avg_evo_dist > max_evo_distance:
+                num_filtered += 1
+            else:
+                good_placements.append(pquery)
 
     logging.debug("{} classified sequences did not meet minimum LWR of {} for updating\n".format(num_filtered, min_lwr))
 
-    return high_lwr_placements
+    return good_placements
 
 
 def decide_length_filter(refpkg: ts_ref_pkg.ReferencePackage, proposed_min_length=30, min_hmm_proportion=0.66) -> int:

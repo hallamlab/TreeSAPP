@@ -744,11 +744,12 @@ def update(sys_args):
     classified_fasta = fasta.FASTA(ts_updater.query_sequences)  # These are the classified sequences
     classified_fasta.load_fasta()
     classified_fasta.add_accession_to_headers(ts_updater.ref_pkg.prefix)
-    classified_lines = file_parsers.read_classification_table(ts_updater.assignment_table)
-    candidate_update_seqs = ts_update_mod.filter_by_lwr(classified_lines, args.min_lwr)
-    classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.get_seq_names())
-    name_map = ts_update_mod.strip_assigment_pattern(classified_fasta.get_seq_names(), ts_updater.ref_pkg.prefix)
-    classified_targets = ts_update_mod.intersect_incomparable_lists(classified_targets, candidate_update_seqs, name_map)
+    pqueries = file_parsers.load_classified_sequences_from_assign_output(assign_output_dir=ts_updater.treesapp_output,
+                                                                         assigner_cls=ts_assign_mod.Assigner(),
+                                                                         refpkg_name=ts_updater.ref_pkg.prefix)
+    candidate_update_pqueries = ts_update_mod.filter_by_placement_thresholds(pqueries,
+                                                                             args.min_lwr, args.max_pd, args.max_evo)
+    classified_targets = [pq.place_name for pq in candidate_update_pqueries]
     # Remove classified sequences that are already in the reference package
     ts_update_mod.drop_queries_by_accession(classified_targets, ref_seq_lineage_info)
 
@@ -795,10 +796,9 @@ def update(sys_args):
         querying_classified_fasta.synchronize_seqs_n_headers()
     else:
         # Map candidate reference sequence names to their TreeSAPP-assigned taxonomies
-        assignments = file_parsers.parse_assignments(classified_lines)
-        classified_seq_lineage_map.update(ts_update_mod.map_classified_seqs(ts_updater.ref_pkg.prefix,
-                                                                            assignments,
-                                                                            querying_classified_fasta.get_seq_names()))
+        classified_seq_lineage_map.update(
+            {pq.place_name.split(' ')[0]: pq.recommended_lineage for pq in candidate_update_pqueries}
+        )
 
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
     ref_header_map = ts_update_mod.reformat_ref_seq_descriptions(ref_header_map)

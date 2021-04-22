@@ -20,6 +20,7 @@ We recommend updating to this version, and updating reference packages you have 
 - `treesapp abundance` creates a simple_bar.txt file for each sample analyzed.
 - Ability to automatically detect the sequence type based on the input provided.
 - PQuery classification data is stored in each reference package in the 'training_df' attribute as a pandas.DataFrame.
+- Improved query sequence filtering by phylogenetic placement information in `treesapp update`
 
 ### Fixed
 - Segmentation fault from Prodigal is no longer possible as `treesapp assign` verifies input presence earlier.

@@ -192,6 +192,16 @@ def read_classification_table(assignment_file) -> list:
 
 
 def load_classified_sequences_from_assign_output(assign_output_dir: str, assigner_cls, refpkg_name=None) -> dict:
+    """
+    Reads the classified sequence names from Assigner.classification_tbl_name (e.g. classifications.tsv).
+    These are converted into phylo_seq.PQuery instances and their 'seq' attributes are populated by the FASTA file
+    holding sequence information of the classified queries.
+
+    :param assign_output_dir: Path to a treesapp assign output directory
+    :param assigner_cls: A treesapp.assign.Assigner
+    :param refpkg_name: The prefix attribute of a ReferencePackage
+    :return: A dictionary of PQuery instances indexed by their respective reference package
+    """
     assigner_cls.final_output_dir = os.path.join(assign_output_dir, "final_outputs")
     classification_tbl = os.path.join(assigner_cls.final_output_dir, assigner_cls.classification_tbl_name)
     try:

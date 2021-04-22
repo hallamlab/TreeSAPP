@@ -33,7 +33,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.io = self.add_argument_group("Inputs and Outputs")
         self.aes = self.add_argument_group("Aesthetic options")
         self.editors = self.add_argument_group("Package edit options")
-        self.optopt = self.add_argument_group("Optional options")
+        self.optopt = self.add_argument_group("Optional arguments")
         self.taxa_args = self.add_argument_group("Taxonomic-lineage arguments")
         self.svc_opts = self.add_argument_group("Classifier arguments")
         self.miscellany = self.add_argument_group("Miscellaneous options")
@@ -139,13 +139,19 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                  help="Flag to activate outlier detection and removal from multiple sequence alignments"
                                       " using OD-seq. [ DEFAULT = False ]")
 
-    def add_pplace_params(self):
-        self.pplace_args.add_argument("-l", "--min_like_weight_ratio", default=0.1, type=float, dest="min_lwr",
+    def add_pplace_filter_params(self):
+        self.pplace_args.add_argument("--min_like_weight_ratio", default=0.1, type=float, dest="min_lwr",
                                       help="The minimum likelihood weight ratio required for an EPA placement. "
                                            "[ DEFAULT = 0.1 ]")
         self.pplace_args.add_argument("--max_pendant_length", default=2.0, type=float, dest="max_pd",
                                       help="The maximum pendant length distance threshold, "
                                            "beyond which EPA placements are unclassified. [ DEFAULT = 2.0 ]")
+        self.pplace_args.add_argument("--max_evol_distance", default=3.0, type=float, dest="max_evo",
+                                      help="The maximum total evolutionary distance between a query and reference(s), "
+                                           "beyond which EPA placements are unclassified. [ DEFAULT = 3.0 ]")
+
+    def add_pplace_params(self):
+        self.add_pplace_filter_params()
         self.pplace_args.add_argument("--placement_summary", default="max_lwr", choices=["aelw", "max_lwr"],
                                       dest="p_sum",
                                       help="Controls the algorithm for consolidating multiple phylogenetic placements. "
@@ -467,6 +473,7 @@ def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_cluster_args()  # p
     parser.add_taxa_args()  # s, f, t
     parser.add_refpkg_file_param()  # r
+    parser.add_pplace_filter_params()
     parser.add_lineage_table_param()
     parser.add_phylogeny_params()  # b, e
     parser.add_compute_miscellany()  # n
@@ -477,8 +484,6 @@ def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.optopt.add_argument('-i', '--fastx_input', required=False, dest="input", default="",
                                help='An input file containing candidate reference sequences in either FASTA format. '
                                     'Will trigger re-training the reference package if provided.')
-    parser.optopt.add_argument("-l", "--min_lwr", dest="min_lwr", required=False, default=0.0, type=float,
-                               help="The minimum likelihood weight ratio for a sequence to be included in update.")
     parser.optopt.add_argument("--skip_assign", default=False, required=False, action="store_true",
                                help="The assigned sequences are from a database and their database lineages "
                                     "should be used instead of the TreeSAPP-assigned lineages.")

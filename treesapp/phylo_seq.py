@@ -61,6 +61,12 @@ class PhyloPlace:
 
         return
 
+    def set_attribute_types(self, pquery_dists: str) -> None:
+        self.distal_length, self.pendant_length, self.mean_tip_length = [float(d) for d in pquery_dists.split(',')]
+        self.edge_num = int(self.edge_num)
+        self.like_weight_ratio = float(self.like_weight_ratio)
+        return
+
     def calc_mean_tip_length(self, internal_leaf_node_map: dict, ref_tree, memoization_map=None) -> None:
         if isinstance(ref_tree, str):
             ref_tree = load_ete3_tree(ref_tree)
@@ -177,6 +183,13 @@ class PQuery:
     def clear(self):
         self.node_map.clear()
         self.placements.clear()
+        return
+
+    def set_attribute_types(self) -> None:
+        self.end = int(self.end)
+        self.start = int(self.start)
+        self.abundance = float(self.abundance)
+        self.avg_evo_dist = float(self.avg_evo_dist)
         return
 
     # def transfer_metadata(self, jplace_inst):
@@ -491,14 +504,10 @@ def assignments_to_pqueries(classified_lines: list) -> dict:
                           '\t'.join(fields) + "\n")
             sys.exit(21)
         pquery.place_name = "{}|{}|{}_{}".format(pquery.seq_name, pquery.ref_name, pquery.start, pquery.end)
-        pquery.end = int(pquery.end)
-        pquery.start = int(pquery.start)
-        pquery.abundance = float(pquery.abundance)
+        pquery.set_attribute_types()
         pquery.seq_len = pquery.end - pquery.start
         pquery.lct = pquery.recommended_lineage
-        con_place.distal_length, con_place.pendant_length, con_place.mean_tip_length = [float(d) for d in
-                                                                                        pquery.distances.split(',')]
-        con_place.edge_num = int(con_place.edge_num)
+        con_place.set_attribute_types(pquery.distances)
         pquery.consensus_placement = con_place
         try:
             pqueries[pquery.ref_name].append(pquery)

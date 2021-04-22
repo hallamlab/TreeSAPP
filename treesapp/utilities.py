@@ -495,22 +495,6 @@ def find_msa_type(msa_files: dict):
         return file_types.pop()
 
 
-def match_target_marker(refpkg_name: str, headers: list) -> list:
-    """
-    Returns the list of sequences with TreeSAPP classification tags matching the refpkg_name
-
-    :param refpkg_name: The refpkg name (e.g. McrA) not code (e.g. M0701) for desired classified sequences
-    :param headers: List of classified sequences
-    :return: List of headers that match the refpkg_name
-    """
-    matches = list()
-    classified_target = re.compile(r'\|{0}\|\d+_\d+$'.format(re.escape(refpkg_name)))
-    for seq_name in headers:
-        if classified_target.search(seq_name):
-            matches.append(seq_name)
-    return matches
-
-
 def get_file_lines(file_path: str, re_pattern=None, max_matches=0) -> list:
     """
     Opens a file and returns it's contents as a list using readlines().
