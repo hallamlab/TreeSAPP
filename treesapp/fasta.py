@@ -881,6 +881,9 @@ def guess_sequence_type(max_eval=100, req_perc=0.95, **kwargs) -> str:
     """
     if "fastx_file" in kwargs:
         fasta_seqs = read_fastx_to_dict(kwargs["fastx_file"], num_records=max_eval).values()
+        if len(fasta_seqs) == 0:
+            logging.error("Unable to read file '{}'.\n".format(kwargs["fastx_file"]))
+            sys.exit(3)
     elif "fasta_dict" in kwargs:
         fasta_seqs = kwargs["fasta_dict"].values()
     else:

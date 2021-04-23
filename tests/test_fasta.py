@@ -259,6 +259,9 @@ class FastaUtilitiesTester(unittest.TestCase):
         with pytest.raises(ValueError):
             guess_sequence_type(fasta=self.test_aa_fa)
 
+        with pytest.raises(SystemExit):
+            guess_sequence_type(fastx_file="tests/not_testing.fasta")
+
         # Test with fasta file for amino acid sequences
         seq_type = guess_sequence_type(fastx_file=self.test_aa_fa)
         self.assertEqual("prot", seq_type)

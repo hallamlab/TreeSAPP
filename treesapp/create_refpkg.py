@@ -112,11 +112,16 @@ def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header
             raise AssertionError("Unable to find " + cluster_info.representative + " in ReferenceSequence objects!")
 
         if len(cluster_info.members) >= 1 and cluster_info.representative not in important_seqs:
+            if len(cluster_info.members) == 1:
+                member_id, perc_id = cluster_info.members[0]
+                if cluster_info.representative == member_id:
+                    continue
             # Find the EntrezRecords corresponding to each member so they can be displayed
             for cluster_member_info in cluster_info.members:
+                if cluster_member_info[0] == cluster_info.representative:
+                    continue
                 for treesapp_id in sorted(refseq_objects, key=int):
-                    formatted_header = header_registry[treesapp_id].original
-                    if formatted_header == cluster_member_info[0]:
+                    if header_registry[treesapp_id].original == cluster_member_info[0]:
                         refseq_objects[treesapp_id].cluster_rep_similarity = cluster_member_info[1]
                         candidates[str(acc)] = refseq_objects[treesapp_id]
                         acc += 1
@@ -125,7 +130,7 @@ def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header
             for num in sorted(candidates.keys(), key=int):
                 sys.stderr.write("\t{}. ".format(num) +
                                  '\t'.join(["{} | {}\t".format(candidates[num].organism, candidates[num].accession),
-                                            str(len(candidates[num].sequence)) + "bp or aa",
+                                            str(len(candidates[num].sequence)) + " bp or aa",
                                             str(candidates[num].cluster_rep_similarity)]))
                 if each_lineage:
                     sys.stderr.write("\t" + "(lineage = " + candidates[num].lineage + ")")

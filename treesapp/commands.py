@@ -83,12 +83,12 @@ def info(sys_args):
 
     if args.verbose:
         refpkg_dict = ts_ref_pkg.gather_ref_packages(ts_info.refpkg_dir)
-        refpkg_summary_str = "\t".join(["Name", "Code-name",
+        refpkg_summary_str = "\t".join(["Name",
                                         "Molecule", "Tree builder", "RefPkg-type", "Leaf nodes",
                                         "Description", "Created", "Last-updated"]) + "\n"
         for refpkg_name in sorted(refpkg_dict, key=lambda x: refpkg_dict[x].prefix):
             refpkg = refpkg_dict[refpkg_name]  # type: ts_ref_pkg.ReferencePackage
-            refpkg_summary_str += "\t".join([refpkg_name, refpkg.refpkg_code,
+            refpkg_summary_str += "\t".join([refpkg_name,
                                              refpkg.molecule, refpkg.tree_tool, refpkg.kind, str(refpkg.num_seqs),
                                              refpkg.description, refpkg.date, refpkg.update]
                                             ) + "\n"
