@@ -22,7 +22,7 @@ class RefPkgTester(unittest.TestCase):
         from treesapp.utilities import fetch_executable_path
         from shutil import copyfile
         self.pkl_path = utils.get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
-        self.new_pkl_path = "./test_write_json" + self.db.refpkg_suffix
+        self.new_pkl_path = "./test_write_pickles" + self.db.refpkg_suffix
         self.disband_path = os.path.join("tests", self.db.refpkg_code)
         if os.path.isdir(self.disband_path):
             rmtree(self.disband_path)
@@ -164,6 +164,11 @@ class RefPkgTester(unittest.TestCase):
         return
 
     def test_pickle_package(self):
+        # Error if the f__pkl attribute hasn't been set
+        with pytest.raises(AttributeError):
+            self.db.f__pkl = ""
+            self.db.pickle_package()
+
         self.db.f__pkl = self.new_pkl_path
         self.db.pickle_package()
         self.db.slurp()
@@ -175,6 +180,15 @@ class RefPkgTester(unittest.TestCase):
         self.db.slurp()
         self.assertEqual("McrA", self.db.prefix)
         self.assertEqual(251, self.db.num_seqs)
+        return
+
+    def test_validate(self):
+        from treesapp.refpkg import ReferencePackage
+        self.assertFalse(self.db.validate(check_files=True))
+        test_rp = ReferencePackage()
+        test_rp.ts_version = "0.8.2"
+        # Test the TreeSAPP version
+        self.assertFalse(test_rp.validate())
         return
 
     def test_taxonomically_label_tree(self):

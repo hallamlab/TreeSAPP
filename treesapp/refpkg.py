@@ -2,7 +2,6 @@ import logging
 import os
 import re
 import sys
-import json
 import inspect
 from glob import glob
 from shutil import copy
@@ -279,10 +278,6 @@ class ReferencePackage:
 
         try:
             refpkg_data = joblib.load(self.f__pkl)
-        except KeyError:
-            refpkg_handler = open(self.f__pkl, 'r')
-            refpkg_data = json.load(refpkg_handler)
-            refpkg_handler.close()
         except EOFError:
             logging.error("Joblib was unable to load reference package pickle '{}'.\n".format(self.f__pkl))
             sys.exit(17)
@@ -528,20 +523,6 @@ class ReferencePackage:
 
     def alignment_dims(self):
         return multiple_alignment_dimensions(self.f__msa)
-
-    def screen_refs_by_lineage(self, target_lineage: str) -> list:
-        """
-        Returns the TreeLeafReference instances from the reference package that match or are children of target_lineage
-
-        :param target_lineage: A string representing the lineage to fish for reference leaf nodes (e.g. d__Archaea)
-        :return: A list of all TreeLeafReference instances that belong to the target_lineage
-        """
-        children = []
-        lineage_re = re.compile(target_lineage)
-        for leaf_node in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
-            if lineage_re.search(leaf_node.lineage):
-                children.append(leaf_node)
-        return children
 
     def get_hierarchy_taxon_for_leaf(self, leaf: TreeLeafReference):
         if not leaf.lineage:
@@ -986,15 +967,6 @@ class ReferencePackage:
 
         logging.debug("%i %s-dereplicated sequences retained for building HMM profile.\n" %
                       (len(lineage_reps), dereplication_rank))
-        return
-
-    def load_pfit_params(self, build_param_line):
-        """
-        Loads the polynomial classifier parameters that are stored in the ReferencePackage.pfit attribute
-        """
-        build_param_fields = build_param_line.split("\t")
-        if build_param_fields[8]:
-            self.pfit = [float(x) for x in build_param_fields[8].split(',')]
         return
 
     def enumerate_taxonomic_lineages(self) -> dict:
