@@ -97,6 +97,7 @@ def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header
     if not important_seqs:
         important_seqs = set()
     candidates = dict()
+    seq_names = list(refseq_objects.keys())
     for cluster_id in sorted(cluster_dict, key=int):
         cluster_info = cluster_dict[cluster_id]
         acc = 1
@@ -120,11 +121,12 @@ def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header
             for cluster_member_info in cluster_info.members:
                 if cluster_member_info[0] == cluster_info.representative:
                     continue
-                for treesapp_id in sorted(refseq_objects, key=int):
+                for treesapp_id in sorted(seq_names, key=int):
                     if header_registry[treesapp_id].original == cluster_member_info[0]:
                         refseq_objects[treesapp_id].cluster_rep_similarity = cluster_member_info[1]
                         candidates[str(acc)] = refseq_objects[treesapp_id]
                         acc += 1
+                        seq_names.pop(seq_names.index(treesapp_id))
                         break
             sys.stderr.write("Sequences in '" + cluster_info.lca + "' cluster:\n")
             for num in sorted(candidates.keys(), key=int):
@@ -145,7 +147,7 @@ def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header
                 best = input("Invalid number. Number of the best representative? ")
             for num_id in candidates:
                 if num_id != best:
-                    candidates[best].cluster_rep = False
+                    candidates[num_id].cluster_rep = False
 
     return
 

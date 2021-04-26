@@ -18,9 +18,11 @@ class CreateRefPkgTester(unittest.TestCase):
         from treesapp.fasta import Header
         # Make the mock test data
         clust_one = Cluster("seq_3")
-        clust_one.members = ["seq_3", "seq_2"]
+        clust_one.members = [["seq_3", 1.0],
+                             ["seq_2", 0.987]]
         clust_two = Cluster("seq_1")
-        clust_two.members = ["seq_1", "seq_4"]
+        clust_two.members = [["seq_1", 1.0],
+                             ["seq_4", 0.96]]
         cluster_dict = {'0': clust_one, '1': clust_two}
 
         head_one = Header("seq_1")
@@ -35,6 +37,13 @@ class CreateRefPkgTester(unittest.TestCase):
         # Test success, but no
         self.assertEqual("seq_3", clust_one.representative)
         self.assertEqual("seq_1", clust_two.representative)
+        representative_seqs = 0
+        for _num, er in self.entrez_record_dict.items():
+            if er.cluster_rep:
+                representative_seqs += 1
+        self.assertEqual(2, representative_seqs)
+        self.assertTrue(self.entrez_record_dict['1'].cluster_rep)
+        self.assertTrue(self.entrez_record_dict['3'].cluster_rep)
         return
 
     def test_lineages_to_dict(self):
