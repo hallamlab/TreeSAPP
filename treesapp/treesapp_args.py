@@ -255,6 +255,9 @@ def add_package_arguments(pkg_parser: TreeSAPPArgumentParser, attributes: list):
                                          "(e.g. activity, pathway, or other phenotype)")
     pkg_parser.editors.add_argument("--reset", default=False, action="store_true",
                                     help="Flag to reset the reference package attribute when editing.")
+    pkg_parser.editors.add_argument("--join", default=False, action="store_true",
+                                    help="Flag indicating the input needs to be joined to the existing attribute. "
+                                         "Applicable to: 'lineage_ids'. [ DEFAULT = False ]")
     pkg_parser.optopt.add_argument('-o', '--output', default=None, required=False,
                                    help='Path to an output directory. '
                                         'Default is the current working directory.')

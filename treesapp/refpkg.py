@@ -18,7 +18,7 @@ from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
 from treesapp.utilities import base_file_prefix, load_taxonomic_trie, match_file, get_hmm_value
-from treesapp.file_parsers import read_phenotypes
+from treesapp import file_parsers
 from treesapp.clade_annotation import CladeAnnotation
 from treesapp import wrapper
 from treesapp import __version__ as ts_version
@@ -300,7 +300,7 @@ class ReferencePackage:
 
         return
 
-    def validate(self, check_files=False):
+    def validate(self, check_files=False) -> bool:
         """
         Function that ensures the number of sequences is equal across all files and
         the version of TreeSAPP used to create this reference package is compatible with the current version.
@@ -451,9 +451,9 @@ class ReferencePackage:
         :return: List of TreeLeafReference instances
         """
         ref_leaf_nodes = []
-        for treesapp_id in sorted(self.lineage_ids, key=int):
-            seq_name, lineage = self.lineage_ids[treesapp_id].split("\t")
-            ref = TreeLeafReference(treesapp_id, seq_name)
+        for leaf_id in sorted(self.lineage_ids, key=int):
+            seq_name, lineage = self.lineage_ids[leaf_id].split("\t")
+            ref = TreeLeafReference(leaf_id, seq_name)
             if self.taxa_trie.root_taxon != lineage.split(self.taxa_trie.lin_sep)[0]:
                 lineage = self.taxa_trie.root_taxon + self.taxa_trie.lin_sep + lineage
             ref.lineage = lineage
@@ -463,6 +463,26 @@ class ReferencePackage:
                 pass
             ref_leaf_nodes.append(ref)
         return ref_leaf_nodes
+
+    def update_lineage_ids(self, new_lineage_map) -> None:
+        """
+        Replaces all lineages in self.lineages with their corresponding values in new_lineage_map.
+
+        :param new_lineage_map: A dictionary mapping taxonomic lineages in the reference package to replacement lineages
+        :return: None
+        """
+        same = []
+        for leaf_id in sorted(self.lineage_ids, key=int):
+            seq_name, lineage = self.lineage_ids[leaf_id].split("\t")
+            if lineage in new_lineage_map:
+                self.lineage_ids[leaf_id] = seq_name + "\t" + new_lineage_map[lineage]
+            else:
+                same.append(leaf_id)
+        if len(same) > 0:
+            logging.info("{} reference sequence lineages were not updated. More info in log.\n".format(len(same)))
+            logging.debug("Reference sequences that remain unchanged:\n\t{}\n"
+                          "".format("\n\t".join(name + "\t" + self.lineage_ids[name] for name in same)))
+        return
 
     def load_taxonomic_hierarchy(self) -> None:
         """
@@ -1205,7 +1225,7 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
     return
 
 
-def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) -> None:
+def edit(ref_pkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) -> None:
     if len(attributes) > 2:
         logging.error("`treesapp package edit` only edits a single attribute at a time.\n")
         sys.exit(3)
@@ -1216,7 +1236,7 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) 
         k, v = attributes  # type: (str, any)
 
     try:
-        current_v = refpkg.__dict__[k]
+        current_v = ref_pkg.__dict__[k]
     except KeyError:
         logging.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(k))
         sys.exit(1)
@@ -1227,37 +1247,47 @@ def edit(refpkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) 
         k_content = re.sub(r"^f__", '', k)
         if not os.path.isfile(v):
             logging.error("Unable to find path to new file '{}'. "
-                          "Exiting and the reference package '{}' will remain unchanged.\n".format(v, refpkg.f__pkl))
+                          "Exiting and the reference package '{}' will remain unchanged.\n".format(v, ref_pkg.f__pkl))
             sys.exit(5)
         with open(v) as content_handler:
             v_content = content_handler.readlines()
         try:
-            refpkg.__dict__[k_content] = v_content
+            ref_pkg.__dict__[k_content] = v_content
         except KeyError:
-            logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, refpkg.f__pkl))
+            logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, ref_pkg.f__pkl))
             sys.exit(7)
     elif k == "feature_annotations":
         if "phenotypes" not in kwargs or not os.path.isfile(kwargs["phenotypes"]):
             logging.error("A taxonomy-phenotype table must be provided to update the feature_annotations attribute.\n")
             sys.exit(7)
-        taxa_phenotype_map = read_phenotypes(kwargs["phenotypes"])
-        refpkg.add_feature_annotations(feature_name=v, feature_map=taxa_phenotype_map, reset=kwargs["reset"])
-        v = refpkg.feature_annotations
-    refpkg.__dict__[k] = v
+        taxa_phenotype_map = file_parsers.read_phenotypes(kwargs["phenotypes"])
+        ref_pkg.add_feature_annotations(feature_name=v, feature_map=taxa_phenotype_map, reset=kwargs["reset"])
+        v = ref_pkg.feature_annotations
+    elif k == "lineage_ids":
+        if kwargs["join"]:
+            lineage_map = file_parsers.read_lineage_map(v)
+            ref_pkg.update_lineage_ids(lineage_map)
+            v = ref_pkg.lineage_ids
+        else:
+            v = file_parsers.read_lineage_ids(v)
+    ref_pkg.__dict__[k] = v
 
-    write_edited_pkl(refpkg, output_dir, kwargs["overwrite"])
+    if ref_pkg.validate() is False:
+        sys.exit(17)
+
+    write_edited_pkl(ref_pkg, output_dir, kwargs["overwrite"])
 
     return
 
 
-def rename(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrite: bool) -> None:
+def rename(ref_pkg: ReferencePackage, attributes: list, output_dir: str, overwrite: bool) -> None:
     # Ensure that prefix is the first item in attributes
     if attributes.pop(0) != 'prefix':
         logging.error("Incorrect format of 'rename' command. Please follow the format provided in help description.\n")
         sys.exit(3)
     # Attributes can only be length of two - first item is 'prefix' and second is the new name
     if len(attributes) > 1:
-        logging.error("Only one other argument should be provided to treesapp package rename - the new refpkg name.\n")
+        logging.error("Only one other argument should be provided to treesapp package rename - the new ref_pkg name.\n")
         sys.exit(3)
 
     new_prefix = attributes.pop()
@@ -1268,19 +1298,19 @@ def rename(refpkg: ReferencePackage, attributes: list, output_dir: str, overwrit
 
     # Rename all instances of the old prefix
     for attr_name in edit_str_attrs:
-        refpkg.__dict__[attr_name] = re.sub(refpkg.prefix, new_prefix, refpkg.__dict__[attr_name])
+        ref_pkg.__dict__[attr_name] = re.sub(ref_pkg.prefix, new_prefix, ref_pkg.__dict__[attr_name])
 
     for attr_name in edit_iter_attrs:
         i = 0
-        while i < len(refpkg.__dict__[attr_name]):
-            refpkg.__dict__[attr_name][i] = re.sub(refpkg.prefix, new_prefix, refpkg.__dict__[attr_name][i])
+        while i < len(ref_pkg.__dict__[attr_name]):
+            ref_pkg.__dict__[attr_name][i] = re.sub(ref_pkg.prefix, new_prefix, ref_pkg.__dict__[attr_name][i])
             i += 1
 
     # Finally change the value of the prefix once all other attributes have been modified
-    refpkg.prefix = new_prefix
-    refpkg.f__pkl = refpkg.prefix + refpkg.refpkg_suffix
+    ref_pkg.prefix = new_prefix
+    ref_pkg.f__pkl = ref_pkg.prefix + ref_pkg.refpkg_suffix
 
-    write_edited_pkl(refpkg, output_dir, overwrite)
+    write_edited_pkl(ref_pkg, output_dir, overwrite)
 
     return
 

@@ -11,6 +11,7 @@ from treesapp import seq_clustering
 from treesapp import fasta
 from treesapp import hmmer_tbl_parser
 from treesapp import phylo_seq
+from treesapp import utilities
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -931,3 +932,37 @@ def read_phenotypes(phenotypes_file: str, comment_char='#') -> dict:
     file_handler.close()
 
     return taxa_phenotype_map
+
+
+def read_lineage_map(lineage_table: str) -> dict:
+    if not os.path.isfile(lineage_table):
+        logging.error("lineage mapping table '{}' does not exist.\n".format(lineage_table))
+        sys.exit(5)
+
+    sep = utilities.get_field_delimiter(lineage_table)
+    lines = [line.strip().split(sep) for line in utilities.get_file_lines(lineage_table)]
+    if re.search(r"^#", lines[0][0]):
+        lines.pop(0)
+    lineage_map = {lin[0]: lin[1] for lin in lines}
+
+    return lineage_map
+
+
+def read_lineage_ids(lineage_table: str) -> dict:
+    lineage_map = dict()
+    if not os.path.isfile(lineage_table):
+        logging.error("lineage_ids table '{}' does not exist.\n".format(lineage_table))
+        sys.exit(5)
+
+    lin_id_lines = utilities.get_file_lines(lineage_table)
+    counter = 1
+    for line in lin_id_lines:
+        try:
+            num, desc, lineage = line.strip().split("\t")
+        except (IndexError, ValueError):
+            logging.error("Line {} in lineage table '{}' is misformatted:\n{}\n".format(counter, lineage_table, line))
+            sys.exit(15)
+        lineage_map[num] = desc + "\t" + lineage
+        counter += 1
+
+    return lineage_map

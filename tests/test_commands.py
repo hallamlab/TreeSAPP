@@ -298,15 +298,21 @@ class TreesappTester(unittest.TestCase):
         test_refpkg = ReferencePackage()
         output_dir = "./TreeSAPP_package" + os.sep
         test_refpkg.f__pkl = output_dir + "McrA_build.pkl"
+        edit_command_list = ["edit",
+                             "refpkg_code", "M0701",
+                             "--refpkg_path", self.mcra_pkl,
+                             "--output", output_dir]
+        package(edit_command_list)
 
         # Test editing a component file's contents
         edit_command_list = ["edit",
                              "f__msa", self.aa_test_fa,
                              "--refpkg_path", self.mcra_pkl,
                              "--output", output_dir]
-        package(edit_command_list)
+        with pytest.raises(SystemExit):
+            package(edit_command_list)
         test_refpkg.slurp()
-        self.assertFalse(test_refpkg.validate())
+        self.assertTrue(test_refpkg.validate())
         with pytest.raises(SystemExit):
             package(["rename", "-h"])
 

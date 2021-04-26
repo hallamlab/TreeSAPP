@@ -69,6 +69,20 @@ class RefPkgTester(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.disband_path, "McrA_bipart.nwk")))
         return
 
+    def test_generate_tree_leaf_references_from_refpkg(self):
+        from treesapp.phylo_seq import TreeLeafReference
+        tree_leaves = self.db.generate_tree_leaf_references_from_refpkg()
+        self.assertIsInstance(tree_leaves, list)
+        self.assertEqual(self.db.num_seqs, len(tree_leaves))
+        self.assertIsInstance(tree_leaves[0], TreeLeafReference)
+
+    def test_update_lineage_ids(self):
+        update_map = {"r__Root": "r__Root; d__Archaea"}
+        self.mutable_ref_pkg.update_lineage_ids(update_map)
+        taxa_counts = self.mutable_ref_pkg.enumerate_taxonomic_lineages()
+        self.assertEqual(self.mutable_ref_pkg.num_seqs, taxa_counts[update_map["r__Root"]])
+        return
+
     def test_remove_taxon_from_lineage_ids(self):
         # Ensure the initial state is as expected
         self.assertEqual(251, self.db.num_seqs)
@@ -205,11 +219,11 @@ class RefPkgTester(unittest.TestCase):
         from treesapp.refpkg import rename, ReferencePackage
         self.assertEqual("McrA", self.db.prefix)
         with pytest.raises(SystemExit):
-            rename(refpkg=self.db, attributes=['McrAA'], output_dir=self.disband_path, overwrite=False)
+            rename(ref_pkg=self.db, attributes=['McrAA'], output_dir=self.disband_path, overwrite=False)
         with pytest.raises(SystemExit):
-            rename(refpkg=self.db, attributes=['prefix', 'McrAA', 'no'], output_dir=self.disband_path, overwrite=False)
+            rename(ref_pkg=self.db, attributes=['prefix', 'McrAA', 'no'], output_dir=self.disband_path, overwrite=False)
 
-        rename(refpkg=self.db, attributes=['prefix', 'McrA2'], output_dir=self.disband_path, overwrite=False)
+        rename(ref_pkg=self.db, attributes=['prefix', 'McrA2'], output_dir=self.disband_path, overwrite=False)
         # Load the edited reference package
         renamed_refpkg = ReferencePackage()
         renamed_refpkg.f__pkl = os.path.join(self.disband_path, "McrA2_build.pkl")
@@ -302,7 +316,7 @@ class RefPkgTester(unittest.TestCase):
     def test_edit(self):
         from treesapp.refpkg import edit
         new_value = "Z0002"
-        edit(refpkg=self.mutable_ref_pkg,
+        edit(ref_pkg=self.mutable_ref_pkg,
              output_dir=os.path.dirname(self.mutable_ref_pkg.f__pkl),
              attributes=["refpkg_code", new_value],
              overwrite=True)
@@ -315,12 +329,12 @@ class RefPkgTester(unittest.TestCase):
 
         # Test a bad edit command where feature_annotations isn't provided with a taxa-phenotype map
         with pytest.raises(SystemExit):
-            edit(refpkg=self.mutable_ref_pkg,
+            edit(ref_pkg=self.mutable_ref_pkg,
                  output_dir=os.path.dirname(self.mutable_ref_pkg.f__pkl),
                  attributes=["feature_annotations", "Paralog"])
 
         # Test updating a feature_annotation using a taxonomy-phenotype map with internal nodes
-        edit(refpkg=self.mutable_ref_pkg,
+        edit(ref_pkg=self.mutable_ref_pkg,
              output_dir=os.path.dirname(self.mutable_ref_pkg.f__pkl),
              attributes=["feature_annotations", "Paralog"],
              phenotypes=utils.get_test_data("McrA_paralog_map.tsv"),
@@ -335,6 +349,18 @@ class RefPkgTester(unittest.TestCase):
                 self.assertEqual(14, len(clade_annot.members))
             else:
                 self.assertTrue(False)
+
+        # Test updating lineage_ids
+        edit(ref_pkg=self.mutable_ref_pkg,
+             output_dir=os.path.dirname(self.mutable_ref_pkg.f__pkl),
+             attributes=["lineage_ids", utils.get_test_data("McrA_lineage_ids - GTDB_map.tsv")],
+             join=True, overwrite=True)
+
+        with pytest.raises(SystemExit):
+            edit(ref_pkg=self.mutable_ref_pkg,
+                 output_dir=os.path.dirname(self.mutable_ref_pkg.f__pkl),
+                 attributes=["lineage_ids", utils.get_test_data("McrA_lineage_ids.tsv")],
+                 join=False, overwrite=True)
 
         return
 

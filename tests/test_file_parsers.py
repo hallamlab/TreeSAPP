@@ -139,6 +139,25 @@ class TreesappTester(unittest.TestCase):
         self.assertIsInstance(cls=dict, obj=phenotypes)
         self.assertEqual(19, len(phenotypes))
 
+    def test_read_lineage_map(self):
+        from treesapp.file_parsers import read_lineage_map
+        mock_lineage_map = get_test_data("McrA_lineage_ids - GTDB_map.tsv")
+        lineages = read_lineage_map(mock_lineage_map)
+        self.assertEqual(149, len(lineages))
+        return
+
+    def test_read_lineage_ids(self):
+        from treesapp.file_parsers import read_lineage_ids
+        mock_lineages = get_test_data("McrA_lineage_ids.tsv")
+        lineages = read_lineage_ids(mock_lineages)
+        self.assertIsInstance(lineages, dict)
+        self.assertEqual(50, len(lineages))
+        self.assertEqual([str(x) for x in range(1, 51)], list(lineages.keys()))
+
+        with pytest.raises(SystemExit):
+            read_lineage_ids(get_test_data("McrA_lineage_ids - GTDB_map.tsv"))
+        return
+
 
 if __name__ == '__main__':
     unittest.main()

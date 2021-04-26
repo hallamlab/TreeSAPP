@@ -1,4 +1,4 @@
-## [0.11.0] - 2021-04-20
+## [0.11.0] - 2021-04-27
 TreeSAPP version 0.11.0 changes how users store and interact with reference package feature annotations.
 These feature annotations are clade-specific labels that indicate some extra-taxonomic features that are characteristic of sequences in the reference package.
 
@@ -21,6 +21,7 @@ We recommend updating to this version, and updating reference packages you have 
 - Ability to automatically detect the sequence type based on the input provided.
 - PQuery classification data is stored in each reference package in the 'training_df' attribute as a pandas.DataFrame.
 - Improved query sequence filtering by phylogenetic placement information in `treesapp update`
+- Now able to update a reference package's 'lineage_ids' attribute with `treesapp package edit`
 
 ### Fixed
 - Segmentation fault from Prodigal is no longer possible as `treesapp assign` verifies input presence earlier.

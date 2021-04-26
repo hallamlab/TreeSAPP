@@ -123,9 +123,9 @@ Use '-h' to get subcommand-specific help, e.g. 'treesapp package view -h'
         sys.stderr.write(pkg_usage)
         sys.exit(1)
 
-    refpkg = ts_ref_pkg.ReferencePackage()
+    ref_pkg = ts_ref_pkg.ReferencePackage()
 
-    treesapp_args.add_package_arguments(parser, refpkg.get_public_attributes())
+    treesapp_args.add_package_arguments(parser, ref_pkg.get_public_attributes())
     args = parser.parse_args(sys_args)
 
     if args.output:
@@ -138,21 +138,21 @@ Use '-h' to get subcommand-specific help, e.g. 'treesapp package view -h'
     classy.prep_logging(log_file=os.path.join(log_dir, 'TreeSAPP_package_log.txt'))
 
     for refpkg_pkl in args.pkg_path:
-        refpkg.f__pkl = refpkg_pkl
-        refpkg.slurp()
+        ref_pkg.f__pkl = refpkg_pkl
+        ref_pkg.slurp()
 
         if args.output:
             output_dir = args.output
         else:
-            output_dir = os.path.dirname(refpkg.f__pkl)
+            output_dir = os.path.dirname(ref_pkg.f__pkl)
 
         if args.subcommand == "view":
-            ts_ref_pkg.view(refpkg, args.attributes)
+            ts_ref_pkg.view(ref_pkg, args.attributes)
         elif args.subcommand == "edit":
-            ts_ref_pkg.edit(refpkg, args.attributes, output_dir,
-                            overwrite=args.overwrite, phenotypes=args.phenotypes, reset=args.reset)
+            ts_ref_pkg.edit(ref_pkg, args.attributes, output_dir,
+                            overwrite=args.overwrite, phenotypes=args.phenotypes, reset=args.reset, join=args.join)
         elif args.subcommand == "rename":
-            ts_ref_pkg.rename(refpkg, args.attributes, output_dir, args.overwrite)
+            ts_ref_pkg.rename(ref_pkg, args.attributes, output_dir, args.overwrite)
         else:
             logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
             sys.exit(1)
