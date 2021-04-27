@@ -66,7 +66,7 @@ class TreeSAPPClassTester(unittest.TestCase):
 
     def test_furnish_with_arguments(self):
         args = namedtuple("args", ["molecule", "output", "input", "executables"])
-        args.input = self.fasta
+        args.input = [self.fasta]
         args.output = self.output_dir
         args.molecule = "prot"
         args.executables = {'prodigal': '/home/connor/bin/prodigal', 'BMGE.jar': '/usr/local/bin/BMGE.jar',

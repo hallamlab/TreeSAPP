@@ -5,7 +5,7 @@ import re
 import logging
 from glob import glob
 
-from treesapp.classy import Evaluator, Creator, Updater
+from treesapp.classy import Evaluator, Updater
 from treesapp.utilities import available_cpu_count
 
 
@@ -14,6 +14,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
     A base argparse ArgumentParser for TreeSAPP with functions to furnish with common arguments.
     This standardizes the interface for a unified aesthetic across all functions: create, classify, evaluate, etc.
     """
+
     def __init__(self, **kwargs):
         """
         Instantiate the argparse argument-parser and create three broad argument groups:
@@ -57,7 +58,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                      help='Delete all intermediate files to save disk space.')
 
     def add_input_fastx(self):
-        self.reqs.add_argument('-i', '--fastx_input', required=True, dest="input",
+        self.reqs.add_argument('-i', '--fastx_input', required=True, dest="input", nargs='+',
                                help='An input file containing DNA or protein sequences in either FASTA or FASTQ format')
 
     def add_output_dir(self):
@@ -323,7 +324,7 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
 
     assign_parser.optopt.add_argument("--svm", default=False, required=False, action="store_true",
                                       help="Uses the support vector machine (SVM) classification filter. "
-                                           "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
+                                           "WARNING: Unless you *really* know your refpkg, you don't want this.")
 
     # The optionals
     assign_parser.optopt.add_argument('-c', '--composition', default="meta", choices=["meta", "single"],
@@ -337,8 +338,8 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
 
     # The miscellany
     assign_parser.miscellany.add_argument('-R', '--reftree', required=False, default="", type=str,
-                                          help="[IN PROGRESS] Reference package that all queries should be immediately and "
-                                               "directly classified as (i.e. homology search step is skipped).")
+                                          help="[IN PROGRESS] Reference package that all queries should be immediately"
+                                               " and directly classified as (i.e. homology search step is skipped).")
     return
 
 
@@ -416,89 +417,89 @@ def add_create_arguments(crt_parser: TreeSAPPArgumentParser) -> None:
     return
 
 
-def add_purity_arguments(parser: TreeSAPPArgumentParser) -> None:
+def add_purity_arguments(pur_parser: TreeSAPPArgumentParser) -> None:
     """
     Adds command-line arguments that are specific to *treesapp purity*
 
     :return: None
     """
-    parser.add_io()
-    parser.add_refpkg_file_param()
-    parser.add_seq_params()
-    parser.add_compute_miscellany()
-    parser.optopt.add_argument("-x", "--extra_info", required=False, default=None,
-                               help="File mapping header prefixes to description information.")
-    parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "lineages", "classify", "calculate"],
-                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
-    # TODO: Remove --trim_align from command-line options in parser.add_seq_params()
+    pur_parser.add_io()
+    pur_parser.add_refpkg_file_param()
+    pur_parser.add_seq_params()
+    pur_parser.add_compute_miscellany()
+    pur_parser.optopt.add_argument("-x", "--extra_info", required=False, default=None,
+                                   help="File mapping header prefixes to description information.")
+    pur_parser.optopt.add_argument("--stage", default="continue", required=False,
+                                   choices=["continue", "lineages", "classify", "calculate"],
+                                   help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    # TODO: Remove --trim_align from command-line options in pur_parser.add_seq_params()
     return
 
 
-def add_evaluate_arguments(parser: TreeSAPPArgumentParser) -> None:
+def add_evaluate_arguments(eval_parser: TreeSAPPArgumentParser) -> None:
     """
     Adds command-line arguments that are specific to *treesapp evaluate*
 
     :return: None
     """
-    parser.add_io()
-    parser.add_seq_params()
-    parser.add_refpkg_file_param()
-    parser.add_accession_params()
-    parser.add_compute_miscellany()
-    parser.add_taxa_ranks_param()
+    eval_parser.add_io()
+    eval_parser.add_seq_params()
+    eval_parser.add_refpkg_file_param()
+    eval_parser.add_accession_params()
+    eval_parser.add_compute_miscellany()
+    eval_parser.add_taxa_ranks_param()
 
-    parser.optopt.add_argument("--fresh", default=False, required=False, action="store_true",
-                               help="Recalculate a fresh phylogenetic tree with the target clades removed instead of"
-                                    " removing the leaves corresponding to targets from the reference tree.")
-    parser.optopt.add_argument("--tool", default="treesapp", required=False,
-                               choices=["treesapp", "graftm", "diamond"],
-                               help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
-    parser.optopt.add_argument("-l", "--length",
-                               required=False, type=int, default=0,
-                               help="Arbitrarily slice the input sequences to this length. "
-                                    "Useful for testing classification accuracy for fragments.")
-    parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "lineages", "classify", "calculate"],
-                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    eval_parser.optopt.add_argument("--fresh", default=False, required=False, action="store_true",
+                                    help="Recalculate a fresh phylogenetic tree with the target clades removed instead"
+                                         " of removing the leaves corresponding to targets from the reference tree.")
+    eval_parser.optopt.add_argument("--tool", default="treesapp", required=False,
+                                    choices=["treesapp", "graftm", "diamond"],
+                                    help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
+    eval_parser.optopt.add_argument("-l", "--length",
+                                    required=False, type=int, default=0,
+                                    help="Arbitrarily slice the input sequences to this length. "
+                                         "Useful for testing classification accuracy for fragments.")
+    eval_parser.optopt.add_argument("--stage", default="continue", required=False,
+                                    choices=["continue", "lineages", "classify", "calculate"],
+                                    help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
     return
 
 
-def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
+def add_update_arguments(up_parser: TreeSAPPArgumentParser) -> None:
     """
     Adds command-line arguments that are specific to *treesapp update*
 
     :return: None
     """
-    parser.add_output_dir()
-    parser.add_delete()
-    parser.add_seq_params()  # w, m
-    parser.add_cluster_args()  # p
-    parser.add_taxa_args()  # s, f, t
-    parser.add_refpkg_file_param()  # r
-    parser.add_pplace_filter_params()
-    parser.add_lineage_table_param()
-    parser.add_phylogeny_params()  # b, e
-    parser.add_compute_miscellany()  # n
-    parser.add_basic_classifier_model_params()
-    parser.reqs.add_argument("--treesapp_output", dest="ts_out", required=True,
-                             help="Path to the directory containing TreeSAPP outputs, "
-                                  "including sequences to be used for the update.")
-    parser.optopt.add_argument('-i', '--fastx_input', required=False, dest="input", default="",
-                               help='An input file containing candidate reference sequences in either FASTA format. '
-                                    'Will trigger re-training the reference package if provided.')
-    parser.optopt.add_argument("--skip_assign", default=False, required=False, action="store_true",
-                               help="The assigned sequences are from a database and their database lineages "
-                                    "should be used instead of the TreeSAPP-assigned lineages.")
-    parser.optopt.add_argument("--resolve", default=False, required=False, action="store_true",
-                               help="Flag indicating candidate references with better resolved lineages and"
-                                    " comparable sequence lengths can replace old references."
-                                    " Useful when updating with sequences from isolates, SAGs and maybe quality MAGs.")
-    parser.optopt.add_argument("--stage", default="continue", required=False,
-                               choices=["continue", "lineages", "rebuild"],
-                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
-    parser.miscellany.add_argument("--headless", action="store_true", default=False,
-                                   help="Do not require any user input during runtime.")
+    up_parser.add_output_dir()
+    up_parser.add_delete()
+    up_parser.add_seq_params()  # w, m
+    up_parser.add_cluster_args()  # p
+    up_parser.add_taxa_args()  # s, f, t
+    up_parser.add_refpkg_file_param()  # r
+    up_parser.add_pplace_filter_params()
+    up_parser.add_lineage_table_param()
+    up_parser.add_phylogeny_params()  # b, e
+    up_parser.add_compute_miscellany()  # n
+    up_parser.add_basic_classifier_model_params()
+    up_parser.reqs.add_argument("--treesapp_output", dest="ts_out", required=True,
+                                help="Path to the directory containing TreeSAPP outputs, "
+                                     "including sequences to be used for the update.")
+    up_parser.optopt.add_argument('-i', '--fastx_input', required=False, dest="input", default=[''], nargs='+',
+                                  help='An input file containing candidate reference sequences in either FASTA format. '
+                                       'Will trigger re-training the reference package if provided.')
+    up_parser.optopt.add_argument("--skip_assign", default=False, required=False, action="store_true",
+                                  help="The assigned sequences are from a database and their database lineages "
+                                       "should be used instead of the TreeSAPP-assigned lineages.")
+    up_parser.optopt.add_argument("--resolve", default=False, required=False, action="store_true",
+                                  help="Flag indicating candidate references with better resolved lineages and"
+                                       " comparable sequence lengths can replace old references."
+                                       " Useful when updating with sequences from isolates, SAGs and quality MAGs.")
+    up_parser.optopt.add_argument("--stage", default="continue", required=False,
+                                  choices=["continue", "lineages", "rebuild"],
+                                  help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    up_parser.miscellany.add_argument("--headless", action="store_true", default=False,
+                                      help="Do not require any user input during runtime.")
     return
 
 
@@ -587,82 +588,6 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
 
     if not os.path.isdir(evaluator_instance.var_output_dir):
         os.makedirs(evaluator_instance.var_output_dir)
-
-    return
-
-
-def check_create_arguments(creator: Creator, args) -> None:
-    creator.find_sequence_molecule_type()
-    # Populate ReferencePackage attributes from command-line arguments
-    if args.fast:
-        creator.ref_pkg.tree_tool = "FastTree"
-    else:
-        creator.ref_pkg.tree_tool = "RAxML-NG"
-    creator.ref_pkg.prefix = args.refpkg_name
-    creator.ref_pkg.pid = args.similarity
-    creator.ref_pkg.molecule = creator.molecule_type
-    creator.ref_pkg.kind = args.kind
-    creator.ref_pkg.sub_model = args.raxml_model
-    creator.ref_pkg.f__pkl = creator.final_output_dir + creator.ref_pkg.prefix + creator.ref_pkg.refpkg_suffix
-    # TODO: Create placement trainer output directory and make it an attribute
-    if not args.output:
-        args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
-
-    if len(creator.ref_pkg.prefix) > 10:
-        logging.error("Name should be <= 10 characters.\n")
-        sys.exit(13)
-
-    # TODO: Check the substitution model for compatibility with RAxML-NG
-
-    if args.cluster:
-        if args.multiple_alignment:
-            logging.error("--cluster and --multiple_alignment are mutually exclusive!\n")
-            sys.exit(13)
-        if not 0.5 <= float(args.similarity) <= 1.0:
-            if 0.5 < float(args.similarity)/100 < 1.0:
-                args.similarity = str(float(args.similarity)/100)
-                logging.warning("--similarity  set to {} for compatibility with VSEARCH.\n".format(args.similarity))
-            else:
-                logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
-                sys.exit(13)
-
-    if args.taxa_lca and not args.cluster:
-        logging.error("Unable to perform LCA for representatives without clustering information: " +
-                      "either with a provided VSEARCH file or by clustering within the pipeline.\n")
-        sys.exit(13)
-
-    if args.guarantee and not args.cluster:
-        logging.error("--guarantee used but without clustering there is no reason for it.\n" +
-                      "Include all sequences in " + args.guarantee +
-                      " in " + creator.input_sequences + " and re-run without --guarantee\n")
-        sys.exit(13)
-
-    if args.profile:
-        if not os.path.isfile(args.profile):
-            logging.error("Unable to find HMM profile at '" + args.profile + "'.\n")
-            sys.exit(3)
-        creator.hmm_profile = args.profile
-
-    # Names of files and directories to be created
-    creator.phy_dir = os.path.abspath(creator.var_output_dir) + os.sep + "phylogeny_files" + os.sep
-    creator.training_dir = os.path.abspath(creator.var_output_dir) + os.sep + "placement_trainer" + os.sep
-    creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
-    creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
-    creator.cluster_input = creator.var_output_dir + creator.sample_prefix + "_cluster_input.fasta"
-    creator.clusters_prefix = creator.var_output_dir + creator.sample_prefix + "_cluster" + str(creator.ref_pkg.pid)
-    creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
-    creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
-
-    # Ensure the phylogenetic tree output directory from a previous run isn't going to be over-written
-    if not os.path.exists(creator.phy_dir):
-        os.mkdir(creator.phy_dir)
-    else:
-        logging.error(creator.phy_dir + " already exists from a previous run! " +
-                      "Please delete or rename it and try again.\n")
-        sys.exit(13)
-
-    if not os.path.isdir(creator.training_dir):
-        os.mkdir(creator.training_dir)
 
     return
 

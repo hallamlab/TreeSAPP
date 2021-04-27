@@ -589,6 +589,12 @@ def get_arguments(sys_args):
 
     if args.output[-1] != os.sep:
         args.output += os.sep
+
+    if len(args.input) > 1:
+        logging.error("Unable to handle more than one fastx_input file.\n")
+        sys.exit(7)
+    args.input = args.input.pop(0)
+
     return args
 
 

@@ -438,6 +438,8 @@ def concatenate_files(input_files: list, output_path: str):
         logging.error("Unable to open output file '{}' for writing.\n".format(output_path))
         sys.exit(17)
 
+    if isinstance(input_files, str):
+        raise AssertionError("File list is str, when list was expected.")
     for input_f in input_files:
         with open(input_f, 'rb') as fh:
             shutil.copyfileobj(fh, output_handler)

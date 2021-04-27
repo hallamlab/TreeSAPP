@@ -1109,8 +1109,8 @@ class ReferencePackage:
                 pass
 
         if unmapped:
-            logging.warning("Unable to find the following feature indices in taxa, leaves or internal nodes:\n\t" +
-                            "\n\t".join(unmapped) + "\n")
+            logging.debug("Unable to find the following feature indices in taxa, leaves or internal nodes:\n\t" +
+                          "\n\t".join(unmapped) + "\n")
 
         return internal_node_feature_map
 

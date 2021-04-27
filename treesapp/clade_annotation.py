@@ -8,7 +8,9 @@ class CladeAnnotation:
         self.colour = ""
 
     def __str__(self) -> str:
-        return self.summarise()
+        return "CladeAnnotation object '{}' of '{}' annotation with '{}' members.".format(self.name,
+                                                                                          self.feature,
+                                                                                          len(self.members))
 
     def summarise(self) -> str:
         summary_str = "Annotation '{}' of feature '{}' status:\n".format(self.name, self.feature)

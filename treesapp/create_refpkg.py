@@ -6,6 +6,7 @@ __maintainer__ = "Connor Morgan-Lang"
 import logging
 import sys
 import re
+import os
 
 from treesapp import seq_clustering
 from treesapp.wrapper import run_odseq, run_mafft
@@ -13,6 +14,84 @@ from treesapp.lca_calculations import megan_lca, clean_lineage_list
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp import entrez_utils
 from treesapp import fasta
+from treesapp import classy
+
+
+def check_create_arguments(creator: classy.Creator, args) -> None:
+    creator.combine_input_files()
+    creator.find_sequence_molecule_type()
+    # Populate ReferencePackage attributes from command-line arguments
+    if args.fast:
+        creator.ref_pkg.tree_tool = "FastTree"
+    else:
+        creator.ref_pkg.tree_tool = "RAxML-NG"
+    creator.ref_pkg.prefix = args.refpkg_name
+    creator.ref_pkg.pid = args.similarity
+    creator.ref_pkg.molecule = creator.molecule_type
+    creator.ref_pkg.kind = args.kind
+    creator.ref_pkg.sub_model = args.raxml_model
+    creator.ref_pkg.f__pkl = creator.final_output_dir + creator.ref_pkg.prefix + creator.ref_pkg.refpkg_suffix
+    # TODO: Create placement trainer output directory and make it an attribute
+    if not args.output:
+        args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
+
+    if len(creator.ref_pkg.prefix) > 10:
+        logging.error("Name should be <= 10 characters.\n")
+        sys.exit(13)
+
+    # TODO: Check the substitution model for compatibility with RAxML-NG
+
+    if args.cluster:
+        if args.multiple_alignment:
+            logging.error("--cluster and --multiple_alignment are mutually exclusive!\n")
+            sys.exit(13)
+        if not 0.5 <= float(args.similarity) <= 1.0:
+            if 0.5 < float(args.similarity) / 100 < 1.0:
+                args.similarity = str(float(args.similarity) / 100)
+                logging.warning("--similarity  set to {} for compatibility with VSEARCH.\n".format(args.similarity))
+            else:
+                logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
+                sys.exit(13)
+
+    if args.taxa_lca and not args.cluster:
+        logging.error("Unable to perform LCA for representatives without clustering information: " +
+                      "either with a provided VSEARCH file or by clustering within the pipeline.\n")
+        sys.exit(13)
+
+    if args.guarantee and not args.cluster:
+        logging.error("--guarantee used but without clustering there is no reason for it.\n" +
+                      "Include all sequences in " + args.guarantee +
+                      " in " + creator.input_sequences + " and re-run without --guarantee\n")
+        sys.exit(13)
+
+    if args.profile:
+        if not os.path.isfile(args.profile):
+            logging.error("Unable to find HMM profile at '" + args.profile + "'.\n")
+            sys.exit(3)
+        creator.hmm_profile = args.profile
+
+    # Names of files and directories to be created
+    creator.phy_dir = os.path.abspath(creator.var_output_dir) + os.sep + "phylogeny_files" + os.sep
+    creator.training_dir = os.path.abspath(creator.var_output_dir) + os.sep + "placement_trainer" + os.sep
+    creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
+    creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
+    creator.cluster_input = creator.var_output_dir + creator.sample_prefix + "_cluster_input.fasta"
+    creator.clusters_prefix = creator.var_output_dir + creator.sample_prefix + "_cluster" + str(creator.ref_pkg.pid)
+    creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
+    creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
+
+    # Ensure the phylogenetic tree output directory from a previous run isn't going to be over-written
+    if not os.path.exists(creator.phy_dir):
+        os.mkdir(creator.phy_dir)
+    else:
+        logging.error(creator.phy_dir + " already exists from a previous run! " +
+                      "Please delete or rename it and try again.\n")
+        sys.exit(13)
+
+    if not os.path.isdir(creator.training_dir):
+        os.mkdir(creator.training_dir)
+
+    return
 
 
 def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):

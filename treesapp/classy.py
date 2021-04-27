@@ -311,6 +311,16 @@ class TreeSAPP:
         self.var_output_dir = self.output_dir + "intermediates" + os.sep
         return
 
+    def set_sample_prefix(self, files: list) -> None:
+        file_prefixes = []
+        for f_name in files:
+            file_name, _suffix1 = os.path.splitext(os.path.basename(f_name))
+            if _suffix1 == ".gz":
+                file_name, _suffix2 = os.path.splitext(file_name)
+            file_prefixes.append(file_name)
+        self.sample_prefix = '_'.join(file_prefixes)
+        return
+
     def furnish_with_arguments(self, args) -> None:
         """
         Carries over the basic TreeSAPP arguments to the respective TreeSAPP-subclass.
@@ -323,13 +333,19 @@ class TreeSAPP:
             self.output_dir = args.output
             self.set_output_dirs()
             if set(vars(args)).issuperset({"molecule", "input"}):
-                self.input_sequences = args.input
+                self.set_sample_prefix(args.input)
+                # Handle the fastx input file list
+                if self.command == "create":
+                    self.input_sequences = args.input
+                else:
+                    if len(args.input) > 1:
+                        logging.error("treesapp {} is unable to handle more than one fastx-input file.\n"
+                                      "".format(self.command))
+                        sys.exit(7)
+                    self.input_sequences = args.input.pop(0)
+
                 if args.molecule:
                     self.molecule_type = args.molecule
-                file_name, suffix1 = os.path.splitext(os.path.basename(self.input_sequences))
-                if suffix1 == ".gz":
-                    file_name, suffix2 = os.path.splitext(file_name)
-                self.sample_prefix = file_name
 
         if self.command != "colour" and "pkg_path" in vars(args):
             if len(args.pkg_path) > 1:
@@ -801,6 +817,13 @@ class Creator(TreeSAPP):
 
         if detonate and os.path.isdir(self.var_output_dir):
             rmtree(self.var_output_dir)
+        return
+
+    def combine_input_files(self) -> None:
+        cat_fastx_file = os.path.join(self.var_output_dir, self.sample_prefix + ".fa")
+        ts_utils.concatenate_files(input_files=self.input_sequences,
+                                   output_path=cat_fastx_file)
+        self.input_sequences = cat_fastx_file
         return
 
     def determine_model(self, ref_pkg: refpkg.ReferencePackage, estimate=False) -> None:

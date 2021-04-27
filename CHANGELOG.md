@@ -22,6 +22,8 @@ We recommend updating to this version, and updating reference packages you have 
 - PQuery classification data is stored in each reference package in the 'training_df' attribute as a pandas.DataFrame.
 - Improved query sequence filtering by phylogenetic placement information in `treesapp update`
 - Now able to update a reference package's 'lineage_ids' attribute with `treesapp package edit`
+- `treesapp create` is able to accept multiple fasta files through --fastx_input and concatenate them into the one 
+  file used to build the reference package.
 
 ### Fixed
 - Segmentation fault from Prodigal is no longer possible as `treesapp assign` verifies input presence earlier.

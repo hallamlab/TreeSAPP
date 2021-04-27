@@ -405,7 +405,7 @@ def create(sys_args):
     logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
-    treesapp_args.check_create_arguments(ts_create, args)
+    ts_create_mod.check_create_arguments(ts_create, args)
     ts_create.decide_stage(args)
 
     # Populate the final TreeSAPP reference file paths with the proper output directory
@@ -1241,7 +1241,7 @@ def evaluate(sys_args):
     ref_lineages = {leaf.number: leaf.lineage for leaf in ref_leaves}
 
     # Load FASTA data
-    query_fasta = fasta.FASTA(args.input)
+    query_fasta = fasta.FASTA(ts_evaluate.input_sequences)
     query_fasta.load_fasta(format_it=True, molecule=ts_evaluate.molecule_type)
     if args.length:
         query_fasta.trim_to_length(args.length)
