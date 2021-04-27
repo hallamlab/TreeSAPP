@@ -1,563 +1,429 @@
-12/02 15:00:54 INFO:
+12/04 11:42:03 INFO:
 
 ##				Assigning sequences with TreeSAPP				##
 
 
-12/02 15:00:54 INFO:
+12/04 11:42:03 INFO:
 Arguments used:
 -i /media/connor/Rufus/TreeSAPP_outputs/PitchLake_TarA_Mcr_Dsr.fasta -o /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/ -n 4 -t McrA,McrB,McrG,S0001 --trim_align --overwrite --refpkg_dir /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/refpkgs/
 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 Continuing with stage 'orf-call'
 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 Gathering reference package files... 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 done.
 
-12/02 15:00:54 WARNING:
+12/04 11:42:03 WARNING:
 Reference packages for targets McrG could not be found.
 
-12/02 15:00:54 INFO:
+12/04 11:42:03 INFO:
 Predicting open-reading frames using Prodigal... 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 Writing split fasta to file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.1.fasta'.
 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 Writing split fasta to file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.2.fasta'.
 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 Writing split fasta to file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.3.fasta'.
 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 Writing split fasta to file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.4.fasta'.
 
-12/02 15:00:54 DEBUG:
-/media/connor/Rufus/TreeSAPP_outputs/PitchLake_TarA_Mcr_Dsr.fasta completed split_fa in 0.0027098655700683594s.
+12/04 11:42:03 DEBUG:
+/media/connor/Rufus/TreeSAPP_outputs/PitchLake_TarA_Mcr_Dsr.fasta completed split_fa in 0.002619028091430664s.
 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 STAGE: Prodigal -p meta
 	COMMAND:
 /home/connor/bin/prodigal -q -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.4.fasta -p meta -a /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.4_ORFs.faa -d /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.4_ORFs.fna
 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 STAGE: Prodigal -p meta
 	COMMAND:
 /home/connor/bin/prodigal -q -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.3.fasta -p meta -a /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.3_ORFs.faa -d /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.3_ORFs.fna
 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 STAGE: Prodigal -p meta
 	COMMAND:
 /home/connor/bin/prodigal -q -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.2.fasta -p meta -a /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.2_ORFs.faa -d /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.2_ORFs.fna
 
-12/02 15:00:54 DEBUG:
+12/04 11:42:03 DEBUG:
 STAGE: Prodigal -p meta
 	COMMAND:
 /home/connor/bin/prodigal -q -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.1.fasta -p meta -a /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.1_ORFs.faa -d /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr.1_ORFs.fna
 
-12/02 15:00:59 DEBUG:
+12/04 11:42:08 DEBUG:
 /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr_ORFs.faa.tmp read by pyfastx in 0.01 seconds.
 
-12/02 15:00:59 DEBUG:
+12/04 11:42:08 DEBUG:
 /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr_ORFs.fna.tmp read by pyfastx in 0.02 seconds.
 
-12/02 15:00:59 INFO:
+12/04 11:42:08 INFO:
 done.
 
-12/02 15:00:59 DEBUG:
-	Prodigal time required: 0.0:0.0:5.18
+12/04 11:42:08 DEBUG:
+	Prodigal time required: 0.0:0.0:5.16
 
-12/02 15:00:59 INFO:
+12/04 11:42:08 INFO:
 Reading and formatting /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr_ORFs.faa... 
-12/02 15:00:59 DEBUG:
+12/04 11:42:08 DEBUG:
 /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr_ORFs.faa read by pyfastx in 0.01 seconds.
 
-12/02 15:00:59 INFO:
+12/04 11:42:08 INFO:
 done.
 
-12/02 15:00:59 INFO:
+12/04 11:42:08 INFO:
 	TreeSAPP will analyze the 2054 sequences found in input.
 
-12/02 15:00:59 INFO:
+12/04 11:42:08 INFO:
 Searching for marker proteins in ORFs using hmmsearch.
 
-12/02 15:00:59 DEBUG:
-Filtering HMM alignments using the following thresholds:
-	Maximum E-value = 0.001
-	Maximum i-Evalue = 0.1
-	Minimum acc = 0.7
-	Minimum score = 15
-	Minimum percentage of the HMM covered = 10%
-
-12/02 15:00:59 INFO:
+12/04 11:42:09 INFO:
 Parsing HMMER domain tables for high-quality matches... 
-12/02 15:00:59 INFO:
+12/04 11:42:09 INFO:
 done.
 
-12/02 15:00:59 DEBUG:
+12/04 11:42:09 DEBUG:
 	Initial alignments:	349
-	Alignments discarded:	28
+	Alignments discarded:	180
 	Fragmented alignments:	170
 	Inversions detected:	18
 	Alignments scaffolded:	50
 	Multi-alignments:	0
-	Sequences identified:	246
+	Sequences identified:	94
 
 	Number of markers identified:
-		DsrAB	224
-		McrA	11
-		McrB	11
+		DsrAB	77
+		McrA	7
+		McrB	10
 
-12/02 15:00:59 INFO:
+12/04 11:42:09 INFO:
 Loading homologous sequences identified... 
-12/02 15:00:59 DEBUG:
-1829 sequences were excluded after synchronizing FASTA.
+12/04 11:42:09 DEBUG:
+1970 sequences were excluded after synchronizing FASTA.
 
-12/02 15:00:59 INFO:
+12/04 11:42:09 INFO:
 done.
 
-12/02 15:00:59 DEBUG:
+12/04 11:42:09 DEBUG:
 Instantiating the PQuery instances... 
-12/02 15:00:59 DEBUG:
+12/04 11:42:09 DEBUG:
 done.
 
-12/02 15:00:59 INFO:
+12/04 11:42:09 INFO:
 Extracting and grouping the quality-controlled sequences... 
-12/02 15:00:59 INFO:
+12/04 11:42:09 INFO:
 done.
 
-12/02 15:00:59 DEBUG:
+12/04 11:42:09 DEBUG:
 Number of query sequences in each marker's group:
-McrB	0	4
-McrB	1	4
-McrB	2	2
-McrB	3	1
-McrA	0	3
-McrA	1	3
-McrA	2	2
-McrA	3	3
-DsrAB	0	205
-DsrAB	1	6
-DsrAB	2	2
-DsrAB	3	7
-DsrAB	4	1
-DsrAB	5	1
-DsrAB	6	1
-DsrAB	7	1
+McrB	0	5
+McrB	1	2
+McrB	2	1
+McrB	3	2
+McrA	0	2
+McrA	1	4
+McrA	2	1
+DsrAB	0	64
+DsrAB	1	1
+DsrAB	2	12
 
 
-12/02 15:00:59 INFO:
+12/04 11:42:09 INFO:
 Writing the grouped sequences to FASTA files... 
-12/02 15:00:59 INFO:
+12/04 11:42:09 INFO:
 done.
 
-12/02 15:01:00 INFO:
+12/04 11:42:09 INFO:
 Running hmmalign... 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: cmalign/hmmalign --mapali
 	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrB_hmm_purified_group3.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3.sto
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/M0702/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/M0702/McrB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrB_hmm_purified_group3.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3.sto
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: cmalign/hmmalign --mapali
 	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrB_hmm_purified_group2.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2.sto
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/M0702/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/M0702/McrB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrB_hmm_purified_group2.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2.sto
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: cmalign/hmmalign --mapali
 	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrB_hmm_purified_group1.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1.sto
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/M0702/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/M0702/McrB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrB_hmm_purified_group1.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1.sto
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: cmalign/hmmalign --mapali
 	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrB_hmm_purified_group0.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0.sto
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/M0702/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/M0702/McrB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrB_hmm_purified_group0.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0.sto
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: cmalign/hmmalign --mapali
 	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/McrA_Z1111_2021-01-25/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/McrA_Z1111_2021-01-25/McrA.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrA_hmm_purified_group3.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group3.sto
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/Z1111/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/Z1111/McrA.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrA_hmm_purified_group2.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2.sto
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: cmalign/hmmalign --mapali
 	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/McrA_Z1111_2021-01-25/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/McrA_Z1111_2021-01-25/McrA.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrA_hmm_purified_group2.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2.sto
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/Z1111/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/Z1111/McrA.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrA_hmm_purified_group1.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1.sto
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: cmalign/hmmalign --mapali
 	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/McrA_Z1111_2021-01-25/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/McrA_Z1111_2021-01-25/McrA.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrA_hmm_purified_group1.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1.sto
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/Z1111/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/Z1111/McrA.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrA_hmm_purified_group0.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0.sto
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: cmalign/hmmalign --mapali
 	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/McrA_Z1111_2021-01-25/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/McrA_Z1111_2021-01-25/McrA.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/McrA_hmm_purified_group0.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0.sto
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/S0001/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/S0001/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group2.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2.sto
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: cmalign/hmmalign --mapali
 	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group7.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group7.sto
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/S0001/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/S0001/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group1.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1.sto
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: cmalign/hmmalign --mapali
 	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group6.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group6.sto
+/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/S0001/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/S0001/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group0.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0.sto
 
-12/02 15:01:00 DEBUG:
-STAGE: cmalign/hmmalign --mapali
-	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group5.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group5.sto
-
-12/02 15:01:00 DEBUG:
-STAGE: cmalign/hmmalign --mapali
-	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group4.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group4.sto
-
-12/02 15:01:00 DEBUG:
-STAGE: cmalign/hmmalign --mapali
-	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group3.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group3.sto
-
-12/02 15:01:00 DEBUG:
-STAGE: cmalign/hmmalign --mapali
-	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group2.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2.sto
-
-12/02 15:01:00 DEBUG:
-STAGE: cmalign/hmmalign --mapali
-	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group1.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1.sto
-
-12/02 15:01:00 DEBUG:
-STAGE: cmalign/hmmalign --mapali
-	COMMAND:
-/usr/local/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.hmm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/search/DsrAB_hmm_purified_group0.faa > /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0.sto
-
-12/02 15:01:00 INFO:
+12/04 11:42:09 INFO:
 done.
 
-12/02 15:01:00 DEBUG:
-	hmmalign time required: 0.0:0.0:0.4
+12/04 11:42:09 DEBUG:
+	hmmalign time required: 0.0:0.0:0.22
 
-12/02 15:01:00 INFO:
+12/04 11:42:09 INFO:
 Running BMGE... 
-12/02 15:01:00 DEBUG:
-STAGE: Multiple alignment trimming with BMGE
-	COMMAND:
-java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3-BMGE.fasta
-
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: Multiple alignment trimming with BMGE
 	COMMAND:
 java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2-BMGE.fasta
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3-BMGE.fasta
+
+12/04 11:42:09 DEBUG:
 STAGE: Multiple alignment trimming with BMGE
 	COMMAND:
 java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1-BMGE.fasta
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: Multiple alignment trimming with BMGE
 	COMMAND:
 java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0-BMGE.fasta
 
-12/02 15:01:00 DEBUG:
-STAGE: Multiple alignment trimming with BMGE
-	COMMAND:
-java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group3.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group3-BMGE.fasta
-
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: Multiple alignment trimming with BMGE
 	COMMAND:
 java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2-BMGE.fasta
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: Multiple alignment trimming with BMGE
 	COMMAND:
 java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1-BMGE.fasta
 
-12/02 15:01:00 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: Multiple alignment trimming with BMGE
 	COMMAND:
 java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0-BMGE.fasta
 
-12/02 15:01:01 DEBUG:
-STAGE: Multiple alignment trimming with BMGE
-	COMMAND:
-java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group7.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group7-BMGE.fasta
-
-12/02 15:01:01 DEBUG:
-STAGE: Multiple alignment trimming with BMGE
-	COMMAND:
-java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group6.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group6-BMGE.fasta
-
-12/02 15:01:01 DEBUG:
-STAGE: Multiple alignment trimming with BMGE
-	COMMAND:
-java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group5.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group5-BMGE.fasta
-
-12/02 15:01:01 DEBUG:
-STAGE: Multiple alignment trimming with BMGE
-	COMMAND:
-java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group4.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group4-BMGE.fasta
-
-12/02 15:01:01 DEBUG:
-STAGE: Multiple alignment trimming with BMGE
-	COMMAND:
-java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group3.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group3-BMGE.fasta
-
-12/02 15:01:01 DEBUG:
+12/04 11:42:09 DEBUG:
 STAGE: Multiple alignment trimming with BMGE
 	COMMAND:
 java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2-BMGE.fasta
 
-12/02 15:01:01 DEBUG:
+12/04 11:42:10 DEBUG:
 STAGE: Multiple alignment trimming with BMGE
 	COMMAND:
 java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1-BMGE.fasta
 
-12/02 15:01:01 DEBUG:
+12/04 11:42:10 DEBUG:
 STAGE: Multiple alignment trimming with BMGE
 	COMMAND:
 java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0.mfa -of /home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0-BMGE.fasta
 
-12/02 15:01:02 INFO:
+12/04 11:42:11 INFO:
 done.
 
-12/02 15:01:02 DEBUG:
-	BMGE time required: 0.0:0.0:2.21
+12/04 11:42:11 DEBUG:
+	BMGE time required: 0.0:0.0:1.56
 
-12/02 15:01:02 DEBUG:
+12/04 11:42:11 DEBUG:
 Validating trimmed multiple sequence alignment files... 
-12/02 15:01:02 DEBUG:
-Read 752 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/DsrAB_S0001_2020-09-11/DsrAB.fa'.
+12/04 11:42:11 DEBUG:
+Read 752 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/DsrAB_RefPkg/S0001/DsrAB.fa'.
 
-12/02 15:01:02 DEBUG:
-Read 957 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0.mfa'.
+12/04 11:42:11 DEBUG:
+Read 816 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0.mfa'.
 
-12/02 15:01:02 DEBUG:
-Read 829 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 815 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 758 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1.mfa'.
+12/04 11:42:11 DEBUG:
+Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1.mfa'.
 
-12/02 15:01:02 DEBUG:
-Read 758 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 754 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2.mfa'.
+12/04 11:42:11 DEBUG:
+Read 764 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2.mfa'.
 
-12/02 15:01:02 DEBUG:
-Read 754 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 764 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 759 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group3.mfa'.
+12/04 11:42:11 DEBUG:
+Read 249 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/Z1111/McrA.fa'.
 
-12/02 15:01:02 DEBUG:
-Read 759 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group3-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 251 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0.mfa'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group4.mfa'.
+12/04 11:42:11 DEBUG:
+Read 251 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group4-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 253 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1.mfa'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group5.mfa'.
+12/04 11:42:11 DEBUG:
+Read 253 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group5-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 250 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2.mfa'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group6.mfa'.
+12/04 11:42:11 DEBUG:
+Read 250 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group6-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 110 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/M0702/McrB.fa'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group7.mfa'.
+12/04 11:42:11 DEBUG:
+Read 115 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0.mfa'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group7-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 115 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 249 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrA_RefPkg/McrA_Z1111_2021-01-25/McrA.fa'.
+12/04 11:42:11 DEBUG:
+Read 112 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1.mfa'.
 
-12/02 15:01:02 DEBUG:
-Read 252 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0.mfa'.
+12/04 11:42:11 DEBUG:
+Read 112 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 252 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 111 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2.mfa'.
 
-12/02 15:01:02 DEBUG:
-Read 252 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1.mfa'.
+12/04 11:42:11 DEBUG:
+Read 111 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 252 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 112 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3.mfa'.
 
-12/02 15:01:02 DEBUG:
-Read 251 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2.mfa'.
+12/04 11:42:11 DEBUG:
+Read 112 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 251 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
-Read 252 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group3.mfa'.
-
-12/02 15:01:02 DEBUG:
-Read 252 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group3-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
-Read 110 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/McrB_RefPkg/McrB_M0702_2020-09-11/McrB.fa'.
-
-12/02 15:01:02 DEBUG:
-Read 114 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0.mfa'.
-
-12/02 15:01:02 DEBUG:
-Read 114 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
-Read 114 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1.mfa'.
-
-12/02 15:01:02 DEBUG:
-Read 114 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
-Read 112 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2.mfa'.
-
-12/02 15:01:02 DEBUG:
-Read 112 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
-Read 111 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3.mfa'.
-
-12/02 15:01:02 DEBUG:
-Read 111 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
+12/04 11:42:11 DEBUG:
 done.
 
-12/02 15:01:02 DEBUG:
+12/04 11:42:11 DEBUG:
 	Sequences removed during trimming:
-		DsrAB: 128
+		DsrAB: 1
 		McrA: 0
 		McrB: 0
 
-12/02 15:01:02 DEBUG:
+12/04 11:42:11 DEBUG:
 	Sequences <30 characters removed after trimming:
-		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0-BMGE.fasta = 27 (retained)
+		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0-BMGE.fasta = 7 (retained)
 		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1-BMGE.fasta = 0 (retained)
-		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2-BMGE.fasta = 1 (retained)
-		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group3-BMGE.fasta = 0 (retained)
-		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group4-BMGE.fasta = 0 (retained)
-		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group5-BMGE.fasta = 0 (retained)
-		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group6-BMGE.fasta = 0 (retained)
-		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group7-BMGE.fasta = 0 (retained)
+		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2-BMGE.fasta = 0 (retained)
 		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0-BMGE.fasta = 0 (retained)
 		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1-BMGE.fasta = 0 (retained)
 		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2-BMGE.fasta = 0 (retained)
-		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group3-BMGE.fasta = 0 (retained)
 		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0-BMGE.fasta = 0 (retained)
 		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1-BMGE.fasta = 0 (retained)
 		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2-BMGE.fasta = 0 (retained)
 		/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3-BMGE.fasta = 0 (retained)
 
-12/02 15:01:02 DEBUG:
+12/04 11:42:11 DEBUG:
 	Average columns removed:
-		DsrAB	1062.0
-		McrA	389.8
+		DsrAB	1142.0
+		McrA	390.3
 		McrB	182.5
 
 
-12/02 15:01:02 DEBUG:
-Read 829 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 815 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group0-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 758 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group1-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 754 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 764 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group2-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 759 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group3-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 251 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group4-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 253 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group5-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 250 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group6-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 115 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 753 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/DsrAB_hmm_purified_group7-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 112 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 252 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group0-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 111 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 252 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group1-BMGE.fasta'.
+12/04 11:42:11 DEBUG:
+Read 112 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3-BMGE.fasta'.
 
-12/02 15:01:02 DEBUG:
-Read 251 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group2-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
-Read 252 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrA_hmm_purified_group3-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
-Read 114 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group0-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
-Read 114 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group1-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
-Read 112 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group2-BMGE.fasta'.
-
-12/02 15:01:02 DEBUG:
-Read 111 headers from FASTA file '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/align/McrB_hmm_purified_group3-BMGE.fasta'.
-
-12/02 15:01:02 INFO:
+12/04 11:42:11 INFO:
 Running EPA... 
-12/02 15:01:20 INFO:
+12/04 11:42:19 INFO:
 done.
 
-12/02 15:01:20 DEBUG:
-	EPA-ng time required: 0.0:0.0:18.0
+12/04 11:42:19 DEBUG:
+	EPA-ng time required: 0.0:0.0:8.83
 
-12/02 15:01:20 DEBUG:
-	EPA-ng was called 16 times.
+12/04 11:42:19 DEBUG:
+	EPA-ng was called 10 times.
 
-12/02 15:01:20 INFO:
+12/04 11:42:19 INFO:
 Parsing the EPA-NG outputs... 
-12/02 15:01:22 INFO:
+12/04 11:42:21 INFO:
 done.
 
-12/02 15:01:22 DEBUG:
-	JPlace parsing time required: 0.0:0.0:1.99
+12/04 11:42:21 DEBUG:
+	JPlace parsing time required: 0.0:0.0:1.1
 
-12/02 15:01:22 DEBUG:
-	16 JPlace files.
+12/04 11:42:21 DEBUG:
+	10 JPlace files.
 
-12/02 15:01:22 INFO:
+12/04 11:42:21 INFO:
 Selecting the optimal query placements... 
-12/02 15:01:24 INFO:
+12/04 11:42:22 INFO:
 done.
 
-12/02 15:01:24 DEBUG:
-	PQuery parsing time required: 0.0:0.0:1.35
+12/04 11:42:22 DEBUG:
+	PQuery parsing time required: 0.0:0.0:1.24
 
-12/02 15:01:24 DEBUG:
-	118 sequences placed into trees by EPA-NG.
+12/04 11:42:22 DEBUG:
+	93 sequences placed into trees by EPA-NG.
 
-12/02 15:01:24 INFO:
+12/04 11:42:22 INFO:
 Filtering low-quality placements... 
-12/02 15:01:24 INFO:
+12/04 11:42:22 INFO:
 done.
 
-12/02 15:01:24 DEBUG:
+12/04 11:42:22 DEBUG:
 DsrAB	low_lwr	0
-DsrAB	big_pendant	26
+DsrAB	big_pendant	24
 DsrAB	svm	0
 McrA	low_lwr	0
 McrA	big_pendant	0
@@ -566,31 +432,31 @@ McrB	low_lwr	0
 McrB	big_pendant	1
 McrB	svm	0
 
-12/02 15:01:24 DEBUG:
-/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr_ORFs.fna read by pyfastx in 0.002221822738647461 seconds.
+12/04 11:42:22 DEBUG:
+/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/intermediates/orf-call/PitchLake_TarA_Mcr_Dsr_ORFs.fna read by pyfastx in 0.002146005630493164 seconds.
 
-12/02 15:01:24 INFO:
+12/04 11:42:22 INFO:
 Creating nucleotide FASTA file of classified sequences '/home/connor/Bioinformatics/Hallam_projects/TreeSAPP/tests/test_data/test_output_TarA/final_outputs/PitchLake_TarA_Mcr_Dsr_classified.fna'... 
-12/02 15:01:24 INFO:
+12/04 11:42:22 INFO:
 done.
 
-12/02 15:01:24 INFO:
+12/04 11:42:22 INFO:
 Generating inputs for iTOL... 
-12/02 15:01:24 INFO:
+12/04 11:42:22 INFO:
 done.
 
-12/02 15:01:24 DEBUG:
+12/04 11:42:22 DEBUG:
 A colours_style.txt file does not yet exist for markers:
 	DsrAB
 	McrA
 	McrB
 
-12/02 15:01:24 DEBUG:
+12/04 11:42:22 DEBUG:
 A colours_strip.txt file does not yet exist for markers:
 	DsrAB
 	McrA
 	McrB
 
-12/02 15:01:24 INFO:
+12/04 11:42:22 INFO:
 TreeSAPP has finished successfully.
 
