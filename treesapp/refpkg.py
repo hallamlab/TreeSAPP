@@ -1122,14 +1122,11 @@ class ReferencePackage:
         inode_leaf_map = self.get_internal_node_leaf_map()
         all_leaves = set(sum(inode_leaf_map.values(), []))
         # Pull the current annotations in case it can be appended to
-        try:
+        clade_annots = []
+        if feature_name in self.feature_annotations:
+            if reset:
+                self.feature_annotations[feature_name].clear()
             clade_annots = self.feature_annotations[feature_name]
-        except KeyError:
-            clade_annots = []
-            self.feature_annotations[feature_name] = clade_annots
-        if reset:
-            self.feature_annotations[feature_name].clear()
-            clade_annots = []
 
         # Invert the dictionary to map annotation names to taxa
         feature_map = {}
@@ -1150,7 +1147,7 @@ class ReferencePackage:
                     break
             if ca is None:
                 ca = CladeAnnotation(name=annotation, key=feature_name)
-                self.feature_annotations[feature_name].append(ca)
+                clade_annots.append(ca)
 
             # Populate the taxa and members attributes
             for index in indices:
@@ -1159,6 +1156,7 @@ class ReferencePackage:
                 ca.taxa.update([taxon])
 
         # Remove the feature from feature_annotations it there are no CladeAnnotation entries
+        self.feature_annotations[feature_name] = clade_annots
         if len(self.feature_annotations[feature_name]) == 0:
             self.feature_annotations.pop(feature_name)
             logging.warning("No clade annotations were made for feature '{}'.\n".format(feature_name))

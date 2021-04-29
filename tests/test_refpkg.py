@@ -134,7 +134,7 @@ class RefPkgTester(unittest.TestCase):
         self.db.f__pkl = self.pkl_path
         self.db.slurp()
         node_map = self.db.get_internal_node_leaf_map()
-        self.assertEqual(2*self.db.num_seqs, len(node_map))
+        self.assertEqual(2 * self.db.num_seqs, len(node_map))
         self.assertEqual(self.db.num_seqs, len(node_map[max(node_map.keys())]))
         return
 
@@ -249,12 +249,14 @@ class RefPkgTester(unittest.TestCase):
         from treesapp.refpkg import write_edited_pkl
 
         # Test writing to a new directory
-        retcode = write_edited_pkl(ref_pkg=self.mutable_ref_pkg, output_dir=self.intermediates_dir + "tmp/", overwrite=False)
+        retcode = write_edited_pkl(ref_pkg=self.mutable_ref_pkg, output_dir=self.intermediates_dir + "tmp/",
+                                   overwrite=False)
         self.assertEqual(0, retcode)
         self.assertTrue(os.path.isfile(os.path.join(self.intermediates_dir, "tmp", os.path.basename(self.db.f__pkl))))
 
         # Test writing to the same file (should not work)
-        retcode = write_edited_pkl(ref_pkg=self.mutable_ref_pkg, output_dir=self.intermediates_dir + "tmp/", overwrite=False)
+        retcode = write_edited_pkl(ref_pkg=self.mutable_ref_pkg, output_dir=self.intermediates_dir + "tmp/",
+                                   overwrite=False)
         self.assertEqual(1, retcode)
 
         # Test overwriting the existing reference package
@@ -288,15 +290,16 @@ class RefPkgTester(unittest.TestCase):
         return
 
     def test_add_feature_annotations(self):
-        self.mutable_ref_pkg.add_feature_annotations(feature_name="test", feature_map={"g__Methanosarcina": "Aceticlastic",
-                                                                                       "p__Candidatus Helarchaeota": "SCAO",
-                                                                                       "c__Methanobacteria": "Hydrogenotrophic",
-                                                                                       "116_McrA": "Hydrogenotrophic",
-                                                                                       "Methanoflorens stordalenmirensis": "Hydrogenotrophic"})
+        self.mutable_ref_pkg.add_feature_annotations(feature_name="test",
+                                                     feature_map={"g__Methanosarcina": "Aceticlastic",
+                                                                  "p__Candidatus Helarchaeota": "SCAO",
+                                                                  "c__Methanobacteria": "H2",
+                                                                  "116_McrA": "H2",
+                                                                  "Methanoflorens stordalenmirensis": "H2"})
         self.assertEqual(1, len(self.mutable_ref_pkg.feature_annotations))
         self.assertEqual(3, len(self.mutable_ref_pkg.feature_annotations["test"]))
         for ca in self.mutable_ref_pkg.feature_annotations["test"]:
-            if ca.name == "Hydrogenotrophic":
+            if ca.name == "H2":
                 self.assertEqual(51, len(ca.members))
             elif ca.name == "SCAO":
                 self.assertEqual(2, len(ca.members))
@@ -305,10 +308,23 @@ class RefPkgTester(unittest.TestCase):
             else:
                 self.assertTrue(False)
 
-        self.mutable_ref_pkg.add_feature_annotations(feature_name="test", feature_map={"p__Candidatus Bathyarchaeota": "SCAO",
-                                                                                       "g__Candidatus Methanoperedens": "Methanotrophy"}, reset=True)
-        self.assertEqual(2, len(self.mutable_ref_pkg.feature_annotations["test"]))
+        # Ensure these feature_annotations can be overwritten with 'reset'
+        self.mutable_ref_pkg.add_feature_annotations(feature_name="test",
+                                                     feature_map={"p__Candidatus Bathyarchaeota": "SCAO",
+                                                                  "g__Candidatus Methanoperedens": "Methanotrophy",
+                                                                  "o__Methanomicrobiales": "CO2",
+                                                                  "o__Methanobacteriales": "CO2"},
+                                                     reset=True)
+        self.assertEqual(3, len(self.mutable_ref_pkg.feature_annotations["test"]))
 
+        # Test whether the reset flag interferes with empty feature_annotations
+        self.mutable_ref_pkg.add_feature_annotations(feature_name="pwy",
+                                                     feature_map={"c__Methanobacteria": "H2"},
+                                                     reset=True)
+        self.assertEqual(2, len(self.mutable_ref_pkg.feature_annotations))
+        self.assertEqual(1, len(self.mutable_ref_pkg.feature_annotations["pwy"]))
+
+        # Ensure empty feature annotations are not saved
         self.mutable_ref_pkg.add_feature_annotations(feature_name="test", feature_map={}, reset=True)
         self.assertNotIn("test", self.mutable_ref_pkg.feature_annotations)
         return
