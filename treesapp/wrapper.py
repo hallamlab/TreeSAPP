@@ -113,7 +113,7 @@ def bootstrap_tree_raxml(raxml_exe: str, multiple_alignment: str, model: str, tr
         bootstrap_cmd += ["--bs-trees", str(bootstraps)]
     bootstrap_cmd += ["--prefix", tree_prefix]
     bootstrap_cmd += ["--seed", str(12345)]
-    bootstrap_cmd += ["--threads", str(num_threads)]
+    bootstrap_cmd += ["--threads", "auto{{{}}}".format(num_threads)]
 
     logging.info("Bootstrapping reference tree with RAxML-NG... ")
     launch_write_command(bootstrap_cmd)
@@ -128,12 +128,13 @@ def bootstrap_tree_raxml(raxml_exe: str, multiple_alignment: str, model: str, tr
 
 
 def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, tree_prefix: str,
-                       mre=False, n_bootstraps=1000, num_threads=2) -> str:
+                       mre=False, n_bootstraps=1000, metric="fbp", num_threads=2) -> str:
     bootstraps = bootstrap_tree_raxml(raxml_exe, ref_msa, model, tree_prefix, mre, n_bootstraps, num_threads)
 
     support_cmd = [raxml_exe, "--support"]
     support_cmd += ["--tree", ref_tree]
     support_cmd += ["--bs-trees", bootstraps]
+    support_cmd += ["--bs-metric", metric]
     support_cmd += ["--prefix", tree_prefix]
     support_cmd += ["--threads", str(num_threads)]
 
@@ -150,7 +151,7 @@ def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, 
 
 
 def construct_tree(tree_builder: str, executables: dict, evo_model: str, multiple_alignment_file: str,
-                   tree_output_dir: str, tree_prefix: str, num_threads=2) -> str:
+                   tree_output_dir: str, tree_prefix: str, num_trees=10, num_threads=2) -> str:
     """
     Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
 
@@ -162,6 +163,7 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
     :param tree_output_dir: Path to the directory where output files should be written to
     :param tree_prefix: Prefix to be used for the outputs
     :param num_threads: Number of threads to use (for RAxML-NG only)
+    :param num_trees: The number of starting trees to use, inferred by random and parsimony each
     :return: Stylized name of the tree-building software used
     """
 
@@ -186,8 +188,8 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
         tree_build_cmd += ["--msa", multiple_alignment_file]
         tree_build_cmd += ["--model", evo_model]
         tree_build_cmd += ["--seed", str(12345)]
-        tree_build_cmd += ["--threads", str(num_threads)]
-        # tree_build_cmd += ["--tree", "rand{1},pars{1}"]  # For debugging, alternatively could use '--search1'
+        tree_build_cmd += ["--threads", "auto{{{}}}".format(num_threads)]
+        tree_build_cmd += ["--tree", "rand{{{0}}},pars{{{0}}}".format(num_trees)]
 
         stdout, returncode = launch_write_command(tree_build_cmd)
         # Rename the file using the standardised naming scheme

@@ -791,7 +791,7 @@ class ReferencePackage:
         :return: Path to the final phylogeny with greatest likelihood
         """
         best_tree = wrapper.construct_tree(self.tree_tool, executables, self.sub_model, input_msa,
-                                           phylogeny_dir, self.prefix, num_threads)
+                                           phylogeny_dir, self.prefix, num_threads=num_threads)
 
         if self.tree_tool == "FastTree":
             etree = Tree(best_tree)
