@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-
-__author__ = 'Connor Morgan-Lang'
-
 import sys
 import re
 import os
@@ -15,6 +11,8 @@ from treesapp.phylo_seq import TreeLeafReference
 from treesapp.classy import TreeSAPP
 from treesapp.refpkg import ReferencePackage
 from treesapp.taxonomic_hierarchy import Taxon
+
+__author__ = 'Connor Morgan-Lang'
 
 
 class PhyPainter(TreeSAPP):

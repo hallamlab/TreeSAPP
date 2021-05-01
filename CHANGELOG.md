@@ -1,3 +1,11 @@
+## [0.11.1] - 2021-04
+### Added
+- Option '--unknown_colour' for `treesapp colour` where a colour for "Unknown" features or taxa are included in the iTOL files.
+
+### Fixed
+
+### Changed
+
 ## [0.11.0] - 2021-04-27
 TreeSAPP version 0.11.0 changes how users store and interact with reference package feature annotations.
 These feature annotations are clade-specific labels that indicate some extra-taxonomic features that are characteristic of sequences in the reference package.
