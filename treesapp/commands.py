@@ -976,7 +976,7 @@ def colour(sys_args):
                                 "It is being skipped\n".format(refpkg_name, ts_painter.feature_name))
                 continue
             for ca in clade_annots:
-                taxon_leaf_map.update({ca.name: ca.members})
+                taxon_leaf_map.update({ca.name: list(ca.members)})
         else:
             ts_painter.find_rank_depth(ref_pkg, ref_pkg.taxa_trie.accepted_ranks_depths[ts_painter.rank])
 
@@ -1002,7 +1002,8 @@ def colour(sys_args):
         ts_painter.harmonize_taxa_colours(taxon_leaf_map, args.set_op)
 
     if len(ts_painter.refpkg_leaf_nodes_to_colour.keys()) == 0:
-        logging.error("Unable to colour phylogenies by '{}' - attributes were not found in reference packages.\n".format(args.attribute))
+        logging.error("Unable to colour phylogenies by '{}' - attributes were not found in reference packages.\n"
+                      "".format(args.attribute))
         raise AssertionError
 
     # Sort the nodes by their internal node order

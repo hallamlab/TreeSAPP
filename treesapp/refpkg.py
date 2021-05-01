@@ -464,6 +464,9 @@ class ReferencePackage:
             ref_leaf_nodes.append(ref)
         return ref_leaf_nodes
 
+    def ref_names(self) -> list:
+        return [leaf_id + "_" + self.prefix for leaf_id in sorted(self.lineage_ids, key=int)]
+
     def update_lineage_ids(self, new_lineage_map) -> None:
         """
         Replaces all lineages in self.lineages with their corresponding values in new_lineage_map.

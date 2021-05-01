@@ -53,6 +53,12 @@ class RefPkgTester(unittest.TestCase):
             rmtree(self.intermediates_dir)
         return
 
+    def test_ref_names(self):
+        refpkg_seq_names = self.db.ref_names()
+        self.assertEqual(self.db.num_seqs, len(refpkg_seq_names))
+        self.assertTrue("1_McrA" in refpkg_seq_names)
+        return
+
     def test_band(self):
         self.db.change_file_paths(new_dir=os.path.dirname(self.db.f__pkl))
         self.db.band()

@@ -148,7 +148,8 @@ class TreesappTester(unittest.TestCase):
         colour_commands = ["-r", self.xmoa_pkl,
                            "-o", "./TreeSAPP_colour",
                            "--palette", "viridis",
-                           "--attribute", "Paralog"]
+                           "--attribute", "Paralog",
+                           "--unknown_colour", "gray"]
         colour(colour_commands)
         itol_strip_file = os.path.join("TreeSAPP_colour", "XmoA_Paralog_colour_strip.txt")
         self.assertTrue(os.path.isfile(itol_strip_file))

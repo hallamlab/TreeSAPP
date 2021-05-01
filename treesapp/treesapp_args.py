@@ -276,13 +276,16 @@ def add_colour_arguments(colour_parser: TreeSAPPArgumentParser) -> None:
                                   help="Path to the output directory to write the output files. [ DEFAULT = ./ ]")
 
     colour_parser.aes.add_argument('-l', "--rank_level", dest="rank", default="order", required=False,
+                                   choices=["domain", "phylum", "class", "order", "family", "genus", "species"],
                                    help="The rank to generate unique colours for [ DEFAULT = 'order' ]")
     colour_parser.aes.add_argument('-p', "--palette", default="BrBG", required=False,
                                    help="The Seaborn colour palette to use [ DEFAULT = BrBG ]")
+    colour_parser.aes.add_argument("--unknown_colour", default="", required=False, dest="un_col",
+                                   help="Colour of the 'Unknown' category. [ DEFAULT = None ]")
 
     colour_parser.optopt.add_argument('-m', '--min_proportion', dest="min_prop",
                                       default=0.0, required=False, type=float,
-                                      help="Minimum proportion of sequences a group contains to assign colour"
+                                      help="Minimum proportion of sequences a group contains to be coloured"
                                            " [ DEFAULT = 0 ]")
     colour_parser.optopt.add_argument("-f", "--filter", dest="taxa_filter", default="", required=False,
                                       help="Keywords for excluding specific taxa from the colour palette.\n"

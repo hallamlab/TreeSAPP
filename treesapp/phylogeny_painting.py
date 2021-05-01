@@ -8,21 +8,13 @@ import os
 import logging
 
 from collections import namedtuple
+from matplotlib import colors as mpl_colours
 import seaborn
 
 from treesapp.phylo_seq import TreeLeafReference
 from treesapp.classy import TreeSAPP
 from treesapp.refpkg import ReferencePackage
 from treesapp.taxonomic_hierarchy import Taxon
-
-
-class Clade:
-    def __init__(self):
-        self.taxon = ""
-        self.colour = ""
-        self.leaves = []  # Leaf names (not internal nodes)
-        self.i_nodes = []  # List of all internal nodes that
-        return
 
 
 class PhyPainter(TreeSAPP):
@@ -33,6 +25,7 @@ class PhyPainter(TreeSAPP):
         self.taxa_to_colour = set()
         self.rank = ""
         self.palette = ""
+        self.unknown_col = ""
         self.set_op = ""
         self.feature_name = ""
         self.num_taxa = 0
@@ -64,12 +57,7 @@ class PhyPainter(TreeSAPP):
                 logging.error("Unable to create output directory '{}'.\n".format(self.output_dir))
                 sys.exit(1)
 
-        if args.rank not in rank_map:
-            logging.error("Rank '{}' not accepted! Please choose one of the following:\n"
-                          "{}\n".format(args.rank, ", ".join(rank_map.keys())))
-            sys.exit(1)
-        else:
-            self.rank = args.rank
+        self.rank = args.rank
         self.palette = args.palette
 
         # Determine the prefix for the colour files
@@ -79,6 +67,18 @@ class PhyPainter(TreeSAPP):
             self.feature_name = args.attribute
             self.rank = None
 
+        if args.un_col:
+            self.set_unknown_colour_from_mpl(args.un_col)
+
+        return
+
+    def set_unknown_colour_from_mpl(self, requested_colour: str):
+        try:
+            self.unknown_col = mpl_colours.get_named_colors_mapping()[requested_colour]
+        except KeyError:
+            logging.error("Colour '{}' is not available in matplotlib.colors.get_named_colors_mapping().\n"
+                          "Unable to find hexcode for requested unknown colour.\n")
+            sys.exit(11)
         return
 
     def find_rank_depth(self, ref_pkg: ReferencePackage, depth: int) -> None:
@@ -224,8 +224,7 @@ class PhyPainter(TreeSAPP):
 
         return bad_taxa
 
-    @staticmethod
-    def find_mono_clades(taxon_leaf_map: dict, ref_pkg: ReferencePackage) -> dict:
+    def find_mono_clades(self, taxon_leaf_map: dict, ref_pkg: ReferencePackage) -> dict:
         """
 
         :param taxon_leaf_map: A dictionary with rank-prefixed taxon names as keys mapping to all leaf nodes
@@ -234,10 +233,17 @@ class PhyPainter(TreeSAPP):
         :return: A dictionary mapping taxon names in taxon_leaf_map to the minimal set of internal nodes in the
          ReferencePackage's tree that cover all leaf nodes in the taxon_leaf_map[taxon].
         """
-        taxa_inode_map = {}
+        taxa_leaf_nodes_map = {}
+
+        # Assign 'Unknown' feature to all leaves missing from the taxa_leaf_nodes_map if set
+        if self.unknown_col:
+            present = set(sum(taxon_leaf_map.values(), []))
+            absent = set(ref_pkg.ref_names()).difference(present)
+            taxon_leaf_map["Unknown"] = list(absent)
+
         for taxon, taxon_leaves in taxon_leaf_map.items():
-            taxa_inode_map[taxon] = ref_pkg.get_monophyletic_clades(taxon_name=taxon, leaf_nodes=set(taxon_leaves))
-        return taxa_inode_map
+            taxa_leaf_nodes_map[taxon] = ref_pkg.get_monophyletic_clades(taxon_name=taxon, leaf_nodes=set(taxon_leaves))
+        return taxa_leaf_nodes_map
 
     def harmonize_taxa_colours(self, taxon_leaf_map: dict, set_operation: str) -> None:
         if not self.taxa_to_colour:
