@@ -1029,7 +1029,9 @@ def colour(sys_args):
 
         paint.write_colours_styles(taxon_leaf_map, palette_taxa_map, style_output=style_file)
 
-        paint.write_colour_strip(taxa_ranges, palette_taxa_map, colour_strip_file=strip_file)
+        paint.write_colour_strip(taxa_ranges, palette_taxa_map,
+                                 colour_strip_file=strip_file,
+                                 data_label=ts_painter.feature_name)
 
     return
 

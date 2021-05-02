@@ -333,7 +333,9 @@ def map_colours_to_taxa(taxa_order, colours):
 def write_colours_styles(taxon_leaf_map: dict, palette_taxa_map: dict, style_output: str) -> None:
     colourless = set()
 
-    colours_style_string = "TREE_COLORS\nSEPARATOR TAB\nDATA\n"
+    colours_style_string = "TREE_COLORS\n" \
+                           "SEPARATOR TAB\n" \
+                           "DATA\n"
     for taxon, col in palette_taxa_map.items():
         try:
             leaves = taxon_leaf_map[taxon]
@@ -343,9 +345,8 @@ def write_colours_styles(taxon_leaf_map: dict, palette_taxa_map: dict, style_out
             colours_style_line = [str(leaf_num), "range", col, taxon]
             if len(colours_style_line) > 0:
                 colours_style_string += "\t".join(colours_style_line) + "\n"
-    # TODO: Find new way to track the uncoloured leaves
 
-    logging.info("Output is available in " + style_output + ".\n")
+    logging.info("iTOL colours style input written to " + style_output + ".\n")
     logging.debug("{} lineages were not assigned to a colour:\n\t{}\n".format(len(colourless), "\n\t".join(colourless)))
 
     create_write_file(style_output, colours_style_string)
@@ -353,9 +354,15 @@ def write_colours_styles(taxon_leaf_map: dict, palette_taxa_map: dict, style_out
     return
 
 
-def write_colour_strip(taxa_nodes: dict, palette_taxa_map: dict, colour_strip_file: str) -> None:
-    colour_strip_text = "DATASET_COLORSTRIP\nSEPARATOR SPACE\nDATASET_LABEL clade_colours\n" +\
-                        "STRIP_WIDTH 75\nMARGIN 0\nSHOW_INTERNAL 1\nDATA\n"
+def write_colour_strip(taxa_nodes: dict, palette_taxa_map: dict, colour_strip_file: str, data_label: str) -> None:
+    colour_strip_text = "DATASET_COLORSTRIP\n" \
+                        "SEPARATOR SPACE\n" \
+                        "DATASET_LABEL {}\n" +\
+                        "STRIP_WIDTH 75\n" \
+                        "BORDER_WIDTH 1" \
+                        "MARGIN 10\n" \
+                        "SHOW_INTERNAL 1\n" \
+                        "DATA\n".format(data_label)
     for taxon, col in palette_taxa_map.items():
         try:
             leaf_ranges = taxa_nodes[taxon]
@@ -366,7 +373,7 @@ def write_colour_strip(taxa_nodes: dict, palette_taxa_map: dict, colour_strip_fi
             if len(colours_style_line) > 0:
                 colour_strip_text += " ".join(colours_style_line) + "\n"
 
-    logging.info("Output is available in " + colour_strip_file + ".\n")
+    logging.info("iTOL colour strip input written to " + colour_strip_file + ".\n")
 
     create_write_file(colour_strip_file, colour_strip_text)
     return
