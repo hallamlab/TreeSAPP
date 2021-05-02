@@ -1,10 +1,12 @@
-## [0.11.1] - 2021-04
+## [0.11.1] - 2021-05
 ### Added
 - Option '--unknown_colour' for `treesapp colour` where a colour for "Unknown" features or taxa are included in the iTOL files.
 
 ### Fixed
 
 ### Changed
+- Non-taxonomic features are coloured in alphabetical order (according to the palette used) in `treesapp colour`
+- iTOL colour-strip files dataset labels are now the feature name 
 
 ## [0.11.0] - 2021-04-27
 TreeSAPP version 0.11.0 changes how users store and interact with reference package feature annotations.

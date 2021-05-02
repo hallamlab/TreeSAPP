@@ -23,12 +23,14 @@ class PhyPainter(TreeSAPP):
         self.taxa_to_colour = set()
         self.rank = ""
         self.palette = ""
+        self.unknown_label = None
         self.unknown_col = ""
         self.set_op = ""
         self.feature_name = ""
         self.num_taxa = 0
         self.num_seqs = 0
         self.rank_depth = -1
+        self.order_method = "phylo"
 
     def primer(self, args) -> None:
         rank_map = {}
@@ -64,8 +66,10 @@ class PhyPainter(TreeSAPP):
         else:
             self.feature_name = args.attribute
             self.rank = None
+            self.order_method = "alpha"
 
         if args.un_col:
+            self.unknown_label = "Unknown"
             self.set_unknown_colour_from_mpl(args.un_col)
 
         return
@@ -222,7 +226,16 @@ class PhyPainter(TreeSAPP):
 
         return bad_taxa
 
-    def find_mono_clades(self, taxon_leaf_map: dict, ref_pkg: ReferencePackage) -> dict:
+    def add_unknowns_to_feature_leaf_map(self, feature_leaf_map: dict, ref_pkg: ReferencePackage) -> None:
+        # Assign 'Unknown' feature to all leaves missing from the taxa_leaf_nodes_map if set
+        if self.unknown_col:
+            present = set(sum(feature_leaf_map.values(), []))
+            absent = set(ref_pkg.ref_names()).difference(present)
+            feature_leaf_map[self.unknown_label] = list(absent)
+        return
+
+    @staticmethod
+    def find_mono_clades(taxon_leaf_map: dict, ref_pkg: ReferencePackage) -> dict:
         """
 
         :param taxon_leaf_map: A dictionary with rank-prefixed taxon names as keys mapping to all leaf nodes
@@ -233,17 +246,17 @@ class PhyPainter(TreeSAPP):
         """
         taxa_leaf_nodes_map = {}
 
-        # Assign 'Unknown' feature to all leaves missing from the taxa_leaf_nodes_map if set
-        if self.unknown_col:
-            present = set(sum(taxon_leaf_map.values(), []))
-            absent = set(ref_pkg.ref_names()).difference(present)
-            taxon_leaf_map["Unknown"] = list(absent)
-
         for taxon, taxon_leaves in taxon_leaf_map.items():
             taxa_leaf_nodes_map[taxon] = ref_pkg.get_monophyletic_clades(taxon_name=taxon, leaf_nodes=set(taxon_leaves))
         return taxa_leaf_nodes_map
 
     def harmonize_taxa_colours(self, taxon_leaf_map: dict, set_operation: str) -> None:
+        """
+
+        :param taxon_leaf_map:
+        :param set_operation:
+        :return:
+        """
         if not self.taxa_to_colour:
             self.taxa_to_colour.update(set(taxon_leaf_map.keys()))
             return
@@ -279,6 +292,32 @@ class PhyPainter(TreeSAPP):
             raise ValueError
         return colours
 
+    def map_colours_to_taxa(self, taxa_order: dict):
+        """
+        Function for mapping
+
+        :param taxa_order: Dictionary indexed by numerical order of the taxa
+        :return:
+        """
+
+        colours = self.get_colours()
+        palette_taxa_map = dict()
+        alpha_sort_i = 0
+
+        if len(taxa_order) != len(colours):
+            logging.error("Number of taxa (%d) and colours (%d) are not equal!\n" % (len(taxa_order), len(colours)))
+            sys.exit(7)
+
+        for taxon_num in sorted(taxa_order, key=int):
+            taxon = taxa_order[taxon_num]
+            palette_taxa_map[taxon] = colours[alpha_sort_i]
+            alpha_sort_i += 1
+
+        if self.unknown_label and self.unknown_col:
+            palette_taxa_map[self.unknown_label] = self.unknown_col
+
+        return palette_taxa_map
+
 
 def convert_clades_to_ranges(taxa_clades: dict, leaf_order: list) -> dict:
     taxa_ranges = dict()
@@ -305,29 +344,6 @@ def create_write_file(file_name: str, text: str) -> None:
     file_handler.write(text)
     file_handler.close()
     return
-
-
-def map_colours_to_taxa(taxa_order, colours):
-    """
-    Function for mapping
-
-    :param taxa_order: Dictionary indexed by numerical order of the taxa
-    :param colours:
-    :return:
-    """
-    palette_taxa_map = dict()
-    alpha_sort_i = 0
-
-    if len(taxa_order) != len(colours):
-        logging.error("Number of taxa (%d) and colours (%d) are not equal!\n" % (len(taxa_order), len(colours)))
-        sys.exit(7)
-
-    for taxon_num in sorted(taxa_order, key=int):
-        taxon = taxa_order[taxon_num]
-        palette_taxa_map[taxon] = colours[alpha_sort_i]
-        alpha_sort_i += 1
-
-    return palette_taxa_map
 
 
 def write_colours_styles(taxon_leaf_map: dict, palette_taxa_map: dict, style_output: str) -> None:
@@ -357,12 +373,12 @@ def write_colours_styles(taxon_leaf_map: dict, palette_taxa_map: dict, style_out
 def write_colour_strip(taxa_nodes: dict, palette_taxa_map: dict, colour_strip_file: str, data_label: str) -> None:
     colour_strip_text = "DATASET_COLORSTRIP\n" \
                         "SEPARATOR SPACE\n" \
-                        "DATASET_LABEL {}\n" +\
+                        "DATASET_LABEL {}\n".format(data_label) +\
                         "STRIP_WIDTH 75\n" \
                         "BORDER_WIDTH 1" \
                         "MARGIN 10\n" \
                         "SHOW_INTERNAL 1\n" \
-                        "DATA\n".format(data_label)
+                        "DATA\n"
     for taxon, col in palette_taxa_map.items():
         try:
             leaf_ranges = taxa_nodes[taxon]
@@ -391,28 +407,34 @@ def clade_leaf_sides(clade_leaves, leaf_order: list) -> namedtuple:
     return p
 
 
-def order_taxa(taxa_to_colour: set, taxon_leaf_map: dict, leaf_order: list):
+def order_taxa(taxa_to_colour: set, taxon_leaf_map: dict, leaf_order: list, method="phylo"):
     # TODO: improve this function to look at mean/median distances from the left-most taxon
     leftmost_taxon = dict()
     taxon_order = dict()
     indices = dict()  # Could just use a list but may as well keep track of the left-most node with dict
-    for taxon, leaves in taxon_leaf_map.items():
-        if taxon not in taxa_to_colour:
-            continue
-        for leaf_name in leaves:
-            indices[int(leaf_order.index(leaf_name))] = leaf_name
-        leftmost_leaf = min(indices.keys())
-        leftmost_taxon[leftmost_leaf] = taxon
-        indices.clear()
-    # Collect the order of the taxa in the phylogeny by their left-most positions
-    i = 0
-    for index in sorted(leftmost_taxon):
-        taxon_order[i] = leftmost_taxon[index]
-        i += 1
-    # Ensure all of the taxa that need to be coloured are in taxon_order
-    for taxon in taxa_to_colour.difference(set(leftmost_taxon.values())):
-        taxon_order[i] = taxon
-        i += 1
+    if method == "phylo":
+        for taxon, leaves in taxon_leaf_map.items():
+            if taxon not in taxa_to_colour:
+                continue
+            for leaf_name in leaves:
+                indices[int(leaf_order.index(leaf_name))] = leaf_name
+            leftmost_leaf = min(indices.keys())
+            leftmost_taxon[leftmost_leaf] = taxon
+            indices.clear()
+        # Collect the order of the taxa in the phylogeny by their left-most positions
+        i = 0
+        for index in sorted(leftmost_taxon):
+            taxon_order[i] = leftmost_taxon[index]
+            i += 1
+        # Ensure all of the taxa that need to be coloured are in taxon_order
+        for taxon in taxa_to_colour.difference(set(leftmost_taxon.values())):
+            taxon_order[i] = taxon
+            i += 1
+    elif method == "alpha":
+        i = 0
+        for feature in sorted(taxa_to_colour):
+            taxon_order[i] = feature
+            i += 1
     return taxon_order
 
 

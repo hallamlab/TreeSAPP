@@ -55,7 +55,6 @@ class PhyPainterTester(unittest.TestCase):
     def test_find_mono_clades(self):
         from treesapp.phylogeny_painting import PhyPainter
         painter = PhyPainter()
-        painter.unknown_col = "#008080"
         node_map = painter.find_mono_clades(taxon_leaf_map={'f__Methanomethyliaceae': ['67_McrA', '68_McrA', '69_McrA'],
                                                             'f__Methanocorpusculaceae': ['159_McrA', '160_McrA', '161_McrA'],
                                                             'f__Methanocellaceae': ['154_McrA', '155_McrA', '156_McrA']},
@@ -64,7 +63,7 @@ class PhyPainterTester(unittest.TestCase):
         for _taxon, mono_clade_list in node_map.items():
             for mono_clade in mono_clade_list:
                 leaves_included += len(mono_clade)
-        self.assertEqual(self.mcra_refpkg.num_seqs, leaves_included)
+        self.assertEqual(9, leaves_included)
         return
 
 

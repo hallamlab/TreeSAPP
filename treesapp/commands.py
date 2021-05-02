@@ -1009,15 +1009,16 @@ def colour(sys_args):
     # Sort the nodes by their internal node order
     taxa_order = paint.order_taxa(taxa_to_colour=ts_painter.taxa_to_colour,
                                   taxon_leaf_map=ts_painter.refpkg_leaf_nodes_to_colour[ref_pkg.prefix],
-                                  leaf_order=ref_pkg.leaf_node_order())
+                                  leaf_order=ref_pkg.leaf_node_order(),
+                                  method=ts_painter.order_method)
 
     # Determine the palette to use for taxa across all reference packages
-    colours = ts_painter.get_colours()
-    palette_taxa_map = paint.map_colours_to_taxa(taxa_order, colours)
+    palette_taxa_map = ts_painter.map_colours_to_taxa(taxa_order)
 
     # Create the iTOL colour files
     for refpkg_name, ref_pkg in ts_painter.refpkg_dict.items():  # type: (str, ts_ref_pkg.ReferencePackage)
         taxon_leaf_map = ts_painter.refpkg_leaf_nodes_to_colour[refpkg_name]
+        ts_painter.add_unknowns_to_feature_leaf_map(taxon_leaf_map, ref_pkg)
         style_file = os.path.join(ts_painter.output_dir,
                                   "{}_{}_colours_style.txt".format(ref_pkg.prefix, ts_painter.feature_name))
         strip_file = os.path.join(ts_painter.output_dir,

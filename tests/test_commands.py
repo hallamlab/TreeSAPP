@@ -127,6 +127,7 @@ class TreesappTester(unittest.TestCase):
 
     def test_colour(self):
         from treesapp.commands import colour
+        from treesapp.refpkg import ReferencePackage
         # Test creating iTOL files for a taxonomic rank
         colour_commands = ["-r", self.mcra_pkl, self.mcrb_pkl,
                            "-l", "family",
@@ -152,9 +153,17 @@ class TreesappTester(unittest.TestCase):
                            "--unknown_colour", "gray"]
         colour(colour_commands)
         itol_strip_file = os.path.join("TreeSAPP_colour", "XmoA_Paralog_colour_strip.txt")
+        itol_colour_file = os.path.join("TreeSAPP_colour", "XmoA_Paralog_colours_style.txt")
+        # Check number of lines in the strip file
         self.assertTrue(os.path.isfile(itol_strip_file))
         with open(itol_strip_file) as strip_dat:
-            self.assertEqual(25, len(strip_dat.readlines()))
+            self.assertEqual(45, len(strip_dat.readlines()))
+        # Check number of lines in the styles file: one line for each reference sequence and the three-line header
+        xmoa_rp = ReferencePackage()
+        xmoa_rp.f__pkl = self.xmoa_pkl
+        xmoa_rp.slurp()
+        with open(itol_colour_file) as style_dat:
+            self.assertEqual(xmoa_rp.num_seqs + 3, len(style_dat.readlines()))
         return
 
     def test_create(self):
