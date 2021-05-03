@@ -12,7 +12,7 @@
 - `treesapp package edit` assigns a leaf node only to the most resolved feature annotation
 - Estimating `treesapp phylotu`'s alpha threshold is improved
 - Setting distal and pendant lengths during aelw summary allows placements to be correctly filtered
-- Final rank of a query sequence's assigned taxonomic lineage is not adjusted with aELW placement summary 
+- Final rank of a query sequence's assigned taxonomic lineage is not adjusted with aELW placement summary
 
 ### Changed
 - Non-taxonomic features are coloured in alphabetical order (according to the palette used) in `treesapp colour`
