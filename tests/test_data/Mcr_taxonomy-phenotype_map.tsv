@@ -1,5 +1,6 @@
 g__Methanothrix	Aceticlastic
 g__Methanosarcina	Aceticlastic
+f__Methanosarcinaceae	Aceticlastic, CO2-dependent hydrogenotrophy, Methylotrophic
 o__Methanomicrobiales	CO2-dependent hydrogenotrophy
 o__Methanocellales	CO2-dependent hydrogenotrophy
 o__Methanobacteriales	CO2-dependent hydrogenotrophy
@@ -13,10 +14,10 @@ g__Methanohalophilus	Methylotrophic  # testing
 # ANME 1a-b	Methanotrophic
 # ANME 2a-d	Methanotrophic
 # ANME 3	Methanotrophic
-Candidatus Syntrophoarchaeum butanivorans | OFV67021	Short-chain alkane oxidation
+Candidatus Syntrophoarchaeum butanivorans | OFV67021.1	Short-chain alkane oxidation
 Candidatus Syntrophoarchaeum caldarius | OFV68281	Short-chain alkane oxidation
 Candidatus Syntrophoarchaeum caldarius | OFV67773	Short-chain alkane oxidation
 Candidatus Syntrophoarchaeum caldarius | OFV67100	Short-chain alkane oxidation
-Candidatus Syntrophoarchaeum butanivorans | OFV65760	Short-chain alkane oxidation
-Candidatus Syntrophoarchaeum butanivorans | OFV65745	Short-chain alkane oxidation
+Candidatus Syntrophoarchaeum butanivorans | OFV65760.1	Short-chain alkane oxidation
+Candidatus Syntrophoarchaeum butanivorans | OFV65745.1	Short-chain alkane oxidation
 p__Candidatus Bathyarchaeota	Short-chain alkane oxidation

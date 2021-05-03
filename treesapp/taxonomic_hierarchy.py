@@ -225,6 +225,9 @@ class TaxonomicHierarchy:
             logging.debug("Taxon name '{}' not present in taxonomic hierarchy.\n".format(prefix_taxon))
             return
 
+    def get_taxon_hierarchy_depth(self, prefix_taxon: str) -> int:
+        return self.accepted_ranks_depths[self.get_taxon(prefix_taxon).rank]
+
     def get_taxon_descendents(self, prefix_taxon: str) -> list:
         """Returns a list of all Taxon instances with prefix_taxon in their lineage."""
         descendents = []

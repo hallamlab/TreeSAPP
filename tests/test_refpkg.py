@@ -335,6 +335,22 @@ class RefPkgTester(unittest.TestCase):
         self.assertNotIn("test", self.mutable_ref_pkg.feature_annotations)
         return
 
+    def test_deduplicate_annotation_members(self):
+        from treesapp.clade_annotation import CladeAnnotation
+        methyl_ca = CladeAnnotation(name="Methylotrophic", key="Pathway")
+        methyl_ca.members = {'236_McrA': 5, '233_McrA': 5, '234_McrA': 5, '235_McrA': 5, '231_McrA': 5, '237_McrA': 5,
+                             '245_McrA': 5, '246_McrA': 7, '218_McrA': 5, '220_McrA': 5, '243_McrA': 7, '242_McrA': 7}
+        acetic_ca = CladeAnnotation(name="Aceticlastic", key="Pathway")
+        acetic_ca.members = {'245_McrA': 6, '246_McrA': 6, '244_McrA': 6, '247_McrA': 6}
+
+        self.mutable_ref_pkg.feature_annotations = {"Pathway": [methyl_ca, acetic_ca]}
+        self.mutable_ref_pkg.deduplicate_annotation_members()
+
+        self.assertEqual(0, len(set(methyl_ca.members).intersection(acetic_ca.members)))
+        self.assertEqual({'245_McrA': 6, '244_McrA': 6, '247_McrA': 6}, acetic_ca.members)
+        self.assertEqual(11, len(methyl_ca.members))
+        return
+
     def test_edit(self):
         from treesapp.refpkg import edit
         new_value = "Z0002"

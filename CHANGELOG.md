@@ -3,11 +3,12 @@
 - Option '--unknown_colour' for `treesapp colour` where a colour for "Unknown" features or taxa are included in the iTOL files.
 
 ### Fixed
+- `treesapp package edit` assigns a leaf node only to the most resolved feature annotation 
 
 ### Changed
 - Non-taxonomic features are coloured in alphabetical order (according to the palette used) in `treesapp colour`
 - iTOL colour-strip files dataset labels are now the feature name
-- 
+- Users are warned if multiple feature annotations are assigned to a leaf node during `treesapp package edit`
 
 ## [0.11.0] - 2021-04-27
 TreeSAPP version 0.11.0 changes how users store and interact with reference package feature annotations.

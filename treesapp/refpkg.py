@@ -19,7 +19,7 @@ from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignme
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
 from treesapp.utilities import base_file_prefix, load_taxonomic_trie, match_file, get_hmm_value
 from treesapp import file_parsers
-from treesapp.clade_annotation import CladeAnnotation
+from treesapp import clade_annotation
 from treesapp import wrapper
 from treesapp import __version__ as ts_version
 
@@ -75,6 +75,7 @@ class ReferencePackage:
         self.__core_ref_files = [self.f__msa, self.f__profile, self.f__search_profile,
                                  self.f__tree, self.f__boot_tree, self.f__model_info]
         self.taxa_trie = TaxonomicHierarchy()
+        self._ref_leaves = {}
 
     def __iter__(self):
         """
@@ -261,6 +262,11 @@ class ReferencePackage:
 
         return
 
+    def load_ref_leaves(self) -> None:
+        self._ref_leaves = {leaf.number + '_' + self.prefix: leaf for
+                            leaf in self.generate_tree_leaf_references_from_refpkg()}
+        return
+
     def slurp(self) -> None:
         """
         Reads the reference package's pickled-formatted file and stores the elements in their respective variables
@@ -297,6 +303,7 @@ class ReferencePackage:
                 return
 
         self.load_taxonomic_hierarchy()
+        self.load_ref_leaves()
 
         return
 
@@ -1144,19 +1151,23 @@ class ReferencePackage:
             annotation, taxon = feat_tup  # type: (str, str)
             # Determine whether the feature is already in clade_annots and if so, update it
             ca = None
-            for prev_annot in clade_annots:  # type: CladeAnnotation
+            for prev_annot in clade_annots:  # type: clade_annotation.CladeAnnotation
                 if prev_annot.name == annotation:
                     ca = prev_annot
                     break
             if ca is None:
-                ca = CladeAnnotation(name=annotation, key=feature_name)
+                ca = clade_annotation.CladeAnnotation(name=annotation, key=feature_name)
                 clade_annots.append(ca)
 
-            # Populate the taxa and members attributes
-            for index in indices:
-                ca.members.update(inode_leaf_map[index])
+            # Populate the taxa attribute if available and find taxon's depth in the hierarchy
             if taxon:
                 ca.taxa.update([taxon])
+                depth = self.taxa_trie.get_taxon_hierarchy_depth(taxon)
+            else:
+                depth = 8
+            # Add leaves to members attributes
+            for index in indices:
+                ca.members.update({leaf: depth for leaf in inode_leaf_map[index]})
 
         # Remove the feature from feature_annotations it there are no CladeAnnotation entries
         self.feature_annotations[feature_name] = clade_annots
@@ -1166,7 +1177,7 @@ class ReferencePackage:
             return
 
         # Identify the reference package leaves that are not annotated
-        for ca in self.feature_annotations[feature_name]:
+        for ca in self.feature_annotations[feature_name]:  # type: clade_annotation.CladeAnnotation
             for leaf_name in ca.members:
                 try:
                     all_leaves.remove(leaf_name)
@@ -1182,6 +1193,38 @@ class ReferencePackage:
         logging.debug("Unique lineages remaining unannotated:\n\t{}\n"
                       "Descriptions of unannotated reference leaves:\n\t{}\n".format("\n\t".join(unique_lineages),
                                                                                      "\n\t".join(unique_descs)))
+
+        self.deduplicate_annotation_members()
+        return
+
+    def fetch_clade_annotation(self, annotation_name: str, key: str) -> clade_annotation.CladeAnnotation:
+        for ca in self.feature_annotations[key]:
+            if ca.name == annotation_name:
+                return ca
+
+    def delineate_feature_annotations_by_rank(self, feature: str, annots: list, leaf: str):
+        rankings = {anno_name: self.fetch_clade_annotation(anno_name, feature).members[leaf] for anno_name in annots}
+        best = max(rankings, key=rankings.get)
+        logging.debug("Leaf node '{}' was retained by '{}' out of {}".format(self._ref_leaves[leaf].description,
+                                                                             best,
+                                                                             annots))
+        for anno_name in annots:
+            if anno_name != best:
+                self.fetch_clade_annotation(anno_name, feature).members.pop(leaf)
+        return
+
+    def deduplicate_annotation_members(self) -> None:
+        dups = set()
+        for feature in self.feature_annotations:
+            leaf_memberships = clade_annotation.generate_leaf_node_memberships(self.feature_annotations[feature])
+            for leaf, annots in leaf_memberships.items():
+                if len(annots) > 1:
+                    dups.add(leaf)
+                    self.delineate_feature_annotations_by_rank(feature, annots, leaf)
+
+        if len(dups) > 1:
+            logging.warning("{} leaves had multiple annotations. The most resolved was selected for each.\n"
+                            "Refer to the log file for more details.\n".format(len(dups)))
 
         return
 

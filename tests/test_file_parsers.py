@@ -137,7 +137,8 @@ class TreesappTester(unittest.TestCase):
 
         phenotypes = read_phenotypes(mcra_metabolism)
         self.assertIsInstance(cls=dict, obj=phenotypes)
-        self.assertEqual(19, len(phenotypes))
+        self.assertEqual(20, len(phenotypes))
+        return
 
     def test_read_lineage_map(self):
         from treesapp.file_parsers import read_lineage_map
