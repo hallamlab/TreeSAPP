@@ -6,7 +6,8 @@
 
 ### Changed
 - Non-taxonomic features are coloured in alphabetical order (according to the palette used) in `treesapp colour`
-- iTOL colour-strip files dataset labels are now the feature name 
+- iTOL colour-strip files dataset labels are now the feature name
+- 
 
 ## [0.11.0] - 2021-04-27
 TreeSAPP version 0.11.0 changes how users store and interact with reference package feature annotations.

@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-
-__author__ = 'Connor Morgan-Lang'
-
-
 import sys
 import os
 
@@ -10,6 +5,8 @@ import logging
 
 from treesapp.classy import TreeSAPP
 from treesapp.clade_annotation import CladeAnnotation
+
+__author__ = 'Connor Morgan-Lang'
 
 
 class Layerer(TreeSAPP):
@@ -112,34 +109,44 @@ def parse_marker_classification_table(marker_classification_file):
     return master_dat, field_order
 
 
-def map_queries_to_annotations(marker_tree_info: dict, master_dat: dict):
+def map_queries_to_annotations(refpkg_annotations: dict, refpkg_classifications: dict, join=True) -> None:
     """
+    Assigns ClassifiedSequence instances a feature annotation to their 'layers' dictionary by their placement edge.
 
-    :param marker_tree_info:
-    :param master_dat:
-    :return:
+    :param refpkg_annotations: A dictionary mapping reference packages to their different feature annotations
+    :param refpkg_classifications: Dictionary mapping reference package names to a list of ClassifiedSequence instances
+    :param join: Boolean indicating whether annotations with the same members should be joined with a semicolon or not
+    :return: None
     """
     num_unclassified = 0
+    unclassified_label = "Unknown"
     metadata_placement = set()
-    for data_type in marker_tree_info:
-        for marker in master_dat:
-            if marker in marker_tree_info[data_type]:
-                for query_obj in master_dat[marker]:  # type: ClassifiedSequence
-                    for group in marker_tree_info[data_type][marker]:
-                        if int(query_obj.i_node) in marker_tree_info[data_type][marker][group]:
+    for data_type in refpkg_annotations:
+        for marker in refpkg_classifications:
+            if marker in refpkg_annotations[data_type]:
+                for query_obj in refpkg_classifications[marker]:  # type: ClassifiedSequence
+                    for group in refpkg_annotations[data_type][marker]:
+                        if int(query_obj.i_node) in refpkg_annotations[data_type][marker][group]:
                             metadata_placement.add(group)
 
-                    if len(metadata_placement) == 0:
-                        metadata_placement.add("Unknown")
-                        num_unclassified += 1
-                    query_obj.layers[data_type] = ';'.join(sorted(metadata_placement))
+                    if len(metadata_placement) > 1:
+                        if join:
+                            query_obj.layers[data_type] = ';'.join(sorted(metadata_placement))
+                        else:
+                            query_obj.layers[data_type] = unclassified_label
+                    else:
+                        try:
+                            query_obj.layers[data_type] = metadata_placement.pop()
+                        except KeyError:
+                            query_obj.layers[data_type] = unclassified_label
+                            num_unclassified += 1
                     metadata_placement.clear()
             else:
-                num_unclassified += len(master_dat[marker])
+                num_unclassified += len(refpkg_classifications[marker])
                 continue
     if num_unclassified > 0:
-        logging.debug("Number of placed sequences that were unclassified: " + str(num_unclassified) + "\n")
-    return master_dat
+        logging.debug("Number of placed sequences that were unclassified: {}\n".format(num_unclassified))
+    return
 
 
 def annotate_internal_nodes(internal_node_map: dict, clade_annotations: list) -> (dict, set):
@@ -176,16 +183,9 @@ def annotate_internal_nodes(internal_node_map: dict, clade_annotations: list) ->
         if annotation not in leaf_group_members:
             leaf_group_members[annotation] = set()
         for i_node in annotation_clusters[annotation]:
-            try:
-                for leaf in internal_node_map[int(i_node)]:
-                    leaf_group_members[annotation].add(leaf)
-                    leaves_in_clusters.add(leaf)
-            except ValueError:
-                # TODO: Convert headers to internal nodes where an annotation cluster is a single leaf
-                logging.warning("Unable to assign '{}' to an internal node ID.\n".format(i_node))
-            except KeyError:
-                logging.error("Unable to find internal node '{}' in internal node map.\n".format(i_node))
-                sys.exit(7)
+            for leaf in internal_node_map[int(i_node)]:
+                leaf_group_members[annotation].add(leaf)
+                leaves_in_clusters.add(leaf)
         # Find the set of internal nodes that are children of this annotated clade
         for i_node in internal_node_map:
             if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):

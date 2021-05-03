@@ -1051,6 +1051,7 @@ def layer(sys_args):
     log_file_name = args.output + os.sep + "TreeSAPP_layer_log.txt"
     classy.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\t\tLayering extra annotations on TreeSAPP classifications\t\t\t\t##\n\n")
+    logging.info("Arguments used:\n" + ' '.join(sys_args) + "\n")
 
     ts_layer.check_arguments(args)
 
@@ -1128,7 +1129,7 @@ def layer(sys_args):
             else:
                 pass
     marker_subgroups.clear()
-    master_dat = annotate_extra.map_queries_to_annotations(marker_tree_info, master_dat)
+    annotate_extra.map_queries_to_annotations(marker_tree_info, master_dat, join=True)
     annotate_extra.write_classification_table(ts_layer.layered_table, field_order, master_dat)
 
     return
