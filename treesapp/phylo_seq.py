@@ -586,27 +586,37 @@ def sort_centroids_from_clusters(pqueries: list, cluster_indices: list) -> list:
     return final_clusters
 
 
-def cluster_pquery_distances(pqueries: list, min_cluster_size=10) -> list:
+def psc_cluster_edges(dist_mat: np.array, min_cluster_size: int, n_points: int) -> list:
+    k = 2
+    np_rand_seed = 97
+    if n_points >= min_cluster_size:
+        edge_clusters = list(KMeans(n_clusters=k,
+                                    random_state=np_rand_seed).fit(np.array(dist_mat)).labels_)
+    else:
+        edge_clusters = list(range(n_points))
+    return edge_clusters
+
+
+def cluster_pquery_placement_space_distances(pqueries: list, min_cluster_size=10) -> list:
     pquery_clusters = []
 
     previous = 0
     dist_mat = []
     edge_pquery_instances = []
     for pq in sorted(pqueries, key=lambda n: n.consensus_placement.edge_num):  # type: PQuery
-        if pq.consensus_placement.edge_num != previous:
-            if dist_mat:
-                if len(edge_pquery_instances) >= min_cluster_size:
-                    k_means = KMeans(n_clusters=2,
-                                     random_state=97).fit(np.array(dist_mat))
-                    edge_clusters = list(k_means.labels_)
-                else:
-                    edge_clusters = [0]*len(edge_pquery_instances)
-                pquery_clusters += sort_centroids_from_clusters(edge_pquery_instances, edge_clusters)
-                dist_mat.clear()
-                edge_pquery_instances.clear()
+        if pq.consensus_placement.edge_num != previous and dist_mat:
+            edge_clusters = psc_cluster_edges(np.array(dist_mat),
+                                              min_cluster_size,
+                                              n_points=len(edge_pquery_instances))
+            pquery_clusters += sort_centroids_from_clusters(edge_pquery_instances, edge_clusters)
+            dist_mat.clear()
+            edge_pquery_instances.clear()
         dist_mat.append([pq.consensus_placement.pendant_length, pq.consensus_placement.distal_length])
         edge_pquery_instances.append(pq)
         previous = pq.consensus_placement.edge_num
+
+    edge_clusters = psc_cluster_edges(np.array(dist_mat), min_cluster_size, n_points=len(edge_pquery_instances))
+    pquery_clusters += sort_centroids_from_clusters(edge_pquery_instances, edge_clusters)
 
     return pquery_clusters
 

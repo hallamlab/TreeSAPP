@@ -189,7 +189,7 @@ class PhyloSeqTests(unittest.TestCase):
         return
 
     def test_cluster_pquery_distances(self):
-        from treesapp.phylo_seq import cluster_pquery_distances
+        from treesapp.phylo_seq import cluster_pquery_placement_space_distances
         from treesapp.file_parsers import load_classified_sequences_from_assign_output
         from treesapp.seq_clustering import Cluster
         from treesapp.assign import Assigner
@@ -199,12 +199,13 @@ class PhyloSeqTests(unittest.TestCase):
         test_pqueries = refpkg_pquery_map["McrA"]
         self.assertEqual(11, len(test_pqueries))
 
-        pquery_clusters = cluster_pquery_distances(test_pqueries)
-        self.assertEqual(9, len(pquery_clusters))
+        pquery_clusters = cluster_pquery_placement_space_distances(test_pqueries)
+        self.assertEqual(11, len(pquery_clusters))
         self.assertIsInstance(pquery_clusters[0], Cluster)
-        self.assertEqual(2, max([len(i.members) for i in pquery_clusters]))
 
-        cluster_pquery_distances(test_pqueries, min_cluster_size=2)
+        cluster_pquery_placement_space_distances(test_pqueries, min_cluster_size=2)
+        self.assertEqual(1, max([len(i.members) for i in pquery_clusters]))
+        self.assertEqual(11, len(pquery_clusters))
         return
 
     def test_split_placements(self):
