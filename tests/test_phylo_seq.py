@@ -182,6 +182,31 @@ class PhyloSeqTests(unittest.TestCase):
 
         return
 
+    def test_sort_centroids_from_clusters(self):
+        from treesapp.phylo_seq import sort_centroids_from_clusters
+        with pytest.raises(AttributeError):
+            sort_centroids_from_clusters(list(range(8)), [0]*2 + [1]*6)
+        return
+
+    def test_cluster_pquery_distances(self):
+        from treesapp.phylo_seq import cluster_pquery_distances
+        from treesapp.file_parsers import load_classified_sequences_from_assign_output
+        from treesapp.seq_clustering import Cluster
+        from treesapp.assign import Assigner
+        refpkg_pquery_map = load_classified_sequences_from_assign_output(get_test_data("test_output_TarA"),
+                                                                         Assigner(),
+                                                                         refpkg_name="McrA")
+        test_pqueries = refpkg_pquery_map["McrA"]
+        self.assertEqual(11, len(test_pqueries))
+
+        pquery_clusters = cluster_pquery_distances(test_pqueries)
+        self.assertEqual(9, len(pquery_clusters))
+        self.assertIsInstance(pquery_clusters[0], Cluster)
+        self.assertEqual(2, max([len(i.members) for i in pquery_clusters]))
+
+        cluster_pquery_distances(test_pqueries, min_cluster_size=2)
+        return
+
     def test_split_placements(self):
         from treesapp.phylo_seq import split_placements
         self.pquery_test_1.placements = split_placements(self.placement_dict)

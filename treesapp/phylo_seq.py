@@ -3,9 +3,12 @@ import sys
 import re
 
 from ete3 import Tree
+from sklearn.cluster import KMeans
+import numpy as np
 
 from treesapp.phylo_dist import parent_to_tip_distances
 from treesapp.entish import load_ete3_tree, get_ete_edge, edge_from_node_name
+from treesapp import seq_clustering
 
 
 class PhyloPlace:
@@ -561,8 +564,51 @@ def quantify_pquery_instances(tree_saps: dict, abundance_dict: dict):
     return
 
 
-def cluster_pquery_distances(pqueries: dict):
-    return
+def sort_centroids_from_clusters(pqueries: list, cluster_indices: list) -> list:
+    cluster_map = {}
+    final_clusters = []
+    # Sort the PQuery instances into an indexed dictionary based on their assigned cluster
+    i = 0
+    while i < len(cluster_indices):
+        try:
+            cluster_map[cluster_indices[i]].append(pqueries[i])
+        except KeyError:
+            cluster_map[cluster_indices[i]] = [pqueries[i]]
+        i += 1
+
+    # Create Cluster instances for each KMeans cluster and choose the longest sequence as the representative
+    for num in cluster_map:  # type: int
+        rep = sorted(cluster_map[num], key=lambda n: n.end - n.start)[0]  # type: PQuery
+        cluster = seq_clustering.Cluster(rep.place_name)
+        cluster.members = cluster_map[num]
+        final_clusters.append(cluster)
+
+    return final_clusters
+
+
+def cluster_pquery_distances(pqueries: list, min_cluster_size=10) -> list:
+    pquery_clusters = []
+
+    previous = 0
+    dist_mat = []
+    edge_pquery_instances = []
+    for pq in sorted(pqueries, key=lambda n: n.consensus_placement.edge_num):  # type: PQuery
+        if pq.consensus_placement.edge_num != previous:
+            if dist_mat:
+                if len(edge_pquery_instances) >= min_cluster_size:
+                    k_means = KMeans(n_clusters=2,
+                                     random_state=97).fit(np.array(dist_mat))
+                    edge_clusters = list(k_means.labels_)
+                else:
+                    edge_clusters = [0]*len(edge_pquery_instances)
+                pquery_clusters += sort_centroids_from_clusters(edge_pquery_instances, edge_clusters)
+                dist_mat.clear()
+                edge_pquery_instances.clear()
+        dist_mat.append([pq.consensus_placement.pendant_length, pq.consensus_placement.distal_length])
+        edge_pquery_instances.append(pq)
+        previous = pq.consensus_placement.edge_num
+
+    return pquery_clusters
 
 
 class TreeLeafReference:
