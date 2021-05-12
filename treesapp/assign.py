@@ -1429,7 +1429,7 @@ def assign(sys_args):
             if args.reverse:
                 abundance_args += ["--reverse", ' '.join(args.reverse)]
             sample_id, abundance_dict = abundance.abundance(abundance_args).popitem()
-        phylo_seq.abundify_tree_saps(tree_saps, abundance_dict)
+        phylo_seq.quantify_pquery_instances(tree_saps, abundance_dict)
 
         file_parsers.write_classification_table(tree_saps, ts_assign.sample_prefix,
                                                 output_file=ts_assign.classification_table)

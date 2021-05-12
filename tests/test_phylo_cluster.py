@@ -116,8 +116,19 @@ class PhyloClusterTester(unittest.TestCase):
             self.assertTrue(1 > max(dists))
 
         # Test grouping by a deeper taxonomic relationship, family
+        p_clust.normalize = True
         p_clust.tax_rank = "family"
-        p_clust.group_rel_dists(self.taxa_tree, self.refpkg.taxa_trie)
+        rel_dists = p_clust.group_rel_dists(self.taxa_tree, self.refpkg.taxa_trie)
+        self.assertEqual(8, len(rel_dists))
+        self.assertEqual(85, len(sum(rel_dists.values(), [])))
+        return
+
+    def test_calculate_distance_threshold(self):
+        from treesapp.phylo_cluster import PhyloClust
+        p_clust = PhyloClust()
+        p_clust.calculate_distance_threshold(taxa_tree=self.taxa_tree,
+                                             taxonomy=self.refpkg.taxa_trie)
+        self.assertEqual(0.08, round(p_clust.alpha, 2))
         return
 
     def test_match_edges_to_clusters(self):
@@ -171,19 +182,6 @@ class PhyloClusterTester(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_taxa.tsv")))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_matrix.tsv")))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_pquery_assignments.tsv")))
-        return
-
-    def test_dereplicate_by_clustering(self):
-        from treesapp.phylo_cluster import dereplicate_by_clustering
-        from treesapp import fasta
-        from treesapp.utilities import fetch_executable_path
-        test_fa = fasta.FASTA(get_test_data("PuhA.fa"))
-        test_fa.load_fasta()
-        cluster_map = dereplicate_by_clustering(fasta_inst=test_fa,
-                                                prop_similarity=0.799,
-                                                mmseqs_exe=fetch_executable_path("mmseqs", treesapp_dir="./"),
-                                                tmp_dir=self.tmp_dir)
-        self.assertEqual(len(cluster_map), test_fa.n_seqs())
         return
 
     def test_de_novo_phylogeny_from_queries(self):

@@ -9,6 +9,7 @@ import tqdm
 from joblib import dump as jdump
 from joblib import load as jload
 
+from treesapp import seq_clustering
 from treesapp import entrez_utils
 from treesapp import file_parsers
 from treesapp import fasta
@@ -29,7 +30,6 @@ from treesapp import clade_exclusion_evaluator as ts_clade_ex
 from treesapp import assign as ts_assign_mod
 from treesapp import create_refpkg as ts_create_mod
 from treesapp import update_refpkg as ts_update_mod
-from treesapp import phylo_cluster as ts_potu
 from treesapp import hmmer_tbl_parser
 
 
@@ -417,11 +417,11 @@ def create(sys_args):
     # Read the FASTA into a dictionary - homologous sequences will be extracted from this
     ref_seqs.load_fasta(format_it=True, molecule=ts_create.ref_pkg.molecule)
     if ts_create.stage_status("deduplicate"):
-        ts_potu.dereplicate_by_clustering(fasta_inst=ref_seqs,
-                                          prop_similarity=0.999,
-                                          mmseqs_exe=ts_create.executables["mmseqs"],
-                                          tmp_dir=ts_create.stage_output_dir,
-                                          num_threads=args.num_threads)
+        seq_clustering.dereplicate_by_clustering(fasta_inst=ref_seqs,
+                                                 prop_similarity=0.999,
+                                                 mmseqs_exe=ts_create.executables["mmseqs"],
+                                                 tmp_dir=ts_create.stage_output_dir,
+                                                 num_threads=args.num_threads)
         ts_create.input_sequences = ts_create.stage_output_dir + "deduplicated.fasta"
         fasta.write_new_fasta(fasta_dict=ref_seqs.fasta_dict, fasta_name=ts_create.input_sequences)
 
@@ -523,7 +523,7 @@ def create(sys_args):
             ts_create.clusters_table = ts_create.clusters_prefix + "_cluster.tsv"
             cluster_alignments = ts_create.clusters_prefix + "_cluster_aln.tsv"
 
-            cluster_dict = file_parsers.create_mmseqs_clusters(ts_create.clusters_table, cluster_alignments)
+            cluster_dict = seq_clustering.create_mmseqs_clusters(ts_create.clusters_table, cluster_alignments)
 
             # Revert headers in cluster_dict from 'formatted' back to 'original'
             fasta.rename_cluster_headers(cluster_dict, ref_seqs.header_registry)
@@ -857,7 +857,7 @@ def update(sys_args):
         clusters_table = ts_updater.clusters_prefix + "_cluster.tsv"
         cluster_alignments = ts_updater.clusters_prefix + "_cluster_aln.tsv"
 
-        cluster_dict = file_parsers.create_mmseqs_clusters(clusters_tbl=clusters_table, aln_tbl=cluster_alignments)
+        cluster_dict = seq_clustering.create_mmseqs_clusters(clusters_tbl=clusters_table, aln_tbl=cluster_alignments)
 
         # Revert headers in cluster_dict from 'formatted' back to 'original'
         fasta.rename_cluster_headers(cluster_dict, combined_fasta.header_registry)

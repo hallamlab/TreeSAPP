@@ -72,12 +72,12 @@ class PhyloSeqTests(unittest.TestCase):
         pquery_1, pquery_2 = self.pqueries["PuhA"]
 
         # Test when no names map
-        phylo_seq.abundify_tree_saps(tree_saps=self.pqueries, abundance_dict=abund_dict)
+        phylo_seq.quantify_pquery_instances(tree_saps=self.pqueries, abundance_dict=abund_dict)
         self.assertEqual(0.0, pquery_2.abundance)
 
         # Set the place name so the names now match
         pquery_1.place_name = "{}|{}|{}_{}".format(pquery_1.seq_name, pquery_1.ref_name, pquery_1.start, pquery_1.end)
-        phylo_seq.abundify_tree_saps(tree_saps=self.pqueries, abundance_dict=abund_dict)
+        phylo_seq.quantify_pquery_instances(tree_saps=self.pqueries, abundance_dict=abund_dict)
         self.assertEqual(100, pquery_1.abundance)
 
         return

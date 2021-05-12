@@ -167,7 +167,7 @@ def abundance(sys_args) -> dict:
             absentee = set(abundance_map.keys()).difference(classified_seqs)
             while absentee:
                 abundance_map.pop(absentee.pop())
-            phylo_seq.abundify_tree_saps(refpkg_pqueries, abundance_map)
+            phylo_seq.quantify_pquery_instances(refpkg_pqueries, abundance_map)
             file_parsers.write_classification_table(refpkg_pqueries, sample_name, ts_abund.classifications,
                                                     append=ts_abund.append_abundance)
             # Write the simple_bar file for iTOL

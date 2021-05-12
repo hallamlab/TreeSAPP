@@ -534,7 +534,7 @@ def split_placements(placements: dict) -> list:
     return phylo_places
 
 
-def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
+def quantify_pquery_instances(tree_saps: dict, abundance_dict: dict):
     """
     Add abundance (RPKM or presence count) values to the PQuery instances (abundance variable)
 
@@ -558,6 +558,10 @@ def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
     if abundance_mapped_acc == 0:
         logging.warning("No placed sequences with abundances identified.\n")
 
+    return
+
+
+def cluster_pquery_distances(pqueries: dict):
     return
 
 

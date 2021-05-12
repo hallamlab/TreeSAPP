@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import sys
 import logging
@@ -8,7 +6,7 @@ import random
 
 from tqdm import tqdm
 
-from treesapp import file_parsers
+from treesapp import seq_clustering
 from treesapp import utilities
 from treesapp import wrapper
 from treesapp import fasta
@@ -268,8 +266,8 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     test_seqs.change_dict_keys("num")
     fasta.write_new_fasta(test_seqs.fasta_dict, clustering_input)
     wrapper.cluster_sequences(executables["mmseqs"], clustering_input, clustering_prefix, similarity)
-    cluster_dict = file_parsers.create_mmseqs_clusters(clusters_tbl=clustering_prefix + "_cluster.tsv",
-                                                       aln_tbl=clustering_prefix + "_cluster_aln.tsv")
+    cluster_dict = seq_clustering.create_mmseqs_clusters(clusters_tbl=clustering_prefix + "_cluster.tsv",
+                                                         aln_tbl=clustering_prefix + "_cluster_aln.tsv")
     test_seqs.keep_only([cluster_dict[clust_id].representative for clust_id in cluster_dict.keys()])
     logging.debug("\t" + str(len(test_seqs.fasta_dict.keys())) + " sequence clusters\n")
 

@@ -225,14 +225,14 @@ class PhyloClust(ts_classy.TreeSAPP):
                 if self.check_monophyly(ca, target_group):
                     if self.normalize:
                         try:
-                            rel_dists[target_group].add(1-ca.rel_dist)
+                            rel_dists[target_group].append(1-ca.rel_dist)
                         except KeyError:
-                            rel_dists[target_group] = {1-ca.rel_dist}
+                            rel_dists[target_group] = [1-ca.rel_dist]
                     else:
                         try:
-                            rel_dists[target_group].add(r_leaf.get_distance(q_leaf))
+                            rel_dists[target_group].append(r_leaf.get_distance(q_leaf))
                         except KeyError:
-                            rel_dists[target_group] = {r_leaf.get_distance(q_leaf)}
+                            rel_dists[target_group] = [r_leaf.get_distance(q_leaf)]
 
         return rel_dists
 
@@ -476,52 +476,6 @@ class PhyloClust(ts_classy.TreeSAPP):
         return
 
 
-def dereplicate_by_clustering(fasta_inst: fasta.FASTA, prop_similarity: float, mmseqs_exe: str, tmp_dir: str,
-                              subset=None, num_threads=2) -> dict:
-    """
-    A method for dereplicating a FASTA instance using pairwise sequence clustering with MMSeqs2.
-    The FASTA instance, fasta_inst, fasta_dict attribute is modified to only store the representative (i.e. centroid)
-    sequences determined from the sequence clustering.
-
-    :param fasta_inst: A FASTA instance with the fasta_dict and header_registry loaded
-    :param prop_similarity: The proportional similarity to cluster the sequences in fasta_inst
-    :param mmseqs_exe: The path to a MMSeqs2 executable
-    :param tmp_dir: A directory to write temporary files
-    :param subset: Optionally, a list of sequences to cluster. Those not included will be removed from fasta_inst
-    :param num_threads: The number of threads for MMSeqs2 to use (2 by default)
-    :return: A dictionary of cluster numerical identifiers indexing Cluster instances
-    """
-
-    fasta_inst.change_dict_keys("num")
-    cluster_input = os.path.join(tmp_dir, "cluster_in.fasta")
-    clusters_prefix = os.path.join(tmp_dir, "linclust_out")
-    clusters_table = clusters_prefix + "_cluster.tsv"
-    cluster_alignments = clusters_prefix + "_cluster_aln.tsv"
-
-    # Write a FASTA for clustering containing the formatted headers since
-    # not all clustering tools + versions keep whole header - spaces are replaced with underscores
-    fasta.write_new_fasta(fasta_dict=fasta_inst.fasta_dict, fasta_name=cluster_input, headers=subset)
-
-    wrapper.cluster_sequences(software_path=mmseqs_exe,
-                              fasta_input=cluster_input, output_prefix=clusters_prefix,
-                              similarity=prop_similarity, num_threads=num_threads)
-
-    cluster_map = file_parsers.create_mmseqs_clusters(clusters_table, cluster_alignments)
-
-    # Revert headers in cluster_dict from 'formatted' back to 'original'
-    fasta.rename_cluster_headers(cluster_map, fasta_inst.header_registry)
-    logging.debug("\t{} sequence clusters\n".format(len(cluster_map.keys())))
-
-    # Keep only the representative sequences in the FASTA instance
-    fasta_inst.change_dict_keys()
-    fasta_inst.keep_only(header_subset=[c.representative for num, c in cluster_map.items()])
-
-    # Clean up the temporary files
-    for tmp_file in [cluster_input, clusters_table, cluster_alignments]:
-        os.remove(tmp_file)
-    return cluster_map
-
-
 def de_novo_phylogeny_from_queries(phylo_clust: PhyloClust, fasta_inst: fasta.FASTA) -> Tree:
     # TODO: Build a profile HMM from the incomplete query sequences and filter by length/coverage
 
@@ -583,10 +537,10 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, drep_similarity=1.0):
 
     # Dereplicate classified sequences into Clusters
     if drep_similarity < 1.0:
-        cluster_map = dereplicate_by_clustering(fasta_inst=pqueries_fasta,
-                                                prop_similarity=drep_similarity,
-                                                mmseqs_exe=phylo_clust.executables["mmseqs"],
-                                                tmp_dir=phylo_clust.stage_output_dir)
+        cluster_map = seq_clustering.dereplicate_by_clustering(fasta_inst=pqueries_fasta,
+                                                               prop_similarity=drep_similarity,
+                                                               mmseqs_exe=phylo_clust.executables["mmseqs"],
+                                                               tmp_dir=phylo_clust.stage_output_dir)
     else:
         cluster_map = {}
 
