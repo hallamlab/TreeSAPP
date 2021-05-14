@@ -517,7 +517,9 @@ def pqueries_to_fasta(pqueries, fa_name="") -> fasta.FASTA:
     return pqueries_fasta
 
 
-def de_novo_phylo_clusters(phylo_clust: PhyloClust, drep_similarity=1.0):
+def de_novo_phylo_clusters(phylo_clust: PhyloClust, cluster_method=None, drep_similarity=1.0):
+    psc_cluster_size = 10
+
     # Gather all classified sequences for a reference package from the treesapp assign outputs
     classified_pqueries = {}
     for sample_id, ts_out in phylo_clust.assign_output_dirs.items():
@@ -536,11 +538,17 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, drep_similarity=1.0):
     phylo_clust.increment_stage_dir()
 
     # Dereplicate classified sequences into Clusters
-    if drep_similarity < 1.0:
+    if cluster_method == "align":
         cluster_map = seq_clustering.dereplicate_by_clustering(fasta_inst=pqueries_fasta,
                                                                prop_similarity=drep_similarity,
                                                                mmseqs_exe=phylo_clust.executables["mmseqs"],
                                                                tmp_dir=phylo_clust.stage_output_dir)
+    elif cluster_method == "psc":
+        cluster_map = phylo_seq.cluster_pquery_placement_space_distances(pqueries=phylo_clust.clustered_pqueries,
+                                                                         min_cluster_size=psc_cluster_size)
+        # Keep only the representative sequences in the FASTA instance
+        pqueries_fasta.change_dict_keys()
+        pqueries_fasta.keep_only(header_subset=[c.representative for num, c in cluster_map.items()])
     else:
         cluster_map = {}
 
@@ -608,7 +616,7 @@ def cluster_phylogeny(sys_args: list) -> None:
     if p_clust.clustering_mode == "ref_guided":
         reference_placement_phylo_clusters(phylo_clust=p_clust, taxon_labelled_tree=taxa_tree)
     elif p_clust.clustering_mode == "de_novo":
-        de_novo_phylo_clusters(phylo_clust=p_clust, drep_similarity=0.999)
+        de_novo_phylo_clusters(phylo_clust=p_clust, cluster_method="psc")
     else:
         logging.error("Unknown clustering mode specified: '{}'.\n".format(p_clust.clustering_mode))
         sys.exit(5)

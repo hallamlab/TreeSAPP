@@ -60,8 +60,6 @@ def dereplicate_by_clustering(fasta_inst: fasta.FASTA, prop_similarity: float, m
                               subset=None, num_threads=2) -> dict:
     """
     A method for dereplicating a FASTA instance using pairwise sequence clustering with MMSeqs2.
-    The FASTA instance, fasta_inst, fasta_dict attribute is modified to only store the representative (i.e. centroid)
-    sequences determined from the sequence clustering.
 
     :param fasta_inst: A FASTA instance with the fasta_dict and header_registry loaded
     :param prop_similarity: The proportional similarity to cluster the sequences in fasta_inst

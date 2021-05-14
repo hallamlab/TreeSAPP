@@ -3,7 +3,7 @@ import sys
 import re
 
 from ete3 import Tree
-from sklearn.cluster import KMeans
+from sklearn import cluster
 import numpy as np
 
 from treesapp.phylo_dist import parent_to_tip_distances
@@ -587,17 +587,15 @@ def sort_centroids_from_clusters(pqueries: list, cluster_indices: list) -> list:
 
 
 def psc_cluster_edges(dist_mat: np.array, min_cluster_size: int, n_points: int) -> list:
-    k = 2
-    np_rand_seed = 97
     if n_points >= min_cluster_size:
-        edge_clusters = list(KMeans(n_clusters=k,
-                                    random_state=np_rand_seed).fit(np.array(dist_mat)).labels_)
+        edge_clusters = list(cluster.DBSCAN(min_samples=min_cluster_size,
+                                            eps=1).fit(np.array(dist_mat)).labels_)
     else:
         edge_clusters = list(range(n_points))
     return edge_clusters
 
 
-def cluster_pquery_placement_space_distances(pqueries: list, min_cluster_size=10) -> list:
+def cluster_pquery_placement_space_distances(pqueries: list, min_cluster_size=10) -> dict:
     pquery_clusters = []
 
     previous = 0
@@ -618,7 +616,9 @@ def cluster_pquery_placement_space_distances(pqueries: list, min_cluster_size=10
     edge_clusters = psc_cluster_edges(np.array(dist_mat), min_cluster_size, n_points=len(edge_pquery_instances))
     pquery_clusters += sort_centroids_from_clusters(edge_pquery_instances, edge_clusters)
 
-    return pquery_clusters
+    cluster_map = {n: pquery_clusters[n] for n in range(0, len(pquery_clusters))}
+
+    return cluster_map
 
 
 class TreeLeafReference:
