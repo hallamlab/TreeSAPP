@@ -118,6 +118,19 @@ def load_ete3_tree(newick_tree) -> Tree:
         return newick_tree
 
 
+def collapse_ete_tree(tree_root: Tree, min_branch_length: float):
+    for n in tree_root.traverse(strategy="preorder"):
+        for c in n.get_children():
+            if c.is_leaf():
+                if c.dist < min_branch_length:
+                    c.detach()
+            else:
+                if c.get_farthest_leaf()[1] < min_branch_length:
+                    c.detach()
+
+    return
+
+
 def map_internal_nodes_leaves(tree: str) -> dict:
     """
     Loads a Newick-formatted tree into a dictionary of all internal nodes (keys) and a list of child leaves (values).

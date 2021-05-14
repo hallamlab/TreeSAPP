@@ -24,7 +24,8 @@ class EntishTester(unittest.TestCase):
         with open(get_test_data("jplace.tree")) as test_tree:
             self.placement_tree = test_tree.readline()
         self.test_ete_tree = load_ete3_tree(self.placement_tree)
-        self.mock_tree = Tree("(A:1,(B:1,(E:1,D:1):0.5):0.5);")
+        self.mock_tree_str = "(A:1,(B:1,(E:1,D:1):0.5):0.5);"
+        self.mock_tree = Tree(self.mock_tree_str)
         self.multifurcating_tree_str = "(B,(A, C, D), E);"
         label_internal_nodes_ete(self.test_ete_tree)
         self.refpkg_tree = self.db.tree
@@ -106,6 +107,20 @@ class EntishTester(unittest.TestCase):
         self.assertEqual([3, 4, 8], sorted(i_nodes, key=int))
         self.assertEqual(4, len(test_leaves))
         self.assertEqual(9, len(test_inodes))
+        return
+
+    def test_collapse_ete_tree(self):
+        from treesapp.entish import collapse_ete_tree
+        mock_tree = Tree("(A:1,(B:1,(E:0.1,D:0.5):0.5):0.5);")
+        collapse_ete_tree(mock_tree, min_branch_length=0.6)
+        self.assertEqual(['A', 'B'], mock_tree.get_leaf_names())
+
+        rp_tree = Tree('(((((((((217_McrA:1.40284)1:0.072783)1:0.076191)1:0.060539)1:0.048257,488:0.039767)1:0.07175)'
+                       '1:0.109454)1:0.036157)1:0.0282665,(129:0.064633,(((67:0.055106)1:0.086543)1:0.054828,'
+                       '((201_McrA:1.01787,(203_McrA:0.361599)1:0.213719)1:0.443498,(((200_McrA:0.412511)1:0.277927)'
+                       '1:0.119218,197_McrA:0.955209)1:0.276102)1:0.121564)1:0.035701)1:0.0282665)1:0.107436;')
+        collapse_ete_tree(rp_tree, min_branch_length=0.67)
+        self.assertEqual(4, len(rp_tree))
         return
 
 
