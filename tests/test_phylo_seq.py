@@ -201,7 +201,7 @@ class PhyloSeqTests(unittest.TestCase):
 
         pquery_clusters = cluster_pquery_placement_space_distances(test_pqueries)
         self.assertEqual(11, len(pquery_clusters))
-        self.assertIsInstance(pquery_clusters[0], Cluster)
+        self.assertIsInstance(pquery_clusters['0'], Cluster)
 
         cluster_pquery_placement_space_distances(test_pqueries, min_cluster_size=2)
         self.assertEqual(1, max([len(i.members) for i in pquery_clusters.values()]))

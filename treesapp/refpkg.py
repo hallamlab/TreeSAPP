@@ -437,6 +437,16 @@ class ReferencePackage:
 
         return node_map
 
+    def clade_expander(self, leaf_nodes, min_size=3) -> Tree:
+        """Finds the smallest clade that includes all lead node names in leaf_nodes and is at least min_size large."""
+        node_leaf_map = self.get_internal_node_leaf_map()
+        for i_node in sorted(node_leaf_map, key=int):
+            if len(leaf_nodes) >= min_size:
+                break
+            if len(node_leaf_map[i_node]) >= min_size and set(node_leaf_map[i_node]).issuperset(leaf_nodes):
+                leaf_nodes = node_leaf_map[i_node]
+        return leaf_nodes
+
     def leaf_node_order(self) -> list:
         """
         Parses a tree by depth-first search and returns the list
@@ -1046,8 +1056,8 @@ class ReferencePackage:
             if len(n.children) == 0:  # this is a leaf node
                 continue
             elif len(n.children) == 1:
-                logging.error("Unexpected number of children (1) for Tree.Node {}.\n".format(n.name))
-                raise AssertionError
+                n.taxon = n.get_children().pop().taxon
+                continue
             elif len(n.children) > 2:
                 n.resolve_polytomy(recursive=False)
                 for c in n.children:

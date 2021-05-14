@@ -463,9 +463,9 @@ class FASTA:
                           " Options are 'original', 'first_split' and 'num'.\n")
             sys.exit(5)
 
-    def keep_only(self, header_subset: list, superset=False):
+    def keep_only(self, header_subset: list, superset=False) -> None:
         """
-        Removes all entries from self.fasta_dict and self.header_registry that are not in header_subset.
+        Removes all entries (in place) from self.fasta_dict and self.header_registry that are not in header_subset.
 
         :param header_subset: The list of headers found in self.fasta_dict that are to be kept
         :param superset: The header_subset list is a superset so not all headers will be found - do not emit a warning
@@ -750,34 +750,12 @@ class FASTA:
         self.synchronize_seqs_n_headers()
         return
 
-    def update(self, fasta, file=True) -> None:
-        """
-        Used to append sequences to the current FASTA object. All new sequence records are assigned a new numerical ID,
-        continuing from the largest ID found in the original FASTA instance.
-
-        :param fasta: Either a fasta-formatted dictionary (keys are sequence names (i.e. headers) and values are seqs)
-        or the name of a file, which will be read to generate a fasta-formatted dictionary
-        :param file: Flag indicating whether the update is using a file or a fasta-formatted dictionary
-        :return: None
-        """
-        # Format the inputs
-        if file:
-            if not os.path.isfile(fasta):
-                logging.error("File '" + fasta + "' does not exist!\n")
-                sys.exit(13)
-            new_fasta = FASTA(fasta)
-            new_fasta.load_fasta()
-        else:
-            new_fasta = FASTA("dummy_name")
-            new_fasta.fasta_dict = fasta
-            new_fasta.header_registry = register_headers(fasta.keys())
-
+    def fasta_join(self, new_fasta) -> None:
         # Guarantee the index type is original for both self.fasta_dict and new_fasta
         self.change_dict_keys()
         header_map = self.get_header_mapping_dict()
         new_fasta.change_dict_keys()
 
-        # TODO: Potentially refactor the following code into a function called 'join' used to merge two FASTA objects
         # Load the new fasta and headers
         acc = max([int(x) for x in self.header_registry.keys()]) + 1
         for num_id in sorted(new_fasta.header_registry, key=int):
@@ -798,6 +776,31 @@ class FASTA:
         self.synchronize_seqs_n_headers()
         return
 
+    def fasta_update(self, fasta, file=True) -> None:
+        """
+        Used to append sequences to the current FASTA object. All new sequence records are assigned a new numerical ID,
+        continuing from the largest ID found in the original FASTA instance.
+
+        :param fasta: Either a fasta-formatted dictionary (keys are sequence names (i.e. headers) and values are seqs)
+        or the name of a file, which will be read to generate a fasta-formatted dictionary
+        :param file: Flag indicating whether the update is using a file or a fasta-formatted dictionary
+        :return: None
+        """
+        # Format the inputs
+        if file:
+            if not os.path.isfile(fasta):
+                logging.error("File '{}' does not exist!\n".format(fasta))
+                sys.exit(13)
+            new_fasta = FASTA(fasta)
+            new_fasta.load_fasta()
+        else:
+            new_fasta = FASTA("dummy_name")
+            new_fasta.fasta_dict = fasta
+            new_fasta.header_registry = register_headers(fasta.keys())
+
+        self.fasta_join(new_fasta)
+        return
+
     def unalign(self) -> None:
         """
         Removes common multiple sequence alignments characters ('-', '.') from all sequences in self.fasta_dict
@@ -810,6 +813,13 @@ class FASTA:
             else:
                 self.fasta_dict[header] = seq
         return
+
+
+def subset_fasta(fasta: FASTA, seq_names: list) -> FASTA:
+    sub_fa = FASTA("")
+    sub_fa.clone(fasta)
+    sub_fa.keep_only(header_subset=seq_names)
+    return sub_fa
 
 
 def is_nucleotide(seq_str, req_perc=0.95) -> bool:

@@ -585,7 +585,8 @@ def read_stockholm_to_dict(sto_file):
     return seq_dict
 
 
-def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, queries_mapped=False, min_seq_length=30):
+def validate_alignment_trimming(msa_files: list, unique_ref_headers: set,
+                                queries_mapped=False, min_seq_length=30) -> (dict, list, str):
     """
     Parse a list of multiple sequence alignment (MSA) files and determine whether the multiple alignment:
         1. is shorter than the min_seq_length (30 by default)

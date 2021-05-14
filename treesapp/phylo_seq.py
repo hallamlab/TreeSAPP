@@ -616,7 +616,7 @@ def cluster_pquery_placement_space_distances(pqueries: list, min_cluster_size=10
     edge_clusters = psc_cluster_edges(np.array(dist_mat), min_cluster_size, n_points=len(edge_pquery_instances))
     pquery_clusters += sort_centroids_from_clusters(edge_pquery_instances, edge_clusters)
 
-    cluster_map = {n: pquery_clusters[n] for n in range(0, len(pquery_clusters))}
+    cluster_map = {str(n): pquery_clusters[n] for n in range(0, len(pquery_clusters))}
 
     return cluster_map
 

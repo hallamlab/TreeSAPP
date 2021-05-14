@@ -462,7 +462,7 @@ def create(sys_args):
     #  add them now as its easier to work with more sequences than repeat everything
     ##
     if args.guarantee:
-        ref_seqs.update(args.guarantee)
+        ref_seqs.fasta_update(args.guarantee)
         ref_seqs.change_dict_keys("original")
 
     ##
@@ -839,7 +839,7 @@ def update(sys_args):
 
     combined_fasta = fasta.FASTA("")
     combined_fasta.clone(classified_fasta)
-    combined_fasta.update(ref_fasta.fasta_dict, False)
+    combined_fasta.fasta_join(ref_fasta)
     combined_fasta.unalign()
 
     if args.resolve:

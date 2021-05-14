@@ -144,6 +144,15 @@ class RefPkgTester(unittest.TestCase):
         self.assertEqual(self.db.num_seqs, len(node_map[max(node_map.keys())]))
         return
 
+    def test_clade_expander(self):
+        leaf_nodes = ['197_McrA']
+        leaf_nodes = self.mutable_ref_pkg.clade_expander(leaf_nodes, min_size=1)
+        self.assertEqual(1, len(leaf_nodes))
+
+        leaf_nodes = self.mutable_ref_pkg.clade_expander(leaf_nodes, min_size=2)
+        self.assertEqual(236, len(leaf_nodes))
+        return
+
     def test_match_taxon_to_internal_nodes(self):
         self.assertEqual([],
                          self.db.match_taxon_to_internal_nodes("c__Methanococcus"))

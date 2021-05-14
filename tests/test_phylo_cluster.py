@@ -168,24 +168,25 @@ class PhyloClusterTester(unittest.TestCase):
                                self.refpkg.f__pkl, get_test_data(os.path.join("refpkgs", "McrB_build.pkl")),
                                "--jplace", get_test_data("epa_result.jplace")])
 
-        # Test input is a single JPlace file
-        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
-                           "--jplace", get_test_data("epa_result.jplace"),
-                           "--output", self.tmp_dir])
-
         # Test input is a treesapp assign output directory
         cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
                            "--assign_output", get_test_data("test_output_TarA"),
                            "--output", self.tmp_dir,
                            "--alpha", str(0.4),
                            "--mode", "de_novo"])
+
+        # Test input is a single JPlace file
+        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
+                           "--jplace", get_test_data("epa_result.jplace"),
+                           "--output", self.tmp_dir])
+
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_taxa.tsv")))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_matrix.tsv")))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_pquery_assignments.tsv")))
         return
 
-    def test_de_novo_phylogeny_from_queries(self):
-        from treesapp.phylo_cluster import de_novo_phylogeny_from_queries
+    def test_infer_cluster_phylogeny(self):
+        from treesapp.phylo_cluster import infer_cluster_phylogeny
         from treesapp.fasta import FASTA
         from treesapp import phylo_cluster
         p_clust = phylo_cluster.PhyloClust()
@@ -195,7 +196,7 @@ class PhyloClusterTester(unittest.TestCase):
                                                  "--alpha", str(0.4)]))
         q_seqs = FASTA(get_test_data("McrA_eval.faa"))
         q_seqs.load_fasta()
-        ete_tree = de_novo_phylogeny_from_queries(phylo_clust=p_clust, fasta_inst=q_seqs)
+        ete_tree = infer_cluster_phylogeny(phylo_clust=p_clust, fasta_inst=q_seqs)
         # Test for node names
         ex_name = "KKH90701  coded_by=13826..15538,organism=Methanosarcina mazei,definition=methyl-coenzyme M reductase"
         self.assertTrue(ex_name in ete_tree.get_leaf_names())
@@ -215,9 +216,38 @@ class PhyloClusterTester(unittest.TestCase):
                                                  "--alpha", str(0.4)]))
         # Test with placement space clustering
         phylo_cluster.de_novo_phylo_clusters(p_clust, cluster_method="psc")
+        self.assertEqual(11, len(p_clust.clustered_pqueries))
+        self.assertEqual(len(p_clust.clustered_pqueries),
+                         len(set([pq.p_otu for pq in p_clust.clustered_pqueries])))
         # Test with pairwise sequence clustering
-        phylo_cluster.de_novo_phylo_clusters(p_clust, cluster_method="align", drep_similarity=0.9)
+        p_clust.cluster_index.clear()
+        p_clust.clustered_pqueries.clear()
+        phylo_cluster.de_novo_phylo_clusters(p_clust, cluster_method="align", drep_similarity=0.8)
+        self.assertEqual(10, len(set([pq.p_otu for pq in p_clust.clustered_pqueries])))
 
+        return
+
+    def test_select_subtree_sequences(self):
+        from treesapp import phylo_cluster
+        from treesapp.seq_clustering import Cluster
+        from treesapp.phylo_seq import PQuery, PhyloPlace
+        mock_cluster = Cluster("TarA")
+        test_placement_edges = [62, 60, 65, 63]
+        mock_placements = []
+        while test_placement_edges:
+            pplace = PhyloPlace()
+            pplace.edge_num = test_placement_edges.pop()
+            mock_placements.append(pplace)
+        while mock_placements:
+            pq = PQuery()
+            pq.consensus_placement = mock_placements.pop()
+            mock_cluster.members.append(pq)
+
+        n = 8
+        ref_fasta = phylo_cluster.select_subtree_sequences(ref_pkg=self.refpkg,
+                                                           cluster=mock_cluster,
+                                                           subtree_size=n)
+        self.assertEqual(n, ref_fasta.n_seqs())
         return
 
 
