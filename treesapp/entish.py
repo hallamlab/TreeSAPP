@@ -26,14 +26,16 @@ def get_node(tree: str, pos: int) -> (int, int):
     return int(node), pos
 
 
-def label_internal_nodes_ete(ete_tree: Tree, relabel=False) -> None:
+def label_internal_nodes_ete(ete_tree: Tree, relabel=False, attr="name", attr_type=str) -> None:
     i = 0
     if len(ete_tree.children) > 2:
         ete_tree.resolve_polytomy(recursive=True)
     for n in ete_tree.traverse(strategy="postorder"):  # type: Tree
         # Name the edge by it's unique internal node number
-        if not n.name or relabel:
-            n.name = str(i)
+        if not hasattr(n, attr):
+            n.add_feature(attr, attr_type(i))
+        elif not getattr(n, attr) or relabel:
+            setattr(n, attr, attr_type(i))
         i += 1
     return
 

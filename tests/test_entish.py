@@ -54,7 +54,7 @@ class EntishTester(unittest.TestCase):
 
     def test_label_internal_nodes_ete(self):
         from treesapp.entish import label_internal_nodes_ete
-        label_internal_nodes_ete(self.mock_tree)
+        label_internal_nodes_ete(self.mock_tree, attr_type=str)
         multi_tree = Tree(self.multifurcating_tree_str)
         for n in self.mock_tree:
             self.assertIsInstance(n.name, str)
@@ -62,6 +62,11 @@ class EntishTester(unittest.TestCase):
         label_internal_nodes_ete(multi_tree)
         self.assertEqual(9, len(multi_tree.get_edges()))
         self.assertEqual('8', multi_tree.get_tree_root().name)
+
+        label_tree = Tree(self.mock_tree_str)
+        label_internal_nodes_ete(ete_tree=label_tree, attr_type=int, attr="i_node")
+        for n in label_tree:
+            self.assertIsInstance(n.i_node, int)
         return
 
     def test_edge_from_node_name(self):
