@@ -20,6 +20,7 @@ from treesapp import classy as ts_classy
 from treesapp import fasta
 from treesapp import wrapper
 from treesapp import entish
+from treesapp import utilities
 
 
 class PhylOTU:
@@ -198,6 +199,7 @@ class PhyloClust(ts_classy.TreeSAPP):
                 logging.error("Node {} is not complete with RED and taxonomy attributes.\n".format(node.name))
                 sys.exit(17)
 
+        entish.label_internal_nodes_ete(tree, attr="i_node", attr_type=int)
         group_index = hierarchy.accepted_ranks_depths[self.tax_rank]
 
         for r_leaf in tree.get_leaves():  # type: TreeNode
@@ -205,7 +207,7 @@ class PhyloClust(ts_classy.TreeSAPP):
             if len(r_tax.lineage()) <= group_index:
                 continue
             try:
-                target_group = r_tax.prefix_taxon()  # type: str
+                target_group = r_tax.get_rank_in_lineage(rank_name=self.tax_rank).prefix_taxon()
             except IndexError:
                 continue
 
@@ -213,27 +215,31 @@ class PhyloClust(ts_classy.TreeSAPP):
             for q_leaf in tree.get_leaves():  # type: TreeNode
                 if q_leaf is r_leaf:
                     continue
-                q_lineage = getattr(q_leaf, "taxon").lineage()
-                if len(q_lineage) <= group_index:
-                    continue
-                # Ensure the query leaf belongs to the same taxonomic group
-                if target_group not in [t.prefix_taxon() for t in q_lineage]:
+                q_tax = getattr(q_leaf, "taxon")
+                # Ensure the relationship between the two taxa is desired
+                if ts_taxonomy.Taxon.lca(r_tax, q_tax).rank != self.tax_rank:
                     continue
 
                 # Calculate the RED distance between the two monophyletic nodes
                 ca = r_leaf.get_common_ancestor(q_leaf)
                 if self.check_monophyly(ca, target_group):
+                    pair_hash = utilities.elegant_pair(getattr(r_leaf, "i_node"),
+                                                       getattr(q_leaf, "i_node"),
+                                                       sort=True)
                     if self.normalize:
                         try:
-                            rel_dists[target_group].append(1-ca.rel_dist)
+                            rel_dists[target_group][pair_hash] = 1-ca.rel_dist
                         except KeyError:
-                            rel_dists[target_group] = [1-ca.rel_dist]
+                            rel_dists[target_group] = {pair_hash: 1-ca.rel_dist}
                     else:
                         try:
-                            rel_dists[target_group].append(r_leaf.get_distance(q_leaf))
+                            rel_dists[target_group][pair_hash] = r_leaf.get_distance(q_leaf)
                         except KeyError:
-                            rel_dists[target_group] = [r_leaf.get_distance(q_leaf)]
+                            rel_dists[target_group] = {pair_hash: r_leaf.get_distance(q_leaf)}
 
+        # Remove the hash index so map taxa to their branch length distances between leaves
+        for target_group, pair_dists in rel_dists.items():
+            rel_dists[target_group] = [round(x, 4) for x in pair_dists.values()]
         return rel_dists
 
     def calculate_distance_threshold(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy) -> None:

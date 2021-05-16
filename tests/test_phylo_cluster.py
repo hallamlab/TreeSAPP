@@ -119,8 +119,8 @@ class PhyloClusterTester(unittest.TestCase):
         p_clust.normalize = True
         p_clust.tax_rank = "family"
         rel_dists = p_clust.group_rel_dists(self.taxa_tree, self.refpkg.taxa_trie)
-        self.assertEqual(8, len(rel_dists))
-        self.assertEqual(85, len(sum(rel_dists.values(), [])))
+        self.assertEqual(5, len(rel_dists))
+        self.assertEqual(403, len(sum(rel_dists.values(), [])))
         return
 
     def test_calculate_distance_threshold(self):
