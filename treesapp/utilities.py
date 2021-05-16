@@ -691,3 +691,12 @@ def fetch_executable_path(exe_name, treesapp_dir):
     else:
         logging.error("Could not find a valid executable for '{}'.\n".format(exe_name))
         sys.exit(13)
+
+
+def elegant_pair(x: int, y: int, sort=False) -> int:
+    if sort:
+        x, y = sorted([x, y])
+    if y > x:
+        return y*y + x
+    else:
+        return x*x + x + y

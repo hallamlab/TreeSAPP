@@ -95,6 +95,14 @@ class ClassifierTester(unittest.TestCase):
         self.assertEqual("GTCC", reverse_complement("GGAC"))
         return
 
+    def test_elegant_pair(self):
+        from treesapp.utilities import elegant_pair
+        self.assertEqual(elegant_pair(138, 139, True),
+                         elegant_pair(139, 138, True))
+        self.assertEqual(17, elegant_pair(1, 4))
+        self.assertEqual(21, elegant_pair(4, 1))
+        return
+
 
 if __name__ == '__main__':
     unittest.main()
