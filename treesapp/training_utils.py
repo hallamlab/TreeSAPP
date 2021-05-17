@@ -146,6 +146,7 @@ class PhyTrainer(classy.TreeSAPP):
 
         return info_string
 
+
 def summarize_query_classes(positives: set, query_seq_names: set) -> None:
     logging.info("Enumeration of potential query sequence classes:\n")
     false_pos = set()

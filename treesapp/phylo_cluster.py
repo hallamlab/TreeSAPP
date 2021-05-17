@@ -21,6 +21,7 @@ from treesapp import fasta
 from treesapp import wrapper
 from treesapp import entish
 from treesapp import utilities
+from treesapp import training_utils
 
 
 class PhylOTU:
@@ -243,11 +244,20 @@ class PhyloClust(ts_classy.TreeSAPP):
         return rel_dists
 
     def calculate_distance_threshold(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy) -> None:
+        dists = np.array([])
+        min_obs = 3
         # Find the 95% confidence interval for RED values between leaves of the same genus
         grouped_rel_dists = self.group_rel_dists(taxa_tree, taxonomy)
-        dists = []
-        for group_dists in grouped_rel_dists.values():
-            dists += group_dists
+        # Improve evenness across different taxa by augmenting branch length distances
+        richest = max(len(x) for x in grouped_rel_dists.values())
+        for _taxon, obs in grouped_rel_dists.items():
+            if min_obs <= len(obs) < richest:
+                reps = int(richest/len(obs))
+                synth_obs = training_utils.augment_training_set(obs,
+                                                                n_reps=reps,
+                                                                feature_scale=np.std(obs)).reshape(len(obs)*reps, 1)
+                obs = np.append(obs, synth_obs)
+            dists = np.append(dists, obs)
         self.alpha = np.percentile(dists, 95)
         return
 
