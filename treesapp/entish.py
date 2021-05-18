@@ -121,14 +121,13 @@ def load_ete3_tree(newick_tree) -> Tree:
 
 
 def collapse_ete_tree(tree_root: Tree, min_branch_length: float):
-    for n in tree_root.traverse(strategy="preorder"):
-        for c in n.get_children():
-            if c.is_leaf():
-                if c.dist < min_branch_length:
-                    c.detach()
-            else:
-                if c.get_farthest_leaf()[1] < min_branch_length:
-                    c.detach()
+    for n in tree_root.traverse(strategy="postorder"):
+        if n.is_leaf():
+            continue
+        else:
+            closest_leaf, leaf_dist = n.get_closest_leaf()  # type: (Tree, float)
+            if leaf_dist < min_branch_length:
+                closest_leaf.delete(prevent_nondicotomic=True, preserve_branch_length=True)
 
     return
 

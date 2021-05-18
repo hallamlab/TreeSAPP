@@ -116,16 +116,24 @@ class EntishTester(unittest.TestCase):
 
     def test_collapse_ete_tree(self):
         from treesapp.entish import collapse_ete_tree
-        mock_tree = Tree("(A:1,(B:1,(E:0.1,D:0.5):0.5):0.5);")
+        mock_tree = Tree("(A:1,(B:1,(E:0.1,D:0.4):0.1):0.5);")
         collapse_ete_tree(mock_tree, min_branch_length=0.6)
         self.assertEqual(['A', 'B'], mock_tree.get_leaf_names())
+        self.assertEqual(3, len(mock_tree.get_edges()))
 
         rp_tree = Tree('(((((((((217_McrA:1.40284)1:0.072783)1:0.076191)1:0.060539)1:0.048257,488:0.039767)1:0.07175)'
                        '1:0.109454)1:0.036157)1:0.0282665,(129:0.064633,(((67:0.055106)1:0.086543)1:0.054828,'
                        '((201_McrA:1.01787,(203_McrA:0.361599)1:0.213719)1:0.443498,(((200_McrA:0.412511)1:0.277927)'
                        '1:0.119218,197_McrA:0.955209)1:0.276102)1:0.121564)1:0.035701)1:0.0282665)1:0.107436;')
         collapse_ete_tree(rp_tree, min_branch_length=0.67)
+        self.assertEqual(3, len(rp_tree))
+
+        rp_tree = Tree('((49_McrA:0.035,((37_McrA:0.029,9_McrA:0.025)1:0.014,'
+                       '(7_McrA:0.031,194_McrA:0.031)1:0.019)1:0.02)1:0.015,'
+                       '(6_McrA:0.037,((191_McrA:0.031,192_McrA:0.051)1:0.018,27_McrA:0.079)1:0.022)1:0.015);')
+        collapse_ete_tree(rp_tree, min_branch_length=0.0375)
         self.assertEqual(4, len(rp_tree))
+        self.assertEqual(7, len(rp_tree.get_edges()))
         return
 
 
