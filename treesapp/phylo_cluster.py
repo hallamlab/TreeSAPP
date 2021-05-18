@@ -44,6 +44,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.arg_parser = TreeSAPPArgumentParser(description="A tool for sorting query sequences placed on a phylogeny"
                                                              " into phylogenetically-inferred clusters.")
         self.clustering_mode = ""
+        self.pre_mode = ""
         self.alpha = 0
         self.tax_rank = "species"
         self.normalize = False
@@ -74,6 +75,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.validate_continue(args)
 
         self.clustering_mode = args.clustering_mode
+        self.pre_mode = args.pre_mode
 
         if args.pkg_target:
             refpkg_dict = refpkg.gather_ref_packages(self.refpkg_dir, [args.pkg_target])
@@ -138,6 +140,11 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.arg_parser.optopt.add_argument("-m", "--mode", dest="clustering_mode",
                                             choices=["de_novo", "ref_guided"], default="ref_guided", required=False,
                                             help="The phylogentic clustering mode to use. [ DEFAULT = ref_guided ].")
+        self.arg_parser.optopt.add_argument("-p", "--pre_cluster", dest="pre_mode",
+                                            choices=["psc", "align"], default="psc", required=False,
+                                            help="The method to use for pre-clustering the classified sequences, "
+                                                 "based on either placement-space ('psc') or "
+                                                 "pairwise alignment ('align'). [ DEFAULT = 'psc' ]")
         self.arg_parser.optopt.add_argument("-t", "--tax_rank",
                                             default="species", choices=["class", "order", "family", "genus", "species"],
                                             help="The taxonomic rank the cluster radius should approximately represent."
@@ -154,7 +161,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         # self.arg_parser.pplace_args.add_argument("-d", "--evo_dist",
         #                                          choices=["raw", "red"], default="red", required=False,
         #                                          help="The evolutionary distance normalisation method to use."
-        #                                               " [ DEAULT = red ]")
+        #                                               " [ DEFAULT = red ]")
 
         # Parse the arguments
         return self.arg_parser.parse_args(sys_args)
@@ -659,7 +666,7 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, cluster_method=None, drep_si
         pqueries_fasta.change_dict_keys()
         pqueries_fasta.keep_only(header_subset=[c.representative for num, c in pquery_precluster_map.items()])
 
-    # Combine clusters based on the pre-cluster method
+    # Combine clusters into batches based on the pre-cluster method used
     pquery_precluster_map = format_precluster_map(cluster_method, pquery_precluster_map)
     # Infer a phylogeny and clusters for each pre-cluster (from either pairwise alignment or placement-space)
     generate_trees_for_preclusters(phylo_clust, pquery_precluster_map, pqueries_fasta)
@@ -722,7 +729,7 @@ def cluster_phylogeny(sys_args: list) -> None:
     if p_clust.clustering_mode == "ref_guided":
         reference_placement_phylo_clusters(phylo_clust=p_clust, taxon_labelled_tree=taxa_tree)
     elif p_clust.clustering_mode == "de_novo":
-        de_novo_phylo_clusters(phylo_clust=p_clust, cluster_method="psc")
+        de_novo_phylo_clusters(phylo_clust=p_clust, cluster_method=p_clust.pre_mode)
     else:
         logging.error("Unknown clustering mode specified: '{}'.\n".format(p_clust.clustering_mode))
         sys.exit(5)

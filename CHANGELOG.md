@@ -1,14 +1,19 @@
 ## [0.11.1] - 2021-05
 ### Added
 - Option '--unknown_colour' for `treesapp colour` where a colour for "Unknown" features or taxa are included in the iTOL files.
+- New options for pre-clustering the classified sequences using either Barberra et al.'s placement-space method or 
+  pairwise alignment to speed up pOTU inference. Controlled with the "-p/--pre_mode" argument
 
 ### Fixed
-- `treesapp package edit` assigns a leaf node only to the most resolved feature annotation 
+- `treesapp package edit` assigns a leaf node only to the most resolved feature annotation
+- Estimating `treesapp phylotu`'s alpha threshold is improved
 
 ### Changed
 - Non-taxonomic features are coloured in alphabetical order (according to the palette used) in `treesapp colour`
 - iTOL colour-strip files dataset labels are now the feature name
 - Users are warned if multiple feature annotations are assigned to a leaf node during `treesapp package edit`
+- `treesapp phylotu`'s _de novo_ pOTU workflow adds the most related reference sequences when inferring each phylogeny 
+  to handle truncated query sequences
 
 ## [0.11.0] - 2021-04-27
 TreeSAPP version 0.11.0 changes how users store and interact with reference package feature annotations.
