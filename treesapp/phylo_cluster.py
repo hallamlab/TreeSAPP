@@ -6,6 +6,7 @@ import re
 import logging
 
 import numpy as np
+from tqdm import tqdm
 from ete3 import Tree, TreeNode
 
 from treesapp.treesapp_args import TreeSAPPArgumentParser
@@ -353,7 +354,7 @@ class PhyloClust(ts_classy.TreeSAPP):
             taxa = {getattr(leaf, "taxon") for leaf in cluster_tree_node.get_leaves() if leaf.taxon}
             if taxa:
                 potu.taxon = taxa.pop()
-            self.cluster_index[chapter+num] = potu
+            self.cluster_index[potu.number] = potu
         return
 
     def match_edges_to_clusters(self, tree: Tree) -> None:
@@ -370,7 +371,7 @@ class PhyloClust(ts_classy.TreeSAPP):
                 self._edges_to_cluster_index[node_edge_map[node.name]] = p_otu.number
         return
 
-    def assign_pqueries_to_leaf_clusters(self, pqueries: list, pairwise_clusters: dict) -> None:
+    def assign_pqueries_to_leaf_clusters(self, pqueries: list, cluster_map: dict) -> None:
         # Build a map between the leaf node names and cluster numbers
         leaf_cluster_map = {}
         for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
@@ -382,9 +383,10 @@ class PhyloClust(ts_classy.TreeSAPP):
             try:
                 pquery.p_otu = leaf_cluster_map[pquery.place_name]
             except KeyError:
-                for _, cluster in pairwise_clusters.items():  # type: seq_clustering.Cluster
-                    if pquery.place_name in set([member.place_name for member in cluster.members]):
-                        pquery.p_otu = leaf_cluster_map[cluster.representative]
+                for _edge_num, cluster_idx in cluster_map.items():  # type: (int, dict)
+                    for _num, cluster in cluster_idx.items():
+                        if pquery.place_name in set([member.place_name for member in cluster.members]):
+                            pquery.p_otu = leaf_cluster_map[cluster.representative]
             if getattr(pquery, "sample_name") not in self.sample_mat:
                 self.sample_mat[getattr(pquery, "sample_name")] = {n: 0 for n in self.cluster_index}
             try:
@@ -499,8 +501,6 @@ class PhyloClust(ts_classy.TreeSAPP):
 
 
 def infer_cluster_phylogeny(phylo_clust: PhyloClust, fasta_inst: fasta.FASTA) -> Tree:
-    # TODO: Build a profile HMM from the incomplete query sequences and filter by length/coverage
-
     # Change header format to one without whitespace
     fasta_inst.change_dict_keys("num")
     # Write a FASTA file for multiple sequence alignment and phylogenetic inference
@@ -515,7 +515,8 @@ def infer_cluster_phylogeny(phylo_clust: PhyloClust, fasta_inst: fasta.FASTA) ->
                                            evo_model="LG",
                                            multiple_alignment_file=phylo_clust.stage_output_dir + "de_novo_clusters.mfa",
                                            tree_output_dir=phylo_clust.stage_output_dir,
-                                           tree_prefix="de_novo_cluster_tree")
+                                           tree_prefix="de_novo_cluster_tree",
+                                           verbosity=0)
 
     # Ensure that the phylogeny is bifurcating
     ete_tree = Tree(clusters_tree)
@@ -542,9 +543,8 @@ def pqueries_to_fasta(pqueries, fa_name="") -> fasta.FASTA:
 def subtree_finder(ref_tree: Tree, leaf_nodes: set, tree_size=3) -> Tree:
     """Finds the smallest clade that includes all lead node names in leaf_nodes and is at least min_size large."""
     subtree_root = None
-    for n in ref_tree.traverse(strategy="postorder"):
-        if leaf_nodes.issubset(n.get_leaf_names()):
-            subtree_root = n
+    for subtree_root in ref_tree.traverse(strategy="postorder"):
+        if leaf_nodes.issubset(subtree_root.get_leaf_names()):
             break
 
     while len(subtree_root) < tree_size:
@@ -553,17 +553,17 @@ def subtree_finder(ref_tree: Tree, leaf_nodes: set, tree_size=3) -> Tree:
     subtree_root.set_outgroup(new_root)
 
     # Prune to an even representation of the tree that is of length tree_size
-    branch_collapse_dist = sorted([n.dist for n in subtree_root])[-1*tree_size]
-    entish.collapse_ete_tree(subtree_root, branch_collapse_dist)
+    while len(subtree_root) > tree_size:
+        branch_collapse_dist = sorted([n.dist for n in subtree_root])[-1*tree_size]
+        entish.collapse_ete_tree(subtree_root, branch_collapse_dist)
     return subtree_root
 
 
-def select_subtree_sequences(cluster: seq_clustering.Cluster, ref_pkg: refpkg.ReferencePackage,
-                             subtree_size=3) -> fasta.FASTA:
-    # Find the reference sequences that are descendents of the placement edge
+def select_subtree_sequences(clusters: list, ref_pkg: refpkg.ReferencePackage, subtree_size=3) -> fasta.FASTA:
+    """Find the reference sequences that are descendents of the placement edge and create a representative subset."""
     placement_edges = set()
     leaf_nodes = []
-    for pquery in cluster.members:  # type: phylo_seq.PQuery
+    for pquery in sum([c.members for c in clusters], []):  # type: phylo_seq.PQuery
         placement_edges.add(pquery.consensus_placement.edge_num)
 
     internal_node_leaves_map = ref_pkg.get_internal_node_leaf_map()
@@ -578,11 +578,15 @@ def select_subtree_sequences(cluster: seq_clustering.Cluster, ref_pkg: refpkg.Re
 
 
 def generate_trees_for_preclusters(phylo_clust: PhyloClust, pre_clusters: dict, pqueries_fasta: fasta.FASTA) -> None:
-    for _num, cluster in pre_clusters.items():  # type: (int, seq_clustering.Cluster)
-        ref_subtree_fasta = select_subtree_sequences(cluster, phylo_clust.ref_pkg)
+    p_bar = tqdm(total=len(pre_clusters),
+                 ncols=100,
+                 desc="Inferring phylogenies for each placement edge")
+    for edge_num, cluster_num in pre_clusters.items():  # type: (int, dict)
+        ref_subtree_fasta = select_subtree_sequences(list(cluster_num.values()), phylo_clust.ref_pkg)
         ref_subtree_fasta.unalign()
         # Combine the query sequences from the cluster and reference sequences
-        cluster_fasta = fasta.subset_fasta(pqueries_fasta, [pq.place_name for pq in cluster.members])
+
+        cluster_fasta = fasta.subset_fasta(pqueries_fasta, [c.representative for c in list(cluster_num.values())])
         ref_subtree_fasta.fasta_join(cluster_fasta)
         de_novo_phylogeny = infer_cluster_phylogeny(phylo_clust, ref_subtree_fasta)
 
@@ -590,13 +594,30 @@ def generate_trees_for_preclusters(phylo_clust: PhyloClust, pre_clusters: dict, 
         phylo_clust.set_pquery_leaf_node_taxa(tree=de_novo_phylogeny)
         # Define tree clusters
         phylo_clust.define_tree_clusters(tree=de_novo_phylogeny, internal=False)
+        p_bar.update()
 
+    p_bar.close()
     # Remove clusters only occupied by reference sequences from PhyloClust.cluster_index
     pquery_names = set([pq.place_name for pq in phylo_clust.clustered_pqueries])
     for num in list(phylo_clust.cluster_index):  # type: int
         if not pquery_names.intersection(phylo_clust.cluster_index[num].tree_node.get_leaf_names()):
             phylo_clust.cluster_index.pop(num)
     return
+
+
+def format_precluster_map(cluster_method: str, precluster_map: dict) -> dict:
+    batch_indexed_cluster_map = {}
+    if cluster_method == "psc":
+        # Index the preclusters by their placement edge
+        for num, cluster in precluster_map.items():  # type: (str, seq_clustering.Cluster)
+            rep = cluster.members.__getitem__(0)  # type: phylo_seq.PQuery
+            if rep.consensus_placement.edge_num not in batch_indexed_cluster_map:
+                batch_indexed_cluster_map[rep.consensus_placement.edge_num] = {}
+            batch_indexed_cluster_map[rep.consensus_placement.edge_num][num] = cluster
+    elif cluster_method == "align":
+        # Combine so all representatives are used to infer a single phylogeny in generate_trees_for_preclusters
+        batch_indexed_cluster_map[0] = precluster_map
+    return batch_indexed_cluster_map
 
 
 def de_novo_phylo_clusters(phylo_clust: PhyloClust, cluster_method=None, drep_similarity=1.0):
@@ -612,6 +633,8 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, cluster_method=None, drep_si
         for pquery in classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]:
             phylo_clust.set_pquery_sample_name(pquery, sample_id)
             phylo_clust.clustered_pqueries.append(pquery)
+    if len(classified_pqueries) == 0:
+        return
 
     # Load the classified PQuery sequences into a FASTA instance
     pqueries_fasta = pqueries_to_fasta(classified_pqueries,
@@ -620,6 +643,7 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, cluster_method=None, drep_si
     phylo_clust.increment_stage_dir()
 
     # Dereplicate classified sequences into Clusters
+    pquery_precluster_map = {}
     if cluster_method == "align":
         pquery_precluster_map = seq_clustering.dereplicate_by_clustering(fasta_inst=pqueries_fasta,
                                                                          prop_similarity=drep_similarity,
@@ -634,9 +658,9 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, cluster_method=None, drep_si
         # Keep only the representative sequences in the FASTA instance
         pqueries_fasta.change_dict_keys()
         pqueries_fasta.keep_only(header_subset=[c.representative for num, c in pquery_precluster_map.items()])
-    else:
-        pquery_precluster_map = {}
 
+    # Combine clusters based on the pre-cluster method
+    pquery_precluster_map = format_precluster_map(cluster_method, pquery_precluster_map)
     # Infer a phylogeny and clusters for each pre-cluster (from either pairwise alignment or placement-space)
     generate_trees_for_preclusters(phylo_clust, pquery_precluster_map, pqueries_fasta)
 
@@ -702,6 +726,12 @@ def cluster_phylogeny(sys_args: list) -> None:
     else:
         logging.error("Unknown clustering mode specified: '{}'.\n".format(p_clust.clustering_mode))
         sys.exit(5)
+
+    # Exit if there were no sequences classified
+    if not p_clust.clustered_pqueries:
+        logging.warning("No sequences were classified as '{}' in any of the provided treesapp assign outputs.\n"
+                        "".format(p_clust.ref_pkg.prefix))
+        return
 
     # Write a OTU table with the abundance of each PhylOTU for each JPlace
     p_clust.write_otu_matrix()

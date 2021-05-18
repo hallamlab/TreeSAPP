@@ -151,7 +151,7 @@ def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, 
 
 
 def construct_tree(tree_builder: str, executables: dict, evo_model: str, multiple_alignment_file: str,
-                   tree_output_dir: str, tree_prefix: str, num_trees=10, num_threads=2) -> str:
+                   tree_output_dir: str, tree_prefix: str, num_trees=10, num_threads=2, verbosity=1) -> str:
     """
     Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
 
@@ -164,10 +164,13 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
     :param tree_prefix: Prefix to be used for the outputs
     :param num_threads: Number of threads to use (for RAxML-NG only)
     :param num_trees: The number of starting trees to use, inferred by random and parsimony each
+    :param verbosity: Controls the logging level. 1 is logging.INFO, 0 is logging.DEBUG.
     :return: Stylized name of the tree-building software used
     """
 
     # Decide on the command to build the tree, make some directories and files when necessary
+    if not verbosity:
+        utilities.mod_logging_level("debug")
     logging.info("Building phylogenetic tree with " + tree_builder + "... ")
     best_tree = "{}{}.{}.nwk".format(tree_output_dir, tree_prefix, tree_builder)
     if tree_builder == "FastTree":
@@ -199,6 +202,7 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
         sys.exit(5)
 
     logging.info("done.\n")
+    utilities.mod_logging_level()
     logging.debug(stdout + "\n")
 
     if returncode != 0:

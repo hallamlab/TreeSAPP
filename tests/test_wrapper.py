@@ -87,6 +87,7 @@ class ExecutableWrapperTester(unittest.TestCase):
         from treesapp.utilities import fetch_executable_path
         from treesapp.wrapper import construct_tree
         from treesapp.entish import load_ete3_tree
+        import logging
         # Test with an absurd number of threads to ensure RAxML-NG's auto-scaling works
         best_tree = construct_tree(tree_builder="RAxML-NG",
                                    executables={"raxml-ng": fetch_executable_path(exe_name="raxml-ng",
@@ -96,10 +97,13 @@ class ExecutableWrapperTester(unittest.TestCase):
                                    tree_output_dir=self.tmp_dir,
                                    tree_prefix="TMP",
                                    num_trees=1,
-                                   num_threads=24)
+                                   num_threads=24,
+                                   verbosity=0)
         self.assertTrue(os.path.isfile(best_tree))
         bs_tree = load_ete3_tree(best_tree)
         self.assertEqual(39, len(bs_tree))
+        # self.assertEqual(logging.INFO,
+        #                  logging.getLogger().level)
         return
 
     def test_run_graftm_graft(self):

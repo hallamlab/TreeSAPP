@@ -7,7 +7,7 @@ import shutil
 from copy import deepcopy
 from ete3 import Tree, TreeNode
 
-from .testing_utils import get_test_data
+from .testing_utils import get_test_data, random_ete_tree
 
 
 class PhyloClusterTester(unittest.TestCase):
@@ -207,6 +207,43 @@ class PhyloClusterTester(unittest.TestCase):
         self.assertEqual(q_seqs.n_seqs(), len(ete_tree))
         return
 
+    def test_assign_pqueries_to_leaf_clusters(self):
+        from treesapp import phylo_cluster
+        from treesapp import file_parsers
+        from treesapp import assign
+        from treesapp import seq_clustering
+        p_clust = phylo_cluster.PhyloClust()
+        pqueries = file_parsers.load_classified_sequences_from_assign_output(assign_output_dir=get_test_data("test_output_TarA"),
+                                                                             assigner_cls=assign.Assigner(),
+                                                                             refpkg_name="McrA")["McrA"]
+        pquery_names = []
+        for pq in pqueries:
+            pquery_names.append(pq.place_name)
+            setattr(pq, "sample_name", "test")
+
+        i = 0
+        spread = 3
+        precluster_map = {}
+        while pquery_names:
+            p_otu = phylo_cluster.PhylOTU(name=str(i))
+            p_otu.tree_node = random_ete_tree(pquery_names[0:spread])
+            p_clust.cluster_index[str(i)] = p_otu
+            if i % 2 == 0:
+                mock_cluster = seq_clustering.Cluster(pquery_names[0])
+                mock_cluster.members = pqueries[i*spread:(i*spread)+spread]
+                precluster_map[i] = {str(i): mock_cluster}
+            i += 1
+            pquery_names = pquery_names[spread:]
+        self.assertEqual([0, 2], list(precluster_map.keys()))
+        self.assertEqual(4, len(p_clust.cluster_index))
+
+        p_clust.assign_pqueries_to_leaf_clusters(pqueries=pqueries,
+                                                 cluster_map=precluster_map)
+        self.assertEqual({'0': 3, '1': 3, '2': 3, '3': 2},
+                         p_clust.sample_mat["test"])
+
+        return
+
     def test_de_novo_phylo_clusters(self):
         from treesapp import phylo_cluster
         p_clust = phylo_cluster.PhyloClust()
@@ -227,6 +264,19 @@ class PhyloClusterTester(unittest.TestCase):
 
         return
 
+    def test_subtree_finder(self):
+        from treesapp import phylo_cluster
+        target_leaves = {'9_McrA', '6_McrA', '7_McrA',
+                         '37_McrA', '49_McrA', '27_McrA',
+                         '191_McrA', '192_McrA', '194_McrA'}
+        subtree_size = 3
+        sub_root = phylo_cluster.subtree_finder(ref_tree=self.refpkg.get_ete_tree(),
+                                                leaf_nodes=target_leaves,
+                                                tree_size=subtree_size)
+        self.assertTrue(set(sub_root.get_leaf_names()).issubset(target_leaves))
+        self.assertEqual(subtree_size, len(sub_root.get_leaf_names()))
+        return
+
     def test_select_subtree_sequences(self):
         from treesapp import phylo_cluster
         from treesapp.seq_clustering import Cluster
@@ -245,7 +295,7 @@ class PhyloClusterTester(unittest.TestCase):
 
         n = 8
         ref_fasta = phylo_cluster.select_subtree_sequences(ref_pkg=self.refpkg,
-                                                           cluster=mock_cluster,
+                                                           clusters=[mock_cluster],
                                                            subtree_size=n)
         self.assertEqual(n, ref_fasta.n_seqs())
         return

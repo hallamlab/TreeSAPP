@@ -3,6 +3,19 @@
 import os
 from pkg_resources import Requirement, resource_filename, ResolutionError
 
+import ete3
+
+
+def random_ete_tree(leaf_names: list, branch_len_dist=None) -> ete3.Tree:
+    if not branch_len_dist:
+        branch_len_dist = (0, 1)
+    rand_tree = ete3.Tree()
+    rand_tree.populate(size=len(leaf_names),
+                       names_library=leaf_names,
+                       branch_range=branch_len_dist,
+                       random_branches=True)
+    return rand_tree
+
 
 def get_treesapp_root():
     return resource_filename(Requirement.parse("treesapp"), 'treesapp')

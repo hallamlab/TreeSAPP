@@ -700,3 +700,14 @@ def elegant_pair(x: int, y: int, sort=False) -> int:
         return y*y + x
     else:
         return x*x + x + y
+
+
+def mod_logging_level(loglevel=None):
+    logger = logging.getLogger('root')
+    if loglevel is None:
+        loglevel = "INFO"
+    numeric_level = getattr(logging, loglevel.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError("Invalid log level: %s" % loglevel.upper())
+    logger.setLevel(numeric_level)
+    return

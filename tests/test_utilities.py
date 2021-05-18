@@ -103,6 +103,22 @@ class ClassifierTester(unittest.TestCase):
         self.assertEqual(21, elegant_pair(4, 1))
         return
 
+    def test_mod_log_level(self):
+        from treesapp.utilities import mod_logging_level
+        from treesapp.classy import prep_logging
+        import logging
+        prep_logging(log_file="log.txt", verbosity=False)
+        root_logger = logging.getLogger('root')
+        self.assertEqual(logging.INFO, root_logger.level)
+
+        mod_logging_level("debug")
+        self.assertEqual(logging.DEBUG, root_logger.level)
+        with pytest.raises(ValueError):
+            mod_logging_level("SUPER")
+        mod_logging_level()
+        self.assertEqual(logging.INFO, root_logger.level)
+        return
+
 
 if __name__ == '__main__':
     unittest.main()
