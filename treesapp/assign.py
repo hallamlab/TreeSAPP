@@ -912,7 +912,8 @@ def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
     return
 
 
-def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: float, max_pendant: float) -> None:
+def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
+                      min_lwr: float, max_pendant: float, max_bl_dist: float) -> None:
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
@@ -923,6 +924,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
     :param min_lwr: Likelihood-weight-ratio (LWR) threshold for filtering pqueries
     :param max_pendant: The maximum pendant length distance threshold.
     PQueries with pendant length > max_pendant will be unclassified.
+    :param max_bl_dist: The maximum evolutionary distance for placed queries (sum of all branch lengths to its leaves)
     :return: None
     """
     # The following list must match that of training_utils.vectorize_placement_data_by_rank()
@@ -936,6 +938,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
         unclassified_seqs[ref_pkg.prefix] = dict()
         unclassified_seqs[ref_pkg.prefix]["low_lwr"] = list()
         unclassified_seqs[ref_pkg.prefix]["big_pendant"] = list()
+        unclassified_seqs[ref_pkg.prefix]["distant"] = list()
         unclassified_seqs[ref_pkg.prefix]["svm"] = list()
         svc_attempt = False
 
@@ -952,6 +955,9 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
 
             if tree_sap.consensus_placement.pendant_length > max_pendant:
                 unclassified_seqs[ref_pkg.prefix]["big_pendant"].append(tree_sap)
+                tree_sap.classified = False
+            elif tree_sap.avg_evo_dist > max_bl_dist:
+                unclassified_seqs[ref_pkg.prefix]["distant"].append(tree_sap)
                 tree_sap.classified = False
 
             if svc:
@@ -1409,7 +1415,7 @@ def assign(sys_args):
         ts_assign.increment_stage_dir()
         # Set PQuery.consensus_placement attributes
         select_query_placements(tree_saps, refpkg_dict, mode=args.p_sum)
-        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr, args.max_pd)
+        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr, args.max_pd, args.max_evo)
         determine_confident_lineage(tree_saps, refpkg_dict)
 
         ts_assign.write_classified_orfs(tree_saps, extracted_seq_dict)
