@@ -251,7 +251,7 @@ class PhyloClust(ts_classy.TreeSAPP):
             rel_dists[target_group] = [round(x, 4) for x in pair_dists.values()]
         return rel_dists
 
-    def calculate_distance_threshold(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy) -> None:
+    def calculate_distance_threshold(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy, ci=90) -> None:
         dists = np.array([])
         min_obs = 3
         # Find the 95% confidence interval for RED values between leaves of the same genus
@@ -266,7 +266,7 @@ class PhyloClust(ts_classy.TreeSAPP):
                                                                 feature_scale=np.std(obs)).reshape(len(obs)*reps, 1)
                 obs = np.append(obs, synth_obs)
             dists = np.append(dists, obs)
-        self.alpha = np.percentile(dists, 95)
+        self.alpha = np.percentile(dists, ci)
         return
 
     def partition_nodes(self, tree: Tree) -> dict:
@@ -563,9 +563,14 @@ def subtree_finder(ref_tree: Tree, leaf_nodes: set, tree_size=3) -> Tree:
     subtree_root.set_outgroup(new_root)
 
     # Prune to an even representation of the tree that is of length tree_size
+    previous_dist = 0.0
     while len(subtree_root) > tree_size:
         branch_collapse_dist = sorted([n.dist for n in subtree_root])[-1*tree_size]
         entish.collapse_ete_tree(subtree_root, branch_collapse_dist)
+        if branch_collapse_dist == previous_dist:
+            break
+        else:
+            previous_dist = branch_collapse_dist
     return subtree_root
 
 

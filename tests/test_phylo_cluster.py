@@ -128,7 +128,7 @@ class PhyloClusterTester(unittest.TestCase):
         p_clust = PhyloClust()
         p_clust.calculate_distance_threshold(taxa_tree=self.taxa_tree,
                                              taxonomy=self.refpkg.taxa_trie)
-        self.assertTrue(0.05 < round(p_clust.alpha, 2) <= 0.08)
+        self.assertTrue(0.05 < round(p_clust.alpha, 3) <= 0.08)
         return
 
     def test_match_edges_to_clusters(self):
