@@ -483,13 +483,16 @@ class PhyloClust(ts_classy.TreeSAPP):
     def write_pquery_otu_classifications(self, sep="\t") -> None:
         """Writes a tabular table mapping PQuery sequence names to their reference package phylogenetic OTUs."""
         pquery_otu_tbl = self.open_output_file(os.path.join(self.final_output_dir, "phylotu_pquery_assignments.tsv"))
-        tbl_str = sep.join(["PQuery", "RefPkg", "Resolution", "Mode", "OTU_ID"]) + "\n"
-        for pquery in sorted(self.clustered_pqueries, key=lambda x: x.seq_name):
+        tbl_str = sep.join(["PQuery", "RefPkg", "Resolution", "Mode", "pOTU", "d_Distal", "d_Pendant", "d_MeanTip"]) + "\n"
+        for pquery in sorted(self.clustered_pqueries, key=lambda x: x.seq_name):  # type: phylo_seq.PQuery
             tbl_str += sep.join([pquery.seq_name,
                                  pquery.ref_name,
                                  self.tax_rank,
                                  self.clustering_mode,
-                                 str(pquery.p_otu)]) + "\n"
+                                 str(getattr(pquery, "p_otu")),
+                                 str(pquery.consensus_placement.distal_length),
+                                 str(pquery.consensus_placement.pendant_length),
+                                 str(pquery.consensus_placement.mean_tip_length)]) + "\n"
 
         pquery_otu_tbl.write(tbl_str)
         pquery_otu_tbl.close()
