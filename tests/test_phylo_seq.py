@@ -82,6 +82,13 @@ class PhyloSeqTests(unittest.TestCase):
 
         return
 
+    def test_phyloplace_str(self):
+        from treesapp import phylo_seq
+        pplace = phylo_seq.PhyloPlace(placement={"n": "test_seq_1", "p": [["13", "0.01", "0.02"]]},
+                                      field_positions=["edge_num", "distal_length", "pendant_length"])
+        self.assertEqual("Placement of sequence 'test_seq_1' on edge 13", str(pplace))
+        return
+
     def test_calc_mean_tip_length(self):
         placement = self.pquery_test_2.placements[0]
         placement.calc_mean_tip_length(internal_leaf_node_map=self.pquery_test_2.node_map, ref_tree=self.refpkg.tree)

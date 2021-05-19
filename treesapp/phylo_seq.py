@@ -64,6 +64,9 @@ class PhyloPlace:
 
         return
 
+    def __str__(self):
+        return "Placement of sequence '{}' on edge {}".format(self.name, self.edge_num)
+
     def set_attribute_types(self, pquery_dists: str) -> None:
         self.distal_length, self.pendant_length, self.mean_tip_length = [float(d) for d in pquery_dists.split(',')]
         self.edge_num = int(self.edge_num)
