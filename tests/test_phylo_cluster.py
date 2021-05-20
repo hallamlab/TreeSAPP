@@ -65,7 +65,7 @@ class PhyloClusterTester(unittest.TestCase):
         from treesapp.phylo_cluster import PhyloClust
         p_clust = PhyloClust()
         p_clust.alpha = 0.1
-        node_paritions = p_clust.partition_nodes(tree=deepcopy(self.mock_tree))
+        node_paritions = p_clust.partition_nodes(tree=deepcopy(self.mock_tree), alpha=p_clust.alpha)
         # Ensure all the tree's nodes are present in the partitions
         count = 0
         for st in node_paritions.values():
@@ -76,7 +76,7 @@ class PhyloClusterTester(unittest.TestCase):
 
         # Test each leaf in a separate cluster
         p_clust.alpha = 0.2
-        self.assertEqual(3, len(p_clust.partition_nodes(tree=deepcopy(self.mock_tree))))
+        self.assertEqual(3, len(p_clust.partition_nodes(tree=deepcopy(self.mock_tree), alpha=p_clust.alpha)))
         return
 
     def test_build_edge_node_index(self):
@@ -93,7 +93,7 @@ class PhyloClusterTester(unittest.TestCase):
         p_clust = PhyloClust()
         p_clust.alpha = 0.1
         # Test empty
-        edge_clusters = p_clust.split_node_partition_edges({})
+        edge_clusters = p_clust.split_node_partition_edges(p_clust.alpha, {})
         self.assertEqual(0, len(edge_clusters))
 
         a, b, c = TreeNode(name='A', dist=0.2), TreeNode(name='B', dist=0.4), TreeNode(name='0', dist=0.1)
@@ -101,7 +101,7 @@ class PhyloClusterTester(unittest.TestCase):
         c.children = [a]
         a.up = c
         self.assertEqual(2, len(mock_partitions))
-        edge_clusters = p_clust.split_node_partition_edges(mock_partitions)
+        edge_clusters = p_clust.split_node_partition_edges(p_clust.alpha, mock_partitions)
         self.assertEqual(3, len(edge_clusters))
         return
 
@@ -126,9 +126,9 @@ class PhyloClusterTester(unittest.TestCase):
     def test_calculate_distance_threshold(self):
         from treesapp.phylo_cluster import PhyloClust
         p_clust = PhyloClust()
-        p_clust.calculate_distance_threshold(taxa_tree=self.taxa_tree,
-                                             taxonomy=self.refpkg.taxa_trie)
-        self.assertTrue(0.05 < round(p_clust.alpha, 3) <= 0.08)
+        alpha = p_clust.calculate_distance_threshold(taxa_tree=self.taxa_tree,
+                                                     taxonomy=self.refpkg.taxa_trie)
+        self.assertTrue(0.05 < round(alpha, 3) <= 0.08)
         return
 
     def test_match_edges_to_clusters(self):
@@ -158,6 +158,9 @@ class PhyloClusterTester(unittest.TestCase):
         p_clust.alpha = 0.05
         p_clust.define_tree_clusters(tree=deepcopy(self.taxa_tree))
         self.assertTrue(len(self.taxa_tree) <= len(p_clust.cluster_index) <= sum([1 for _ in self.taxa_tree.traverse()]))
+
+        p_clust.define_tree_clusters(tree=deepcopy(self.taxa_tree), override_alpha=0.1)
+        self.assertEqual(0.05, p_clust.alpha)
         return
 
     def test_cluster_phylogeny(self):
@@ -246,20 +249,26 @@ class PhyloClusterTester(unittest.TestCase):
 
     def test_de_novo_phylo_clusters(self):
         from treesapp import phylo_cluster
+        from treesapp import rel_evo_dist
         p_clust = phylo_cluster.PhyloClust()
         p_clust.load_args(p_clust.get_arguments(["--refpkg_path", self.refpkg.f__pkl,
                                                  "--assign_output", get_test_data("test_output_TarA"),
                                                  "--output", self.tmp_dir,
                                                  "--alpha", str(0.4)]))
         # Test with placement space clustering
-        phylo_cluster.de_novo_phylo_clusters(p_clust, cluster_method="psc")
+        taxa_tree = p_clust.ref_pkg.taxonomically_label_tree()
+        red_tree = rel_evo_dist.RedTree()
+        red_tree.decorate_rel_dist(taxa_tree)
+
+        phylo_cluster.de_novo_phylo_clusters(p_clust, taxa_tree, cluster_method="psc")
         self.assertEqual(11, len(p_clust.clustered_pqueries))
         self.assertEqual(len(p_clust.clustered_pqueries),
                          len(set([pq.p_otu for pq in p_clust.clustered_pqueries])))
         # Test with pairwise sequence clustering
         p_clust.cluster_index.clear()
         p_clust.clustered_pqueries.clear()
-        phylo_cluster.de_novo_phylo_clusters(p_clust, cluster_method="align", drep_similarity=0.8)
+        p_clust._edges_to_cluster_index.clear()
+        phylo_cluster.de_novo_phylo_clusters(p_clust, taxa_tree, cluster_method="align", drep_id=0.8)
         self.assertEqual(10, len(set([pq.p_otu for pq in p_clust.clustered_pqueries])))
 
         return

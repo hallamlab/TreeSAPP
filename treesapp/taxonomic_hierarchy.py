@@ -264,6 +264,12 @@ class TaxonomicHierarchy:
             logging.error("Unable to find taxon name '{}' in taxonomic hierarchy.\n".format(taxon_name))
             sys.exit(3)
 
+    def deeper_rank(self, rank_name, step=1):
+        curr_depth = self.accepted_ranks_depths[rank_name]
+        for k, v in self.accepted_ranks_depths.items():
+            if v == curr_depth-step:
+                return k
+
     def resolved_as(self, lineage, rank_name="species") -> bool:
         """
         This determines whether a lineage is resolved to at least the rank provided,

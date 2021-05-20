@@ -251,7 +251,11 @@ class PhyloClust(ts_classy.TreeSAPP):
             rel_dists[target_group] = [round(x, 4) for x in pair_dists.values()]
         return rel_dists
 
-    def calculate_distance_threshold(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy, ci=90) -> None:
+    def calculate_distance_threshold(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy,
+                                     override_rank=None, ci=90) -> float:
+        if override_rank is not None:
+            self.stash("tax_rank")
+            self.tax_rank = override_rank
         dists = np.array([])
         min_obs = 3
         # Find the 95% confidence interval for RED values between leaves of the same genus
@@ -266,15 +270,17 @@ class PhyloClust(ts_classy.TreeSAPP):
                                                                 feature_scale=np.std(obs)).reshape(len(obs)*reps, 1)
                 obs = np.append(obs, synth_obs)
             dists = np.append(dists, obs)
-        self.alpha = np.percentile(dists, ci)
-        return
+        self.withdraw_stash()
+        return np.percentile(dists, ci)
 
-    def partition_nodes(self, tree: Tree) -> dict:
+    @staticmethod
+    def partition_nodes(tree: Tree, alpha: float) -> dict:
         """
         Linear-time solution for the Max-diameter min-cut partitioning problem, as published in:
         Balaban, et al. (2019). TreeCluster: clustering biological sequences using phylogenetic trees.
 
         :param tree: The root of an ete3 Tree instance.
+        :param alpha: The branch length threshold that delineates partitions
         :return: A dictionary mapping cluster names (integers) to TreeNode instances representing the root of clusters:
           d[1] -> TreeNode, d[2] -> TreeNode
         """
@@ -286,7 +292,7 @@ class PhyloClust(ts_classy.TreeSAPP):
             u_l, u_r = node.get_children()  # type: TreeNode
             b_ul, w_ul = node.get_distance(u_l), u_l.get_farthest_leaf()[1]
             b_ur, w_ur = node.get_distance(u_r), u_r.get_farthest_leaf()[1]
-            if b_ul + w_ul + b_ur + w_ur > self.alpha:
+            if b_ul + w_ul + b_ur + w_ur > alpha:
                 if b_ul + w_ul <= b_ur + w_ur:
                     node_partitions[i] = u_r
                     node.remove_child(u_r)
@@ -305,7 +311,8 @@ class PhyloClust(ts_classy.TreeSAPP):
 
         return node_partitions
 
-    def split_node_partition_edges(self, node_partitions: dict) -> dict:
+    @staticmethod
+    def split_node_partition_edges(alpha: float, node_partitions: dict) -> dict:
         """
         Prunes inner nodes that are part of a cluster when their accumulated distance exceeds alpha.
         Therefore, clusters may be entirely comprised of internal nodes.
@@ -320,7 +327,7 @@ class PhyloClust(ts_classy.TreeSAPP):
                     break
                 if node is subtree:
                     break
-                if node.dist > self.alpha:
+                if node.dist > alpha:
                     inode_partitions[index] = node
                     node.up.dist -= node.dist
                     node.up.remove_child(node)
@@ -347,12 +354,26 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.ref_pkg.propagate_internal_node_taxon_labels_from_leaves(tree)
         return
 
-    def define_tree_clusters(self, tree: Tree, internal=True) -> None:
+    def stash(self, name: str) -> None:
+        setattr(self, "_stash", {name: getattr(self, name)})
+        return
+
+    def withdraw_stash(self) -> None:
+        if hasattr(self, "_stash"):
+            k, v = getattr(self, "_stash").popitem()
+            self.__dict__[k] = v
+            delattr(self, "_stash")
+        return
+
+    def define_tree_clusters(self, tree: Tree, internal=True, override_alpha=None) -> None:
+        if override_alpha is not None:
+            self.stash("alpha")
+            self.alpha = override_alpha
+
+        cluster_nodes = self.partition_nodes(tree, self.alpha)
         if internal:
             # Split the cluster nodes into internal nodes when necessary
-            cluster_nodes = self.split_node_partition_edges(self.partition_nodes(tree))
-        else:
-            cluster_nodes = self.partition_nodes(tree)
+            cluster_nodes = self.split_node_partition_edges(self.alpha, cluster_nodes)
 
         chapter = len(self.cluster_index)
         for num, cluster_tree_node in cluster_nodes.items():  # type: (int, TreeNode)
@@ -362,12 +383,15 @@ class PhyloClust(ts_classy.TreeSAPP):
             if taxa:
                 potu.taxon = taxa.pop()
             self.cluster_index[potu.number] = potu
+
+        self.withdraw_stash()
+
         return
 
-    def match_edges_to_clusters(self, tree: Tree) -> None:
+    def match_edges_to_clusters(self, tree: Tree, override_alpha=None) -> None:
         node_edge_map = self.build_edge_node_index(tree)
         if not self.cluster_index:
-            self.define_tree_clusters(tree)
+            self.define_tree_clusters(tree, override_alpha)
         for p_otu in self.cluster_index.values():  # type: PhylOTU
             for node in p_otu.tree_node.traverse():
                 if node_edge_map[node.name] in self._edges_to_cluster_index:
@@ -377,6 +401,19 @@ class PhyloClust(ts_classy.TreeSAPP):
                     sys.exit(13)
                 self._edges_to_cluster_index[node_edge_map[node.name]] = p_otu.number
         return
+
+    def match_pqueries_to_clusters(self, pquery_precluster_map) -> dict:
+        phylo_groups = {}
+        centroid_pqueries = {c.representative: num for num, c in pquery_precluster_map.items()}
+        for pquery in self.clustered_pqueries:  # type: phylo_seq.PQuery
+            if pquery.place_name not in centroid_pqueries:
+                continue
+            cluster = self._edges_to_cluster_index[pquery.consensus_placement.edge_num]
+            if cluster not in phylo_groups:
+                phylo_groups[cluster] = {}
+            phylo_groups[cluster].update({centroid_pqueries[pquery.place_name]:
+                                          pquery_precluster_map[centroid_pqueries[pquery.place_name]]})
+        return phylo_groups
 
     def assign_pqueries_to_leaf_clusters(self, pqueries: list, cluster_map: dict) -> None:
         # Build a map between the leaf node names and cluster numbers
@@ -595,7 +632,7 @@ def select_subtree_sequences(clusters: list, ref_pkg: refpkg.ReferencePackage, s
 def generate_trees_for_preclusters(phylo_clust: PhyloClust, pre_clusters: dict, pqueries_fasta: fasta.FASTA) -> None:
     p_bar = tqdm(total=len(pre_clusters),
                  ncols=100,
-                 desc="Inferring phylogenies for each placement edge")
+                 desc="Inferring phylogenies for each partition")
     for edge_num, cluster_num in pre_clusters.items():  # type: (int, dict)
         ref_subtree_fasta = select_subtree_sequences(list(cluster_num.values()), phylo_clust.ref_pkg)
         ref_subtree_fasta.unalign()
@@ -635,8 +672,9 @@ def format_precluster_map(cluster_method: str, precluster_map: dict) -> dict:
     return batch_indexed_cluster_map
 
 
-def de_novo_phylo_clusters(phylo_clust: PhyloClust, cluster_method=None, drep_similarity=1.0):
+def de_novo_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree, cluster_method=None, drep_id=1.0):
     psc_cluster_size = 10
+    phylo_group = "partition"
 
     # Gather all classified sequences for a reference package from the treesapp assign outputs
     classified_pqueries = {}
@@ -661,7 +699,7 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, cluster_method=None, drep_si
     pquery_precluster_map = {}
     if cluster_method == "align":
         pquery_precluster_map = seq_clustering.dereplicate_by_clustering(fasta_inst=pqueries_fasta,
-                                                                         prop_similarity=drep_similarity,
+                                                                         prop_similarity=drep_id,
                                                                          mmseqs_exe=phylo_clust.executables["mmseqs"],
                                                                          tmp_dir=phylo_clust.stage_output_dir)
         for cluster in pquery_precluster_map.values():  # type: seq_clustering.Cluster
@@ -674,10 +712,22 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, cluster_method=None, drep_si
         pqueries_fasta.change_dict_keys()
         pqueries_fasta.keep_only(header_subset=[c.representative for num, c in pquery_precluster_map.items()])
 
-    # Combine clusters into batches based on the pre-cluster method used
-    pquery_precluster_map = format_precluster_map(cluster_method, pquery_precluster_map)
+    if phylo_group == "partition":
+        broader_rank = phylo_clust.ref_pkg.taxa_trie.deeper_rank(phylo_clust.tax_rank)
+        # Broadly partition reference phylogeny for phylogenetic trees
+        alpha = phylo_clust.calculate_distance_threshold(taxon_labelled_tree,
+                                                         phylo_clust.ref_pkg.taxa_trie,
+                                                         override_rank=broader_rank)
+        phylo_clust.match_edges_to_clusters(tree=phylo_clust.ref_pkg.taxonomically_label_tree(),
+                                            override_alpha=alpha)
+        # Find the minimal set of clusters that contain all pqueries.
+        phylo_groups = phylo_clust.match_pqueries_to_clusters(pquery_precluster_map)
+    else:
+        # Combine clusters into batches based on the pre-cluster method used
+        phylo_groups = format_precluster_map(cluster_method, pquery_precluster_map)
+
     # Infer a phylogeny and clusters for each pre-cluster (from either pairwise alignment or placement-space)
-    generate_trees_for_preclusters(phylo_clust, pquery_precluster_map, pqueries_fasta)
+    generate_trees_for_preclusters(phylo_clust, phylo_groups, pqueries_fasta)
 
     phylo_clust.increment_stage_dir()
     for sample_id in classified_pqueries:
@@ -685,7 +735,7 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, cluster_method=None, drep_si
             continue
         pqueries = classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]
         # Use pquery_precluster_map to assign pqueries to clusters that are not in the phylogeny
-        phylo_clust.assign_pqueries_to_leaf_clusters(pqueries, pquery_precluster_map)
+        phylo_clust.assign_pqueries_to_leaf_clusters(pqueries, phylo_groups)
 
         phylo_clust.report_cluster_occupancy(sample_name=sample_id, n_pqueries=len(pqueries))
     return
@@ -730,14 +780,17 @@ def cluster_phylogeny(sys_args: list) -> None:
 
     if not p_clust.alpha:
         logging.info("Alpha threshold not provided. Estimating for '{}'... ".format(p_clust.tax_rank))
-        p_clust.calculate_distance_threshold(taxa_tree, p_clust.ref_pkg.taxa_trie)
+        p_clust.alpha = p_clust.calculate_distance_threshold(taxa_tree, p_clust.ref_pkg.taxa_trie)
         logging.info("done.\n")
         logging.debug("Alpha estimated to be {}.\n".format(p_clust.alpha))
 
     if p_clust.clustering_mode == "ref_guided":
-        reference_placement_phylo_clusters(phylo_clust=p_clust, taxon_labelled_tree=taxa_tree)
+        reference_placement_phylo_clusters(phylo_clust=p_clust,
+                                           taxon_labelled_tree=taxa_tree)
     elif p_clust.clustering_mode == "de_novo":
-        de_novo_phylo_clusters(phylo_clust=p_clust, cluster_method=p_clust.pre_mode)
+        de_novo_phylo_clusters(phylo_clust=p_clust,
+                               cluster_method=p_clust.pre_mode,
+                               taxon_labelled_tree=taxa_tree)
     else:
         logging.error("Unknown clustering mode specified: '{}'.\n".format(p_clust.clustering_mode))
         sys.exit(5)
