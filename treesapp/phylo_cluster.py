@@ -6,6 +6,7 @@ import re
 import logging
 
 import numpy as np
+import scipy as sp
 from tqdm import tqdm
 from ete3 import Tree, TreeNode
 
@@ -18,6 +19,7 @@ from treesapp import seq_clustering
 from treesapp import phylo_seq
 from treesapp import taxonomic_hierarchy as ts_taxonomy
 from treesapp import classy as ts_classy
+from treesapp import logger
 from treesapp import fasta
 from treesapp import wrapper
 from treesapp import entish
@@ -46,6 +48,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.clustering_mode = ""
         self.pre_mode = ""
         self.alpha = 0
+        self.percentile = 0.75
         self.tax_rank = "species"
         self.normalize = False
         self.jplace_files = {}
@@ -168,7 +171,7 @@ class PhyloClust(ts_classy.TreeSAPP):
 
     def prep_log(self, args):
         log_file = os.path.join(self.output_dir, "TreeSAPP_phyloclust_log.txt")
-        ts_classy.prep_logging(log_file, verbosity=args.verbose)
+        logger.prep_logging(log_file, verbosity=args.verbose)
         return
 
     @staticmethod
@@ -252,7 +255,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         return rel_dists
 
     def calculate_distance_threshold(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy,
-                                     override_rank=None, ci=90) -> float:
+                                     distribution="perc", override_rank=None) -> float:
         if override_rank is not None:
             self.stash("tax_rank")
             self.tax_rank = override_rank
@@ -271,7 +274,11 @@ class PhyloClust(ts_classy.TreeSAPP):
                 obs = np.append(obs, synth_obs)
             dists = np.append(dists, obs)
         self.withdraw_stash()
-        return np.percentile(dists, ci)
+
+        if distribution == "ci":
+            return confidence_interval(dists, self.percentile)
+        else:
+            return np.percentile(dists, 100*self.percentile)
 
     @staticmethod
     def partition_nodes(tree: Tree, alpha: float) -> dict:
@@ -547,6 +554,16 @@ class PhyloClust(ts_classy.TreeSAPP):
         return
 
 
+def confidence_interval(data, confidence=0.95) -> float:
+    a = 1.0 * np.array(data)
+    mu, se = np.mean(a), sp.stats.sem(a)
+    h_b, h_u = sp.stats.t.interval(confidence,
+                                   len(a) - 1,
+                                   loc=mu,
+                                   scale=se)
+    return h_u
+
+
 def infer_cluster_phylogeny(phylo_clust: PhyloClust, fasta_inst: fasta.FASTA) -> Tree:
     # Change header format to one without whitespace
     fasta_inst.change_dict_keys("num")
@@ -772,6 +789,8 @@ def reference_placement_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_t
 def cluster_phylogeny(sys_args: list) -> None:
     p_clust = PhyloClust()
     p_clust.load_args(p_clust.get_arguments(sys_args))
+    if len(p_clust.jplace_files) == 0 and len(p_clust.assign_output_dirs) == 0:
+        return
 
     # Calculate RED distances for each node
     taxa_tree = p_clust.ref_pkg.taxonomically_label_tree()
