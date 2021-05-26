@@ -7,6 +7,9 @@ from glob import glob
 
 from treesapp.classy import Evaluator, Updater
 from treesapp.utilities import available_cpu_count
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):
@@ -543,9 +546,9 @@ def check_parser_arguments(args, sys_args):
     ##
     # Remove the output directory if it exists and overwrite permission granted.
     ##
-    logging.info("Arguments used:\n" + ' '.join(sys_args) + "\n")
+    LOGGER.info("Arguments used:\n" + ' '.join(sys_args) + "\n")
     if re.match(r"^/$", args.output):
-        logging.error("Output directory specified as root. Bailing out to prevent future catastrophe!\n")
+        LOGGER.error("Output directory specified as root. Bailing out to prevent future catastrophe!\n")
         sys.exit(1)
     # Add (or replace a trailing (back)slash with) the os.sep to the end of the output directory
     while re.search(r'.*/$', args.output) or re.search(r'.*\\$', args.output):
@@ -558,11 +561,11 @@ def check_parser_arguments(args, sys_args):
         args.min_seq_length = 1
 
     if sys.version_info <= (2, 9):
-        logging.error("Python 2 is not supported by TreeSAPP.\n")
+        LOGGER.error("Python 2 is not supported by TreeSAPP.\n")
         sys.exit(3)
 
     if "num_threads" in vars(args) and args.num_threads > available_cpu_count():
-        logging.warning("Number of threads specified is greater than those available! "
+        LOGGER.warning("Number of threads specified is greater than those available! "
                         "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
         args.num_threads = available_cpu_count()
 
@@ -618,13 +621,13 @@ def check_updater_arguments(updater: Updater, args):
         if not 0.5 <= float(args.similarity) <= 1.0:
             if 0.5 < float(args.similarity) / 100 < 1.0:
                 args.similarity = str(float(args.similarity) / 100)
-                logging.warning("--similarity set to {} for compatibility.\n".format(args.similarity))
+                LOGGER.warning("--similarity set to {} for compatibility.\n".format(args.similarity))
             else:
-                logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
+                LOGGER.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
 
     if updater.seq_names_to_taxa and not os.path.isfile(updater.seq_names_to_taxa):
-        logging.error("Unable to find file mapping sequence names to taxonomic lineages '" +
+        LOGGER.error("Unable to find file mapping sequence names to taxonomic lineages '" +
                       updater.seq_names_to_taxa + "'.\n")
 
     # TODO: Write a TreeSAPP function for validating outputs
@@ -647,9 +650,9 @@ def check_updater_arguments(updater: Updater, args):
     if len(classified_seqs) == 1:
         updater.query_sequences = classified_seqs.pop()
     elif len(classified_seqs) == 0:
-        logging.error("No classified sequence files found in {}.\n".format(updater.final_output_dir))
+        LOGGER.error("No classified sequence files found in {}.\n".format(updater.final_output_dir))
     else:
-        logging.error("Multiple classified sequence files in '{}'"
+        LOGGER.error("Multiple classified sequence files in '{}'"
                       " where only one expected.\n".format(updater.final_output_dir))
         sys.exit(5)
 

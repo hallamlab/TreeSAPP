@@ -1,5 +1,3 @@
-__author__ = 'Connor Morgan-Lang'
-
 import sys
 import re
 import glob
@@ -12,6 +10,9 @@ from ete3 import Tree
 from treesapp.phylo_seq import PQuery, PhyloPlace, split_placements
 from treesapp import entish
 from treesapp.phylo_dist import parent_to_tip_distances
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class JPlace:
@@ -101,7 +102,7 @@ class JPlace:
         try:
             jplace_out = open(jplace_file, 'w')
         except IOError:
-            logging.error("Unable to open " + jplace_file + " for writing.\n")
+            LOGGER.error("Unable to open " + jplace_file + " for writing.\n")
             sys.exit(9)
 
         jplace_out.write(jplace_str)
@@ -207,7 +208,7 @@ def organize_jplace_files(jplace_files: list) -> dict:
         try:
             refpkg_name = file_name_info.group(1)
         except AttributeError:
-            logging.error("Regex parsing marker information from jplace files was unsuccessful!\n"
+            LOGGER.error("Regex parsing marker information from jplace files was unsuccessful!\n"
                           "The offending file name: " + filename + "\n")
             sys.exit(7)
 
@@ -232,7 +233,7 @@ def sub_indices_for_seq_names_jplace(jplace_dir, numeric_contig_index, refpkg_di
         try:
             refpkg = refpkg_dict[refpkg_name]
         except KeyError:
-            logging.warning("Intermediate files found from a previous run will be skipped:\n\t" +
+            LOGGER.warning("Intermediate files found from a previous run will be skipped:\n\t" +
                             "\n\t".join(jplace_files) + "\n")
             continue
         for jplace_path in jplace_files:
@@ -261,7 +262,7 @@ def add_bipartitions(jplace_data: JPlace, bipartitions) -> None:
     elif isinstance(bipartitions, list):
         bootstrap_tree = bipartitions.pop()
     else:
-        logging.error("Unrecognized bipartitions instance type '{}'. "
+        LOGGER.error("Unrecognized bipartitions instance type '{}'. "
                       "Unable to add bipartition support to JPlace.\n".format(type(bipartitions)))
         raise TypeError(3)
 

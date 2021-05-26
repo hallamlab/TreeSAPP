@@ -9,6 +9,9 @@ import numpy as np
 from treesapp.phylo_dist import parent_to_tip_distances
 from treesapp.entish import load_ete3_tree, get_ete_edge, edge_from_node_name
 from treesapp import seq_clustering
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class PhyloPlace:
@@ -31,7 +34,7 @@ class PhyloPlace:
                     if len(placement[self.n_key]) == 1:
                         name_val = placement[self.n_key][0]
                     else:
-                        logging.error(
+                        LOGGER.error(
                             "{} sequence names found in PQuery name value when one was expected :\n{}"
                             "".format(len(placement[self.n_key]),
                                       "\t{}\n".join(placement['n'])))
@@ -40,14 +43,14 @@ class PhyloPlace:
                     name_val = placement[self.n_key]
                 self.name = name_val
             except KeyError:
-                logging.error("Unable to find name key ('{}') in placement: {}\n".format(self.n_key, placement))
+                LOGGER.error("Unable to find name key ('{}') in placement: {}\n".format(self.n_key, placement))
                 sys.exit(13)
 
             # Load the placement's PQuery information
             try:
                 fields = placement[self.p_key][0]
             except KeyError:
-                logging.error("Unable to find placement key ('{}') in placement: {}\n".format(self.p_key, placement))
+                LOGGER.error("Unable to find placement key ('{}') in placement: {}\n".format(self.p_key, placement))
                 sys.exit(15)
 
             # Load the placement information fields
@@ -58,7 +61,7 @@ class PhyloPlace:
                 try:
                     self.__dict__[field_positions[x]] = fields[x]
                 except KeyError:
-                    logging.error("Field '{}' not found in PhyloPlace class attributes.\n".format(field_positions[x]))
+                    LOGGER.error("Field '{}' not found in PhyloPlace class attributes.\n".format(field_positions[x]))
                     sys.exit(17)
                 x += 1
 
@@ -111,7 +114,7 @@ class PhyloPlace:
         name = set()
 
         if len(pplaces) == 0:
-            logging.error("No phylogenetic placements were provided, unable to format for JPlace.\n")
+            LOGGER.error("No phylogenetic placements were provided, unable to format for JPlace.\n")
             sys.exit(11)
 
         if not field_positions:
@@ -129,10 +132,10 @@ class PhyloPlace:
         if len(name) == 1:
             jplace_dict['n'] = [name.pop()]
         elif len(name) == 0:
-            logging.error("No unique name feature was found for phylogenetic placements.\n")
+            LOGGER.error("No unique name feature was found for phylogenetic placements.\n")
             sys.exit(11)
         else:
-            logging.error("More than one query name provided when rebuilding JPlace file:\n{}\n".format(','.join(name)))
+            LOGGER.error("More than one query name provided when rebuilding JPlace file:\n{}\n".format(','.join(name)))
             sys.exit(13)
 
         jplace_dict['p'] = placements_list
@@ -239,7 +242,7 @@ class PQuery:
                         names.add(n)
 
         if len(names) > 1:
-            logging.error("Multiple names encountered for a single PQuery:\n{}\n".format(','.join(names)))
+            LOGGER.error("Multiple names encountered for a single PQuery:\n{}\n".format(','.join(names)))
             raise AssertionError
         self.place_name = names.pop()
 
@@ -280,7 +283,7 @@ class PQuery:
         try:
             normalized_abundance = float(self.abundance/len(tree_leaves))
         except TypeError:
-            logging.warning("Unable to find abundance for " + self.place_name + "... setting to 0.\n")
+            LOGGER.warning("Unable to find abundance for " + self.place_name + "... setting to 0.\n")
             normalized_abundance = 0.0
 
         for tree_leaf in tree_leaves:  # type: str
@@ -302,7 +305,7 @@ class PQuery:
             place_len = float(pquery.distal_length)
             tree_len = tree_index[str(pquery.edge_num)]
             if place_len > tree_len:
-                logging.debug("Distal length adjusted to fit JPlace {} tree for {}.\n"
+                LOGGER.debug("Distal length adjusted to fit JPlace {} tree for {}.\n"
                               "".format(self.ref_name, self.place_name))
                 pquery.distal_length = tree_len
 
@@ -322,29 +325,29 @@ class PQuery:
         try:
             tree_leaves = self.node_map[self.consensus_placement.edge_num]
         except KeyError:
-            logging.error("Unable to find placement edge '{}'"
+            LOGGER.error("Unable to find placement edge '{}'"
                           " in the PhyloPlace's node_map.\n".format(self.consensus_placement.edge_num))
             sys.exit(13)
         except AttributeError:
-            logging.error("Pquery.consensus_placement was not instantiated.\n")
+            LOGGER.error("Pquery.consensus_placement was not instantiated.\n")
             sys.exit(15)
 
         for leaf_node in tree_leaves:
             try:
                 leaf_num = leaf_node.split('_')[0]
             except TypeError:
-                logging.error("Unexpected format of leaf node: '" + str(leaf_node) + "'.\n")
+                LOGGER.error("Unexpected format of leaf node: '" + str(leaf_node) + "'.\n")
                 sys.exit(3)
             try:
                 ref_lineage = leaves_taxa_map[leaf_num]
             except KeyError:
-                logging.error("Unable to find '" + leaf_num + "' in leaf-lineage map.\n")
+                LOGGER.error("Unable to find '" + leaf_num + "' in leaf-lineage map.\n")
                 sys.exit(3)
 
             if ref_lineage:
                 children.append(ref_lineage)
             else:
-                logging.warning("No lineage information available for " + leaf_node + ".\n")
+                LOGGER.warning("No lineage information available for " + leaf_node + ".\n")
 
         return children
 
@@ -471,14 +474,14 @@ class PQuery:
                     max_lwr = pplace.like_weight_ratio
                     self.consensus_placement = pplace
             else:
-                logging.error("Unexpected state of PhyloPlace instance!\n{}\n".format(pplace.summary()))
+                LOGGER.error("Unexpected state of PhyloPlace instance!\n{}\n".format(pplace.summary()))
                 sys.exit(3)
 
         # Determine the taxonomic lineage of the placement using the labelled tree
         try:
             up_node, down_node = get_ete_edge(ref_tree, self.consensus_placement.edge_num)
         except TypeError:
-            logging.error("Unable to process placement of '{}' as its placement edge '{}' was not found"
+            LOGGER.error("Unable to process placement of '{}' as its placement edge '{}' was not found"
                           " in the reference tree for {} with {} nodes.\n"
                           "".format(self.place_name, self.consensus_placement.edge_num, self.ref_name, len(ref_tree)))
             sys.exit(5)
@@ -506,7 +509,7 @@ def assignments_to_pqueries(classified_lines: list) -> dict:
             _, pquery.seq_name, pquery.ref_name, pquery.start, pquery.end, pquery.recommended_lineage, pquery.abundance,\
             con_place.edge_num, pquery.evalue, con_place.like_weight_ratio, pquery.avg_evo_dist, pquery.distances = fields
         except ValueError:
-            logging.error("Bad line in classification table:\n" +
+            LOGGER.error("Bad line in classification table:\n" +
                           '\t'.join(fields) + "\n")
             sys.exit(21)
         pquery.place_name = "{}|{}|{}_{}".format(pquery.seq_name, pquery.ref_name, pquery.start, pquery.end)
@@ -562,7 +565,7 @@ def quantify_pquery_instances(tree_saps: dict, abundance_dict: dict):
                     pquery.abundance = 0.0
 
     if abundance_mapped_acc == 0:
-        logging.warning("No placed sequences with abundances identified.\n")
+        LOGGER.warning("No placed sequences with abundances identified.\n")
 
     return
 

@@ -4,6 +4,9 @@ import sys
 
 from treesapp import fasta
 from treesapp import wrapper
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class Cluster:
@@ -40,7 +43,7 @@ class BlastAln:
         try:
             fields = line.strip().split(sep)
         except ValueError:
-            logging.error("Unable to parse line in from alignment table:\n{}\n".format(line))
+            LOGGER.error("Unable to parse line in from alignment table:\n{}\n".format(line))
             sys.exit(7)
 
         try:
@@ -49,7 +52,7 @@ class BlastAln:
             self.qstart, self.qend, self.tstart, self.tend = fields[6:10]
             self.evalue, self.bits = fields[10], fields[11]
         except ValueError:
-            logging.error("Incorrect format for line in alignment file. Twelve were expected, found {}.\n{}\n"
+            LOGGER.error("Incorrect format for line in alignment file. Twelve were expected, found {}.\n{}\n"
                           "".format(len(fields), line))
             sys.exit(7)
 
@@ -88,7 +91,7 @@ def dereplicate_by_clustering(fasta_inst: fasta.FASTA, prop_similarity: float, m
 
     # Revert headers in cluster_dict from 'formatted' back to 'original'
     fasta.rename_cluster_headers(cluster_map, fasta_inst.header_registry)
-    logging.debug("\t{} sequence clusters\n".format(len(cluster_map.keys())))
+    LOGGER.debug("\t{} sequence clusters\n".format(len(cluster_map.keys())))
 
     # Keep only the representative sequences in the FASTA instance
     fasta_inst.change_dict_keys()
@@ -112,10 +115,10 @@ def read_uc(uc_file: str) -> dict:
     try:
         uc = open(uc_file, 'r')
     except IOError:
-        logging.error("Unable to open VSEARCH cluster file " + uc_file + " for reading!\n")
+        LOGGER.error("Unable to open VSEARCH cluster file " + uc_file + " for reading!\n")
         sys.exit(13)
 
-    logging.debug("Reading VSEARCH cluster file... ")
+    LOGGER.debug("Reading VSEARCH cluster file... ")
 
     # Find all clusters with multiple identical sequences
     for line in uc:
@@ -127,11 +130,11 @@ def read_uc(uc_file: str) -> dict:
         elif cluster_type == "C":
             pass
         else:
-            logging.error("Unexpected cluster type '" + str(cluster_type) + "' in " + uc_file + "\n")
+            LOGGER.error("Unexpected cluster type '" + str(cluster_type) + "' in " + uc_file + "\n")
             sys.exit(13)
 
     uc.close()
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
     return cluster_dict
 
 
@@ -146,7 +149,7 @@ def read_linclust_clusters(clusters_tsv_file: str) -> dict:
     try:
         cluster_tbl = open(clusters_tsv_file)
     except IOError:
-        logging.error("Unable to open MMSeqs clusters table '{}' for reading!\n".format(clusters_tsv_file))
+        LOGGER.error("Unable to open MMSeqs clusters table '{}' for reading!\n".format(clusters_tsv_file))
         sys.exit(13)
 
     previous = ""
@@ -159,7 +162,7 @@ def read_linclust_clusters(clusters_tsv_file: str) -> dict:
         try:
             rep_name, mem_name = line.strip().split("\t")
         except ValueError:
-            logging.error("Unacceptable line format in MMSeqs cluster table:\n{}\n".format(line))
+            LOGGER.error("Unacceptable line format in MMSeqs cluster table:\n{}\n".format(line))
             sys.exit(17)
         if rep_name != previous:
             cl_inst = Cluster(rep_name)
@@ -195,7 +198,7 @@ def create_mmseqs_clusters(clusters_tbl: str, aln_tbl: str) -> dict:
     try:
         aln = open(aln_tbl, 'r')
     except IOError:
-        logging.error("Unable to open MMSeqs alignment table '{}' for reading!\n".format(aln_tbl))
+        LOGGER.error("Unable to open MMSeqs alignment table '{}' for reading!\n".format(aln_tbl))
         sys.exit(13)
 
     # Read the alignments, storing them in a dictionary indexed by subject/target/representative names
@@ -223,7 +226,7 @@ def create_mmseqs_clusters(clusters_tbl: str, aln_tbl: str) -> dict:
                 else:
                     x += 1
             if member[1] == 0:
-                logging.error("Unable to find an alignment between representative '{}' and query '{}' from MMSeqs.\n")
+                LOGGER.error("Unable to find an alignment between representative '{}' and query '{}' from MMSeqs.\n")
                 sys.exit(11)
 
     return clusters

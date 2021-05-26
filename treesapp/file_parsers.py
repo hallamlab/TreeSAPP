@@ -11,8 +11,9 @@ from treesapp import fasta
 from treesapp import hmmer_tbl_parser
 from treesapp import phylo_seq
 from treesapp import utilities
+from treesapp import logger
 
-__author__ = 'Connor Morgan-Lang'
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def read_graftm_classifications(assignment_file) -> dict:
@@ -28,7 +29,7 @@ def read_graftm_classifications(assignment_file) -> dict:
     try:
         assignments_handle = open(assignment_file, 'r')
     except IOError:
-        logging.error("Unable to open classification file '" + assignment_file + "' for reading.\n")
+        LOGGER.error("Unable to open classification file '" + assignment_file + "' for reading.\n")
         sys.exit(21)
     tax_lines = assignments_handle.readlines()
     assignments_handle.close()
@@ -49,7 +50,7 @@ def read_graftm_classifications(assignment_file) -> dict:
                     assignments[classified] = list()
                 assignments[classified].append(header)
         except ValueError:
-            logging.error("Unable to parse line:" + str(line))
+            LOGGER.error("Unable to parse line:" + str(line))
             sys.exit(21)
 
     return assignments
@@ -74,7 +75,7 @@ def write_classification_table(tree_saps: dict, sample_name: str, output_file: s
             tab_out_string = "Sample\tQuery\tMarker\tStart_pos\tEnd_pos\tTaxonomy\tAbundance\t" \
                              "iNode\tE-value\tLWR\tEvoDist\tDistances\n"
     except IOError:
-        logging.error("Unable to open " + output_file + " for writing!\n")
+        LOGGER.error("Unable to open " + output_file + " for writing!\n")
         sys.exit(3)
 
     for refpkg_name in tree_saps:
@@ -132,7 +133,7 @@ def parse_assignments(classified_lines: list) -> dict:
             # If fragments from the same parent query had identical lengths these would be overwritten anyway
             unique_headers[header] = {int(length): classified(refpkg=marker, taxon=rec_tax, length=int(length))}
         else:
-            logging.error("Bad line in classification table - no robust taxonomic classification:\n" +
+            LOGGER.error("Bad line in classification table - no robust taxonomic classification:\n" +
                           '\t'.join(fields) + "\n")
             sys.exit(21)
     for header in unique_headers:
@@ -143,7 +144,7 @@ def parse_assignments(classified_lines: list) -> dict:
         assignments[best_dat.refpkg][best_dat.taxon].append(header)
 
     if dups:
-        logging.debug(str(len(dups)) + " fragments from identical parent sequences were removed post-classification.\n")
+        LOGGER.debug(str(len(dups)) + " fragments from identical parent sequences were removed post-classification.\n")
     return assignments
 
 
@@ -162,17 +163,17 @@ def read_classification_table(assignment_file) -> list:
     try:
         assignments_handle = open(assignment_file, 'r')
     except IOError:
-        logging.error("Unable to open classification file '" + assignment_file + "' for reading.\n")
+        LOGGER.error("Unable to open classification file '" + assignment_file + "' for reading.\n")
         sys.exit(21)
 
     header_line = assignments_handle.readline()
     if not header_line:
-        logging.error("Classification file '{}' is empty!\n".format(assignment_file))
+        LOGGER.error("Classification file '{}' is empty!\n".format(assignment_file))
         sys.exit(21)
 
     # This is the header line
     if not header_line.startswith(header.strip()):
-        logging.error("Header of assignments file is unexpected!\n")
+        LOGGER.error("Header of assignments file is unexpected!\n")
         sys.exit(21)
 
     # First line in the table containing data
@@ -183,7 +184,7 @@ def read_classification_table(assignment_file) -> list:
         if len(fields) == n_fields:
             classified_lines.append(fields)
         else:
-            logging.error("Unable to parse line:\n" + str(line))
+            LOGGER.error("Unable to parse line:\n" + str(line))
             sys.exit(21)
         line = assignments_handle.readline()
     assignments_handle.close()
@@ -207,7 +208,7 @@ def load_classified_sequences_from_assign_output(assign_output_dir: str, assigne
     try:
         classified_seqs_fa = glob(os.path.join(assigner_cls.final_output_dir, "*_classified.faa")).pop()
     except IndexError:
-        logging.error("Classified sequences FASTA file was not found in output '{}'.\n".format(assign_output_dir))
+        LOGGER.error("Classified sequences FASTA file was not found in output '{}'.\n".format(assign_output_dir))
         sys.exit(7)
     assigner_cls.sample_prefix = re.sub("_classified.faa", '', os.path.basename(classified_seqs_fa))
 
@@ -216,7 +217,7 @@ def load_classified_sequences_from_assign_output(assign_output_dir: str, assigne
     if refpkg_name:
         # Remove sequences that were not classified as refpkg_name
         if refpkg_name not in pqueries:
-            logging.warning("No queries were classified as '{}' in sample {}.\n"
+            LOGGER.warning("No queries were classified as '{}' in sample {}.\n"
                             "".format(refpkg_name, assigner_cls.sample_prefix))
             return {}
         else:
@@ -229,7 +230,7 @@ def load_classified_sequences_from_assign_output(assign_output_dir: str, assigne
         tmp_dict.update({pq.place_name: pq for pq in pquery_list})
     pquery_fasta = fasta.read_fasta_to_dict(classified_seqs_fa)
     if len(pquery_fasta) == 0:
-        logging.warning("Unable to read classified query sequences from FASTA file '{}'.\n".format(classified_seqs_fa))
+        LOGGER.warning("Unable to read classified query sequences from FASTA file '{}'.\n".format(classified_seqs_fa))
     for pq_name, pq in tmp_dict.items():  # type: (str, phylo_seq.PQuery)
         pq.seq = pquery_fasta[pq_name]
     return pqueries
@@ -267,10 +268,10 @@ def best_discrete_matches(matches: list) -> list:
         i += 1
 
     if len(len_sorted_matches) == 0:
-        logging.error("All alignments were discarded while deciding the best discrete HMM-match.\n")
+        LOGGER.error("All alignments were discarded while deciding the best discrete HMM-match.\n")
         sys.exit(3)
 
-    logging.debug("HMM search annotations for " + orf +
+    LOGGER.debug("HMM search annotations for " + orf +
                   ":\n\tRetained\t" + 
                   ', '.join([match.target_hmm +
                              " (%d-%d)" % (match.start, match.end) for match in len_sorted_matches]) +
@@ -289,7 +290,7 @@ def parse_domain_tables(thresholds, hmm_domtbl_files: list) -> dict:
     :return: Dictionary of HmmMatch objects indexed by their reference package and/or HMM name
     """
     # Check if the HMM filtering thresholds have been set
-    logging.info("Parsing HMMER domain tables for high-quality matches... ")
+    LOGGER.info("Parsing HMMER domain tables for high-quality matches... ")
 
     search_stats = hmmer_tbl_parser.HmmSearchStats()
     hmm_matches = dict()
@@ -336,19 +337,19 @@ def parse_domain_tables(thresholds, hmm_domtbl_files: list) -> dict:
             search_stats.seqs_identified += retained
             optional_matches.clear()
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     alignment_stat_string = search_stats.summarize()
 
     if search_stats.seqs_identified == 0 and search_stats.dropped == 0:
-        logging.warning("No alignments found! TreeSAPP is exiting now.\n")
+        LOGGER.warning("No alignments found! TreeSAPP is exiting now.\n")
         sys.exit(0)
     if search_stats.seqs_identified == 0 and search_stats.dropped > 0:
-        logging.warning("No alignments (" + str(search_stats.seqs_identified) + '/' + str(search_stats.dropped) +
+        LOGGER.warning("No alignments (" + str(search_stats.seqs_identified) + '/' + str(search_stats.dropped) +
                         ") met the quality cut-offs! TreeSAPP is exiting now.\n")
         alignment_stat_string += "\tPoor quality alignments:\t" + str(search_stats.bad) + "\n"
         alignment_stat_string += "\tShort alignments:\t" + str(search_stats.short) + "\n"
-        logging.debug(alignment_stat_string)
+        LOGGER.debug(alignment_stat_string)
         sys.exit(0)
 
     alignment_stat_string += "\n\tNumber of markers identified:\n"
@@ -358,7 +359,7 @@ def parse_domain_tables(thresholds, hmm_domtbl_files: list) -> dict:
         # for match in hmm_matches[marker]:
         #     match.print_info()
 
-    logging.debug(alignment_stat_string)
+    LOGGER.debug(alignment_stat_string)
     return hmm_matches
 
 
@@ -374,7 +375,7 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> dict:
     try:
         style_handler = open(annotation_file, 'r')
     except IOError:
-        logging.error("Unable to open " + annotation_file + " for reading!\n")
+        LOGGER.error("Unable to open " + annotation_file + " for reading!\n")
         sys.exit(5)
 
     clusters = dict()
@@ -390,7 +391,7 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> dict:
             elif header_fields[1] == "TAB":
                 field_sep = '\t'
             else:
-                logging.error("Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
+                LOGGER.error("Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
                 sys.exit(5)
         line = style_handler.readline()
 
@@ -458,7 +459,7 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> dict:
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
             label_node = False
         else:
-            logging.error("Unrecognized line formatting in '{}':\n{}\n".format(annotation_file, line))
+            LOGGER.error("Unrecognized line formatting in '{}':\n{}\n".format(annotation_file, line))
             sys.exit(5)
 
         description = style_data.groups()[-1]
@@ -474,7 +475,7 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> dict:
 
     style_handler.close()
 
-    logging.debug("\tParsed {} clades from '{}'\n".format(len(clusters), annotation_file))
+    LOGGER.debug("\tParsed {} clades from '{}'\n".format(len(clusters), annotation_file))
 
     return clusters
 
@@ -488,7 +489,7 @@ def read_phylip_to_dict(phylip_input: str) -> dict:
     try:
         phylip = open(phylip_input, 'r')
     except IOError:
-        logging.error("Unable to open the Phylip file (" + phylip_input + ") provided for reading!\n")
+        LOGGER.error("Unable to open the Phylip file (" + phylip_input + ") provided for reading!\n")
         sys.exit(5)
 
     line = phylip.readline()
@@ -497,7 +498,7 @@ def read_phylip_to_dict(phylip_input: str) -> dict:
         num_sequences = int(num_sequences)
         aln_length = int(aln_length)
     except ValueError:
-        logging.error("Phylip file is not formatted correctly!\n" +
+        LOGGER.error("Phylip file is not formatted correctly!\n" +
                       "Header must contain 2 space-separated fields (number of sequences and alignment length).\n")
         sys.exit(5)
 
@@ -517,24 +518,24 @@ def read_phylip_to_dict(phylip_input: str) -> dict:
             # Reset accumulator on blank lines
             x = 0
         else:
-            logging.error("Unexpected line in Phylip file:\n" + line + "\n")
+            LOGGER.error("Unexpected line in Phylip file:\n" + line + "\n")
             sys.exit(5)
         line = phylip.readline()
 
         if x > num_sequences:
-            logging.error("Accumulator has exceeded the number of sequences in the file (according to header)!\n")
+            LOGGER.error("Accumulator has exceeded the number of sequences in the file (according to header)!\n")
             sys.exit(5)
 
     # Check that the alignment length matches that in the header line
     if num_sequences != len(tmp_seq_dict):
-        logging.error("Number of lines declared in Phylip header ({}) does not match number of sequences parsed ({})!\n"
+        LOGGER.error("Number of lines declared in Phylip header ({}) does not match number of sequences parsed ({})!\n"
                       "".format(num_sequences, len(tmp_seq_dict)))
         sys.exit(5)
 
     x = 0
     while x < num_sequences-1:
         if len(tmp_seq_dict[x]) != aln_length:
-            logging.error("{} sequence length exceeds the stated multiple alignment length (according to header)!\n"
+            LOGGER.error("{} sequence length exceeds the stated multiple alignment length (according to header)!\n"
                           "sequence length = {}, alignment length = {}\n"
                           "".format(header_dict[x], len(tmp_seq_dict[x]), aln_length))
             sys.exit(5)
@@ -559,7 +560,7 @@ def read_stockholm_to_dict(sto_file):
     try:
         sto_handler = open(sto_file, 'r')
     except IOError:
-        logging.error("Unable to open " + sto_file + " for reading!\n")
+        LOGGER.error("Unable to open " + sto_file + " for reading!\n")
         sys.exit(3)
 
     line = sto_handler.readline()
@@ -574,7 +575,7 @@ def read_stockholm_to_dict(sto_file):
             try:
                 seq_name, sequence = line.split()
             except ValueError:
-                logging.error("Unexpected line format in " + sto_file + ":\n" + line + "\n")
+                LOGGER.error("Unexpected line format in " + sto_file + ":\n" + line + "\n")
                 sys.exit(3)
 
             if seq_name not in seq_dict:
@@ -625,7 +626,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set,
         elif f_ext == "mfa":  # This is meant to match a multiple alignment in FASTA format
             seq_dict = fasta.read_fasta_to_dict(multi_align_file)
         else:
-            logging.error("Unable to detect file format of " + multi_align_file + ".\n")
+            LOGGER.error("Unable to detect file format of " + multi_align_file + ".\n")
             sys.exit(13)
 
         # Parse the MSA dict and ensure headers are integer-compatible
@@ -642,13 +643,13 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set,
                 elif re.match(r"^\d+_\w{2,10}$", seq_name):
                     leaf_num = seq_name.split('_')[0]
                 else:
-                    logging.error("Unexpected sequence name '{}' detected in {}.\n".format(seq_name, multi_align_file))
+                    LOGGER.error("Unexpected sequence name '{}' detected in {}.\n".format(seq_name, multi_align_file))
                     sys.exit(13)
                 if int(leaf_num) > 0:
                     n_msa_refs += 1
             multi_align[seq_name] = seq
         if len(multi_align) == 0:
-            logging.warning("No sequences were read from " + multi_align_file + ".\n" +
+            LOGGER.warning("No sequences were read from " + multi_align_file + ".\n" +
                             "The untrimmed alignment will be used instead.\n")
             failed_multiple_alignments.append(multi_align_file)
             continue
@@ -667,24 +668,24 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set,
         discarded_seqs_string += "\n\t\t" + multi_align_file + " = " + str(len(discarded_seqs))
         if len(discarded_seqs) == len(multi_align.keys()):
             # Throw an error if the final trimmed alignment is shorter than min_seq_length, and therefore empty
-            logging.warning("Multiple sequence alignment in {} is shorter than minimum sequence length threshold ({})."
+            LOGGER.warning("Multiple sequence alignment in {} is shorter than minimum sequence length threshold ({})."
                             "\nThe untrimmed MSA will be used instead.\n".format(multi_align_file, min_seq_length))
             failed_multiple_alignments.append(multi_align_file)
         elif n_refs > n_msa_refs:
             # Testing whether there were more sequences in the untrimmed alignment than the trimmed one
-            logging.warning("Reference sequences in " + multi_align_file + " were removed during alignment trimming " +
+            LOGGER.warning("Reference sequences in " + multi_align_file + " were removed during alignment trimming " +
                             "suggesting either truncated sequences or the initial reference alignment was terrible.\n" +
                             "The untrimmed alignment will be used instead.\n")
             failed_multiple_alignments.append(multi_align_file)
         elif n_refs > n_retained_refs:
-            logging.warning("Reference sequences shorter than the minimum character length (" +
+            LOGGER.warning("Reference sequences shorter than the minimum character length (" +
                             str(min_seq_length) + ") in " + multi_align_file +
                             " were removed after alignment trimming.\n" +
                             "The untrimmed alignment will be used instead.\n")
             failed_multiple_alignments.append(multi_align_file)
         # Ensure that there is at least 1 query sequence retained after trimming the multiple alignment
         elif queries_mapped and num_queries_retained == 0:
-            logging.warning("No query sequences in " + multi_align_file + " were retained after trimming.\n")
+            LOGGER.warning("No query sequences in " + multi_align_file + " were retained after trimming.\n")
         else:
             successful_multiple_alignments[multi_align_file] = filtered_multi_align
 
@@ -710,7 +711,7 @@ def read_annotation_mapping_file(annot_map_file: str) -> dict:
     try:
         annot_map_handler = open(annot_map_file)
     except IOError:
-        logging.error("Unable to open annotation file '{}' for reading!\n".format(annot_map_file))
+        LOGGER.error("Unable to open annotation file '{}' for reading!\n".format(annot_map_file))
         sys.exit(3)
 
     # Assuming the first column is the reference package name and the second is the database annotation name
@@ -725,7 +726,7 @@ def read_annotation_mapping_file(annot_map_file: str) -> dict:
             try:
                 refpkg_name, og, query_name = line.strip().split("\t")
             except ValueError:
-                logging.error("Unexpected number of fields on line {} in {}!\n".format(n, annot_map_file) +
+                LOGGER.error("Unexpected number of fields on line {} in {}!\n".format(n, annot_map_file) +
                               "File must have the reference package name and the database name in"
                               " the first two columns, respectively. Any number of columns can follow.\n")
                 sys.exit(9)
@@ -744,7 +745,7 @@ def grab_graftm_taxa(tax_ids_file) -> StringTrie:
         last_rank = int(header[-1])
         final_index = 6 - last_rank
         if not re.search("parent_id,rank,tax_name,root,rank_0,rank_1,rank_2,rank_3,rank_4,rank_5,rank_6", header):
-            logging.error("Unable to handle format of " + tax_ids_file + "!")
+            LOGGER.error("Unable to handle format of " + tax_ids_file + "!")
             sys.exit(21)
         line = tax_ids.readline().strip()
         while line:
@@ -754,7 +755,7 @@ def grab_graftm_taxa(tax_ids_file) -> StringTrie:
             try:
                 _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_, = fields
             except (IndexError, ValueError):
-                logging.error("Unexpected format of line with %d fields in " % len(line.split(',')) +
+                LOGGER.error("Unexpected format of line with %d fields in " % len(line.split(',')) +
                               tax_ids_file + ":\n" + line)
                 sys.exit(21)
             ranks = ["Root", k_, p_, c_, o_, f_, g_, s_]
@@ -782,7 +783,7 @@ def read_phenotypes(phenotypes_file: str, comment_char='#') -> dict:
     try:
         file_handler = open(phenotypes_file, 'r')
     except IOError:
-        logging.error("Unable to open taxa-phenotype table '{}' for reading.\n".format(phenotypes_file))
+        LOGGER.error("Unable to open taxa-phenotype table '{}' for reading.\n".format(phenotypes_file))
         sys.exit(7)
 
     for line in file_handler:
@@ -793,10 +794,10 @@ def read_phenotypes(phenotypes_file: str, comment_char='#') -> dict:
         try:
             taxon_name, phenotype = line.rstrip().split("\t")
         except ValueError:
-            logging.error("Unable to parse line in {}:\n{}\n".format(phenotypes_file, line))
+            LOGGER.error("Unable to parse line in {}:\n{}\n".format(phenotypes_file, line))
             sys.exit(9)
         if taxon_name in taxa_phenotype_map:
-            logging.warning("Taxon '{}' found in {} multiple times and will be overwritten.\n"
+            LOGGER.warning("Taxon '{}' found in {} multiple times and will be overwritten.\n"
                             "".format(taxon_name, phenotypes_file))
         taxa_phenotype_map[taxon_name.strip()] = phenotype.strip()
 
@@ -807,7 +808,7 @@ def read_phenotypes(phenotypes_file: str, comment_char='#') -> dict:
 
 def read_lineage_map(lineage_table: str) -> dict:
     if not os.path.isfile(lineage_table):
-        logging.error("lineage mapping table '{}' does not exist.\n".format(lineage_table))
+        LOGGER.error("lineage mapping table '{}' does not exist.\n".format(lineage_table))
         sys.exit(5)
 
     sep = utilities.get_field_delimiter(lineage_table)
@@ -822,7 +823,7 @@ def read_lineage_map(lineage_table: str) -> dict:
 def read_lineage_ids(lineage_table: str) -> dict:
     lineage_map = dict()
     if not os.path.isfile(lineage_table):
-        logging.error("lineage_ids table '{}' does not exist.\n".format(lineage_table))
+        LOGGER.error("lineage_ids table '{}' does not exist.\n".format(lineage_table))
         sys.exit(5)
 
     lin_id_lines = utilities.get_file_lines(lineage_table)
@@ -831,7 +832,7 @@ def read_lineage_ids(lineage_table: str) -> dict:
         try:
             num, desc, lineage = line.strip().split("\t")
         except (IndexError, ValueError):
-            logging.error("Line {} in lineage table '{}' is misformatted:\n{}\n".format(counter, lineage_table, line))
+            LOGGER.error("Line {} in lineage table '{}' is misformatted:\n{}\n".format(counter, lineage_table, line))
             sys.exit(15)
         lineage_map[num] = desc + "\t" + lineage
         counter += 1

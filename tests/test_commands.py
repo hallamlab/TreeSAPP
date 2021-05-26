@@ -97,7 +97,7 @@ class TreesappTester(unittest.TestCase):
                                 "--trim_align", "--overwrite", "--delete", "--svm"]
         assign.assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/classifications.tsv")
-        self.assertEqual(15, len(lines))
+        self.assertEqual(13, len(lines))
         self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.faa"))
 
         # Test nucleotide sequence input
@@ -421,10 +421,13 @@ class TreesappTester(unittest.TestCase):
         return
 
     # def test_tmp(self):
-    #     from treesapp.commands import create
-    #     base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
-    #     cmd = "".format(base_dir)
-    #     create(cmd.split())
+    #     from treesapp import phylo_cluster
+    #     base_dir = "/media/connor/Rufus/Gene_Centric_Guide/clustering_experiments"
+    #     cmd = "--refpkg_path {0}/clustering_refpkgs/RecA_build.pkl" \
+    #           " --assign_out {0}/length_100/proteome_classified/" \
+    #           " -o {0}/length_100/phylotu_outputs/RecA_phylotus_dn_psc_species/" \
+    #           " --mode de_novo --pre_cluster psc".format(base_dir)
+    #     phylo_cluster.cluster_phylogeny(cmd.split())
     #     return
 
 

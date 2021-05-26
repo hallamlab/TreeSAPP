@@ -1,12 +1,12 @@
-__author__ = 'Connor Morgan-Lang'
-
-
 import re
 import logging
 
 from pygtrie import StringTrie
 
-from .utilities import median
+from treesapp.utilities import median
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def optimal_taxonomic_assignment(trie: StringTrie, query_taxon: str):
@@ -54,9 +54,9 @@ def identify_excluded_clade(assignment_dict: dict, trie: StringTrie) -> dict:
                     log_stats += "\t\tOptimal lineage: " + contained_taxonomy + "\n"
                 rank_assigned_dict[rank_excluded].append({ref_lineage: (contained_taxonomy, query_lineage)})
             else:
-                logging.warning("Number of ranks in lineage '{}' is ridiculous.\n"
+                LOGGER.warning("Number of ranks in lineage '{}' is ridiculous.\n"
                                 "This will not be used in clade exclusion calculations\n".format(contained_taxonomy))
-    logging.debug(log_stats + "\n")
+    LOGGER.debug(log_stats + "\n")
     return rank_assigned_dict
 
 
@@ -94,7 +94,7 @@ def megan_lca(lineage_list: list):
         else:
             i = max_depth
     if len(lca_lineage_strings) == 0:
-        logging.debug("Empty LCA from lineages:\n\t" + "\n\t".join(lineage_list) + "\n")
+        LOGGER.debug("Empty LCA from lineages:\n\t" + "\n\t".join(lineage_list) + "\n")
         lca_lineage_strings.append("Unclassified")
 
     return "; ".join(lca_lineage_strings)
@@ -114,7 +114,7 @@ def weighted_taxonomic_distance(lineage_list, common_ancestor):
     for lineage in lineage_list:
         distance, status = compute_taxonomic_distance(lineage, common_ancestor)
         if status:
-            logging.debug("Taxonomic lineages didn't converge between " + common_ancestor + " and " + lineage + ".\n")
+            LOGGER.debug("Taxonomic lineages didn't converge between " + common_ancestor + " and " + lineage + ".\n")
         status += 1
 
         numerator += 2**distance

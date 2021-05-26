@@ -128,7 +128,7 @@ class PhyloClusterTester(unittest.TestCase):
         p_clust = PhyloClust()
         alpha = p_clust.calculate_distance_threshold(taxa_tree=self.taxa_tree,
                                                      taxonomy=self.refpkg.taxa_trie)
-        self.assertTrue(0.05 < round(alpha, 3) <= 0.08)
+        self.assertTrue(0.04 < round(alpha, 3) <= 0.08)
         return
 
     def test_match_edges_to_clusters(self):
@@ -189,21 +189,21 @@ class PhyloClusterTester(unittest.TestCase):
         return
 
     def test_infer_cluster_phylogeny(self):
-        from treesapp.phylo_cluster import infer_cluster_phylogeny
-        from treesapp.fasta import FASTA
         from treesapp import phylo_cluster
+        from treesapp import fasta
         p_clust = phylo_cluster.PhyloClust()
         p_clust.load_args(p_clust.get_arguments(["--refpkg_path", self.refpkg.f__pkl,
                                                  "--assign_output", get_test_data("test_output_TarA"),
                                                  "--output", self.tmp_dir,
                                                  "--alpha", str(0.4)]))
-        q_seqs = FASTA(get_test_data("McrA_eval.faa"))
+        q_seqs = fasta.FASTA(get_test_data("McrA_eval.faa"))
         q_seqs.load_fasta()
-        ete_tree = infer_cluster_phylogeny(phylo_clust=p_clust, fasta_inst=q_seqs)
+        fa_input, ete_tree = phylo_cluster.infer_cluster_phylogeny(fa_input=q_seqs.file,
+                                                                   executables=p_clust.executables,
+                                                                   output_dir=p_clust.stage_output_dir)
         # Test for node names
-        ex_name = "KKH90701  coded_by=13826..15538,organism=Methanosarcina mazei,definition=methyl-coenzyme M reductase"
+        ex_name = "KKH90701"
         self.assertTrue(ex_name in ete_tree.get_leaf_names())
-        self.assertEqual(0, len(set(ete_tree.get_leaf_names()).difference(q_seqs.get_seq_names())))
         self.assertEqual(os.path.join(self.tmp_dir, 'intermediates', 'load_pqueries/'), p_clust.stage_output_dir)
 
         # Test for number of nodes

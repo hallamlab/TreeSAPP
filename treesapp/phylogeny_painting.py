@@ -11,8 +11,9 @@ from treesapp.phylo_seq import TreeLeafReference
 from treesapp.classy import TreeSAPP
 from treesapp.refpkg import ReferencePackage
 from treesapp.taxonomic_hierarchy import Taxon
+from treesapp import logger
 
-__author__ = 'Connor Morgan-Lang'
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class PhyPainter(TreeSAPP):
@@ -44,7 +45,7 @@ class PhyPainter(TreeSAPP):
             if not rank_map:
                 rank_map = ref_pkg.taxa_trie.accepted_ranks_depths
 
-        logging.debug("\tGenerating colour palette for reference package(s): {}.\n"
+        self.ts_logger.debug("\tGenerating colour palette for reference package(s): {}.\n"
                       "".format(', '.join(self.refpkg_dict.keys())))
 
         self.set_op = args.set_op
@@ -54,7 +55,7 @@ class PhyPainter(TreeSAPP):
             try:
                 os.makedirs(self.output_dir)
             except IOError:
-                logging.error("Unable to create output directory '{}'.\n".format(self.output_dir))
+                self.ts_logger.error("Unable to create output directory '{}'.\n".format(self.output_dir))
                 sys.exit(1)
 
         self.rank = args.rank
@@ -78,7 +79,7 @@ class PhyPainter(TreeSAPP):
         try:
             self.unknown_col = mpl_colours.get_named_colors_mapping()[requested_colour]
         except KeyError:
-            logging.error("Colour '{}' is not available in matplotlib.colors.get_named_colors_mapping().\n"
+            self.ts_logger.error("Colour '{}' is not available in matplotlib.colors.get_named_colors_mapping().\n"
                           "Unable to find hexcode for requested unknown colour.\n")
             sys.exit(11)
         return
@@ -111,11 +112,11 @@ class PhyPainter(TreeSAPP):
             elif lineage_path[0] in luca_reps:
                 offsets.add(depth)
             else:
-                logging.debug("Unable to find root or domain name for '%s'. Skipping.\n" % leaf.lineage)
+                self.ts_logger.debug("Unable to find root or domain name for '%s'. Skipping.\n" % leaf.lineage)
                 continue
 
         if len(offsets) > 1:
-            logging.error("Inconsistent rank positions encountered across lineages.\n")
+            self.ts_logger.error("Inconsistent rank positions encountered across lineages.\n")
             sys.exit(13)
         self.rank_depth = offsets.pop()
 
@@ -144,7 +145,7 @@ class PhyPainter(TreeSAPP):
                     break
             taxon_leaf_map.pop(taxon)
 
-        logging.info("Remaining sequences for colouring\t{}\n"
+        self.ts_logger.info("Remaining sequences for colouring\t{}\n"
                      "Remaining taxa for colouring\t{}\n"
                      .format(self.num_seqs, self.num_taxa))
         return
@@ -178,7 +179,7 @@ class PhyPainter(TreeSAPP):
         filter_str += ", ".join(filtered_taxa) + "\n"
         filter_str += "Sequences from unwanted taxa removed\t" + str(filtered_seqs) + "\n"
         filter_str += "Unwanted taxa removed\t" + str(len(filtered_taxa)) + "\n"
-        logging.info(filter_str)
+        LOGGER.info(filter_str)
 
         return filtered_taxa
 
@@ -194,7 +195,7 @@ class PhyPainter(TreeSAPP):
         if not filtered_taxa_strings:
             filtered_taxa_strings.append("\tNone")
 
-        logging.info("Taxa filtered due to proportion < {}:\n"
+        LOGGER.info("Taxa filtered due to proportion < {}:\n"
                      "\t{}\nLow-abundance taxa removed\t{}\n"
                      "".format(min_p, "\n\t".join(filtered_taxa_strings), len(filtered_taxa)))
 
@@ -217,11 +218,11 @@ class PhyPainter(TreeSAPP):
                 else:
                     pass
             if not ancestral_node:
-                logging.warning("Unable to find internal node ancestral to all children of " + taxon + ".\n")
+                LOGGER.warning("Unable to find internal node ancestral to all children of " + taxon + ".\n")
                 bad_taxa.add(taxon)
                 continue
             if len(internal_node_map[ancestral_node]) > len(leaf_nodes):
-                logging.warning(taxon + " clade was found to be polyphyletic.\n")
+                LOGGER.warning(taxon + " clade was found to be polyphyletic.\n")
                 bad_taxa.add(taxon)
 
         return bad_taxa
@@ -266,7 +267,7 @@ class PhyPainter(TreeSAPP):
         elif set_operation == 'i':
             self.taxa_to_colour.intersection(set(taxon_leaf_map.keys()))
         else:
-            logging.error("Unsupported set operation specified: '{}'\n".format(set_operation))
+            self.ts_logger.error("Unsupported set operation specified: '{}'\n".format(set_operation))
             sys.exit(17)
 
         return
@@ -274,21 +275,21 @@ class PhyPainter(TreeSAPP):
     def get_colours(self) -> list:
         n_clade = len(self.taxa_to_colour)
         if n_clade <= 1 and self.rank:
-            logging.warning("{} unique clade(s) identified at rank '{}'."
+            self.ts_logger.warning("{} unique clade(s) identified at rank '{}'."
                             " Consider using a more resolved rank or adjusting other filtering parameters.\n"
                             "".format(n_clade, self.feature_name))
         else:
-            logging.debug("Identified {} unique clades for '{}'.\n".format(n_clade, self.feature_name))
+            self.ts_logger.debug("Identified {} unique clades for '{}'.\n".format(n_clade, self.feature_name))
 
         try:
             colours = seaborn.color_palette(self.palette, n_clade).as_hex()
-            logging.info("Using palette '{}' for styling.\n".format(self.palette))
+            self.ts_logger.info("Using palette '{}' for styling.\n".format(self.palette))
         except ValueError as e:
-            logging.error(str(e) + "\n")
+            self.ts_logger.error(str(e) + "\n")
             sys.exit(4)
 
         if len(colours) != n_clade:
-            logging.error("Bad colour parsing! len(colours) != number of clades.\n")
+            self.ts_logger.error("Bad colour parsing! len(colours) != number of clades.\n")
             raise ValueError
         return colours
 
@@ -305,7 +306,7 @@ class PhyPainter(TreeSAPP):
         alpha_sort_i = 0
 
         if len(taxa_order) != len(colours):
-            logging.error("Number of taxa (%d) and colours (%d) are not equal!\n" % (len(taxa_order), len(colours)))
+            self.ts_logger.error("Number of taxa (%d) and colours (%d) are not equal!\n" % (len(taxa_order), len(colours)))
             sys.exit(7)
 
         for taxon_num in sorted(taxa_order, key=int):
@@ -337,7 +338,7 @@ def create_write_file(file_name: str, text: str) -> None:
     try:
         file_handler = open(file_name, 'w')
     except IOError:
-        logging.error("Unable to open file '{}' for writing!\n".format(file_name))
+        LOGGER.error("Unable to open file '{}' for writing!\n".format(file_name))
         raise IOError
 
     # Write the iTOL-formatted header and node, colour and taxon fields
@@ -362,8 +363,8 @@ def write_colours_styles(taxon_leaf_map: dict, palette_taxa_map: dict, style_out
             if len(colours_style_line) > 0:
                 colours_style_string += "\t".join(colours_style_line) + "\n"
 
-    logging.info("iTOL colours style input written to " + style_output + ".\n")
-    logging.debug("{} lineages were not assigned to a colour:\n\t{}\n".format(len(colourless), "\n\t".join(colourless)))
+    LOGGER.info("iTOL colours style input written to " + style_output + ".\n")
+    LOGGER.debug("{} lineages were not assigned to a colour:\n\t{}\n".format(len(colourless), "\n\t".join(colourless)))
 
     create_write_file(style_output, colours_style_string)
 
@@ -389,7 +390,7 @@ def write_colour_strip(taxa_nodes: dict, palette_taxa_map: dict, colour_strip_fi
             if len(colours_style_line) > 0:
                 colour_strip_text += " ".join(colours_style_line) + "\n"
 
-    logging.info("iTOL colour strip input written to " + colour_strip_file + ".\n")
+    LOGGER.info("iTOL colour strip input written to " + colour_strip_file + ".\n")
 
     create_write_file(colour_strip_file, colour_strip_text)
     return

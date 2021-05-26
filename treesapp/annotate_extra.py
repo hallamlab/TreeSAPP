@@ -5,8 +5,11 @@ import logging
 
 from treesapp.classy import TreeSAPP
 from treesapp.clade_annotation import CladeAnnotation
+from treesapp import logger
 
 __author__ = 'Connor Morgan-Lang'
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class Layerer(TreeSAPP):
@@ -26,7 +29,7 @@ class Layerer(TreeSAPP):
         self.final_output_dir = self.treesapp_output + "final_outputs" + os.sep
 
         if not os.path.isfile(self.final_output_dir + self.classification_tbl_name):
-            logging.error("Could not find a classification file in " + self.final_output_dir + "\n")
+            self.ts_logger.error("Could not find a classification file in " + self.final_output_dir + "\n")
             sys.exit(3)
         if args.refpkg_dir:
             self.refpkg_dir = args.refpkg_dir
@@ -41,7 +44,7 @@ def identify_field_position(field_name: str, header_fields: list):
         if field == field_name:
             return x
         x += 1
-    logging.error("Unable to find field name '" + field_name + "' in classifications.tsv header!\n")
+    LOGGER.error("Unable to find field name '" + field_name + "' in classifications.tsv header!\n")
     sys.exit()
 
 
@@ -58,7 +61,7 @@ class ClassifiedSequence:
 
     def load_assignment_line(self, fields, header_fields, query_pos, node_pos):
         if header_fields != self.expected_header:
-            logging.error("Header in classifications.tsv is unexpected!\n")
+            LOGGER.error("Header in classifications.tsv is unexpected!\n")
             sys.exit(7)
         self.query_name = fields[query_pos]
         self.i_node = fields[node_pos]
@@ -79,7 +82,7 @@ def parse_marker_classification_table(marker_classification_file):
     try:
         classifications = open(marker_classification_file, 'r')
     except IOError:
-        logging.error("Unable to open " + marker_classification_file + " for reading!\n")
+        LOGGER.error("Unable to open " + marker_classification_file + " for reading!\n")
         sys.exit(3)
 
     header_fields = classifications.readline().strip().split("\t")
@@ -95,7 +98,7 @@ def parse_marker_classification_table(marker_classification_file):
     while line:
         fields = line.strip().split("\t")
         if len(fields) != len(header_fields):
-            logging.error("Inconsistent number of columns in table! Offending line:\n" + line + "\n")
+            LOGGER.error("Inconsistent number of columns in table! Offending line:\n" + line + "\n")
             sys.exit(3)
         if fields[marker_pos] not in master_dat:
             master_dat[fields[marker_pos]] = list()
@@ -145,7 +148,7 @@ def map_queries_to_annotations(refpkg_annotations: dict, refpkg_classifications:
                 num_unclassified += len(refpkg_classifications[marker])
                 continue
     if num_unclassified > 0:
-        logging.debug("Number of placed sequences that were unclassified: {}\n".format(num_unclassified))
+        LOGGER.debug("Number of placed sequences that were unclassified: {}\n".format(num_unclassified))
     return
 
 
@@ -165,13 +168,13 @@ def annotate_internal_nodes(internal_node_map: dict, clade_annotations: list) ->
     leaves_in_clusters = set()
 
     if len(clade_annotations) == 0:
-        logging.error("No clade annotations provided for layering.\n")
+        LOGGER.error("No clade annotations provided for layering.\n")
         raise AssertionError(17)
 
     for clade_annot in clade_annotations:  # type: CladeAnnotation
         annotation_internal_nodes = clade_annot.get_internal_nodes(internal_node_map)
         if len(annotation_internal_nodes) == 0:
-            logging.error("Unable to match leaf node names to internal nodes for the clade annotation:\n"
+            LOGGER.error("Unable to match leaf node names to internal nodes for the clade annotation:\n"
                           "{}.".format(str(clade_annot.feature)))
             sys.exit(17)
         annotation_clusters.update({clade_annot.name: clade_annot.get_internal_nodes(internal_node_map)})
@@ -191,7 +194,7 @@ def annotate_internal_nodes(internal_node_map: dict, clade_annotations: list) ->
             if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):
                 annotated_clade_members[annotation].add(i_node)
 
-    logging.debug("\tCaptured {} nodes in clusters.\n".format(len(leaves_in_clusters)))
+    LOGGER.debug("\tCaptured {} nodes in clusters.\n".format(len(leaves_in_clusters)))
 
     return annotated_clade_members, leaves_in_clusters
 
@@ -223,7 +226,7 @@ def write_classification_table(table_name: str, field_order: dict, master_dat: d
     try:
         table_handler = open(table_name, 'w')
     except IOError:
-        logging.error("Unable to open " + table_name + " for writing!\n")
+        LOGGER.error("Unable to open " + table_name + " for writing!\n")
         sys.exit(3)
     table_handler.write("\n".join(new_classification_lines) + "\n")
     table_handler.close()

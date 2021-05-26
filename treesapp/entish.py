@@ -1,11 +1,13 @@
-__author__ = 'Connor Morgan-Lang'
-
 import sys
 import re
 import os
 import logging
 
 from ete3 import Tree, TreeNode
+
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def get_node(tree: str, pos: int) -> (int, int):
@@ -161,7 +163,7 @@ def map_internal_nodes_leaves(tree: str) -> dict:
             # Append the most recent leaf
             current_node, x = get_node(no_length_tree, x + 1)
             if current_node in node_map:
-                logging.error("Key '" + str(current_node) + "' being overwritten in internal-node map\n")
+                LOGGER.error("Key '" + str(current_node) + "' being overwritten in internal-node map\n")
                 sys.exit(11)
             node_map[current_node] = node_stack.pop()
             leaf_stack.append(current_node)
@@ -175,7 +177,7 @@ def map_internal_nodes_leaves(tree: str) -> dict:
                     c = no_length_tree[x]
                 current_node, x = get_node(no_length_tree, x)
                 if current_node in node_map:
-                    logging.error("Key '" + str(current_node) + "' being overwritten in internal-node map\n")
+                    LOGGER.error("Key '" + str(current_node) + "' being overwritten in internal-node map\n")
                     sys.exit(11)
                 node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
                 leaf_stack.append(current_node)
@@ -184,7 +186,7 @@ def map_internal_nodes_leaves(tree: str) -> dict:
         x += 1
 
     if node_stack:
-        logging.error("Node stack not empty by end of loading internal-node map:\n" + str(node_stack) + "\n")
+        LOGGER.error("Node stack not empty by end of loading internal-node map:\n" + str(node_stack) + "\n")
         sys.exit(11)
 
     # Ensure all the leaves were popped in case the tree was unrooted
@@ -193,7 +195,7 @@ def map_internal_nodes_leaves(tree: str) -> dict:
         try:
             node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
         except IndexError:
-            logging.error("Tried to generate leaf-to-internal node map from multifurcating tree.\n")
+            LOGGER.error("Tried to generate leaf-to-internal node map from multifurcating tree.\n")
             sys.exit(11)
         if leaf_stack:
             leaf_stack.append(current_node)
@@ -211,7 +213,7 @@ def annotate_partition_tree(refpkg_name: str, leaf_nodes: list, bipart_tree: str
     tree_file.close()
     for leaf_node in leaf_nodes:
         if not re.search(r"[,(]{0}_{1}".format(leaf_node.number, refpkg_name), tree):
-            logging.warning("Unable to find '{}' in {}.\n"
+            LOGGER.warning("Unable to find '{}' in {}.\n"
                             "The bipartition tree will not be annotated"
                             " (no effect on reference package).\n".format(leaf_node.number + '_' + refpkg_name,
                                                                           bipart_tree))

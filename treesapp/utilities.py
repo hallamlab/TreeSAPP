@@ -12,6 +12,9 @@ from pygtrie import StringTrie
 import multiprocessing
 
 from treesapp.external_command_interface import launch_write_command
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def base_file_prefix(file_path: str) -> str:
@@ -53,7 +56,7 @@ def rekey_dict(og_dict: dict, key_map: dict) -> dict:
     unmapped = list()
 
     if len(og_dict) != len(key_map):
-        logging.error("Key map (" + str(len(key_map)) + ") and original dictionary (" + str(len(og_dict)) +
+        LOGGER.error("Key map (" + str(len(key_map)) + ") and original dictionary (" + str(len(og_dict)) +
                       ") are different sizes. Unable to re-key.\n")
         sys.exit(5)
 
@@ -67,10 +70,10 @@ def rekey_dict(og_dict: dict, key_map: dict) -> dict:
         updated_dict[new_key] = og_dict.pop(old_key)
 
     if len(unmapped) > 0:
-        logging.warning("Dictionary rekey incomplete - " + str(len(unmapped)) + " keys were not found in dictionary.\n")
+        LOGGER.warning("Dictionary rekey incomplete - " + str(len(unmapped)) + " keys were not found in dictionary.\n")
 
     if len(og_dict) > 0:
-        logging.warning(str(len(og_dict)) + " keys in original dictionary were not popped during re-keying process.\n")
+        LOGGER.warning(str(len(og_dict)) + " keys in original dictionary were not popped during re-keying process.\n")
 
     return updated_dict
 
@@ -118,10 +121,10 @@ def match_file(glob_pattern: str) -> str:
     file_matches = glob(glob_pattern)
 
     if len(file_matches) > 1:
-        logging.error("Multiple files match glob pattern '{}':\n{}".format(glob_pattern, ", ".join(file_matches)))
+        LOGGER.error("Multiple files match glob pattern '{}':\n{}".format(glob_pattern, ", ".join(file_matches)))
         sys.exit(17)
     elif len(file_matches) == 0:
-        logging.error("Unable to find file matching glob pattern '{}'.\n".format(glob_pattern))
+        LOGGER.error("Unable to find file matching glob pattern '{}'.\n".format(glob_pattern))
         sys.exit(19)
     else:
         return file_matches.pop()
@@ -153,7 +156,7 @@ def available_cpu_count():
     except (ImportError, NotImplementedError):
         pass
 
-    logging.error('Can not determine number of CPUs on this system')
+    LOGGER.error('Can not determine number of CPUs on this system')
     return
 
 
@@ -194,7 +197,7 @@ def executable_dependency_versions(exe_dict: dict) -> str:
         elif exe == "BMGE.jar":
             stdout, returncode = launch_write_command(["java", "-Xmx10m", "-jar", exe_dict[exe], "-?"])
         else:
-            logging.warning("Unknown version command for " + exe + ".\n")
+            LOGGER.warning("Unknown version command for " + exe + ".\n")
             continue
         ##
         # Identify the line with the version number (since often more than a single line is returned)
@@ -210,7 +213,7 @@ def executable_dependency_versions(exe_dict: dict) -> str:
             else:
                 pass
         if not versions_dict[exe]:
-            logging.debug("Unable to find version for " + exe + ".\n")
+            LOGGER.debug("Unable to find version for " + exe + ".\n")
 
     ##
     # Format the string with the versions of all software
@@ -282,7 +285,7 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
     if not alignment_dims:
         seq_chunks = [len(aligned_seq) for aligned_seq in phy_dict.values()]
         if min(seq_chunks) != max(seq_chunks):
-            logging.error("Inconsistent number of sequences in Phylip dictionary keys.")
+            LOGGER.error("Inconsistent number of sequences in Phylip dictionary keys.")
         num_seqs = seq_chunks[0]
         aligned_seqs = dict()
         for seq_chunk in phy_dict.keys():
@@ -292,7 +295,7 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
                 aligned_seqs[seq_name] += phy_dict[seq_chunk][seq_name]
         aligned_seq_lengths = [len(aligned_seqs[aligned_seq]) for aligned_seq in aligned_seqs.keys()]
         if min(aligned_seq_lengths) != max(aligned_seq_lengths):
-            logging.error("Lengths of aligned sequences are heterogeneous.")
+            LOGGER.error("Lengths of aligned sequences are heterogeneous.")
         alignment_len = aligned_seq_lengths[0]
         aligned_seqs.clear()
         seq_chunks.clear()
@@ -335,15 +338,15 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict, header_registry: di
     marker_gene_dict = dict()
     header_matching_dict = dict()
 
-    logging.debug("Creating a temporary dictionary for rapid sequence name look-ups... ")
+    LOGGER.debug("Creating a temporary dictionary for rapid sequence name look-ups... ")
     for num in header_registry:
         if header_registry[num].first_split[0] == '>':
             header_matching_dict[header_registry[num].first_split[1:]] = header_registry[num]
         else:
             header_matching_dict[header_registry[num].first_split] = header_registry[num]
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
 
-    logging.info("Extracting the quality-controlled protein sequences... ")
+    LOGGER.info("Extracting the quality-controlled protein sequences... ")
 
     for refpkg_name in hmm_matches:
         extracted_loci = dict()
@@ -359,16 +362,16 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict, header_registry: di
                 q_header.post_align = q_header.original
 
             if q_header.post_align in extracted_loci:
-                logging.warning("Query '{}' being overwritten by an alternative alignment:\n"
+                LOGGER.warning("Query '{}' being overwritten by an alternative alignment:\n"
                                 "{}\n".format(q_header.post_align, hmm_match.get_info()))
             try:
                 extracted_loci[q_header.post_align] = fasta_dict[q_header.original][hmm_match.start-1:hmm_match.end]
             except KeyError:
-                logging.debug("Unable to map '{}' to a sequence in the input FASTA.\n".format(hmm_match.orf))
+                LOGGER.debug("Unable to map '{}' to a sequence in the input FASTA.\n".format(hmm_match.orf))
 
         marker_gene_dict[refpkg_name] = extracted_loci
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
     return marker_gene_dict
 
 
@@ -425,17 +428,17 @@ def hmm_pile(hmm_matches: dict) -> None:
             low_cov_summary += "\t" + str(low_coverage_start) + "-end\n"
 
         if low_cov_summary:
-            logging.info("Low coverage " + marker + " profile windows (start-stop):\n" + low_cov_summary)
-        logging.info("Maximum coverage for " + marker + " = " + str(maximum_coverage) + " sequences\n")
+            LOGGER.info("Low coverage " + marker + " profile windows (start-stop):\n" + low_cov_summary)
+        LOGGER.info("Maximum coverage for " + marker + " = " + str(maximum_coverage) + " sequences\n")
     return
 
 
-def concatenate_files(input_files: list, output_path: str):
+def concatenate_files(input_files: list, output_path: str) -> None:
     """A Pythonic replacement for UNIX's cat utility."""
     try:
         output_handler = open(output_path, 'wb')
     except IOError:
-        logging.error("Unable to open output file '{}' for writing.\n".format(output_path))
+        LOGGER.error("Unable to open output file '{}' for writing.\n".format(output_path))
         sys.exit(17)
 
     if isinstance(input_files, str):
@@ -463,7 +466,7 @@ def complement_nucs(nuc_str: str):
                 comp_str += 'N'
 
     if replacements:
-        logging.warning("{} ambiguity character(s) ({}) replaced by 'N' while complementing\n"
+        LOGGER.warning("{} ambiguity character(s) ({}) replaced by 'N' while complementing\n"
                         "".format(len(replacements), ', '.join(sorted(set(replacements)))))
     return comp_str
 
@@ -484,14 +487,14 @@ def find_msa_type(msa_files: dict):
         elif re.match("mfa|fa|fasta", f_ext):
             file_types.add("Fasta")
         else:
-            logging.error("Unrecognized file extension: '" + f_ext + "'")
+            LOGGER.error("Unrecognized file extension: '" + f_ext + "'")
             sys.exit(3)
     if len(file_types) > 1:
-        logging.error(
+        LOGGER.error(
             "Multiple file types detected in multiple alignment files:\n" + ','.join(file_types) + "\n")
         sys.exit(3)
     elif len(file_types) == 0:
-        logging.error("No alignment files were generated!\n")
+        LOGGER.error("No alignment files were generated!\n")
         sys.exit(3)
     else:
         return file_types.pop()
@@ -544,7 +547,7 @@ def get_hmm_value(profile_hmm, attribute_name: str) -> str:
     try:
         hmm_attr_name = attribute_name_map.get(attribute_name)
     except KeyError:
-        logging.error("Unsupported profile HMM feature '{}'".format(attribute_name))
+        LOGGER.error("Unsupported profile HMM feature '{}'".format(attribute_name))
         raise KeyError()
 
     # Compiled regular expression for the requested attribute
@@ -560,10 +563,10 @@ def get_hmm_value(profile_hmm, attribute_name: str) -> str:
                 attribute_lines.append(line)
 
     if not attribute_lines:
-        logging.error("Unable to parse '{}' from the profile HMM.\n".format(attribute_name))
+        LOGGER.error("Unable to parse '{}' from the profile HMM.\n".format(attribute_name))
         raise AssertionError()
     elif len(attribute_lines) > 1:
-        logging.error("More than one profile HMM included in file.\n")
+        LOGGER.error("More than one profile HMM included in file.\n")
         raise AssertionError()
     else:
         attr_line = attribute_lines.pop()
@@ -591,12 +594,12 @@ def write_dict_to_table(data_dict: dict, output_file: str, sep="\t") -> None:
         elif isinstance(values, list):
             data_strings.append(sep.join([key, sep.join(values)]))
         else:
-            logging.error("Unable to tabularize values of type '{}'\n".format(type(values)))
+            LOGGER.error("Unable to tabularize values of type '{}'\n".format(type(values)))
             sys.exit(5)
     try:
         handler = open(output_file, 'w')
     except IOError:
-        logging.error("Unable to open file '" + output_file + "' for writing.\n")
+        LOGGER.error("Unable to open file '" + output_file + "' for writing.\n")
         sys.exit(3)
     handler.write("\n".join(data_strings) + "\n")
     handler.close()
@@ -663,7 +666,7 @@ def get_field_delimiter(file_path: str, sniff_size=50) -> str:
         # Return to the beginning
         csvfile.seek(0)
         if x < sniff_size:
-            logging.info("{} contains {} lines which were used to determine field delimiter.\n".format(file_path, x))
+            LOGGER.info("{} contains {} lines which were used to determine field delimiter.\n".format(file_path, x))
 
         # Read the file to determine its delimiter
         dialect = sniffer.sniff(sample, delimiters=',;\t')
@@ -677,7 +680,7 @@ def validate_new_dir(output_dir: str) -> str:
     if output_dir[-1] != os.sep:
         output_dir += os.sep
     if not os.path.isdir(up):
-        logging.error("The directory above output ({}) does not exist.\n"
+        LOGGER.error("The directory above output ({}) does not exist.\n"
                       "Please make these as TreeSAPP only creates a single new directory.".format(up))
         sys.exit(3)
     return output_dir
@@ -689,7 +692,7 @@ def fetch_executable_path(exe_name, treesapp_dir):
     elif which(exe_name):
         return which(exe_name)
     else:
-        logging.error("Could not find a valid executable for '{}'.\n".format(exe_name))
+        LOGGER.error("Could not find a valid executable for '{}'.\n".format(exe_name))
         sys.exit(13)
 
 
@@ -700,14 +703,3 @@ def elegant_pair(x: int, y: int, sort=False) -> int:
         return y*y + x
     else:
         return x*x + x + y
-
-
-def mod_logging_level(loglevel=None):
-    logger = logging.getLogger('root')
-    if loglevel is None:
-        loglevel = "INFO"
-    numeric_level = getattr(logging, loglevel.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError("Invalid log level: %s" % loglevel.upper())
-    logger.setLevel(numeric_level)
-    return

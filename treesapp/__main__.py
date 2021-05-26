@@ -63,7 +63,7 @@ def main(sys_args=None) -> int:
 
     cmd = commands.get(args.command)
     cmd(sys_args[2:])
-    logging.info("TreeSAPP has finished successfully.\n")
+    logging.getLogger("treesapp").info("TreeSAPP has finished successfully.\n")
     return 0
 
 

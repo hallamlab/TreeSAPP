@@ -5,6 +5,7 @@ import logging
 from samsum import commands as samsum_cmd
 
 from treesapp import classy
+from treesapp import logger
 from treesapp import wrapper
 from treesapp import treesapp_args
 from treesapp import phylo_seq
@@ -78,7 +79,7 @@ def abundance(sys_args) -> dict:
     ts_abund.furnish_with_arguments(args)
 
     log_file_name = args.output + os.sep + "TreeSAPP_abundance_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
+    logger.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCalculating abundance of classified sequences\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)

@@ -9,8 +9,11 @@ from shutil import copy, rmtree
 from tqdm import tqdm
 import subprocess
 
+from treesapp import logger
 from treesapp.external_command_interface import launch_write_command, CommandLineFarmer
 from treesapp import utilities
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def estimate_ml_model(modeltest_exe: str, msa: str, output_prefix: str, molecule: str, threads=1) -> str:
@@ -43,8 +46,8 @@ def estimate_ml_model(modeltest_exe: str, msa: str, output_prefix: str, molecule
 
     stdout, returncode = launch_write_command(model_find_cmd)
     if returncode != 0:
-        logging.error("{} could not determine a substitution model for your sequences in '{}'.\n".format(modeltest_exe,
-                                                                                                         molecule))
+        LOGGER.error("{} could not determine a substitution model for your sequences in '{}'.\n".format(modeltest_exe,
+                                                                                                        molecule))
         sys.exit(13)
 
     # TODO: Parse the optimal model determined by ModelTest-NG and return it
@@ -82,16 +85,16 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     if glob.glob(utilities.globify_path(output_prefix) + "*"):
         model_eval_cmd.append("--redo")
 
-    logging.debug("Evaluating phylogenetic tree with RAxML-NG... ")
+    LOGGER.debug("Evaluating phylogenetic tree with RAxML-NG... ")
     stdout, returncode = launch_write_command(model_eval_cmd)
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
 
     # Overwrite the original tree with the RAxML-NG evaluated tree
     os.rename(ml_tree, tree_file)
 
     if returncode != 0:
-        logging.error("{} did not complete successfully! Look in {}_info.txt for an error message.\n"
-                      "RAxML-NG command used:\n{}\n".format(raxml_exe, output_prefix, ' '.join(model_eval_cmd)))
+        LOGGER.error("{} did not complete successfully! Look in {}_info.txt for an error message.\n"
+                     "RAxML-NG command used:\n{}\n".format(raxml_exe, output_prefix, ' '.join(model_eval_cmd)))
         sys.exit(13)
 
     return model_params_file
@@ -100,8 +103,8 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
 def bootstrap_tree_raxml(raxml_exe: str, multiple_alignment: str, model: str, tree_prefix: str,
                          mre=True, bootstraps=1000, num_threads=2) -> str:
     if mre and bootstraps < 100:
-        logging.warning("With fewer than 100 bootstraps specified ({}) "
-                        "MRE-based bootstrap convergence criterion in not going to be used.".format(bootstraps))
+        LOGGER.warning("With fewer than 100 bootstraps specified ({}) "
+                       "MRE-based bootstrap convergence criterion in not going to be used.".format(bootstraps))
         mre = False
 
     bootstrap_cmd = [raxml_exe, "--bootstrap"]
@@ -115,13 +118,13 @@ def bootstrap_tree_raxml(raxml_exe: str, multiple_alignment: str, model: str, tr
     bootstrap_cmd += ["--seed", str(12345)]
     bootstrap_cmd += ["--threads", "auto{{{}}}".format(num_threads)]
 
-    logging.info("Bootstrapping reference tree with RAxML-NG... ")
+    LOGGER.info("Bootstrapping reference tree with RAxML-NG... ")
     launch_write_command(bootstrap_cmd)
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     bootstraps_file = tree_prefix + ".raxml.bootstraps"
     if not os.path.isfile(bootstraps_file):
-        logging.error("Unable to find bootstrap file '%s'.\n" % bootstraps_file)
+        LOGGER.error("Unable to find bootstrap file '%s'.\n" % bootstraps_file)
         sys.exit(17)
 
     return bootstraps_file
@@ -138,13 +141,13 @@ def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, 
     support_cmd += ["--prefix", tree_prefix]
     support_cmd += ["--threads", str(num_threads)]
 
-    logging.info("Calculating bootstrap support for nodes in reference tree with RAxML-NG... ")
+    LOGGER.info("Calculating bootstrap support for nodes in reference tree with RAxML-NG... ")
     launch_write_command(support_cmd)
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     support_file = tree_prefix + ".raxml.support"
     if not os.path.isfile(support_file):
-        logging.error("Unable to find support file '%s'.\n" % support_file)
+        LOGGER.error("Unable to find support file '%s'.\n" % support_file)
         sys.exit(17)
 
     return support_file
@@ -164,14 +167,14 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
     :param tree_prefix: Prefix to be used for the outputs
     :param num_threads: Number of threads to use (for RAxML-NG only)
     :param num_trees: The number of starting trees to use, inferred by random and parsimony each
-    :param verbosity: Controls the logging level. 1 is logging.INFO, 0 is logging.DEBUG.
+    :param verbosity: Controls the logging level. 1 is LOGGER.INFO, 0 is LOGGER.DEBUG.
     :return: Stylized name of the tree-building software used
     """
 
     # Decide on the command to build the tree, make some directories and files when necessary
     if not verbosity:
-        utilities.mod_logging_level("debug")
-    logging.info("Building phylogenetic tree with " + tree_builder + "... ")
+        LOGGER.disabled = True
+    LOGGER.info("Building phylogenetic tree with " + tree_builder + "... ")
     best_tree = "{}{}.{}.nwk".format(tree_output_dir, tree_prefix, tree_builder)
     if tree_builder == "FastTree":
         tree_build_cmd = [executables["FastTree"]]
@@ -198,18 +201,18 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
         # Rename the file using the standardised naming scheme
         os.rename(tree_output_dir + tree_prefix + ".raxml.bestTree", best_tree)
     else:
-        logging.error("Unrecognized software '{}'.\n".format(tree_builder))
+        LOGGER.error("Unrecognized software '{}'.\n".format(tree_builder))
         sys.exit(5)
 
-    logging.info("done.\n")
-    utilities.mod_logging_level()
-    logging.debug(stdout + "\n")
+    LOGGER.info("done.\n")
+    LOGGER.disabled = False
+    LOGGER.debug(stdout + "\n")
 
     if returncode != 0:
-        logging.error("{0} did not complete successfully! Look in {1} for an error message.\n"
-                      "{0} command used:\n{2}\n".format(tree_builder,
-                                                        tree_output_dir + '.'.join([tree_prefix, tree_builder, "log"]),
-                                                        ' '.join(tree_build_cmd)))
+        LOGGER.error("{0} did not complete successfully! Look in {1} for an error message.\n"
+                     "{0} command used:\n{2}\n".format(tree_builder,
+                                                       tree_output_dir + '.'.join([tree_prefix, tree_builder, "log"]),
+                                                       ' '.join(tree_build_cmd)))
         sys.exit(13)
 
     return best_tree
@@ -230,7 +233,7 @@ def launch_evolutionary_placement_queries(executables: dict, split_msa_files: di
     :param num_threads: Number of threads to use during placement
     :return: None
     """
-    logging.info("Running EPA... ")
+    LOGGER.info("Running EPA... ")
 
     start_time = time.time()
 
@@ -238,7 +241,7 @@ def launch_evolutionary_placement_queries(executables: dict, split_msa_files: di
     # Maximum-likelihood sequence placement analyses
     for refpkg_name in sorted(split_msa_files.keys()):
         if not isinstance(refpkg_name, str):
-            logging.error("RefPkg name key '{}' is not string but {}\n.".format(refpkg_name, type(refpkg_name)))
+            LOGGER.error("RefPkg name key '{}' is not string but {}\n.".format(refpkg_name, type(refpkg_name)))
             raise AssertionError
         ref_pkg = refpkg_dict[refpkg_name]
         for split_msa in split_msa_files[refpkg_name]:
@@ -252,11 +255,11 @@ def launch_evolutionary_placement_queries(executables: dict, split_msa_files: di
     end_time = time.time()
     hours, remainder = divmod(end_time - start_time, 3600)
     minutes, seconds = divmod(remainder, 60)
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
-    logging.debug("\tEPA-ng time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    logging.debug("\tEPA-ng was called " + str(epa_calls) + " times.\n")
+    LOGGER.debug("\tEPA-ng time required: " +
+                 ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    LOGGER.debug("\tEPA-ng was called " + str(epa_calls) + " times.\n")
 
     return
 
@@ -292,16 +295,16 @@ def raxml_evolutionary_placement(epa_exe: str, refpkg_tree: str, refpkg_msa: str
         output_dir += os.sep
 
     if refpkg_model is None:
-        logging.error("No substitution model provided for evolutionary placement of " + query_name + ".\n")
+        LOGGER.error("No substitution model provided for evolutionary placement of " + query_name + ".\n")
         raise AssertionError()
 
     # Determine the output file names, and remove any pre-existing output files
     if not isinstance(refpkg_tree, str):
-        logging.error(str(refpkg_tree) + " is not string but " + str(type(refpkg_tree)) + "\n")
+        LOGGER.error(str(refpkg_tree) + " is not string but " + str(type(refpkg_tree)) + "\n")
         raise AssertionError()
 
     if len(refpkg_tree) == 0:
-        logging.error("Could not find reference tree for " + query_name + " to be used by EPA-ng.\n")
+        LOGGER.error("Could not find reference tree for " + query_name + " to be used by EPA-ng.\n")
         raise AssertionError()
 
     # This is the final set of files that will be written by EPA-ng
@@ -341,8 +344,8 @@ def raxml_evolutionary_placement(epa_exe: str, refpkg_tree: str, refpkg_msa: str
         copy(epa_jplace, epa_files["jplace"])
         os.remove(epa_jplace)
     else:
-        logging.error("Some files were not successfully created for " + query_name + "\n" +
-                      "Check " + epa_files["stdout"] + " for an error!\n")
+        LOGGER.error("Some files were not successfully created for " + query_name + "\n" +
+                     "Check " + epa_files["stdout"] + " for an error!\n")
         sys.exit(3)
 
     return epa_files
@@ -398,8 +401,8 @@ def profile_aligner(executables, ref_aln, ref_profile, input_fasta, output_sto, 
 
     stdout, returncode = launch_write_command(malign_command)
     if returncode != 0:
-        logging.error("Multiple alignment failed for " + input_fasta + ". Command used:\n" +
-                      ' '.join(malign_command) + " output:\n" + stdout + "\n")
+        LOGGER.error("Multiple alignment failed for " + input_fasta + ". Command used:\n" +
+                     ' '.join(malign_command) + " output:\n" + stdout + "\n")
         sys.exit(3)
     return stdout
 
@@ -423,8 +426,8 @@ def generate_mmseqs_cluster_alignments(mmseqs_exe: str, db_name: str,
     stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "convertalis",
                                                    db_name, db_name, align_db, align_tab])
     if mmseqs_retcode != 0:
-        logging.error("{} sequence cluster alignments failed. MMSeqs output:\n"
-                      "{}\n".format(mmseqs_exe, stdout))
+        LOGGER.error("{} sequence cluster alignments failed. MMSeqs output:\n"
+                     "{}\n".format(mmseqs_exe, stdout))
         sys.exit(7)
     return
 
@@ -447,8 +450,8 @@ def generate_mmseqs_cluster_fasta(mmseqs_exe: str, db_name: str,
     # Convert the subsetted database to a FASTA file
     stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "convert2fasta", reps, reps_fasta])
     if mmseqs_retcode != 0:
-        logging.error("{} failed to generate a cluster fasta file. MMSeqs output:\n"
-                      "{}\n".format(mmseqs_exe, stdout))
+        LOGGER.error("{} failed to generate a cluster fasta file. MMSeqs output:\n"
+                     "{}\n".format(mmseqs_exe, stdout))
         sys.exit(7)
     return
 
@@ -458,8 +461,8 @@ def generate_mmseqs_cluster_table(mmseqs_exe, db_name, int_clusters, cluster_tbl
                                                    db_name, db_name,
                                                    int_clusters, cluster_tbl])
     if mmseqs_retcode != 0:
-        logging.error("{} failed to generate a cluster fasta file. MMSeqs output:\n"
-                      "{}\n".format(mmseqs_exe, stdout))
+        LOGGER.error("{} failed to generate a cluster fasta file. MMSeqs output:\n"
+                     "{}\n".format(mmseqs_exe, stdout))
         sys.exit(7)
     return
 
@@ -483,7 +486,7 @@ def run_linclust(mmseqs_exe: str, fa_in: list, output_prefix: str, prop_sim: flo
     :return: None
     """
     if not 0.0 < aln_cov < 1.0:
-        logging.error("Provided alignment sequence similarity {} not in expected range, 0.0-1.0.\n".format(prop_sim))
+        LOGGER.error("Provided alignment sequence similarity {} not in expected range, 0.0-1.0.\n".format(prop_sim))
         sys.exit(5)
 
     if not tmp_dir:
@@ -513,9 +516,9 @@ def run_linclust(mmseqs_exe: str, fa_in: list, output_prefix: str, prop_sim: flo
 
     stdout, mmseqs_retcode = launch_write_command(mmseqs_db_cmd)
     if mmseqs_retcode != 0:
-        logging.error("MMSeqs database creation with {} failed. Command used:\n"
-                      "{}\n"
-                      "MMSeqs output:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_db_cmd), stdout))
+        LOGGER.error("MMSeqs database creation with {} failed. Command used:\n"
+                     "{}\n"
+                     "MMSeqs output:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_db_cmd), stdout))
         sys.exit(7)
 
     # Cluster the MMSeqs database
@@ -529,8 +532,8 @@ def run_linclust(mmseqs_exe: str, fa_in: list, output_prefix: str, prop_sim: flo
 
     stdout, mmseqs_retcode = launch_write_command(mmseqs_cluster_cmd)
     if mmseqs_retcode != 0:
-        logging.error("Linclust sequence clustering with {} failed."
-                      " Command used:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_cluster_cmd)))
+        LOGGER.error("Linclust sequence clustering with {} failed."
+                     " Command used:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_cluster_cmd)))
         sys.exit(7)
 
     # Format the desired outputs
@@ -568,11 +571,11 @@ def run_vsearch_clustering(uclust_exe, fasta_input, uclust_prefix, similarity=0.
     stdout, returncode = launch_write_command(uclust_cmd)
 
     if returncode != 0:
-        logging.error("VSEARCH did not complete successfully! Command used:\n" +
-                      ' '.join(uclust_cmd) + "\n")
+        LOGGER.error("VSEARCH did not complete successfully! Command used:\n" +
+                     ' '.join(uclust_cmd) + "\n")
         sys.exit(13)
 
-    logging.debug(stdout)
+    LOGGER.debug(stdout)
     return
 
 
@@ -588,17 +591,17 @@ def cluster_sequences(software_path: str, fasta_input: str, output_prefix: str, 
     :return: None
     """
     if "mmseqs" in software_path:
-        logging.info("Clustering sequences with MMSeqs' Linclust... ")
+        LOGGER.info("Clustering sequences with MMSeqs' Linclust... ")
         run_linclust(mmseqs_exe=software_path, fa_in=[fasta_input], output_prefix=output_prefix, prop_sim=similarity,
                      num_threads=num_threads)
     elif "vsearch" in software_path:
-        logging.info("Clustering sequences with VSEARCH's cluster_fast algorithm... ")
+        LOGGER.info("Clustering sequences with VSEARCH's cluster_fast algorithm... ")
         run_vsearch_clustering(software_path, fasta_input, output_prefix, similarity)
     else:
-        logging.error("Unsupported software for clustering sequences: '{}'.\n".format(software_path))
+        LOGGER.error("Unsupported software for clustering sequences: '{}'.\n".format(software_path))
         sys.exit(19)
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     return
 
@@ -614,17 +617,17 @@ def build_hmm_profile(hmmbuild_exe: str, msa_in: str, output_hmm: str, name=None
     :param graceful: Optionally, TreeSAPP will not exit if hmmbuild failed and graceful is True; it will return instead.
     :return: None
     """
-    logging.debug("Building HMM profile... ")
+    LOGGER.debug("Building HMM profile... ")
     hmm_build_command = [hmmbuild_exe]
     if name:
         hmm_build_command += ["-n", str(name)]
     hmm_build_command += ["'" + output_hmm + "'", "'" + msa_in + "'"]
     stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
 
     if hmmbuild_pro_returncode != 0 and not graceful:
-        logging.error("hmmbuild did not complete successfully for:\n" +
-                      ' '.join(hmm_build_command) + "\n")
+        LOGGER.error("hmmbuild did not complete successfully for:\n" +
+                     ' '.join(hmm_build_command) + "\n")
         sys.exit(7)
     return
 
@@ -658,8 +661,8 @@ def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output
 
     # Check to ensure the job finished properly
     if ret_code != 0:
-        logging.error("hmmsearch did not complete successfully! Output:\n" + stdout + "\n" +
-                      "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
+        LOGGER.error("hmmsearch did not complete successfully! Output:\n" + stdout + "\n" +
+                     "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
         sys.exit(13)
 
     return [domtbl]
@@ -675,7 +678,7 @@ def hmmsearch_orfs(hmmsearch_exe: str, refpkg_dict: dict, fasta_file: str, outpu
     for refpkg_name in refpkg_dict:
         refpkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
         if not os.path.exists(refpkg.f__search_profile):
-            logging.error("Unable to locate HMM-profile for '{}'.\n".format(refpkg.prefix))
+            LOGGER.error("Unable to locate HMM-profile for '{}'.\n".format(refpkg.prefix))
             sys.exit(3)
         else:
             if refpkg.molecule == "prot":
@@ -683,8 +686,8 @@ def hmmsearch_orfs(hmmsearch_exe: str, refpkg_dict: dict, fasta_file: str, outpu
             else:
                 nucl_target_hmm_files.append(refpkg.f__search_profile)
 
-    logging.info("Searching for marker proteins in ORFs using hmmsearch.\n")
-    if logging.getLogger().disabled:
+    LOGGER.info("Searching for marker proteins in ORFs using hmmsearch.\n")
+    if LOGGER.disabled:
         pbar = None
     else:
         pbar = tqdm(total=len(prot_target_hmm_files) + len(nucl_target_hmm_files), ncols=120)
@@ -726,17 +729,17 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
             os.makedirs(aln_output_dir)
         except OSError:
             if os.path.exists(aln_output_dir):
-                logging.warning("Overwriting files in " + aln_output_dir + ".\n")
+                LOGGER.warning("Overwriting files in " + aln_output_dir + ".\n")
             else:
                 raise OSError("Unable to make " + aln_output_dir + "!\n")
 
-    logging.info("Aligning reads to ORFs with BWA MEM... ")
+    LOGGER.info("Aligning reads to ORFs with BWA MEM... ")
 
     if len(sam_file) == 0:
         sam_file = aln_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
 
     if os.path.isfile(sam_file):
-        logging.info("Alignment map file {} found.\n".format(sam_file))
+        LOGGER.info("Alignment map file {} found.\n".format(sam_file))
         return sam_file
 
     index_path = os.path.join(aln_output_dir, os.path.basename(reference_fasta))
@@ -751,7 +754,7 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
     bwa_command += ["-t", str(num_threads)]
     if pairing == "pe" and not reverse:
         bwa_command.append("-p")
-        logging.debug("FASTQ file containing reverse mates was not provided - assuming the reads are interleaved!\n")
+        LOGGER.debug("FASTQ file containing reverse mates was not provided - assuming the reads are interleaved!\n")
     elif pairing == "se":
         bwa_command += ["-S", "-P"]
 
@@ -764,10 +767,10 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
     p_bwa = subprocess.Popen(' '.join(bwa_command), shell=True, preexec_fn=os.setsid)
     p_bwa.wait()
     if p_bwa.returncode != 0:
-        logging.error("bwa mem did not complete successfully for:\n" +
-                      str(' '.join(bwa_command)) + "\n")
+        LOGGER.error("bwa mem did not complete successfully for:\n" +
+                     str(' '.join(bwa_command)) + "\n")
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     return sam_file
 
@@ -793,13 +796,13 @@ def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads: int) -
     stdout, mafft_proc_returncode = launch_write_command(mafft_align_command, False)
 
     if mafft_proc_returncode != 0:
-        logging.error("Multiple sequence alignment using " + mafft_exe +
-                      " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
+        LOGGER.error("Multiple sequence alignment using " + mafft_exe +
+                     " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
         sys.exit(7)
 
     # mfa = read_fasta_to_dict(fasta_out)
     # if len(mfa.keys()) < 1:
-    #     logging.error("MAFFT did not generate a proper FASTA file. " +
+    #     LOGGER.error("MAFFT did not generate a proper FASTA file. " +
     #                   "Check the output by running:\n" + ' '.join(mafft_align_command) + "\n")
     #     sys.exit(7)
 
@@ -831,8 +834,8 @@ def run_odseq(odseq_exe: str, fasta_in: str, outliers_fa: str, num_threads: int)
     stdout, odseq_proc_returncode = launch_write_command(odseq_command)
 
     if odseq_proc_returncode != 0:
-        logging.error("Outlier detection using " + odseq_exe +
-                      " did not complete successfully! Command used:\n" + ' '.join(odseq_command) + "\n")
+        LOGGER.error("Outlier detection using " + odseq_exe +
+                     " did not complete successfully! Command used:\n" + ' '.join(odseq_command) + "\n")
         sys.exit(7)
 
     return
@@ -850,7 +853,7 @@ def get_msa_trim_command(executables, mfa_file, molecule, tool="BMGE"):
     """
     f_ext = mfa_file.split('.')[-1]
     if not re.match("mfa|fasta|phy|fa", f_ext):
-        logging.error("Unsupported file format: '" + f_ext + "'\n")
+        LOGGER.error("Unsupported file format: '" + f_ext + "'\n")
         sys.exit(5)
 
     trimmed_msa_file = '.'.join(mfa_file.split('.')[:-1]) + '-' + re.escape(tool) + ".fasta"
@@ -859,7 +862,7 @@ def get_msa_trim_command(executables, mfa_file, molecule, tool="BMGE"):
     elif tool == "BMGE":
         trim_command = bmge_command(executables["BMGE.jar"], mfa_file, trimmed_msa_file, molecule)
     else:
-        logging.error("Unsupported trimming software requested: '" + tool + "'")
+        LOGGER.error("Unsupported trimming software requested: '" + tool + "'")
         sys.exit(5)
 
     return trim_command, trimmed_msa_file
@@ -876,7 +879,7 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict,
     :param tool: The software to use for alignment trimming
     :return: A list of files resulting from BMGE multiple sequence alignment masking.
     """
-    logging.info("Running " + tool + "... ")
+    LOGGER.info("Running " + tool + "... ")
 
     start_time = time.time()
     task_list = list()
@@ -899,13 +902,13 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict,
         cl_farmer.task_queue.close()
         cl_farmer.task_queue.join()
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     end_time = time.time()
     hours, remainder = divmod(end_time - start_time, 3600)
     minutes, seconds = divmod(remainder, 60)
-    logging.debug("\t" + tool + " time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    LOGGER.debug("\t" + tool + " time required: " +
+                 ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
     return trimmed_output_files
 
 

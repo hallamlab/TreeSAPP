@@ -11,6 +11,9 @@ from treesapp.fasta import FASTA
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp import refpkg as ts_ref_pkg
 from treesapp import clade_annotation
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def reformat_ref_seq_descriptions(original_header_map):
@@ -89,7 +92,7 @@ def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant: 
             else:
                 good_placements.append(pquery)
 
-    logging.debug("{} classified sequences did not meet minimum LWR of {} for updating\n".format(num_filtered, min_lwr))
+    LOGGER.debug("{} classified sequences did not meet minimum LWR of {} for updating\n".format(num_filtered, min_lwr))
 
     return good_placements
 
@@ -97,7 +100,7 @@ def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant: 
 def decide_length_filter(refpkg: ts_ref_pkg.ReferencePackage, proposed_min_length=30, min_hmm_proportion=0.66) -> int:
     # Ensure the HMM fraction provided is a proportion
     if not 0 < min_hmm_proportion < 1:
-        logging.warning("Minimum HMM fraction provided ({}) isn't a proportion. Converting to {}.\n"
+        LOGGER.warning("Minimum HMM fraction provided ({}) isn't a proportion. Converting to {}.\n"
                         "".format(min_hmm_proportion, min_hmm_proportion/100))
         min_hmm_proportion = min_hmm_proportion/100
 
@@ -105,7 +108,7 @@ def decide_length_filter(refpkg: ts_ref_pkg.ReferencePackage, proposed_min_lengt
     # Use the smaller of the minimum sequence length or some proportion of the profile HMM to remove sequence fragments
     if proposed_min_length < min_hmm_proportion*hmm_length:
         min_length = int(round(min_hmm_proportion*hmm_length))
-        logging.debug("New minimum sequence length threshold set to {}% of HMM length ({}) instead of {}\n"
+        LOGGER.debug("New minimum sequence length threshold set to {}% of HMM length ({}) instead of {}\n"
                       "".format(min_hmm_proportion*100, min_length, proposed_min_length))
     else:
         min_length = proposed_min_length
@@ -156,10 +159,10 @@ def guided_header_lineage_map(header_registry: dict, entrez_records: dict) -> di
             continue
         seq_lineage_map[record.versioned] = record.lineage
     if missing:
-        logging.warning(str(len(missing)) + " sequences were not assigned a taxonomic lineage.\n" +
+        LOGGER.warning(str(len(missing)) + " sequences were not assigned a taxonomic lineage.\n" +
                         "This should match the number of accessions deduplicated while fetching lineages.\n")
         for treesapp_id in missing:
-            logging.debug("Unable to find '" + treesapp_id + "' in fasta records. More info:\n" +
+            LOGGER.debug("Unable to find '" + treesapp_id + "' in fasta records. More info:\n" +
                           header_registry[treesapp_id].original + "\n")
             header_registry.pop(treesapp_id)
         missing.clear()
@@ -285,7 +288,7 @@ def prefilter_clusters(cluster_dict: dict, lineage_lookup: dict, priority: list,
                 cluster.members = []
 
     if guaranteed_redundant:
-        logging.debug("{} original reference sequences saved from clustering:\n\t"
+        LOGGER.debug("{} original reference sequences saved from clustering:\n\t"
                       "{}\n".format(len(guaranteed_redundant),
                                     "\n\t".join(clust.representative for clust in guaranteed_redundant)))
 
