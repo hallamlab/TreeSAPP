@@ -4,6 +4,7 @@ import logging
 from pygtrie import StringTrie
 
 from treesapp.utilities import median
+from treesapp import taxonomic_hierarchy
 from treesapp import logger
 
 LOGGER = logging.getLogger(logger.logger_name())
@@ -224,3 +225,37 @@ def clean_lineage_list(lineage_list):
         return classified_lineages
     else:
         return lineage_list
+
+
+def taxonomic_distinctness(query_taxa: dict, rank: str, rank_depths: dict) -> float:
+    count_attr = "weight"
+    ranked_taxa = []
+    count_weights = {}
+    # Instantiate the weight attribute
+    for taxon in query_taxa.values():
+        for rt in taxon.lineage():
+            setattr(rt, count_attr, 0)
+
+    for qry, taxon in query_taxa.items():  # type: (str, taxonomic_hierarchy.Taxon)
+        rt = taxon.get_rank_in_lineage(rank)
+        if rt is None:
+            rt = taxon
+        setattr(rt, count_attr, getattr(rt, count_attr)+1)
+        if rt not in ranked_taxa:
+            ranked_taxa.append(rt)
+
+    i, j = 0, 0
+    while i < len(ranked_taxa):
+        while j < len(ranked_taxa):
+            lca = taxonomic_hierarchy.Taxon.lca(ranked_taxa[i], ranked_taxa[j])
+            path_len = rank_depths[rank] - rank_depths[lca.rank]
+            try:
+                count_weights[path_len].append(getattr(ranked_taxa[i], count_attr)*getattr(ranked_taxa[j], count_attr))
+            except KeyError:
+                count_weights[path_len] = [getattr(ranked_taxa[i], count_attr)*getattr(ranked_taxa[j], count_attr)]
+            j += 1
+        i += 1
+
+    cross_product = sum([n*sum(count_weights[n]) for n in count_weights])
+    denominator = sum([sum(count_weights[n]) for n in count_weights])
+    return cross_product/denominator

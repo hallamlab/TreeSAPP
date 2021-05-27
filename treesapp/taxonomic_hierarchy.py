@@ -32,7 +32,7 @@ class Taxon:
         if not self.prefix:
             if not self.rank:
                 LOGGER.error("Unable to return Taxon '{}' with its rank-prefix as its rank attribute is not set.\n"
-                              "".format(self.name))
+                             "".format(self.name))
             else:
                 self.prefix = self.rank[0]
         return self.prefix + taxon_sep + self.name
@@ -99,7 +99,7 @@ class Taxon:
         while l1 and l2:
             t1 = l1.pop()
             t2 = l2.pop()
-            if t1 == t2:
+            if t1.prefix_taxon() == t2.prefix_taxon():
                 return t1
         return
 
