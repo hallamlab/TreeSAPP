@@ -142,14 +142,15 @@ class Assigner(classy.TreeSAPP):
         return
 
     def define_hmm_domtbl_thresholds(self, args):
-        thresholds_nt = namedtuple("thresholds", ["perc_aligned", "min_acc", "max_e", "max_ie", "min_score"])
+        thresholds_nt = namedtuple("thresholds", ["perc_aligned", "query_aligned",
+                                                  "min_acc", "max_e", "max_ie", "min_score"])
 
         # Parameterizing the hmmsearch output parsing:
         if args.stringency == "relaxed":
-            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage,
+            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage, query_aligned=args.hmm_coverage,
                                               min_acc=0.7, max_e=1E-3, max_ie=1E-1, min_score=15)
         elif args.stringency == "strict":
-            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage,
+            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage, query_aligned=args.hmm_coverage,
                                               min_acc=0.7, max_e=1E-5, max_ie=1E-3, min_score=30)
         else:
             self.ts_logger.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")

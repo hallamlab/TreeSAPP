@@ -420,6 +420,9 @@ def prep_args_for_parsing(args) -> namedtuple:
     if not hasattr(args, "perc_aligned"):
         args.perc_aligned = 60
     thresholds.perc_aligned = args.perc_aligned
+    if not hasattr(args, "query_aligned"):
+        args.query_aligned = args.perc_aligned
+    thresholds.query_aligned = args.query_aligned
 
     # Print some stuff to inform the user what they're running and what thresholds are being used.
     info_string = "Filtering HMM alignments using the following thresholds:\n"
@@ -428,6 +431,7 @@ def prep_args_for_parsing(args) -> namedtuple:
     info_string += "\tMinimum acc = " + str(thresholds.min_acc) + "\n"
     info_string += "\tMinimum score = " + str(thresholds.min_score) + "\n"
     info_string += "\tMinimum percentage of the HMM covered = " + str(thresholds.perc_aligned) + "%\n"
+    info_string += "\tMinimum percentage of the query aligned = " + str(thresholds.query_aligned) + "%\n"
     LOGGER.debug(info_string)
 
     return thresholds
@@ -619,8 +623,9 @@ def filter_incomplete_hits(thresholds: namedtuple, purified_matches: dict, searc
     for query in purified_matches:
         for hmm_match in purified_matches[query]:  # type: HmmMatch
             ali_len = hmm_match.pend - hmm_match.pstart
+            query_aligned = (hmm_match.end-hmm_match.start)*100/hmm_match.seq_len
             perc_aligned = (float((int(ali_len)*100)/int(hmm_match.hmm_len)))
-            if perc_aligned >= thresholds.perc_aligned:
+            if perc_aligned >= thresholds.perc_aligned and query_aligned >= thresholds.query_aligned:
                 complete_gene_hits.append(hmm_match)
             else:
                 search_stats.dropped += 1
