@@ -124,9 +124,5 @@ def prep_logging(log_file=None, verbosity=False, silent=False, stream=sys.stderr
         ts_file_logger.setLevel(logging.DEBUG)
         ts_logger.addHandler(ts_file_logger)
         ts_logger.propagate = False
-    else:
-        logging.basicConfig(level=stream_level,
-                            datefmt="%d/%m %H:%M:%S",
-                            format="%(asctime)s %(levelname)s:\n%(message)s")
 
     return
