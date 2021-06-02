@@ -609,7 +609,7 @@ def filter_poor_hits(thresholds: namedtuple, distinct_alignments: dict, search_s
 
 def filter_incomplete_hits(thresholds: namedtuple, purified_matches: dict, search_stats: HmmSearchStats) -> list:
     """
-    Removes all alignments of each query-HMM pair that do not meet the threholds.perc_alignment cut-off.
+    Removes all alignments of each query-HMM pair that do not meet the thresholds.perc_alignment cut-off.
     The alignment length is based on the start and end positions on the HMM profile, not the query sequence.
 
     :param thresholds:  A namedtuple with max_e, max_ie, min_acc, min_score and perc_aligned attributes
@@ -622,10 +622,12 @@ def filter_incomplete_hits(thresholds: namedtuple, purified_matches: dict, searc
 
     for query in purified_matches:
         for hmm_match in purified_matches[query]:  # type: HmmMatch
-            ali_len = hmm_match.pend - hmm_match.pstart
-            query_aligned = (hmm_match.end-hmm_match.start)*100/hmm_match.seq_len
-            perc_aligned = (float((int(ali_len)*100)/int(hmm_match.hmm_len)))
-            if perc_aligned >= thresholds.perc_aligned and query_aligned >= thresholds.query_aligned:
+            ali_len = hmm_match.pend - hmm_match.pstart  # length of alignment on profile
+            query_aligned = (hmm_match.end-hmm_match.start)*100/hmm_match.seq_len  # query seq % aligned to profile
+            perc_aligned = (float((int(ali_len)*100)/int(hmm_match.hmm_len)))  # % of profile covered by alignment
+            if query_aligned >= thresholds.query_aligned:
+                complete_gene_hits.append(hmm_match)
+            elif perc_aligned >= thresholds.perc_aligned:
                 complete_gene_hits.append(hmm_match)
             else:
                 search_stats.dropped += 1

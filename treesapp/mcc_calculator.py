@@ -839,6 +839,7 @@ def mcc_calculator(sys_args):
                              "--output", test_obj.data_dir,
                              "--stringency", args.stringency,
                              "--hmm_coverage", str(args.hmm_coverage),
+                             "--query_coverage", str(args.query_coverage),
                              "--placement_summary", args.p_sum,
                              "--min_like_weight_ratio", str(args.min_lwr),
                              "--overwrite", "--delete"]

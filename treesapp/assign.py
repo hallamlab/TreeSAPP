@@ -148,10 +148,10 @@ class Assigner(classy.TreeSAPP):
 
         # Parameterizing the hmmsearch output parsing:
         if args.stringency == "relaxed":
-            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage, query_aligned=args.hmm_coverage,
+            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage, query_aligned=args.query_coverage,
                                               min_acc=0.7, max_e=1E-3, max_ie=1E-1, min_score=15)
         elif args.stringency == "strict":
-            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage, query_aligned=args.hmm_coverage,
+            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage, query_aligned=args.query_coverage,
                                               min_acc=0.7, max_e=1E-5, max_ie=1E-3, min_score=30)
         else:
             self.ts_logger.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
@@ -942,7 +942,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
         unclassified_seqs[ref_pkg.prefix]["big_branch"] = list()
         unclassified_seqs[ref_pkg.prefix]["svm"] = list()
         svc_attempt = False
-        edge_maxes = ref_pkg.get_edge_tip_dist_map()
+        edge_maxes = ref_pkg.get_edge_tip_dist_map(min_dist=0.1)
         error = deviations*np.std(list(edge_maxes.values()))
         LOGGER.debug("Maximum distance threshold for '{}' set to {}.\n"
                      "".format(ref_pkg.prefix, max(edge_maxes.values())))
