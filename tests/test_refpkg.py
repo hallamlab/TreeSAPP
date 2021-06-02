@@ -119,6 +119,24 @@ class RefPkgTester(unittest.TestCase):
             blank.get_ete_tree()
         return
 
+    def test_tree_root_tips_dists(self):
+        root_tip_distances = self.db.tree_root_tips_dists()
+        self.assertEqual(self.db.num_seqs, len(root_tip_distances))
+        return
+
+    def test_get_edge_tip_dist_map(self):
+        from numpy import mean
+        max_edge_tip_dists = self.db.get_edge_tip_dist_map()
+        self.assertEqual((2*self.db.num_seqs)-1,
+                         len(max_edge_tip_dists))
+        self.assertTrue(0 in max_edge_tip_dists)
+        self.assertTrue(500 in max_edge_tip_dists)
+
+        mean_edge_tip_dists = self.db.get_edge_tip_dist_map(func=mean)
+        root_node = int(self.db.get_ete_tree().name)
+        self.assertTrue(max_edge_tip_dists[root_node] > mean_edge_tip_dists[root_node])
+        return
+
     def test_hmm_length(self):
         from treesapp.refpkg import ReferencePackage
         blank = ReferencePackage()

@@ -767,6 +767,28 @@ class ReferencePackage:
 
         return taxa_internal_node_map
 
+    def tree_root_tips_dists(self) -> list:
+        """Returns a tuple of the mean and standard deviation for distance between root and tips."""
+        tip_distances = []
+        rt_tree = self.get_ete_tree()
+        for leaf in rt_tree.get_leaves():
+            tip_distances.append(rt_tree.get_distance(leaf))
+
+        return tip_distances
+
+    def get_edge_tip_dist_map(self, func=max) -> dict:
+        """Calculating the max (or other function) tip lengths from a node to all descendent tips."""
+        edge_dists = {}
+        rt_tree = self.get_ete_tree()
+        entish.label_internal_nodes_ete(rt_tree, attr="i_node", attr_type=int)
+        for node in rt_tree.traverse(strategy="postorder"):
+            if node.is_leaf():
+                edge_dists[node.i_node] = node.dist
+            else:
+                l, r = node.children
+                edge_dists[node.i_node] = node.dist + func([edge_dists[l.i_node], edge_dists[r.i_node]])
+        return edge_dists
+
     def remove_taxon_from_lineage_ids(self, taxon: str) -> None:
         """
         Removes all sequences/leaves from the reference package that match the target taxon. Leaves with that have a
