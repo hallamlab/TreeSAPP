@@ -189,7 +189,7 @@ class AbundanceTester(unittest.TestCase):
         # Test using the packaged reference packages
         mock_abund.fetch_refpkgs_used()
         self.assertEqual(os.path.join(get_treesapp_root(), "data"), os.path.dirname(mock_abund.refpkg_dir))
-        self.assertEqual(33, len(mock_abund.target_refpkgs))
+        self.assertEqual(36, len(mock_abund.target_refpkgs))
 
         # Test with the reference packages stashed in the treesapp assign output
         mock_abund.var_output_dir = assign_output_intermediates

@@ -1,8 +1,10 @@
-## [0.11.1] - 2021-05
+## [0.11.1] - 2021-06
 ### Added
 - Option '--unknown_colour' for `treesapp colour` where a colour for "Unknown" features or taxa are included in the iTOL files.
 - New options for pre-clustering the classified sequences using either Barberra et al.'s placement-space method or 
   pairwise alignment to speed up pOTU inference. Controlled with the "-p/--pre_mode" argument
+- Dynamic evolutionary distance threshold for query sequences based on branch lengths descendent from placement position 
+- RecA, RadA and RpoB reference packages being distributed as part of the core set
 
 ### Fixed
 - `treesapp package edit` assigns a leaf node only to the most resolved feature annotation
