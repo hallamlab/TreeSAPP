@@ -776,14 +776,14 @@ class ReferencePackage:
 
         return tip_distances
 
-    def get_edge_tip_dist_map(self, func=max) -> dict:
+    def get_edge_tip_dist_map(self, func=max, min_dist=0.0) -> dict:
         """Calculating the max (or other function) tip lengths from a node to all descendent tips."""
         edge_dists = {}
         rt_tree = self.get_ete_tree()
         entish.label_internal_nodes_ete(rt_tree, attr="i_node", attr_type=int)
         for node in rt_tree.traverse(strategy="postorder"):
             if node.is_leaf():
-                edge_dists[node.i_node] = node.dist
+                edge_dists[node.i_node] = max(node.dist, min_dist)
             else:
                 l, r = node.children
                 edge_dists[node.i_node] = node.dist + func([edge_dists[l.i_node], edge_dists[r.i_node]])

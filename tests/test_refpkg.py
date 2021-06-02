@@ -135,6 +135,10 @@ class RefPkgTester(unittest.TestCase):
         mean_edge_tip_dists = self.db.get_edge_tip_dist_map(func=mean)
         root_node = int(self.db.get_ete_tree().name)
         self.assertTrue(max_edge_tip_dists[root_node] > mean_edge_tip_dists[root_node])
+
+        _min_dist = 0.5
+        max_edge_tip_dists = self.db.get_edge_tip_dist_map(min_dist=_min_dist)
+        self.assertEqual(_min_dist, min(max_edge_tip_dists.values()))
         return
 
     def test_hmm_length(self):

@@ -147,12 +147,12 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.pplace_args.add_argument("--min_like_weight_ratio", default=0.1, type=float, dest="min_lwr",
                                       help="The minimum likelihood weight ratio required for an EPA placement. "
                                            "[ DEFAULT = 0.1 ]")
-        self.pplace_args.add_argument("--max_pendant_length", default=2.0, type=float, dest="max_pd",
+        self.pplace_args.add_argument("--max_pendant_length", default=None, type=float, dest="max_pd",
                                       help="The maximum pendant length distance threshold, "
-                                           "beyond which EPA placements are unclassified. [ DEFAULT = 2.0 ]")
-        self.pplace_args.add_argument("--max_evol_distance", default=3.0, type=float, dest="max_evo",
+                                           "beyond which EPA placements are unclassified. [ DEFAULT = Inf ]")
+        self.pplace_args.add_argument("--max_evol_distance", default=None, type=float, dest="max_evo",
                                       help="The maximum total evolutionary distance between a query and reference(s), "
-                                           "beyond which EPA placements are unclassified. [ DEFAULT = 3.0 ]")
+                                           "beyond which EPA placements are unclassified. [ DEFAULT = Inf ]")
 
     def add_pplace_params(self):
         self.add_pplace_filter_params()

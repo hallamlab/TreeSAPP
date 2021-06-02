@@ -28,11 +28,12 @@ from treesapp.training_utils import bin_headers, QuerySequence
 
 LOGGER = logging.getLogger(logger.logger_name())
 
+
 class ConfusionTest:
     def __init__(self, gene_list):
         self._MAX_TAX_DIST = -1
         self.ref_packages = {key: ts_ref_pkg.ReferencePackage() for key in gene_list}
-        self.fn = {key: [] for key in gene_list}
+        self.fn = {key: set() for key in gene_list}
         self.fp = {key: set() for key in gene_list}
         self.tp = {key: [] for key in gene_list}  # This will be a list of QuerySequence instances
         self.unlabelled_tp_query_names = {}  # These are to be added to the table at distance seven
@@ -840,12 +841,15 @@ def mcc_calculator(sys_args):
                              "--hmm_coverage", str(args.hmm_coverage),
                              "--placement_summary", args.p_sum,
                              "--min_like_weight_ratio", str(args.min_lwr),
-                             "--max_pendant_length", str(args.max_pd),
                              "--overwrite", "--delete"]
             if args.trim_align:
                 classify_args.append("--trim_align")
             if args.svm:
                 classify_args.append("--svm")
+            if args.max_pd:
+                classify_args += ["--max_pendant_length", str(args.max_pd)]
+            if args.max_evo:
+                classify_args += ["--max_evol_distance", str(args.max_evo)]
             assign.assign(classify_args)
         classification_lines = file_parsers.read_classification_table(classification_table)
         assignments = assignments_to_pqueries(classification_lines)

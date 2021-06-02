@@ -70,7 +70,7 @@ def strip_assigment_pattern(seq_names: list, refpkg_name: str) -> dict:
     return {seq_name: re.sub(r"\|{0}\|\d+_\d+$".format(refpkg_name), '', seq_name) for seq_name in seq_names}
 
 
-def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant: float, max_evo_distance: float) -> list:
+def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant=None, max_evo_distance=None) -> list:
     """
 
     :param pqueries: A dictionary of PQuery instances indexed by their respective ReferencePackage's
@@ -85,9 +85,9 @@ def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant: 
         for pquery in refpkg_pqueries:
             if pquery.consensus_placement.like_weight_ratio < min_lwr:
                 num_filtered += 1
-            elif pquery.consensus_placement.pendant_length > max_pendant:
+            elif max_pendant and pquery.consensus_placement.pendant_length > max_pendant:
                 num_filtered += 1
-            elif pquery.avg_evo_dist > max_evo_distance:
+            elif max_evo_distance and pquery.avg_evo_dist > max_evo_distance:
                 num_filtered += 1
             else:
                 good_placements.append(pquery)

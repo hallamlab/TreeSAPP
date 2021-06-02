@@ -9,6 +9,7 @@ from collections import namedtuple
 
 import pyfastx
 import pandas as pd
+import numpy as np
 from numpy import array as np_array
 
 from treesapp import abundance
@@ -911,7 +912,7 @@ def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
 
 
 def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
-                      min_lwr: float, max_pendant: float, max_bl_dist: float) -> None:
+                      min_lwr: float, max_pendant=None, max_bl_dist=None, deviations=1) -> None:
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
@@ -923,6 +924,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
     :param max_pendant: The maximum pendant length distance threshold.
     PQueries with pendant length > max_pendant will be unclassified.
     :param max_bl_dist: The maximum evolutionary distance for placed queries (sum of all branch lengths to its leaves)
+    :param deviations: Number of standard deviations from the root-to-tip length beyond which a placement is rejected
     :return: None
     """
     # The following list must match that of training_utils.vectorize_placement_data_by_rank()
@@ -935,10 +937,15 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
         ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
         unclassified_seqs[ref_pkg.prefix] = dict()
         unclassified_seqs[ref_pkg.prefix]["low_lwr"] = list()
-        unclassified_seqs[ref_pkg.prefix]["big_pendant"] = list()
         unclassified_seqs[ref_pkg.prefix]["distant"] = list()
+        unclassified_seqs[ref_pkg.prefix]["big_pendant"] = list()
+        unclassified_seqs[ref_pkg.prefix]["big_branch"] = list()
         unclassified_seqs[ref_pkg.prefix]["svm"] = list()
         svc_attempt = False
+        edge_maxes = ref_pkg.get_edge_tip_dist_map()
+        error = deviations*np.std(list(edge_maxes.values()))
+        LOGGER.debug("Maximum distance threshold for '{}' set to {}.\n"
+                     "".format(ref_pkg.prefix, max(edge_maxes.values())))
 
         for tree_sap in sorted(pqueries, key=lambda x: x.seq_name):  # type: phylo_seq.PQuery
             tree_sap.filter_min_weight_threshold(min_lwr)
@@ -951,11 +958,14 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
             tree_sap.avg_evo_dist = tree_sap.consensus_placement.total_distance()
             tree_sap.string_distances()
 
-            if tree_sap.consensus_placement.pendant_length > max_pendant:
+            if tree_sap.avg_evo_dist > edge_maxes[tree_sap.consensus_placement.edge_num] + error:
+                unclassified_seqs[ref_pkg.prefix]["distant"].append(tree_sap)
+                tree_sap.classified = False
+            elif max_pendant and tree_sap.consensus_placement.pendant_length > max_pendant:
                 unclassified_seqs[ref_pkg.prefix]["big_pendant"].append(tree_sap)
                 tree_sap.classified = False
-            elif tree_sap.avg_evo_dist > max_bl_dist:
-                unclassified_seqs[ref_pkg.prefix]["distant"].append(tree_sap)
+            elif max_bl_dist and tree_sap.avg_evo_dist > max_bl_dist:
+                unclassified_seqs[ref_pkg.prefix]["big_branch"].append(tree_sap)
                 tree_sap.classified = False
 
             if svc:
