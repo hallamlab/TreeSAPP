@@ -40,7 +40,7 @@ class LCATester(unittest.TestCase):
         hierarchy.rank_prefix_map.update({'d': "domain", 'p': "phylum", 'c': "class", 'o': "order"})
         lineages = ["r__Root; d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria",
                     "r__Root; d__Archaea; p__Helarchaeota",
-                    "r__Root; d__Bacteria; p__Verrucomicrobia; c__Verrucomicrobiae; o__Verrucomicrobiales"]
+                    "r__Root; d__Bacteria; p__Verrucomicrobia; n__fake; c__Verrucomicrobiae; o__Verrucomicrobiales"]
         for lin in lineages:
             prev = None
             for t in lin.split(hierarchy.lin_sep):

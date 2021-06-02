@@ -247,7 +247,9 @@ def taxonomic_distinctness(query_taxa: dict, rank: str, rank_depths: dict) -> fl
     i, j = 0, 0
     while i < len(ranked_taxa):
         while j < len(ranked_taxa):
-            lca = taxonomic_hierarchy.Taxon.lca(ranked_taxa[i], ranked_taxa[j])
+            lca = taxonomic_hierarchy.Taxon.lca(ranked_taxa[i], ranked_taxa[j])  # type: taxonomic_hierarchy.Taxon
+            while lca.rank not in rank_depths:
+                lca = lca.parent
             path_len = rank_depths[rank] - rank_depths[lca.rank]
             try:
                 count_weights[path_len].append(getattr(ranked_taxa[i], count_attr)*getattr(ranked_taxa[j], count_attr))
