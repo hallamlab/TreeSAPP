@@ -44,6 +44,9 @@ class PhyloSeqTests(unittest.TestCase):
                                                [393, -56289.2785075033, 0.0189423138, 0.0153064082, 0.0729607682],
                                                [388, -56285.7632899202, 0.6369020189, 0.0103030924, 0.0686955093]],
                                          'n': ['AFD09581.1']}
+        for pq in [self.pquery_test_1, self.pquery_test_2, self.pquery_test_3, self.pquery_test_4, self.pquery_test_5]:
+            pq.node_map = self.db.node_map
+
         # Reference packages
         puha_rp = ReferencePackage()
         puha_rp.f__pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
