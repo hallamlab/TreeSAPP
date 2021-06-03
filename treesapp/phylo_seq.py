@@ -7,7 +7,7 @@ from sklearn import cluster
 import numpy as np
 
 from treesapp.phylo_dist import parent_to_tip_distances
-from treesapp.entish import load_ete3_tree, get_ete_edge, edge_from_node_name
+from treesapp import entish
 from treesapp import seq_clustering
 from treesapp import logger
 
@@ -78,7 +78,7 @@ class PhyloPlace:
 
     def calc_mean_tip_length(self, internal_leaf_node_map: dict, ref_tree, memoization_map=None) -> None:
         if isinstance(ref_tree, str):
-            ref_tree = load_ete3_tree(ref_tree)
+            ref_tree = entish.load_ete3_tree(ref_tree)
         leaf_children = internal_leaf_node_map[self.edge_num]
         if len(leaf_children) > 1:
             if memoization_map:
@@ -383,9 +383,10 @@ class PQuery:
         :return: None
         """
         # If the number of placements is one, set the consensus placement to the only placement
-        if len(self.placements) == 1:
-            self.consensus_placement = self.placements[0]
-            _, down_node = get_ete_edge(labelled_tree, self.consensus_placement.edge_num)
+        self.placements = sorted(self.placements, key=lambda x: float(x.like_weight_ratio))
+        if len(self.placements) == 1 or self.placements[-1].like_weight_ratio >= min_aelw:
+            self.consensus_placement = self.placements[-1]
+            _, down_node = entish.get_ete_edge(labelled_tree, self.consensus_placement.edge_num)
             self.lineage = "; ".join([t.prefix_taxon() for t in down_node.taxon.lineage()])
             self.lct = self.lineage
             return
@@ -398,7 +399,6 @@ class PQuery:
         contributors = []
         p_dists = []
         # Sort to pop the placements in order of biggest likelihood weight ratio to smallest
-        self.placements = sorted(self.placements, key=lambda x: float(x.like_weight_ratio))
         self.consensus_placement = PhyloPlace()
         self.consensus_placement.name = self.placements[-1].name
         self.consensus_placement.likelihood = self.placements[-1].likelihood
@@ -406,15 +406,14 @@ class PQuery:
             # Remove the placements contributing to the aELW and replace with the consensus placement
             pplace = self.placements.pop(-1)  # type: PhyloPlace
             p_dists.append(pplace.pendant_length)
-            up_node, down_node = get_ete_edge(labelled_tree, pplace.edge_num)
-            parent, child = up_node.taxon, down_node.taxon
+            up_node, down_node = entish.get_ete_edge(labelled_tree, pplace.edge_num)
             # Ensure each of the taxon in a lineage is in the aELW dictionary
             for node in [up_node, down_node]:
                 node_name_map[node.name] = node
                 if node.name not in node_aelw_map:
                     node_aelw_map[node.name] = 0
 
-            if parent == child:
+            if up_node.taxon == down_node.taxon:
                 node_aelw_map[up_node.name] += (pplace.like_weight_ratio/2)
                 node_aelw_map[down_node.name] += (pplace.like_weight_ratio/2)
             else:
@@ -435,8 +434,8 @@ class PQuery:
         # Find the LCA edge of all placements that contributed to the taxonomic assignment
         node_lca = contributors[0].get_common_ancestor(contributors)  # type: Tree
         # Populate the new placement's attributes
-        self.consensus_placement.edge_num = edge_from_node_name(labelled_tree, node_name=node_lca.name)
-        self.consensus_placement.pendant_length = np.mean(p_dists)
+        self.consensus_placement.edge_num = entish.edge_from_node_name(labelled_tree, node=node_lca.name)
+        self.consensus_placement.pendant_length = min(p_dists)
         self.consensus_placement.distal_length = 0.5*node_lca.dist
         self.consensus_placement.calc_mean_tip_length(internal_leaf_node_map=self.node_map, ref_tree=labelled_tree)
         # Replace the placements that were used in the LCA with the consensus placement
@@ -486,7 +485,7 @@ class PQuery:
 
         # Determine the taxonomic lineage of the placement using the labelled tree
         try:
-            _up_node, down_node = get_ete_edge(ref_tree, self.consensus_placement.edge_num)
+            _up_node, down_node = entish.get_ete_edge(ref_tree, self.consensus_placement.edge_num)
         except TypeError:
             LOGGER.error("Unable to process placement of '{}' as its placement edge '{}' was not found"
                          " in the reference tree for {} with {} nodes.\n"

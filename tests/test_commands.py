@@ -93,7 +93,9 @@ class TreesappTester(unittest.TestCase):
                                 "--hmm_coverage", str(20),
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "relaxed",
-                                "--placement_summary", "max_lwr",
+                                "--hmm_coverage", str(80),
+                                "--query_coverage", str(80),
+                                "--placement_summary", "aelw",
                                 "--trim_align", "--overwrite", "--delete", "--svm"]
         assign.assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/classifications.tsv")

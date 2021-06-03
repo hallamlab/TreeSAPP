@@ -918,7 +918,7 @@ def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
 
 
 def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
-                      min_lwr: float, max_pendant=None, max_bl_dist=None, deviations=1) -> None:
+                      min_lwr: float, max_pendant=None, max_bl_dist=None) -> None:
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
@@ -930,7 +930,6 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
     :param max_pendant: The maximum pendant length distance threshold.
     PQueries with pendant length > max_pendant will be unclassified.
     :param max_bl_dist: The maximum evolutionary distance for placed queries (sum of all branch lengths to its leaves)
-    :param deviations: Number of standard deviations from the root-to-tip length beyond which a placement is rejected
     :return: None
     """
     # The following list must match that of training_utils.vectorize_placement_data_by_rank()
@@ -949,7 +948,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
         unclassified_seqs[ref_pkg.prefix]["svm"] = list()
         svc_attempt = False
         edge_maxes = ref_pkg.get_edge_tip_dist_map(min_dist=0.1)
-        error = deviations*np.std(list(edge_maxes.values()))
+        error = np.std(list(edge_maxes.values()))  # Empirically determined that one standard-deviation is best here
         LOGGER.debug("Maximum distance threshold for '{}' set to {}.\n"
                      "".format(ref_pkg.prefix, max(edge_maxes.values())))
 
@@ -1432,7 +1431,7 @@ def assign(sys_args):
         # Set PQuery.consensus_placement attributes
         select_query_placements(tree_saps, refpkg_dict, mode=args.p_sum)
         filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr, args.max_pd, args.max_evo)
-        determine_confident_lineage(tree_saps, refpkg_dict)
+        determine_confident_lineage(tree_saps, refpkg_dict, mode=args.p_sum)
 
         ts_assign.write_classified_orfs(tree_saps, extracted_seq_dict)
         abundance_dict = dict()

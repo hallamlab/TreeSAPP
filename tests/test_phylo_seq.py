@@ -22,8 +22,8 @@ class PhyloSeqTests(unittest.TestCase):
         from treesapp.phylo_seq import PQuery
         from treesapp.refpkg import ReferencePackage
         # A generic placement dictionary parsed from a JPlace file
-        self.placement_dict = {'p': [[489, -50.7, 0.7, 0.859, 1.227],
-                                     [1, -50.8, 0.3, 0.1, 1.1]],
+        self.placement_dict = {'p': [[489, -50.7, 0.6, 0.859, 1.227],
+                                     [1, -50.8, 0.4, 0.1, 1.1]],
                                'n': ['seq_test_1']}
         self.field_order = ['edge_num', 'likelihood', 'like_weight_ratio', 'distal_length', 'pendant_length']
 
@@ -131,10 +131,11 @@ class PhyloSeqTests(unittest.TestCase):
             self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
         # Now format and test for a proper PQuery with multiple placements near the root
         self.pquery_test_1.placements = split_placements(self.placement_dict)
-        self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree(), min_aelw=0.6)
+        self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
         self.assertEqual("r__Root", self.pquery_test_1.lct)
-        self.assertEqual(2, len(self.pquery_test_1.placements))
-        self.assertEqual(490, self.pquery_test_1.consensus_placement.edge_num)
+        self.assertEqual(1, len(self.pquery_test_1.placements))
+        self.assertEqual(1.1, self.pquery_test_1.consensus_placement.pendant_length)
+        self.assertEqual(498, self.pquery_test_1.consensus_placement.edge_num)
 
         # Test for a PQuery with just a single placement
         self.pquery_test_3.placements = split_placements(self.pquery_test_3.placements)

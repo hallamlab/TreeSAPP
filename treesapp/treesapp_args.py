@@ -111,12 +111,12 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                      choices=["relaxed", "strict"], default="relaxed", required=False,
                                      help="HMM-threshold mode affects the number of query sequences that advance "
                                           "[DEFAULT = relaxed]")
-        self.hmmer_args.add_argument("-P", "--hmm_coverage", type=int, default=70, required=False,
+        self.hmmer_args.add_argument("-P", "--hmm_coverage", type=int, default=80, required=False,
                                      help="Minimum percentage of a profile HMM that a query alignment must cover "
-                                          "for it to be considered. [ DEFAULT = 70 ]")
-        self.hmmer_args.add_argument("-Q", "--query_coverage", type=int, default=70, required=False,
+                                          "for it to be considered. [ DEFAULT = 80 ]")
+        self.hmmer_args.add_argument("-Q", "--query_coverage", type=int, default=80, required=False,
                                      help="Minimum percentage of a query sequence that an alignment must cover "
-                                          "to be retained. [ DEFAULT = 70 ]")
+                                          "to be retained. [ DEFAULT = 80 ]")
 
     def add_abundance_params(self):
         self.fpkm_opts.add_argument("--metric", required=False, default="tpm", choices=["fpkm", "tpm"],

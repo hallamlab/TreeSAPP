@@ -70,9 +70,13 @@ class EntishTester(unittest.TestCase):
         return
 
     def test_edge_from_node_name(self):
-        from treesapp.entish import edge_from_node_name
-        edge_name = edge_from_node_name(self.mock_tree, 'D')
+        from treesapp import entish
+        test_tree = self.mock_tree.copy()
+        entish.label_internal_nodes_ete(test_tree)
+        edge_name = entish.edge_from_node_name(test_tree, 'D')
         self.assertEqual(3, edge_name)
+        edge_name = entish.edge_from_node_name(test_tree, 4)
+        self.assertEqual(4, edge_name)
         return
 
     def test_map_internal_nodes_leaves(self):

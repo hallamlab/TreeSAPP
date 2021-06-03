@@ -54,24 +54,23 @@ def match_leaves_to_internal_nodes(leaf_names: list, internal_node_leaf_map: dic
     return node_leaf_map
 
 
-def edge_from_node_name(ete_tree: Tree, node_name) -> int:
+def edge_from_node_name(ete_tree: Tree, node) -> int:
     """
     Returns the number corresponding to a node's proximal edge (i.e. the edge connecting the node to its parent)
 
     Note: this algorithm is only suitable for complete trees, not subtrees!
 
     :param ete_tree: An ETE3 Tree instance where all nodes have names that can be matches
-    :param node_name: The name of the node to retrieve the edge of
+    :param node: The name of the node to retrieve the edge of
     :return: An integer representing the name of the node's edge
     """
     edge_name = 0
-    if len(ete_tree.children) > 2:
-        ete_tree.resolve_polytomy(recursive=False)
+    name = str(node)
     ete_tree = ete_tree.get_tree_root()
-    for node in ete_tree.traverse(strategy="postorder"):  # type: Tree
-        if len(node.children) > 2:
-            node.resolve_polytomy(recursive=False)
-        if str(node_name) == node.name:
+    for tree_node in ete_tree.traverse(strategy="postorder"):  # type: Tree
+        if len(tree_node.children) > 2:
+            tree_node.resolve_polytomy(recursive=False)
+        if name == str(tree_node.name):
             return edge_name
         edge_name += 1
     return -1
