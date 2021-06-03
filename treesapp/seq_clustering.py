@@ -122,7 +122,7 @@ def read_uc(uc_file: str) -> dict:
 
     # Find all clusters with multiple identical sequences
     for line in uc:
-        cluster_type, num_id, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
+        cluster_type, num_id, _length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
         if cluster_type == "S":
             cluster_dict[num_id] = Cluster(header)
         elif cluster_type == "H":

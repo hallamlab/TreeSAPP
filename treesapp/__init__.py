@@ -23,7 +23,6 @@ __description__ = "Python package for gene-centric taxonomic and functional clas
 __license__ = "GPL-3.0"
 __maintainer__ = "Connor Morgan-Lang"
 __maintainer_email__ = "c.morganlang@gmail.com"
-__name__ = "treesapp"
 __python_requires__ = ">=3.6"
 __status__ = "Production/Stable"
 __title__ = "TreeSAPP"

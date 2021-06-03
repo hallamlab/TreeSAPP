@@ -585,10 +585,10 @@ class PhyloClust(ts_classy.TreeSAPP):
 def confidence_interval(data, confidence=0.95) -> float:
     a = 1.0 * np.array(data)
     mu, se = np.mean(a), sp.stats.sem(a)
-    h_b, h_u = sp.stats.t.interval(confidence,
-                                   len(a) - 1,
-                                   loc=mu,
-                                   scale=se)
+    _h_b, h_u = sp.stats.t.interval(confidence,
+                                    len(a) - 1,
+                                    loc=mu,
+                                    scale=se)
     return h_u
 
 

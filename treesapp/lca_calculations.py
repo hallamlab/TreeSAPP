@@ -236,7 +236,7 @@ def taxonomic_distinctness(query_taxa: dict, rank: str, rank_depths: dict) -> fl
         for rt in taxon.lineage():
             setattr(rt, count_attr, 0)
 
-    for qry, taxon in query_taxa.items():  # type: (str, taxonomic_hierarchy.Taxon)
+    for _qry, taxon in query_taxa.items():  # type: (str, taxonomic_hierarchy.Taxon)
         rt = taxon.get_rank_in_lineage(rank)
         if rt is None:
             rt = taxon

@@ -87,7 +87,6 @@ class ExecutableWrapperTester(unittest.TestCase):
         from treesapp.utilities import fetch_executable_path
         from treesapp.wrapper import construct_tree
         from treesapp.entish import load_ete3_tree
-        import logging
         # Test with an absurd number of threads to ensure RAxML-NG's auto-scaling works
         best_tree = construct_tree(tree_builder="RAxML-NG",
                                    executables={"raxml-ng": fetch_executable_path(exe_name="raxml-ng",

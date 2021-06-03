@@ -198,9 +198,9 @@ class PhyloClusterTester(unittest.TestCase):
                                                  "--alpha", str(0.4)]))
         q_seqs = fasta.FASTA(get_test_data("McrA_eval.faa"))
         q_seqs.load_fasta()
-        fa_input, ete_tree = phylo_cluster.infer_cluster_phylogeny(fa_input=q_seqs.file,
-                                                                   executables=p_clust.executables,
-                                                                   output_dir=p_clust.stage_output_dir)
+        _fa_input, ete_tree = phylo_cluster.infer_cluster_phylogeny(fa_input=q_seqs.file,
+                                                                    executables=p_clust.executables,
+                                                                    output_dir=p_clust.stage_output_dir)
         # Test for node names
         ex_name = "KKH90701"
         self.assertTrue(ex_name in ete_tree.get_leaf_names())

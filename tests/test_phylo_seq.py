@@ -194,9 +194,15 @@ class PhyloSeqTests(unittest.TestCase):
         return
 
     def test_sort_centroids_from_clusters(self):
-        from treesapp.phylo_seq import sort_centroids_from_clusters
+        from treesapp import phylo_seq
         with pytest.raises(AttributeError):
-            sort_centroids_from_clusters(list(range(8)), [0]*2 + [1]*6)
+            phylo_seq.sort_centroids_from_clusters(list(range(8)), [0]*2 + [1]*6)
+        pq_1 = phylo_seq.PQuery()
+        pq_2 = phylo_seq.PQuery()
+        final_clusters = phylo_seq.sort_centroids_from_clusters(pqueries=[pq_1, pq_2],
+                                                                cluster_indices=[0, 0])
+        self.assertIsInstance(final_clusters, list)
+        self.assertEqual(1, len(final_clusters))
         return
 
     def test_cluster_pquery_distances(self):
