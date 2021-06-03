@@ -685,7 +685,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set,
                            "The untrimmed alignment will be used instead.\n")
             failed_multiple_alignments.append(multi_align_file)
         elif n_refs > n_retained_refs:
-            LOGGER.warning("Reference sequences shorter than the minimum character length ()"
+            LOGGER.warning("Reference sequences shorter than the minimum character length ({})"
                            " in {} were removed after alignment trimming.\n".format(min_seq_length, multi_align_file) +
                            "The untrimmed alignment will be used instead.\n")
             failed_multiple_alignments.append(multi_align_file)
