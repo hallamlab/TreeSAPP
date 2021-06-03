@@ -142,19 +142,25 @@ class Assigner(classy.TreeSAPP):
 
         return
 
-    def define_hmm_domtbl_thresholds(self, args):
+    def define_hmm_domtbl_thresholds(self, stringency: str, hmm_cov: int, query_cov: int) -> namedtuple:
         thresholds_nt = namedtuple("thresholds", ["perc_aligned", "query_aligned",
                                                   "min_acc", "max_e", "max_ie", "min_score"])
 
+        for opt, value in {"hmm_coverage": hmm_cov, "query_coverage": query_cov}.items():
+            if not 1 <= value <= 100:
+                self.ts_logger.error("Option '{}' needs to be between 1 and 100 percent (currently {}).\n"
+                                     .format(opt, value))
+                sys.exit(3)
+
         # Parameterizing the hmmsearch output parsing:
-        if args.stringency == "relaxed":
-            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage, query_aligned=args.query_coverage,
+        if stringency == "relaxed":
+            domtbl_thresholds = thresholds_nt(perc_aligned=hmm_cov, query_aligned=query_cov,
                                               min_acc=0.7, max_e=1E-3, max_ie=1E-1, min_score=15)
-        elif args.stringency == "strict":
-            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage, query_aligned=args.query_coverage,
+        elif stringency == "strict":
+            domtbl_thresholds = thresholds_nt(perc_aligned=hmm_cov, query_aligned=query_cov,
                                               min_acc=0.7, max_e=1E-5, max_ie=1E-3, min_score=30)
         else:
-            self.ts_logger.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
+            self.ts_logger.error("Unknown HMM-parsing stringency option '{}'.\n".format(stringency))
             sys.exit(3)
         return domtbl_thresholds
 
@@ -1313,7 +1319,9 @@ def assign(sys_args):
 
     treesapp_args.check_parser_arguments(args, sys_args)
     ts_assign.check_classify_arguments(args)
-    hmm_parsing_thresholds = ts_assign.define_hmm_domtbl_thresholds(args)
+    hmm_parsing_thresholds = ts_assign.define_hmm_domtbl_thresholds(stringency=args.stringency,
+                                                                    hmm_cov=args.hmm_coverage,
+                                                                    query_cov=args.query_coverage)
     ts_assign.decide_stage(args)
     n_proc = args.num_threads
 

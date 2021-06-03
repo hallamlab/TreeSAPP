@@ -136,6 +136,24 @@ class AssignerTester(unittest.TestCase):
         self.assertTrue(ts_assigner.stage_status("abundance"))
         return
 
+    def test_define_hmm_domtbl_thresholds(self):
+        from treesapp import assign
+        ts_assigner = assign.Assigner()
+        # Bad stringency name
+        with pytest.raises(SystemExit):
+            ts_assigner.define_hmm_domtbl_thresholds("high", 10, 10)
+        # Bad hmm or query coverage range
+        with pytest.raises(SystemExit):
+            ts_assigner.define_hmm_domtbl_thresholds("relaxed", 20, 0)
+
+        domtbl_thresholds = ts_assigner.define_hmm_domtbl_thresholds(stringency="strict",
+                                                                     hmm_cov=50,
+                                                                     query_cov=70)
+        self.assertEqual(1E-5, domtbl_thresholds.max_e)
+        self.assertEqual(50, domtbl_thresholds.perc_aligned)
+        self.assertEqual(70, domtbl_thresholds.query_aligned)
+        return
+
     def test_fetch_hmmsearch_outputs(self):
         from treesapp import assign
         ts_assigner = assign.Assigner()
