@@ -8,7 +8,7 @@ class MyTestCase(unittest.TestCase):
     def setUp(self) -> None:
         from .testing_utils import get_test_data
         from treesapp.hmmer_tbl_parser import prep_args_for_parsing
-        args = args_tuple(max_e=1E-5, max_ie=1E-3, min_acc=0.7, min_score=20, perc_aligned=40, query_aligned=80)
+        args = args_tuple(max_e=1E-5, max_ie=1E-3, min_acc=0.7, min_score=20, perc_aligned=60, query_aligned=80)
         self.thresholds = prep_args_for_parsing(args)
         self.nxra_domtbl = get_test_data("NxrA_search_to_ORFs_domtbl.txt")
         self.norc_domtbl = get_test_data("NorC_search_to_ORFs_domtbl.txt")
