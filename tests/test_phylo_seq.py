@@ -121,7 +121,7 @@ class PhyloSeqTests(unittest.TestCase):
         self.pquery_test_1.process_max_weight_placement(self.refpkg.taxonomically_label_tree())
         self.assertEqual(2, len(self.pquery_test_1.placements))
         self.assertIsInstance(self.pquery_test_1.consensus_placement, PhyloPlace)
-        self.assertEqual(0.7, self.pquery_test_1.consensus_placement.like_weight_ratio)
+        self.assertEqual(0.6, self.pquery_test_1.consensus_placement.like_weight_ratio)
         return
 
     def test_calculate_consensus_placement(self):
@@ -182,7 +182,7 @@ class PhyloSeqTests(unittest.TestCase):
         with pytest.raises(SystemExit):
             PhyloPlace(bad_dict)
         pplace = PhyloPlace(self.placement_dict)
-        self.assertEqual(pplace.like_weight_ratio, 0.7)
+        self.assertEqual(pplace.like_weight_ratio, 0.6)
         self.assertEqual(pplace.distal_length, 0.859)
         return
 
