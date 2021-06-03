@@ -6,6 +6,19 @@ from .testing_utils import get_test_data
 
 
 class TreesappTester(unittest.TestCase):
+    def setUp(self) -> None:
+        from treesapp import fasta
+        self.test_fasta_data = {"Bad_header_name": "ACGT"}
+        self.test_data_file = os.path.join("tests", "file_parser_test.fasta")
+        fasta.write_new_fasta(fasta_dict=self.test_fasta_data,
+                              fasta_name=self.test_data_file)
+        return
+
+    def tearDown(self) -> None:
+        if os.path.isfile(self.test_data_file):
+            os.remove(self.test_data_file)
+        return
+
     def test_read_graftm_classifications(self):
         from treesapp.file_parsers import read_graftm_classifications
         assignments = read_graftm_classifications(get_test_data("graftm_raw_read_tax.tsv"))
@@ -130,6 +143,45 @@ class TreesappTester(unittest.TestCase):
 
         with pytest.raises(SystemExit):
             read_lineage_ids(get_test_data("McrA_lineage_ids - GTDB_map.tsv"))
+        return
+
+    def test_check_seq_name_integer_compatibility(self):
+        from treesapp import file_parsers
+        msa, n_refs = file_parsers.check_seq_name_integer_compatibility(seq_dict=self.test_fasta_data)
+        self.assertEqual(-1, n_refs)
+        self.assertEqual("Bad_header_name", msa.popitem()[0])
+        return
+
+    def test_validate_alignment_trimming(self):
+        from treesapp import file_parsers
+        from treesapp import fasta
+        test_msa = get_test_data("PuhA.mfa")
+        headers = set([str(i) + "_PuhA" for i in range(1, 48)])
+        tmp_fasta = fasta.FASTA(file_name=test_msa)
+        tmp_fasta.load_fasta()
+
+        # Test bad file extension
+        with pytest.raises(SystemExit):
+            file_parsers.validate_alignment_trimming(["PuhA.stk"], headers)
+
+        # Fail due to a bad sequence name in a fasta
+        with pytest.raises(SystemExit):
+            file_parsers.validate_alignment_trimming([self.test_data_file], set(self.test_fasta_data))
+
+        # Ensure success
+        success, fail, msg = file_parsers.validate_alignment_trimming(msa_files=[test_msa],
+                                                                      unique_ref_headers=set(tmp_fasta.get_seq_names()))
+        self.assertEqual(32, len(success[test_msa]))
+        self.assertEqual([], fail)
+        self.assertIsInstance(msg, str)
+
+        # MSA fails due to more sequence names in unique_ref_headers than MSA
+        success, fail, msg = file_parsers.validate_alignment_trimming(msa_files=[test_msa],
+                                                                      unique_ref_headers=headers)
+        self.assertEqual({}, success)
+        self.assertEqual([test_msa], fail)
+        self.assertIsInstance(msg, str)
+
         return
 
 

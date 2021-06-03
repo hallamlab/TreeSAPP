@@ -134,7 +134,7 @@ def parse_assignments(classified_lines: list) -> dict:
             unique_headers[header] = {int(length): classified(refpkg=marker, taxon=rec_tax, length=int(length))}
         else:
             LOGGER.error("Bad line in classification table - no robust taxonomic classification:\n" +
-                          '\t'.join(fields) + "\n")
+                         '\t'.join(fields) + "\n")
             sys.exit(21)
     for header in unique_headers:
         if len(unique_headers[header]) > 1:
@@ -218,7 +218,7 @@ def load_classified_sequences_from_assign_output(assign_output_dir: str, assigne
         # Remove sequences that were not classified as refpkg_name
         if refpkg_name not in pqueries:
             LOGGER.warning("No queries were classified as '{}' in sample {}.\n"
-                            "".format(refpkg_name, assigner_cls.sample_prefix))
+                           "".format(refpkg_name, assigner_cls.sample_prefix))
             return {}
         else:
             for key_name in set(pqueries.keys()).difference({refpkg_name}):
@@ -249,7 +249,7 @@ def best_discrete_matches(matches: list) -> list:
     len_sorted_matches = sorted(matches, key=lambda x: x.end - x.start)
     i = 0
     orf = len_sorted_matches[0].orf
-    while i+1 < len(len_sorted_matches):
+    while i + 1 < len(len_sorted_matches):
         j = i + 1
         a_match = len_sorted_matches[i]  # type HmmMatch
         while j < len(len_sorted_matches):
@@ -272,12 +272,12 @@ def best_discrete_matches(matches: list) -> list:
         sys.exit(3)
 
     LOGGER.debug("HMM search annotations for " + orf +
-                  ":\n\tRetained\t" + 
-                  ', '.join([match.target_hmm +
-                             " (%d-%d)" % (match.start, match.end) for match in len_sorted_matches]) +
-                  "\n\tDropped\t\t" +
-                  ', '.join([match.target_hmm +
-                             " (%d-%d)" % (match.start, match.end) for match in dropped_annotations]) + "\n")
+                 ":\n\tRetained\t" +
+                 ', '.join([match.target_hmm +
+                            " (%d-%d)" % (match.start, match.end) for match in len_sorted_matches]) +
+                 "\n\tDropped\t\t" +
+                 ', '.join([match.target_hmm +
+                            " (%d-%d)" % (match.start, match.end) for match in dropped_annotations]) + "\n")
     return len_sorted_matches
 
 
@@ -346,7 +346,7 @@ def parse_domain_tables(thresholds, hmm_domtbl_files: list) -> dict:
         sys.exit(0)
     if search_stats.seqs_identified == 0 and search_stats.dropped > 0:
         LOGGER.warning("No alignments (" + str(search_stats.seqs_identified) + '/' + str(search_stats.dropped) +
-                        ") met the quality cut-offs! TreeSAPP is exiting now.\n")
+                       ") met the quality cut-offs! TreeSAPP is exiting now.\n")
         alignment_stat_string += "\tPoor quality alignments:\t" + str(search_stats.bad) + "\n"
         alignment_stat_string += "\tShort alignments:\t" + str(search_stats.short) + "\n"
         LOGGER.debug(alignment_stat_string)
@@ -499,7 +499,7 @@ def read_phylip_to_dict(phylip_input: str) -> dict:
         aln_length = int(aln_length)
     except ValueError:
         LOGGER.error("Phylip file is not formatted correctly!\n" +
-                      "Header must contain 2 space-separated fields (number of sequences and alignment length).\n")
+                     "Header must contain 2 space-separated fields (number of sequences and alignment length).\n")
         sys.exit(5)
 
     line = phylip.readline()
@@ -529,15 +529,15 @@ def read_phylip_to_dict(phylip_input: str) -> dict:
     # Check that the alignment length matches that in the header line
     if num_sequences != len(tmp_seq_dict):
         LOGGER.error("Number of lines declared in Phylip header ({}) does not match number of sequences parsed ({})!\n"
-                      "".format(num_sequences, len(tmp_seq_dict)))
+                     "".format(num_sequences, len(tmp_seq_dict)))
         sys.exit(5)
 
     x = 0
-    while x < num_sequences-1:
+    while x < num_sequences - 1:
         if len(tmp_seq_dict[x]) != aln_length:
             LOGGER.error("{} sequence length exceeds the stated multiple alignment length (according to header)!\n"
-                          "sequence length = {}, alignment length = {}\n"
-                          "".format(header_dict[x], len(tmp_seq_dict[x]), aln_length))
+                         "sequence length = {}, alignment length = {}\n"
+                         "".format(header_dict[x], len(tmp_seq_dict[x]), aln_length))
             sys.exit(5)
         else:
             pass
@@ -586,6 +586,28 @@ def read_stockholm_to_dict(sto_file):
     return seq_dict
 
 
+def check_seq_name_integer_compatibility(seq_dict: dict) -> (dict, int):
+    # Parse the MSA dict and ensure headers are integer-compatible
+    multi_align = {}
+    n_msa_refs = 0
+    for seq_name, seq in seq_dict.items():
+        try:
+            if int(seq_name) > 0:
+                n_msa_refs += 1
+        except ValueError:
+            if re.match(r"^_\d+", seq_name):
+                leaf_num = re.sub("^_", '-', seq_name)
+            # The section of regular expresion after '_' needs to match denominator and refpkg names
+            elif re.match(r"^\d+_\w{2,10}$", seq_name):
+                leaf_num = seq_name.split('_')[0]
+            else:
+                return {seq_name: ""}, -1
+            if int(leaf_num) > 0:
+                n_msa_refs += 1
+        multi_align[seq_name] = seq
+    return multi_align, n_msa_refs
+
+
 def validate_alignment_trimming(msa_files: list, unique_ref_headers: set,
                                 queries_mapped=False, min_seq_length=30) -> (dict, list, str):
     """
@@ -615,7 +637,6 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set,
         discarded_seqs = list()
         num_queries_retained = 0
         n_retained_refs = 0
-        n_msa_refs = 0
         f_ext = multi_align_file.split('.')[-1]
 
         # Read the multiple alignment file
@@ -629,28 +650,14 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set,
             LOGGER.error("Unable to detect file format of " + multi_align_file + ".\n")
             sys.exit(13)
 
-        # Parse the MSA dict and ensure headers are integer-compatible
-        multi_align = dict()
-        for seq_name in seq_dict:
-            seq = seq_dict[seq_name]
-            try:
-                if int(seq_name) > 0:
-                    n_msa_refs += 1
-            except ValueError:
-                if re.match(r"^_\d+", seq_name):
-                    leaf_num = re.sub("^_", '-', seq_name)
-                # The section of regular expresion after '_' needs to match denominator and refpkg names
-                elif re.match(r"^\d+_\w{2,10}$", seq_name):
-                    leaf_num = seq_name.split('_')[0]
-                else:
-                    LOGGER.error("Unexpected sequence name '{}' detected in {}.\n".format(seq_name, multi_align_file))
-                    sys.exit(13)
-                if int(leaf_num) > 0:
-                    n_msa_refs += 1
-            multi_align[seq_name] = seq
+        multi_align, n_msa_refs = check_seq_name_integer_compatibility(seq_dict)
+        if n_msa_refs < 0:
+            LOGGER.error("Unexpected sequence name ('{}') detected in {}.\n"
+                         "".format(multi_align.popitem()[0], multi_align_file))
+            sys.exit(13)
         if len(multi_align) == 0:
-            LOGGER.warning("No sequences were read from " + multi_align_file + ".\n" +
-                            "The untrimmed alignment will be used instead.\n")
+            LOGGER.warning("No sequences were read from {}. "
+                           "The untrimmed alignment will be used instead.\n".format(multi_align_file))
             failed_multiple_alignments.append(multi_align_file)
             continue
         # The numeric identifiers make it easy to maintain order in the Phylip file by a numerical sort
@@ -669,19 +676,18 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set,
         if len(discarded_seqs) == len(multi_align.keys()):
             # Throw an error if the final trimmed alignment is shorter than min_seq_length, and therefore empty
             LOGGER.warning("Multiple sequence alignment in {} is shorter than minimum sequence length threshold ({})."
-                            "\nThe untrimmed MSA will be used instead.\n".format(multi_align_file, min_seq_length))
+                           "\nThe untrimmed MSA will be used instead.\n".format(multi_align_file, min_seq_length))
             failed_multiple_alignments.append(multi_align_file)
         elif n_refs > n_msa_refs:
             # Testing whether there were more sequences in the untrimmed alignment than the trimmed one
             LOGGER.warning("Reference sequences in " + multi_align_file + " were removed during alignment trimming " +
-                            "suggesting either truncated sequences or the initial reference alignment was terrible.\n" +
-                            "The untrimmed alignment will be used instead.\n")
+                           "suggesting either truncated sequences or the initial reference alignment was terrible.\n" +
+                           "The untrimmed alignment will be used instead.\n")
             failed_multiple_alignments.append(multi_align_file)
         elif n_refs > n_retained_refs:
-            LOGGER.warning("Reference sequences shorter than the minimum character length (" +
-                            str(min_seq_length) + ") in " + multi_align_file +
-                            " were removed after alignment trimming.\n" +
-                            "The untrimmed alignment will be used instead.\n")
+            LOGGER.warning("Reference sequences shorter than the minimum character length ()"
+                           " in {} were removed after alignment trimming.\n".format(min_seq_length, multi_align_file) +
+                           "The untrimmed alignment will be used instead.\n")
             failed_multiple_alignments.append(multi_align_file)
         # Ensure that there is at least 1 query sequence retained after trimming the multiple alignment
         elif queries_mapped and num_queries_retained == 0:
@@ -727,8 +733,8 @@ def read_annotation_mapping_file(annot_map_file: str) -> dict:
                 refpkg_name, og, query_name = line.strip().split("\t")
             except ValueError:
                 LOGGER.error("Unexpected number of fields on line {} in {}!\n".format(n, annot_map_file) +
-                              "File must have the reference package name and the database name in"
-                              " the first two columns, respectively. Any number of columns can follow.\n")
+                             "File must have the reference package name and the database name in"
+                             " the first two columns, respectively. Any number of columns can follow.\n")
                 sys.exit(9)
             if query_name not in annot_map:
                 annot_map[query_name] = set()
@@ -756,7 +762,7 @@ def grab_graftm_taxa(tax_ids_file) -> StringTrie:
                 _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_, = fields
             except (IndexError, ValueError):
                 LOGGER.error("Unexpected format of line with %d fields in " % len(line.split(',')) +
-                              tax_ids_file + ":\n" + line)
+                             tax_ids_file + ":\n" + line)
                 sys.exit(21)
             ranks = ["Root", k_, p_, c_, o_, f_, g_, s_]
             lineage_list = []
@@ -798,7 +804,7 @@ def read_phenotypes(phenotypes_file: str, comment_char='#') -> dict:
             sys.exit(9)
         if taxon_name in taxa_phenotype_map:
             LOGGER.warning("Taxon '{}' found in {} multiple times and will be overwritten.\n"
-                            "".format(taxon_name, phenotypes_file))
+                           "".format(taxon_name, phenotypes_file))
         taxa_phenotype_map[taxon_name.strip()] = phenotype.strip()
 
     file_handler.close()
