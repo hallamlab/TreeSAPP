@@ -3,6 +3,8 @@ import logging
 import collections
 import ete3
 
+from treesapp import logger
+
 ##
 # Much of the following code was adapted from https://github.com/dparks1134/PhyloRank/rel_dist.py
 ##
@@ -11,7 +13,7 @@ import ete3
 class RedTree:
     def __init__(self):
         """Initialize and find the logger."""
-        self.logger = logging.getLogger()
+        self.logger = logging.getLogger(logger.logger_name())
         return
 
     @staticmethod

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import sys
 import logging
@@ -8,20 +6,23 @@ import random
 
 from tqdm import tqdm
 
-from treesapp import file_parsers
+from treesapp import seq_clustering
 from treesapp import utilities
 from treesapp import wrapper
 from treesapp import fasta
+from treesapp import logger
 from treesapp.phylo_seq import PQuery
 from treesapp.phylo_dist import cull_outliers, regress_ranks
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.refpkg import ReferencePackage
 from treesapp.training_utils import rarefy_rank_distances, generate_pquery_data_for_trainer
 
+LOGGER = logging.getLogger(logger.logger_name())
+
 
 def fail_training(msg) -> None:
     boilerplate = "Clade-exclusion analysis could not be performed for training the reference package models:\n"
-    logging.error(boilerplate + msg + "\n")
+    LOGGER.error(boilerplate + msg + "\n")
     return
 
 
@@ -69,7 +70,7 @@ def flatten_pquery_dict(pqueries: dict, refpkg_prefix: str) -> dict:
                 if isinstance(taxon, PQuery):
                     refpkg_pqueries[refpkg_prefix].append(taxon)
                 else:
-                    logging.error("An instance of type PQuery was expected, found '{}' instead.\n".format(type(taxon)))
+                    LOGGER.error("An instance of type PQuery was expected, found '{}' instead.\n".format(type(taxon)))
                     raise TypeError
     return refpkg_pqueries
 
@@ -95,7 +96,7 @@ def read_placement_summary(placement_summary_file: str) -> dict:
                     try:
                         dists = [float(dist) for dist in dist_strings]
                     except ValueError:
-                        logging.error("Looks like treesapp train did not complete successfully.\n"
+                        LOGGER.error("Looks like treesapp train did not complete successfully.\n"
                                       "Please re-run with the flag '--overwrite'.\n")
                         sys.exit(5)
                     if len(dists) > 1:
@@ -122,19 +123,19 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None) -> 
     for rank in taxonomic_placement_distances:
         init_s = len(list(taxonomic_placement_distances[rank]))
         if init_s <= 3:
-            logging.warning("Insufficient placement distance samples ({}) for {}.\n".format(init_s, rank))
+            LOGGER.warning("Insufficient placement distance samples ({}) for {}.\n".format(init_s, rank))
             return []
 
         filtered_pds[rank] = cull_outliers(list(taxonomic_placement_distances[rank]))
         if len(filtered_pds[rank]) == 0:
-            logging.warning("Ranks have 0 samples after filtering outliers.\n")
+            LOGGER.warning("Ranks have 0 samples after filtering outliers.\n")
             return []
 
     # Rarefy the placement distances to the rank with the fewest samples
     rarefied_pds = rarefy_rank_distances(filtered_pds)
     for rank in rarefied_pds:
         if len(rarefied_pds[rank]) == 0:
-            logging.warning("Ranks have 0 samples after rarefaction.\n")
+            LOGGER.warning("Ranks have 0 samples after rarefaction.\n")
             return []
 
     return regress_ranks(rarefied_pds, taxonomic_ranks)
@@ -199,7 +200,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
         else:
             related_queries.append(seq_name)
     if not related_queries:
-        logging.error("No sequences were retained after filtering reference sequences by domains '%s'\n" %
+        LOGGER.error("No sequences were retained after filtering reference sequences by domains '%s'\n" %
                       str(', '.join(ref_domains)))
         sys.exit(5)
 
@@ -213,7 +214,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     for rank in taxonomic_ranks:
         trimmed_ref_lineages = t_hierarchy.trim_lineages_to_rank(leaf_taxa_map, rank)
         if not trimmed_ref_lineages:
-            logging.warning("No reference sequences are resolved to the rank '{}' in reference package.\n".format(rank))
+            LOGGER.warning("No reference sequences are resolved to the rank '{}' in reference package.\n".format(rank))
             continue
         test_taxa_summary.append("Sequences available for training %s-level placement distances:" % rank)
         unique_ref_lineages = sorted(set(trimmed_ref_lineages.values()))
@@ -246,34 +247,34 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
         taxonomic_coverage = round(float(represented_taxa*100/len(unique_ref_lineages)), 2)
 
         if taxonomic_coverage < warning_threshold:
-            logging.warning("Only {0}% of unique {1}-level taxa can be used represent"
+            LOGGER.warning("Only {0}% of unique {1}-level taxa can be used represent"
                             " {1} phylogenetic placements.\n".format(taxonomic_coverage, rank))
 
         test_taxa_summary.append("%d/%d unique %s-level taxa have training sequences.\n" % (represented_taxa,
                                                                                             len(unique_ref_lineages),
                                                                                             rank))
-        logging.debug("%.1f%% of optimal %s lineages are present in the pruned trees.\n" %
+        LOGGER.debug("%.1f%% of optimal %s lineages are present in the pruned trees.\n" %
                       (round(float(optimal_lineages_present*100/len(unique_ref_lineages)), 1), rank))
         optimal_lineages_present = 0
         represented_taxa = 0
 
-    logging.debug("Optimal placement target was not found in the pruned tree for following taxa:\n\t" +
+    LOGGER.debug("Optimal placement target was not found in the pruned tree for following taxa:\n\t" +
                   "\n\t".join(optimal_assignment_missing) + "\n")
     
-    logging.debug("Unable to generate placement data for the following taxa since the refpkg would be too small:\n\t" +
+    LOGGER.debug("Unable to generate placement data for the following taxa since the refpkg would be too small:\n\t" +
                   "\n\t".join(too_short) + "\n")
 
-    logging.debug("\n".join(test_taxa_summary) + "\n")
+    LOGGER.debug("\n".join(test_taxa_summary) + "\n")
 
     test_seqs.change_dict_keys("num")
     fasta.write_new_fasta(test_seqs.fasta_dict, clustering_input)
     wrapper.cluster_sequences(executables["mmseqs"], clustering_input, clustering_prefix, similarity)
-    cluster_dict = file_parsers.create_mmseqs_clusters(clusters_tbl=clustering_prefix + "_cluster.tsv",
-                                                       aln_tbl=clustering_prefix + "_cluster_aln.tsv")
+    cluster_dict = seq_clustering.create_mmseqs_clusters(clusters_tbl=clustering_prefix + "_cluster.tsv",
+                                                         aln_tbl=clustering_prefix + "_cluster_aln.tsv")
     test_seqs.keep_only([cluster_dict[clust_id].representative for clust_id in cluster_dict.keys()])
-    logging.debug("\t" + str(len(test_seqs.fasta_dict.keys())) + " sequence clusters\n")
+    LOGGER.debug("\t" + str(len(test_seqs.fasta_dict.keys())) + " sequence clusters\n")
 
-    logging.info("Preparing deduplicated sequence set for training... ")
+    LOGGER.info("Preparing deduplicated sequence set for training... ")
     test_seqs.change_dict_keys("accession")
 
     # Determine the set of reference sequences to use at each rank
@@ -304,7 +305,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
                     rank_training_seqs[rank][taxonomy] = list(taxon_training_queries)
                     taxon_training_queries.clear()
         taxon_contributions.clear()
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     return rank_training_seqs
 
@@ -332,40 +333,40 @@ def clade_exclusion_phylo_placement(rank_training_seqs: dict,
     if output_dir[-1] != os.sep:
         output_dir += os.sep
 
-    logging.debug("Calculating the total number of queries to be used for training... ")
+    LOGGER.debug("Calculating the total number of queries to be used for training... ")
     num_training_queries = 0
     for rank in rank_training_seqs:
         num_rank_training_seqs = 0
         for taxonomy in rank_training_seqs[rank]:
             num_rank_training_seqs += len(rank_training_seqs[rank][taxonomy])
         if len(rank_training_seqs[rank]) == 0:
-            logging.debug("No sequences available for estimating {}-level placement distances.\n".format(rank))
+            LOGGER.debug("No sequences available for estimating {}-level placement distances.\n".format(rank))
             continue
         else:
-            logging.debug("{} sequences to train {}-level placement distances\n".format(num_rank_training_seqs, rank))
+            LOGGER.debug("{} sequences to train {}-level placement distances\n".format(num_rank_training_seqs, rank))
         num_training_queries += num_rank_training_seqs
 
     if num_training_queries < min_seqs:
         fail_training("Too few ({}) sequences for training placement distance model.\n".format(num_training_queries))
         return pqueries
     if num_training_queries < 50:
-        logging.warning("Only {} sequences for training placement distance model.\n".format(num_training_queries))
-    logging.debug("done.\n")
+        LOGGER.warning("Only {} sequences for training placement distance model.\n".format(num_training_queries))
+    LOGGER.debug("done.\n")
 
-    logging.info("Estimating branch-length placement distances for taxonomic ranks\n")
+    LOGGER.info("Estimating branch-length placement distances for taxonomic ranks\n")
     pbar = tqdm(total=num_training_queries, ncols=100)
 
     for rank in sorted(rank_training_seqs, reverse=True):
         pbar.set_description("Processing %s" % rank)
         pqueries[rank] = {}
         for taxonomy in sorted(rank_training_seqs[rank]):
-            logging.debug("Testing placements for {}:\n".format(taxonomy))
+            LOGGER.debug("Testing placements for {}:\n".format(taxonomy))
             pqueries[rank][taxonomy] = generate_pquery_data_for_trainer(ref_pkg, taxonomy, test_fasta,
                                                                         rank_training_seqs[rank][taxonomy], rank,
                                                                         executables, output_dir, pbar, raxml_threads)
 
         if len(pqueries[rank]) == 0:
-            logging.debug("No samples available for " + rank + ".\n")
+            LOGGER.debug("No samples available for " + rank + ".\n")
 
     pbar.close()
 
@@ -407,7 +408,7 @@ def evo_dists_from_pqueries(pqueries: dict, training_ranks=None) -> dict:
         median_dist = round(utilities.median(taxonomic_placement_distances[rank]), 4)
         mean_dist = round(utilities.mean(taxonomic_placement_distances[rank]), 4)
 
-        logging.debug("RANK: {}\n"
+        LOGGER.debug("RANK: {}\n"
                       "\tSamples = {}\n"
                       "\tMedian = {}\n"
                       "\tMean = {}\n"

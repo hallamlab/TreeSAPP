@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-
-__author__ = 'Connor Morgan-Lang'
-
 import os
 import logging
 import sys
@@ -16,6 +12,9 @@ from treesapp import classy
 from treesapp import taxonomic_hierarchy
 from treesapp import assign
 from treesapp import file_parsers
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def parse_distances(classification_lines):
@@ -137,14 +136,14 @@ def map_headers_to_lineage(assignments: dict, ref_sequences: dict) -> dict:
                         mapped = True
                         break
                 if not mapped:
-                    logging.error("Unable to map classified sequence '" + query + "' to a lineage.\n")
+                    LOGGER.error("Unable to map classified sequence '" + query + "' to a lineage.\n")
                     sys.exit(3)
             if len(lineage_assignments[refpkg_name][assigned_lineage]) > len(classified_headers):
-                logging.error(str(len(classified_headers)) + " accessions mapped to " +
+                LOGGER.error(str(len(classified_headers)) + " accessions mapped to " +
                               str(len(lineage_assignments[refpkg_name][assigned_lineage])) + " lineages.\n")
                 sys.exit(21)
             elif len(lineage_assignments[refpkg_name][assigned_lineage]) < len(classified_headers):
-                logging.debug(str(len(classified_headers)) + " accessions mapped to " +
+                LOGGER.debug(str(len(classified_headers)) + " accessions mapped to " +
                               str(len(lineage_assignments[refpkg_name][assigned_lineage])) + " lineages.\n")
     return lineage_assignments
 
@@ -174,7 +173,7 @@ def check_lineage_compatibility(lineage_map: dict, taxonomy: taxonomic_hierarchy
             unrooted = True
             lineage_map[num_id] = taxonomy.root_taxon + taxonomy.lin_sep + lineage
     if unrooted:
-        logging.warning("Unrooted lineages have been rooted.\n")
+        LOGGER.warning("Unrooted lineages have been rooted.\n")
     return
 
 
@@ -201,7 +200,7 @@ def get_testable_lineages_for_rank(ref_lineage_map: dict, query_lineage_map: dic
         optimal_lca_taxonomy = "; ".join(lineage.split("; ")[:-1])
         if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_ref_lineages
                                         if tl != lineage]:
-            logging.debug("Optimal placement target '" + optimal_lca_taxonomy + "' not in pruned tree.\n")
+            LOGGER.debug("Optimal placement target '" + optimal_lca_taxonomy + "' not in pruned tree.\n")
         else:
             lineages.append(lineage)
     return lineages
@@ -238,7 +237,7 @@ def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict,
             good_classified_lineages[ref_seq.lineage].append(ref_seq.accession)
 
     if taxonomic_filter_stats["Unclassified"] == len(ref_seqs):
-        logging.error("All sequences provided are derived from uncultured, unclassified organisms.\n")
+        LOGGER.error("All sequences provided are derived from uncultured, unclassified organisms.\n")
         sys.exit(21)
 
     # In order to maintain consistency among multiple runs with the same input
@@ -268,7 +267,7 @@ def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict,
 
     taxonomic_filter_stats["Unique_taxa"] += len(dereplicated_lineages)
 
-    logging.debug("Representative sequence stats:\n\t" +
+    LOGGER.debug("Representative sequence stats:\n\t" +
                   "Maximum representative sequences for a taxon " + str(taxonomic_filter_stats["Max"]) + "\n\t" +
                   "Minimum representative sequences for a taxon " + str(taxonomic_filter_stats["Min"]) + "\n\t" +
                   "Mean representative sequences for a taxon " + str(taxonomic_filter_stats["Mean"]) + "\n")
@@ -309,7 +308,7 @@ def select_rep_seqs(deduplicated_assignments: dict, test_sequences: dict,
             try:
                 deduplicated_fasta_dict[accession] = test_seq_lookup[accession]
             except KeyError:
-                logging.error("Unable to find accession (" + accession + ") in accession-lineage map\n")
+                LOGGER.error("Unable to find accession (" + accession + ") in accession-lineage map\n")
                 sys.exit(21)
     return deduplicated_fasta_dict
 
@@ -318,7 +317,7 @@ def map_seqs_to_lineages(accession_lineage_map, deduplicated_fasta_dict):
     seq_taxa_map = dict()
     for seq_name in deduplicated_fasta_dict:
         if seq_name not in accession_lineage_map:
-            logging.error("Unable to find matching key for '" + seq_name + "' in accession_lineage_map.\n")
+            LOGGER.error("Unable to find matching key for '" + seq_name + "' in accession_lineage_map.\n")
             sys.exit(21)
         else:
             seq_taxa_map[seq_name] = accession_lineage_map[seq_name]
@@ -378,18 +377,16 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
         if trim_align:
             assign_args.append("--trim_align")
 
-        # TODO: Pause logging just to console and continue writing to log file
-        # Option 1. No logging to console or file
-        cl_log = logging.getLogger()
-        cl_log.disabled = True
+        # TODO: Pause LOGGER just to console and continue writing to log file
+        LOGGER.disabled = True
         try:
             assign.assign(assign_args)
         except:  # Just in case treesapp assign fails, just continue
             pass
-        cl_log.disabled = False
+        LOGGER.disabled = False
         if not os.path.isfile(tt_obj.classification_table):
             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
-            logging.warning("TreeSAPP did not generate output for '{}'. Skipping.\n".format(tt_obj.lineage))
+            LOGGER.warning("TreeSAPP did not generate output for '{}'. Skipping.\n".format(tt_obj.lineage))
             shutil.rmtree(tt_obj.classifications_root)
             return
     else:
@@ -407,7 +404,7 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
         tt_obj.filter_assignments(ref_pkg.prefix)
         tt_obj.distances = parse_distances(assigned_lines)
     else:
-        logging.error("{} is missing from output directory '{}'\n"
+        LOGGER.error("{} is missing from output directory '{}'\n"
                       "Please remove this directory and re-run.\n"
                       "".format(os.path.basename(tt_obj.classification_table),
                                 os.path.dirname(tt_obj.classification_table)))
@@ -443,7 +440,7 @@ def run_clade_exclusion_graftm(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_pkg
 
         if not os.path.isfile(tt_obj.classification_table):
             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
-            logging.warning("GraftM did not generate output for " + tt_obj.lineage + ". Skipping.\n")
+            LOGGER.warning("GraftM did not generate output for " + tt_obj.lineage + ". Skipping.\n")
             shutil.rmtree(tt_obj.intermediates_dir)
 
     tt_obj.taxonomic_tree = file_parsers.grab_graftm_taxa(gpkg_tax_ids_file)
@@ -501,7 +498,7 @@ def build_graftm_package(gpkg_path: str, tax_file: str, mfa_file: str, fa_file: 
     create_command += ["--output", gpkg_path]
     create_command.append("--force")
 
-    logging.debug("Command used:\n" + ' '.join(create_command) + "\n")
+    LOGGER.debug("Command used:\n" + ' '.join(create_command) + "\n")
     launch_write_command(create_command, False)
 
 
@@ -520,7 +517,7 @@ def graftm_classify(test_rep_taxa_fasta, gpkg_path, output_dir, threads, tool):
     classify_command += ["--input_sequence_type", "aminoacid"]
     classify_command.append("--force")
 
-    logging.debug("Command used:\n" + ' '.join(classify_command) + "\n")
+    LOGGER.debug("Command used:\n" + ' '.join(classify_command) + "\n")
     launch_write_command(classify_command, False)
 
     return

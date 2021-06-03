@@ -1,5 +1,3 @@
-__author__ = 'Connor Morgan-Lang'
-
 import logging
 import sys
 import re
@@ -7,6 +5,9 @@ import re
 from pygtrie import StringTrie
 
 from treesapp.phylo_seq import TreeLeafReference
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class Taxon:
@@ -30,8 +31,8 @@ class Taxon:
     def prefix_taxon(self, taxon_sep="__"):
         if not self.prefix:
             if not self.rank:
-                logging.error("Unable to return Taxon '{}' with its rank-prefix as its rank attribute is not set.\n"
-                              "".format(self.name))
+                LOGGER.error("Unable to return Taxon '{}' with its rank-prefix as its rank attribute is not set.\n"
+                             "".format(self.name))
             else:
                 self.prefix = self.rank[0]
         return self.prefix + taxon_sep + self.name
@@ -72,7 +73,7 @@ class Taxon:
         if self.name == "unclassified":
             return False
         if self.prefix_taxon() not in tax_hierarchy_map:
-            logging.debug("Unable to find {} in hierarchy map.\n".format(self.prefix_taxon()))
+            LOGGER.debug("Unable to find {} in hierarchy map.\n".format(self.prefix_taxon()))
             return False
         return True
 
@@ -98,7 +99,7 @@ class Taxon:
         while l1 and l2:
             t1 = l1.pop()
             t2 = l2.pop()
-            if t1 == t2:
+            if t1.prefix_taxon() == t2.prefix_taxon():
                 return t1
         return
 
@@ -182,7 +183,7 @@ class TaxonomicHierarchy:
         summary_string = error_str + "Summary of TaxonomicHierarchy instance state:\n"
         for key, value in self.get_state().items():
             summary_string += "\t" + key + " = " + str(value) + "\n"
-        logging.error(summary_string)
+        LOGGER.error(summary_string)
         raise RuntimeError(17)
 
     def get_taxon_names(self, with_prefix=False) -> set:
@@ -222,15 +223,18 @@ class TaxonomicHierarchy:
         try:
             return self.hierarchy[prefix_taxon]  # type: Taxon
         except KeyError:
-            logging.debug("Taxon name '{}' not present in taxonomic hierarchy.\n".format(prefix_taxon))
+            LOGGER.debug("Taxon name '{}' not present in taxonomic hierarchy.\n".format(prefix_taxon))
             return
+
+    def get_taxon_hierarchy_depth(self, prefix_taxon: str) -> int:
+        return self.accepted_ranks_depths[self.get_taxon(prefix_taxon).rank]
 
     def get_taxon_descendents(self, prefix_taxon: str) -> list:
         """Returns a list of all Taxon instances with prefix_taxon in their lineage."""
         descendents = []
         ref_taxon = self.get_taxon(prefix_taxon)
         if not ref_taxon:
-            logging.warning("No descendents of '{}' found as it's not in the hierarchy.\n".format(prefix_taxon))
+            LOGGER.warning("No descendents of '{}' found as it's not in the hierarchy.\n".format(prefix_taxon))
             return descendents
         for hierarchy_taxon in self.hierarchy.values():  # type: Taxon
             if ref_taxon in hierarchy_taxon.lineage():
@@ -255,11 +259,17 @@ class TaxonomicHierarchy:
         if len(matches) == 1:
             return matches.pop()
         elif len(matches) > 1:
-            logging.warning("Multiple taxa in taxonomic hierarchy have the name '{}'.\n".format(taxon_name))
+            LOGGER.warning("Multiple taxa in taxonomic hierarchy have the name '{}'.\n".format(taxon_name))
             return
         else:
-            logging.error("Unable to find taxon name '{}' in taxonomic hierarchy.\n".format(taxon_name))
+            LOGGER.error("Unable to find taxon name '{}' in taxonomic hierarchy.\n".format(taxon_name))
             sys.exit(3)
+
+    def deeper_rank(self, rank_name, step=1):
+        curr_depth = self.accepted_ranks_depths[rank_name]
+        for k, v in self.accepted_ranks_depths.items():
+            if v == curr_depth-step:
+                return k
 
     def resolved_as(self, lineage, rank_name="species") -> bool:
         """
@@ -312,7 +322,7 @@ class TaxonomicHierarchy:
                 raise AssertionError
             return self.get_taxon(root_reps.pop())
         except KeyError:
-            logging.debug("No taxa at rank 'root' were present in reference package hierarchy - adding now.\n")
+            LOGGER.debug("No taxa at rank 'root' were present in reference package hierarchy - adding now.\n")
             root_taxon = Taxon(name="Root", rank="root")
             self.hierarchy[root_taxon.prefix_taxon()] = root_taxon
             return root_taxon
@@ -330,7 +340,7 @@ class TaxonomicHierarchy:
         :return: The Taxon occupying the root rank in the hierarchy
         """
         if not isinstance(root, Taxon):
-            logging.error("Root taxon must be of type taxonomic_hierarchy.Taxon, not {}.\n".format(type(root)))
+            LOGGER.error("Root taxon must be of type taxonomic_hierarchy.Taxon, not {}.\n".format(type(root)))
             raise TypeError
         if root.prefix_taxon() in self.hierarchy:
             if replace:
@@ -372,7 +382,7 @@ class TaxonomicHierarchy:
                 self.hierarchy.pop(taxon.prefix_taxon())
             except KeyError:
                 pass
-                # logging.error("Unable to pop taxon '{}' from taxonomic hierarchy.\n".format(taxon.prefix_taxon()))
+                # LOGGER.error("Unable to pop taxon '{}' from taxonomic hierarchy.\n".format(taxon.prefix_taxon()))
                 # raise KeyError
         return
 
@@ -473,7 +483,7 @@ class TaxonomicHierarchy:
                 rep = node_one
             else:
                 rep, obsolete = self.max_node_force(node_one, node_two)
-                logging.debug("Conflicting nodes '{0}' and '{1}' both had valid ranks so the more popular one"
+                LOGGER.debug("Conflicting nodes '{0}' and '{1}' both had valid ranks so the more popular one"
                               " ({0} = {2}) was selected to represent.\n".format(rep.name, obsolete.name, rep.coverage))
 
             self.redirect_hierarchy_paths(rep=rep, old=obsolete)  # obsolete Taxon is removed from self.hierarchy
@@ -484,7 +494,7 @@ class TaxonomicHierarchy:
             conflict_resolution_summary += "\t'{}' ({}) -> '{}' ({})\n".format(obsolete.name, obsolete.rank,
                                                                                rep.name, rep.rank)
 
-        logging.debug(conflict_resolution_summary)
+        LOGGER.debug(conflict_resolution_summary)
         self.conflicts = set(self.conflicts)
         return replaced_nodes
 
@@ -502,11 +512,11 @@ class TaxonomicHierarchy:
                     if len(rank_names) == 1:
                         self.rank_prefix_map[prefix] = rank_names.pop()
                     elif len(rank_names) > 1:
-                        logging.error("Conflicting rank names detected for rank prefix '{0}': "
+                        LOGGER.error("Conflicting rank names detected for rank prefix '{0}': "
                                       "'{1}'\n".format(prefix, ','.join(rank_names)))
                         sys.exit(5)
                     else:
-                        logging.warning("Prefix exists for missing rank name...? This isn't going to be good.\n")
+                        LOGGER.warning("Prefix exists for missing rank name...? This isn't going to be good.\n")
             self.rank_prefix_map_values = str
         return
 
@@ -550,7 +560,7 @@ class TaxonomicHierarchy:
             alias = "{}{}{}_{}".format(child.prefix, self.taxon_sep, child.name, i)
         # This is a taxon representing a new conflict. It's alias must be added to the hierarchy
         if alias not in self.hierarchy:
-            logging.debug("Taxon '{}' with diverging lineage ({}) renamed '{}'\n"
+            LOGGER.debug("Taxon '{}' with diverging lineage ({}) renamed '{}'\n"
                           "".format(child.name, self.lin_sep.join([t.name for t in parent.lineage()]), alias))
             twin = Taxon(alias.split(self.taxon_sep)[-1], child.rank)
             twin.parent = parent
@@ -691,14 +701,14 @@ class TaxonomicHierarchy:
             if taxon_name != taxon_info["ScientificName"]:
                 if previous:
                     self.remove_leaf_nodes(previous.prefix_taxon())
-                logging.error("Lineage and Entrez lineage extra information list don't match. Current state:\n"
+                LOGGER.error("Lineage and Entrez lineage extra information list don't match. Current state:\n"
                               "taxon = {0}\n"
                               "taxon_info = {1}\n".format(taxon_name, str(taxon_info)))
                 sys.exit(11)
             try:
                 rank = taxon_info["Rank"]
             except KeyError:
-                logging.warning("'Rank' attribute missing from Entrez record '{}'. "
+                LOGGER.warning("'Rank' attribute missing from Entrez record '{}'. "
                                 "Rank set to '{}'.\n".format(taxon_info, self.no_rank_name))
                 rank = self.no_rank_name
 
@@ -711,7 +721,7 @@ class TaxonomicHierarchy:
         if len(taxa) > 0 or len(lineage_ex) > 0:
             if previous:
                 self.remove_leaf_nodes(previous.prefix_taxon())
-            logging.error("Not all elements popped from paired lineage and lineage_ex information.\n"
+            LOGGER.error("Not all elements popped from paired lineage and lineage_ex information.\n"
                           "lineage list = {0}\n"
                           "lineage information dictionary = {1}\n".format(taxa, lineage_ex))
             sys.exit(11)
@@ -787,7 +797,7 @@ class TaxonomicHierarchy:
                 try:
                     rank = self.rank_prefix_map[rank_prefix]
                 except KeyError:
-                    logging.debug("Unexpected format of taxon '{}' in lineage {} - no rank prefix separated by '{}'?\n"
+                    LOGGER.debug("Unexpected format of taxon '{}' in lineage {} - no rank prefix separated by '{}'?\n"
                                   "".format(taxon_name, ref_leaf.lineage, self.taxon_sep))
                     taxa.clear()
                     continue
@@ -806,7 +816,7 @@ class TaxonomicHierarchy:
             previous = None
 
         if len(no_domain) >= 1:
-            logging.warning("Unable to load following reference package taxonomic lineages as domains are missing.\n"
+            LOGGER.warning("Unable to load following reference package taxonomic lineages as domains are missing.\n"
                             "{}\n\t".format("\n\t".join(no_domain)))
 
         return
@@ -892,7 +902,7 @@ class TaxonomicHierarchy:
         try:
             taxon = self.trie[lineage]
         except KeyError:
-            logging.debug("Lineage '{}' isn't present in TaxonomicHierarchy.trie.\n".format(lineage))
+            LOGGER.debug("Lineage '{}' isn't present in TaxonomicHierarchy.trie.\n".format(lineage))
             pass
         return taxon
 
@@ -915,7 +925,7 @@ class TaxonomicHierarchy:
             lineage_split = self.rm_bad_taxa_from_lineage(lineage_split)  # Not guided by rank prefix
             self.rm_absent_taxa_from_lineage(lineage_split)  # Not guided by rank prefix
         if not lineage_split:
-            logging.error("Unable to find a trace of the cleaned lineage '{}' (from {}) in the taxonomic hierarchy.\n"
+            LOGGER.error("Unable to find a trace of the cleaned lineage '{}' (from {}) in the taxonomic hierarchy.\n"
                           "".format(self.lin_sep.join(lineage_split), bare_lineage))
             sys.exit(15)
 
@@ -927,7 +937,7 @@ class TaxonomicHierarchy:
                     lineage_split = prefix.split(self.lin_sep) + lineage_split
                     break
         if not self.query_trie(lineage_split[0]):
-            logging.error("Unable to root the lineage '{}' (cleaned is {}) in the taxonomic hierarchy.\n"
+            LOGGER.error("Unable to root the lineage '{}' (cleaned is {}) in the taxonomic hierarchy.\n"
                           "".format(bare_lineage, self.lin_sep.join(lineage_split)))
             sys.exit(17)
 
@@ -1065,7 +1075,7 @@ class TaxonomicHierarchy:
         :return: Name of the organism with a rank-prefix if the organism was found to be a descendent of lineage.
         """
         if isinstance(lineage, str):
-            logging.error("Lineage was string when list was expected.\n")
+            LOGGER.error("Lineage was string when list was expected.\n")
             raise TypeError
 
         if len(self.trie) == 0 or self.trie_key_prefix is False:
@@ -1075,7 +1085,7 @@ class TaxonomicHierarchy:
             return organism
         else:
             if self.lin_sep.join(lineage) not in self.trie:
-                logging.error("Lineage elements are not present in prefix tree: '{}'.\n".format("; ".join(lineage)))
+                LOGGER.error("Lineage elements are not present in prefix tree: '{}'.\n".format("; ".join(lineage)))
                 sys.exit(13)
 
             descendents = self.trie.items(prefix=self.lin_sep.join(lineage))
@@ -1099,11 +1109,11 @@ class TaxonomicHierarchy:
         """
         if not self.trie_key_prefix or not self.clean_trie or len(self.trie) == 0:
             self.clean_trie = True
-            logging.debug("Switching multifurcating trie to include rank prefixes.\n")
+            LOGGER.debug("Switching multifurcating trie to include rank prefixes.\n")
             self.build_multifurcating_trie(key_prefix=True)
 
         if verbosity:
-            logging.debug("check_lineage():\n\t"
+            LOGGER.debug("check_lineage():\n\t"
                           "lineage = '{0}'\n\t"
                           "organism = '{1}'\n\t"
                           "trie_key_prefix = {2}\n\t"
@@ -1114,7 +1124,7 @@ class TaxonomicHierarchy:
         self.rm_absent_taxa_from_lineage(lineage_list, with_prefix=True)
 
         if len(lineage_list) == 0:
-            logging.debug("Taxon '{}' from lineage '{}' is not in TaxonomicHierarchy.\n".format(organism, lineage))
+            LOGGER.debug("Taxon '{}' from lineage '{}' is not in TaxonomicHierarchy.\n".format(organism, lineage))
             return ""
 
         hierarchy_taxon = self.get_taxon(prefix_taxon=lineage_list[-1])
@@ -1132,7 +1142,7 @@ class TaxonomicHierarchy:
         # Determine the state of completeness for the taxon's lineage
         if hierarchy_taxon.rank == "species" or self.proper_species_re.match(lineage_list[-1]):
             if verbosity:
-                logging.debug("check_lineage(): Perfect lineage.\n")
+                LOGGER.debug("check_lineage(): Perfect lineage.\n")
         elif hierarchy_taxon.rank == "genus" and self.proper_species_re.match(organism):
             if not self.canonical_prefix.search(organism):
                 if self.rank_prefix_map['s'] == "species":
@@ -1143,17 +1153,17 @@ class TaxonomicHierarchy:
             self.append_to_hierarchy_dict(child=organism, parent=lineage_list[-1], rank="species")
             lineage_list.append(organism)
             if verbosity:
-                logging.debug("check_lineage(): Organism name added to complete the lineage.\n")
+                LOGGER.debug("check_lineage(): Organism name added to complete the lineage.\n")
         else:
             if verbosity:
-                logging.debug("check_lineage(): Truncated lineage.\n")
+                LOGGER.debug("check_lineage(): Truncated lineage.\n")
 
         self.validate_rank_prefixes()  # Ensure the rank-prefix map is formatted correctly
         # Ensure the order and progression of ranks is correct (domain -> phylum -> species for example)
         i = 0
         for taxon in taxon_lineage:  # type: Taxon
             if self.rank_prefix_map[taxon.prefix] not in self.accepted_ranks_depths:
-                logging.debug("Rank '{0}' is not in the list of accepted taxonomic ranks.\n"
+                LOGGER.debug("Rank '{0}' is not in the list of accepted taxonomic ranks.\n"
                               "Lineage will be truncated to '{1}'.\n".format(self.rank_prefix_map[taxon.prefix],
                                                                              self.lin_sep.join(lineage_list[0:i])))
                 for prefix_taxon_name in lineage_list[i:]:
@@ -1163,7 +1173,7 @@ class TaxonomicHierarchy:
                 break
 
             if self.accepted_ranks_depths[self.rank_prefix_map[taxon.prefix]] > i:
-                logging.debug("Order of taxonomic ranks in cleaned lineage '{0}' is unexpected.\n"
+                LOGGER.debug("Order of taxonomic ranks in cleaned lineage '{0}' is unexpected.\n"
                               "Lineage will be truncated to '{1}'.\n".format(self.lin_sep.join(lineage_list),
                                                                              self.lin_sep.join(lineage_list[0:i])))
                 for prefix_taxon_name in lineage_list[i:]:
@@ -1224,7 +1234,7 @@ class TaxonomicHierarchy:
                 continue
             taxa_names.append(taxon)
 
-        logging.debug("Removing {} taxa ({} unique) from taxonomic hierarchy.\n".format(len(taxa_names),
+        LOGGER.debug("Removing {} taxa ({} unique) from taxonomic hierarchy.\n".format(len(taxa_names),
                                                                                         len(set(taxa_names))))
         self.remove_leaf_nodes(taxa_names)
         return
@@ -1287,7 +1297,7 @@ class TaxonomicHierarchy:
             leaf_taxon = self.get_taxon(lineage[-1])
 
             if not base_taxon or not leaf_taxon:
-                logging.debug("Unable to trim lineage '{}' as some taxa were not found in taxonomic hierarchy.\n"
+                LOGGER.debug("Unable to trim lineage '{}' as some taxa were not found in taxonomic hierarchy.\n"
                               "".format(leaf_taxa_map[node_name]))
                 continue
 
@@ -1305,6 +1315,6 @@ class TaxonomicHierarchy:
             if lin:
                 trimmed_lineage_map[node_name] = self.lin_sep.join(reversed(lin))
 
-        logging.debug("{0} lineages truncated before '{1}' were removed during lineage trimming.\n".format(truncated,
+        LOGGER.debug("{0} lineages truncated before '{1}' were removed during lineage trimming.\n".format(truncated,
                                                                                                            rank))
         return trimmed_lineage_map

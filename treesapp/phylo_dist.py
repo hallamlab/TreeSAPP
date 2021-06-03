@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import sys
 import logging
 from ete3 import Tree
@@ -7,9 +5,10 @@ from ete3 import Tree
 import numpy as np
 import scipy.optimize as so
 
-np.random.seed(0)
+from treesapp import logger
 
-__author__ = 'Connor Morgan-Lang'
+LOGGER = logging.getLogger(logger.logger_name())
+np.random.seed(0)
 
 
 def cull_outliers(data: list, dev=3):
@@ -61,7 +60,7 @@ def regress_ranks(rank_distance_ranges: dict, taxonomic_ranks: dict) -> (float, 
             dist_list += rank_distances
 
     if len(depth_dist_dict.keys()) <= 1:
-        logging.error("Only {} ranks available for modelling.\n".format(len(depth_dist_dict.keys())))
+        LOGGER.error("Only {} ranks available for modelling.\n".format(len(depth_dist_dict.keys())))
         sys.exit(33)
 
     dist_list.clear()
@@ -123,7 +122,7 @@ def parent_to_tip_distances(parent: Tree, children: Tree, estimate=False):
         elif isinstance(child_node, int):
             distal_length = parent.get_distance(str(child_node))
         else:
-            logging.error("Cannot handle type '" + type(child_node) + "' for child.")
+            LOGGER.error("Cannot handle type '" + type(child_node) + "' for child.")
             raise AssertionError()
         if estimate:
             distal_length += parent.dist

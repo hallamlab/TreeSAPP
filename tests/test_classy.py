@@ -111,24 +111,6 @@ class TreeSAPPClassTester(unittest.TestCase):
         self.assertEqual(76, len(deduped_records))
         return
 
-    def test_prep_logging(self):
-        from treesapp.classy import prep_logging
-        import logging
-        # Reset logging for tests
-        logging.getLogger().handlers.clear()
-        # Should make the file properly
-        prep_logging(log_file="./test_log.txt", verbosity=True)
-        self.assertTrue(os.path.isfile("./test_log.txt"))
-        os.remove("./test_log.txt")
-
-        # Reset logging for tests
-        logging.getLogger().handlers.clear()
-        # Directory doesn't exist, should fail
-        with pytest.raises(SystemExit):
-            prep_logging(log_file=os.path.join(os.getcwd(), "must", "fail", "test_log.txt"),
-                         verbosity=False)
-        return
-
 
 class EvaluatorTester(unittest.TestCase):
     def setUp(self) -> None:
@@ -207,7 +189,7 @@ class AbundanceTester(unittest.TestCase):
         # Test using the packaged reference packages
         mock_abund.fetch_refpkgs_used()
         self.assertEqual(os.path.join(get_treesapp_root(), "data"), os.path.dirname(mock_abund.refpkg_dir))
-        self.assertEqual(33, len(mock_abund.target_refpkgs))
+        self.assertEqual(36, len(mock_abund.target_refpkgs))
 
         # Test with the reference packages stashed in the treesapp assign output
         mock_abund.var_output_dir = assign_output_intermediates

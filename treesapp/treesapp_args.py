@@ -7,6 +7,9 @@ from glob import glob
 
 from treesapp.classy import Evaluator, Updater
 from treesapp.utilities import available_cpu_count
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):
@@ -108,9 +111,12 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                      choices=["relaxed", "strict"], default="relaxed", required=False,
                                      help="HMM-threshold mode affects the number of query sequences that advance "
                                           "[DEFAULT = relaxed]")
-        self.hmmer_args.add_argument("-P", "--hmm_coverage", type=int, default=20, required=False,
-                                     help="Minimum percent of a profile HMM that a query alignment must be cover "
-                                          "for it to be considered. [ DEFAULT = 20 ]")
+        self.hmmer_args.add_argument("-P", "--hmm_coverage", type=int, default=80, required=False,
+                                     help="Minimum percentage of a profile HMM that a query alignment must cover "
+                                          "for it to be considered. [ DEFAULT = 80 ]")
+        self.hmmer_args.add_argument("-Q", "--query_coverage", type=int, default=80, required=False,
+                                     help="Minimum percentage of a query sequence that an alignment must cover "
+                                          "to be retained. [ DEFAULT = 80 ]")
 
     def add_abundance_params(self):
         self.fpkm_opts.add_argument("--metric", required=False, default="tpm", choices=["fpkm", "tpm"],
@@ -144,12 +150,12 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.pplace_args.add_argument("--min_like_weight_ratio", default=0.1, type=float, dest="min_lwr",
                                       help="The minimum likelihood weight ratio required for an EPA placement. "
                                            "[ DEFAULT = 0.1 ]")
-        self.pplace_args.add_argument("--max_pendant_length", default=2.0, type=float, dest="max_pd",
+        self.pplace_args.add_argument("--max_pendant_length", default=None, type=float, dest="max_pd",
                                       help="The maximum pendant length distance threshold, "
-                                           "beyond which EPA placements are unclassified. [ DEFAULT = 2.0 ]")
-        self.pplace_args.add_argument("--max_evol_distance", default=3.0, type=float, dest="max_evo",
+                                           "beyond which EPA placements are unclassified. [ DEFAULT = Inf ]")
+        self.pplace_args.add_argument("--max_evol_distance", default=None, type=float, dest="max_evo",
                                       help="The maximum total evolutionary distance between a query and reference(s), "
-                                           "beyond which EPA placements are unclassified. [ DEFAULT = 3.0 ]")
+                                           "beyond which EPA placements are unclassified. [ DEFAULT = Inf ]")
 
     def add_pplace_params(self):
         self.add_pplace_filter_params()
@@ -543,9 +549,9 @@ def check_parser_arguments(args, sys_args):
     ##
     # Remove the output directory if it exists and overwrite permission granted.
     ##
-    logging.info("Arguments used:\n" + ' '.join(sys_args) + "\n")
+    LOGGER.info("Arguments used:\n" + ' '.join(sys_args) + "\n")
     if re.match(r"^/$", args.output):
-        logging.error("Output directory specified as root. Bailing out to prevent future catastrophe!\n")
+        LOGGER.error("Output directory specified as root. Bailing out to prevent future catastrophe!\n")
         sys.exit(1)
     # Add (or replace a trailing (back)slash with) the os.sep to the end of the output directory
     while re.search(r'.*/$', args.output) or re.search(r'.*\\$', args.output):
@@ -558,11 +564,11 @@ def check_parser_arguments(args, sys_args):
         args.min_seq_length = 1
 
     if sys.version_info <= (2, 9):
-        logging.error("Python 2 is not supported by TreeSAPP.\n")
+        LOGGER.error("Python 2 is not supported by TreeSAPP.\n")
         sys.exit(3)
 
     if "num_threads" in vars(args) and args.num_threads > available_cpu_count():
-        logging.warning("Number of threads specified is greater than those available! "
+        LOGGER.warning("Number of threads specified is greater than those available! "
                         "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
         args.num_threads = available_cpu_count()
 
@@ -618,13 +624,13 @@ def check_updater_arguments(updater: Updater, args):
         if not 0.5 <= float(args.similarity) <= 1.0:
             if 0.5 < float(args.similarity) / 100 < 1.0:
                 args.similarity = str(float(args.similarity) / 100)
-                logging.warning("--similarity set to {} for compatibility.\n".format(args.similarity))
+                LOGGER.warning("--similarity set to {} for compatibility.\n".format(args.similarity))
             else:
-                logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
+                LOGGER.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
 
     if updater.seq_names_to_taxa and not os.path.isfile(updater.seq_names_to_taxa):
-        logging.error("Unable to find file mapping sequence names to taxonomic lineages '" +
+        LOGGER.error("Unable to find file mapping sequence names to taxonomic lineages '" +
                       updater.seq_names_to_taxa + "'.\n")
 
     # TODO: Write a TreeSAPP function for validating outputs
@@ -647,9 +653,9 @@ def check_updater_arguments(updater: Updater, args):
     if len(classified_seqs) == 1:
         updater.query_sequences = classified_seqs.pop()
     elif len(classified_seqs) == 0:
-        logging.error("No classified sequence files found in {}.\n".format(updater.final_output_dir))
+        LOGGER.error("No classified sequence files found in {}.\n".format(updater.final_output_dir))
     else:
-        logging.error("Multiple classified sequence files in '{}'"
+        LOGGER.error("Multiple classified sequence files in '{}'"
                       " where only one expected.\n".format(updater.final_output_dir))
         sys.exit(5)
 

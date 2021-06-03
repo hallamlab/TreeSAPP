@@ -119,6 +119,28 @@ class RefPkgTester(unittest.TestCase):
             blank.get_ete_tree()
         return
 
+    def test_tree_root_tips_dists(self):
+        root_tip_distances = self.db.tree_root_tips_dists()
+        self.assertEqual(self.db.num_seqs, len(root_tip_distances))
+        return
+
+    def test_get_edge_tip_dist_map(self):
+        from numpy import mean
+        max_edge_tip_dists = self.db.get_edge_tip_dist_map()
+        self.assertEqual((2*self.db.num_seqs)-1,
+                         len(max_edge_tip_dists))
+        self.assertTrue(0 in max_edge_tip_dists)
+        self.assertTrue(500 in max_edge_tip_dists)
+
+        mean_edge_tip_dists = self.db.get_edge_tip_dist_map(func=mean)
+        root_node = int(self.db.get_ete_tree().name)
+        self.assertTrue(max_edge_tip_dists[root_node] > mean_edge_tip_dists[root_node])
+
+        _min_dist = 0.5
+        max_edge_tip_dists = self.db.get_edge_tip_dist_map(min_dist=_min_dist)
+        self.assertEqual(_min_dist, min(max_edge_tip_dists.values()))
+        return
+
     def test_hmm_length(self):
         from treesapp.refpkg import ReferencePackage
         blank = ReferencePackage()
@@ -142,6 +164,15 @@ class RefPkgTester(unittest.TestCase):
         node_map = self.db.get_internal_node_leaf_map()
         self.assertEqual(2 * self.db.num_seqs, len(node_map))
         self.assertEqual(self.db.num_seqs, len(node_map[max(node_map.keys())]))
+        return
+
+    def test_clade_expander(self):
+        leaf_nodes = ['197_McrA']
+        leaf_nodes = self.mutable_ref_pkg.clade_expander(leaf_nodes, min_size=1)
+        self.assertEqual(1, len(leaf_nodes))
+
+        leaf_nodes = self.mutable_ref_pkg.clade_expander(leaf_nodes, min_size=2)
+        self.assertEqual(236, len(leaf_nodes))
         return
 
     def test_match_taxon_to_internal_nodes(self):
@@ -333,6 +364,22 @@ class RefPkgTester(unittest.TestCase):
         # Ensure empty feature annotations are not saved
         self.mutable_ref_pkg.add_feature_annotations(feature_name="test", feature_map={}, reset=True)
         self.assertNotIn("test", self.mutable_ref_pkg.feature_annotations)
+        return
+
+    def test_deduplicate_annotation_members(self):
+        from treesapp.clade_annotation import CladeAnnotation
+        methyl_ca = CladeAnnotation(name="Methylotrophic", key="Pathway")
+        methyl_ca.members = {'236_McrA': 5, '233_McrA': 5, '234_McrA': 5, '235_McrA': 5, '231_McrA': 5, '237_McrA': 5,
+                             '245_McrA': 5, '246_McrA': 7, '218_McrA': 5, '220_McrA': 5, '243_McrA': 7, '242_McrA': 7}
+        acetic_ca = CladeAnnotation(name="Aceticlastic", key="Pathway")
+        acetic_ca.members = {'245_McrA': 6, '246_McrA': 6, '244_McrA': 6, '247_McrA': 6}
+
+        self.mutable_ref_pkg.feature_annotations = {"Pathway": [methyl_ca, acetic_ca]}
+        self.mutable_ref_pkg.deduplicate_annotation_members()
+
+        self.assertEqual(0, len(set(methyl_ca.members).intersection(acetic_ca.members)))
+        self.assertEqual({'245_McrA': 6, '244_McrA': 6, '247_McrA': 6}, acetic_ca.members)
+        self.assertEqual(11, len(methyl_ca.members))
         return
 
     def test_edit(self):

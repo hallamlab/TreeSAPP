@@ -19,10 +19,12 @@ from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignme
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
 from treesapp.utilities import base_file_prefix, load_taxonomic_trie, match_file, get_hmm_value
 from treesapp import file_parsers
-from treesapp.clade_annotation import CladeAnnotation
+from treesapp import clade_annotation
 from treesapp import wrapper
+from treesapp import logger
 from treesapp import __version__ as ts_version
 
+LOGGER = logging.getLogger(logger.logger_name())
 
 _COMPATIBLE_VERSION = "0.8.3"
 
@@ -75,6 +77,7 @@ class ReferencePackage:
         self.__core_ref_files = [self.f__msa, self.f__profile, self.f__search_profile,
                                  self.f__tree, self.f__boot_tree, self.f__model_info]
         self.taxa_trie = TaxonomicHierarchy()
+        self._ref_leaves = {}
 
     def __iter__(self):
         """
@@ -113,7 +116,7 @@ class ReferencePackage:
 
         :return: None
         """
-        logging.error(msg + "\n" + self.get_info())
+        LOGGER.error(msg + "\n" + self.get_info())
         return
 
     def clone(self, clone_path: str):
@@ -195,7 +198,7 @@ class ReferencePackage:
             file_h.write(text)
             file_h.close()
         except IOError:
-            logging.warning("Unable to write reference package component to '{}' for '{}'.\n".format(file_name,
+            LOGGER.warning("Unable to write reference package component to '{}' for '{}'.\n".format(file_name,
                                                                                                      self.prefix))
         return
 
@@ -239,7 +242,7 @@ class ReferencePackage:
             if not os.path.isdir(output_dir):
                 os.mkdir(output_dir)
         except (FileNotFoundError, IOError):
-            logging.error("Unable to create directory '{0}' for ReferencePackage '{1}'.\n"
+            LOGGER.error("Unable to create directory '{0}' for ReferencePackage '{1}'.\n"
                           "TreeSAPP will only create a single directory at a time.\n".format(output_dir, self.prefix))
             sys.exit(3)
 
@@ -261,6 +264,11 @@ class ReferencePackage:
 
         return
 
+    def load_ref_leaves(self) -> None:
+        self._ref_leaves = {leaf.number + '_' + self.prefix: leaf for
+                            leaf in self.generate_tree_leaf_references_from_refpkg()}
+        return
+
     def slurp(self) -> None:
         """
         Reads the reference package's pickled-formatted file and stores the elements in their respective variables
@@ -269,17 +277,17 @@ class ReferencePackage:
         """
         new_path = self.f__pkl
         if len(self.f__pkl) == 0:
-            logging.error("ReferencePackage.f__pkl was not set.\n")
+            LOGGER.error("ReferencePackage.f__pkl was not set.\n")
             sys.exit(11)
 
         if not os.path.isfile(self.f__pkl):
-            logging.error("ReferencePackage pickle file '{}' doesn't exist.\n".format(self.f__pkl))
+            LOGGER.error("ReferencePackage pickle file '{}' doesn't exist.\n".format(self.f__pkl))
             sys.exit(7)
 
         try:
             refpkg_data = joblib.load(self.f__pkl)
         except EOFError:
-            logging.error("Joblib was unable to load reference package pickle '{}'.\n".format(self.f__pkl))
+            LOGGER.error("Joblib was unable to load reference package pickle '{}'.\n".format(self.f__pkl))
             sys.exit(17)
 
         for a, v in refpkg_data.items():
@@ -292,11 +300,12 @@ class ReferencePackage:
             if len(self.tree) > 0:
                 self.tree = self.tree[0]
             else:
-                logging.error("Unable to load the phylogenetic tree for reference package '{}' ({})\n."
+                LOGGER.error("Unable to load the phylogenetic tree for reference package '{}' ({})\n."
                               "".format(self.prefix, self.f__pkl))
                 return
 
         self.load_taxonomic_hierarchy()
+        self.load_ref_leaves()
 
         return
 
@@ -373,7 +382,7 @@ class ReferencePackage:
         """
         refpkg_fa = FASTA(self.f__msa)
         if not self.msa:
-            logging.debug("ReferencePackage MSA hasn't been slurped, unable to read FASTA.\n")
+            LOGGER.debug("ReferencePackage MSA hasn't been slurped, unable to read FASTA.\n")
             return refpkg_fa
 
         name, seq = "", ""
@@ -392,14 +401,14 @@ class ReferencePackage:
         refpkg_fa.header_registry = register_headers(list(refpkg_fa.fasta_dict.keys()), True)
 
         if len(refpkg_fa.fasta_dict) == 0 and len(refpkg_fa.fasta_dict) == 0:
-            logging.error("ReferencePackage.msa is empty or corrupted - no sequences were found!\n")
+            LOGGER.error("ReferencePackage.msa is empty or corrupted - no sequences were found!\n")
             sys.exit(3)
 
         return refpkg_fa
 
     def get_ete_tree(self) -> Tree:
         if not self.tree:
-            logging.error("Unable to load tree - '{}' reference package hasn't been slurped yet.\n".format(self.prefix))
+            LOGGER.error("Unable to load tree - '{}' reference package hasn't been slurped yet.\n".format(self.prefix))
             sys.exit(5)
         if type(self.tree) is list:
             if len(self.tree) > 0:
@@ -425,10 +434,20 @@ class ReferencePackage:
             i += 1
         node_map[i] = leaf_stack.pop()
         if leaf_stack:
-            logging.error("Some leaves remain unpopped from the stack - internal node to leaf map is incomplete.\n")
+            LOGGER.error("Some leaves remain unpopped from the stack - internal node to leaf map is incomplete.\n")
             sys.exit(17)
 
         return node_map
+
+    def clade_expander(self, leaf_nodes, min_size=3) -> Tree:
+        """Finds the smallest clade that includes all lead node names in leaf_nodes and is at least min_size large."""
+        node_leaf_map = self.get_internal_node_leaf_map()
+        for i_node in sorted(node_leaf_map, key=int):
+            if len(leaf_nodes) >= min_size:
+                break
+            if len(node_leaf_map[i_node]) >= min_size and set(node_leaf_map[i_node]).issuperset(leaf_nodes):
+                leaf_nodes = node_leaf_map[i_node]
+        return leaf_nodes
 
     def leaf_node_order(self) -> list:
         """
@@ -482,8 +501,8 @@ class ReferencePackage:
             else:
                 same.append(leaf_id)
         if len(same) > 0:
-            logging.info("{} reference sequence lineages were not updated. More info in log.\n".format(len(same)))
-            logging.debug("Reference sequences that remain unchanged:\n\t{}\n"
+            LOGGER.info("{} reference sequence lineages were not updated. More info in log.\n".format(len(same)))
+            LOGGER.debug("Reference sequences that remain unchanged:\n\t{}\n"
                           "".format("\n\t".join(name + "\t" + self.lineage_ids[name] for name in same)))
         return
 
@@ -597,7 +616,7 @@ class ReferencePackage:
                 mia_leaves.append(ref_leaf)
 
         if len(mia_leaves) > 0:
-            logging.warning("Unable to find all leaves '{}' in {} reference package leaves.\n"
+            LOGGER.warning("Unable to find all leaves '{}' in {} reference package leaves.\n"
                             "".format(", ".join(mia_leaves), self.prefix))
         return taxon_leaf_map
 
@@ -620,7 +639,7 @@ class ReferencePackage:
         try:
             taxon_name, leaf_node_names = self.map_taxa_to_leaf_nodes([taxon_name]).popitem()
         except KeyError:
-            logging.warning("Unable to match taxon '{}' to internal nodes as taxon isn't in reference package.\n"
+            LOGGER.warning("Unable to match taxon '{}' to internal nodes as taxon isn't in reference package.\n"
                             "".format(taxon_name))
             return internal_nodes
 
@@ -661,7 +680,7 @@ class ReferencePackage:
             for leaf in taxon_leaf_nodes:  # type: TreeLeafReference
                 unique_taxa[leaf.number] = self.taxa_trie.hierarchy[taxon_name]
 
-        logging.info("{}: {} unique taxa.\n".format(self.prefix, len(taxon_leaf_map)))
+        LOGGER.info("{}: {} unique taxa.\n".format(self.prefix, len(taxon_leaf_map)))
 
         return taxon_leaf_map, unique_taxa
 
@@ -702,7 +721,7 @@ class ReferencePackage:
                 else:
                     n_match += 1
 
-        logging.debug("Reference sequence filtering stats for taxon '{}'\n".format(s_target[-1]) +
+        LOGGER.debug("Reference sequence filtering stats for taxon '{}'\n".format(s_target[-1]) +
                       "\n".join(["Match taxon\t" + str(n_match),
                                  "Unclassified\t" + str(n_unclassified),
                                  "Too shallow\t" + str(n_shallow),
@@ -742,11 +761,33 @@ class ReferencePackage:
                 break
 
         if leaf_nodes:
-            logging.error("Unable to find an internal node containing the leaf nodes {} in reference package '{}'.\n"
+            LOGGER.error("Unable to find an internal node containing the leaf nodes {} in reference package '{}'.\n"
                           "".format(', '.join(leaf_nodes), self.prefix))
             sys.exit(13)
 
         return taxa_internal_node_map
+
+    def tree_root_tips_dists(self) -> list:
+        """Returns a tuple of the mean and standard deviation for distance between root and tips."""
+        tip_distances = []
+        rt_tree = self.get_ete_tree()
+        for leaf in rt_tree.get_leaves():
+            tip_distances.append(rt_tree.get_distance(leaf))
+
+        return tip_distances
+
+    def get_edge_tip_dist_map(self, func=max, min_dist=0.0) -> dict:
+        """Calculating the max (or other function) tip lengths from a node to all descendent tips."""
+        edge_dists = {}
+        rt_tree = self.get_ete_tree()
+        entish.label_internal_nodes_ete(rt_tree, attr="i_node", attr_type=int)
+        for node in rt_tree.traverse(strategy="postorder"):
+            if node.is_leaf():
+                edge_dists[node.i_node] = max(node.dist, min_dist)
+            else:
+                l, r = node.children
+                edge_dists[node.i_node] = node.dist + func([edge_dists[l.i_node], edge_dists[r.i_node]])
+        return edge_dists
 
     def remove_taxon_from_lineage_ids(self, taxon: str) -> None:
         """
@@ -854,7 +895,7 @@ class ReferencePackage:
         split_lineage = target_clade.split(self.taxa_trie.lin_sep)
         base_taxon = self.taxa_trie.get_taxon(split_lineage[0])
         if not base_taxon:
-            logging.error("Unable to find taxon '{}' in taxonomic hierarchy."
+            LOGGER.error("Unable to find taxon '{}' in taxonomic hierarchy."
                           " Unable to exclude from reference package '{}'.\n".format(split_lineage[0], self.prefix))
             sys.exit(11)
 
@@ -864,16 +905,16 @@ class ReferencePackage:
         # fasta
         ref_fasta_dict = read_fasta_to_dict(self.f__msa)
         if len(ref_fasta_dict) == 0:
-            logging.error("No sequences were read from Reference Package {}'s FASTA '{}'.\n"
+            LOGGER.error("No sequences were read from Reference Package {}'s FASTA '{}'.\n"
                           "".format(self.prefix, self.f__msa))
             sys.exit(13)
         off_target_ref_headers = [ref_num + '_' + self.prefix for ref_num in self.lineage_ids]
         if len(off_target_ref_headers) == 0:
-            logging.error("No reference sequences were retained for building testing " + target_clade + "\n")
+            LOGGER.error("No reference sequences were retained for building testing " + target_clade + "\n")
             sys.exit(19)
         split_files = write_new_fasta(ref_fasta_dict, self.f__msa, headers=off_target_ref_headers)
         if len(split_files) > 1:
-            logging.error("Only one FASTA file should have been written.\n")
+            LOGGER.error("Only one FASTA file should have been written.\n")
             sys.exit(21)
 
         # profile HMM
@@ -894,15 +935,15 @@ class ReferencePackage:
                 tree_build_cmd += ["-lg", "-gamma"]
             tree_build_cmd += ["-out", self.f__tree]
             tree_build_cmd.append(self.f__msa)
-            logging.info("Building Approximately-Maximum-Likelihood tree with FastTree... ")
+            LOGGER.info("Building Approximately-Maximum-Likelihood tree with FastTree... ")
             stdout, returncode = launch_write_command(tree_build_cmd, True)
             with open(tmp_dir + os.sep + "FastTree_info." + self.prefix, 'w') as fast_info:
                 fast_info.write(stdout + "\n")
-            logging.info("done.\n")
+            LOGGER.info("done.\n")
         else:
             ref_tree = self.get_ete_tree()
             ref_tree.prune(off_target_ref_headers, preserve_branch_length=True)
-            logging.debug("\t" + str(len(ref_tree.get_leaves())) + " leaves in pruned tree.\n")
+            LOGGER.debug("\t" + str(len(ref_tree.get_leaves())) + " leaves in pruned tree.\n")
             ref_tree.write(outfile=self.f__tree, format=5)
 
         # Model parameters
@@ -930,7 +971,7 @@ class ReferencePackage:
         :return: None
         """
 
-        logging.debug("Creating taxonomically-dereplicated HMM... ")
+        LOGGER.debug("Creating taxonomically-dereplicated HMM... ")
 
         if not intermediates_dir:
             intermediates_dir = os.path.dirname(self.f__msa)
@@ -986,9 +1027,9 @@ class ReferencePackage:
             if os.path.isfile(f_path):
                 os.remove(f_path)
 
-        logging.debug("done.\n")
+        LOGGER.debug("done.\n")
 
-        logging.debug("%i %s-dereplicated sequences retained for building HMM profile.\n" %
+        LOGGER.debug("%i %s-dereplicated sequences retained for building HMM profile.\n" %
                       (len(lineage_reps), dereplication_rank))
         return
 
@@ -1020,7 +1061,7 @@ class ReferencePackage:
         Returns a StringTrie (prefix-tree) representation of the taxonomic lineages of the ReferencePackage
         """
         if len(self.lineage_ids) == 0:
-            logging.error("ReferencePackage.lineage_ids is empty - information hasn't been slurped up yet.\n")
+            LOGGER.error("ReferencePackage.lineage_ids is empty - information hasn't been slurped up yet.\n")
             sys.exit(17)
 
         lineage_list = list()
@@ -1039,8 +1080,8 @@ class ReferencePackage:
             if len(n.children) == 0:  # this is a leaf node
                 continue
             elif len(n.children) == 1:
-                logging.error("Unexpected number of children (1) for Tree.Node {}.\n".format(n.name))
-                raise AssertionError
+                n.taxon = n.get_children().pop().taxon
+                continue
             elif len(n.children) > 2:
                 n.resolve_polytomy(recursive=False)
                 for c in n.children:
@@ -1112,7 +1153,7 @@ class ReferencePackage:
                 pass
 
         if unmapped:
-            logging.debug("Unable to find the following feature indices in taxa, leaves or internal nodes:\n\t" +
+            LOGGER.debug("Unable to find the following feature indices in taxa, leaves or internal nodes:\n\t" +
                           "\n\t".join(unmapped) + "\n")
 
         return internal_node_feature_map
@@ -1144,29 +1185,33 @@ class ReferencePackage:
             annotation, taxon = feat_tup  # type: (str, str)
             # Determine whether the feature is already in clade_annots and if so, update it
             ca = None
-            for prev_annot in clade_annots:  # type: CladeAnnotation
+            for prev_annot in clade_annots:  # type: clade_annotation.CladeAnnotation
                 if prev_annot.name == annotation:
                     ca = prev_annot
                     break
             if ca is None:
-                ca = CladeAnnotation(name=annotation, key=feature_name)
+                ca = clade_annotation.CladeAnnotation(name=annotation, key=feature_name)
                 clade_annots.append(ca)
 
-            # Populate the taxa and members attributes
-            for index in indices:
-                ca.members.update(inode_leaf_map[index])
+            # Populate the taxa attribute if available and find taxon's depth in the hierarchy
             if taxon:
                 ca.taxa.update([taxon])
+                depth = self.taxa_trie.get_taxon_hierarchy_depth(taxon)
+            else:
+                depth = 8
+            # Add leaves to members attributes
+            for index in indices:
+                ca.members.update({leaf: depth for leaf in inode_leaf_map[index]})
 
         # Remove the feature from feature_annotations it there are no CladeAnnotation entries
         self.feature_annotations[feature_name] = clade_annots
         if len(self.feature_annotations[feature_name]) == 0:
             self.feature_annotations.pop(feature_name)
-            logging.warning("No clade annotations were made for feature '{}'.\n".format(feature_name))
+            LOGGER.warning("No clade annotations were made for feature '{}'.\n".format(feature_name))
             return
 
         # Identify the reference package leaves that are not annotated
-        for ca in self.feature_annotations[feature_name]:
+        for ca in self.feature_annotations[feature_name]:  # type: clade_annotation.CladeAnnotation
             for leaf_name in ca.members:
                 try:
                     all_leaves.remove(leaf_name)
@@ -1178,10 +1223,42 @@ class ReferencePackage:
         missing_ref_leaves = sum(missing_leaf_map.values(), [])
         unique_lineages = sorted(set([ref_leaf.lineage for ref_leaf in missing_ref_leaves]))
         unique_descs = sorted([ref_leaf.description for ref_leaf in missing_ref_leaves])
-        logging.info("{} references were not annotated. More info can be found in log.\n".format(len(all_leaves)))
-        logging.debug("Unique lineages remaining unannotated:\n\t{}\n"
+        LOGGER.info("{} references were not annotated. More info can be found in log.\n".format(len(all_leaves)))
+        LOGGER.debug("Unique lineages remaining unannotated:\n\t{}\n"
                       "Descriptions of unannotated reference leaves:\n\t{}\n".format("\n\t".join(unique_lineages),
                                                                                      "\n\t".join(unique_descs)))
+
+        self.deduplicate_annotation_members()
+        return
+
+    def fetch_clade_annotation(self, annotation_name: str, key: str) -> clade_annotation.CladeAnnotation:
+        for ca in self.feature_annotations[key]:
+            if ca.name == annotation_name:
+                return ca
+
+    def delineate_feature_annotations_by_rank(self, feature: str, annots: list, leaf: str):
+        rankings = {anno_name: self.fetch_clade_annotation(anno_name, feature).members[leaf] for anno_name in annots}
+        best = max(rankings, key=rankings.get)
+        LOGGER.debug("Leaf node '{}' was retained by '{}' out of {}".format(self._ref_leaves[leaf].description,
+                                                                             best,
+                                                                             annots))
+        for anno_name in annots:
+            if anno_name != best:
+                self.fetch_clade_annotation(anno_name, feature).members.pop(leaf)
+        return
+
+    def deduplicate_annotation_members(self) -> None:
+        dups = set()
+        for feature in self.feature_annotations:
+            leaf_memberships = clade_annotation.generate_leaf_node_memberships(self.feature_annotations[feature])
+            for leaf, annots in leaf_memberships.items():
+                if len(annots) > 1:
+                    dups.add(leaf)
+                    self.delineate_feature_annotations_by_rank(feature, annots, leaf)
+
+        if len(dups) > 1:
+            LOGGER.warning("{} leaves had multiple annotations. The most resolved was selected for each.\n"
+                            "Refer to the log file for more details.\n".format(len(dups)))
 
         return
 
@@ -1190,7 +1267,7 @@ def write_edited_pkl(ref_pkg: ReferencePackage, output_dir: str, overwrite: bool
     if output_dir:
         ref_pkg.f__pkl = os.path.join(output_dir, os.path.basename(ref_pkg.f__pkl))
     if not overwrite and os.path.isfile(ref_pkg.f__pkl):
-        logging.warning("RefPkg file '{}' already exists.\n".format(ref_pkg.f__pkl))
+        LOGGER.warning("RefPkg file '{}' already exists.\n".format(ref_pkg.f__pkl))
         return 1
     ref_pkg.pickle_package()
     return 0
@@ -1202,11 +1279,11 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
         try:
             view_dict[attr] = refpkg.__dict__[attr]
         except KeyError:
-            logging.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(attr))
+            LOGGER.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(attr))
             sys.exit(1)
 
     for k, v in view_dict.items():
-        logging.info("{}:\t".format(k))
+        LOGGER.info("{}:\t".format(k))
         if k == "tree":
             v = refpkg.create_viewable_newick()
         if isinstance(v, list) and k not in ["pfit"]:  # various file contents
@@ -1228,10 +1305,10 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
 
 def edit(ref_pkg: ReferencePackage, attributes: list, output_dir: str, **kwargs) -> None:
     if len(attributes) > 2:
-        logging.error("`treesapp package edit` only edits a single attribute at a time.\n")
+        LOGGER.error("`treesapp package edit` only edits a single attribute at a time.\n")
         sys.exit(3)
     elif len(attributes) == 1:
-        logging.error("`treesapp package edit` requires a value to change.\n")
+        LOGGER.error("`treesapp package edit` requires a value to change.\n")
         sys.exit(3)
     else:
         k, v = attributes  # type: (str, any)
@@ -1239,15 +1316,15 @@ def edit(ref_pkg: ReferencePackage, attributes: list, output_dir: str, **kwargs)
     try:
         current_v = ref_pkg.__dict__[k]
     except KeyError:
-        logging.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(k))
+        LOGGER.error("Attribute '{}' doesn't exist in ReferencePackage.\n".format(k))
         sys.exit(1)
 
-    logging.info("Updating attribute '{}' (currently '{}')\n".format(k, current_v))
+    LOGGER.info("Updating attribute '{}' (currently '{}')\n".format(k, current_v))
 
     if k.startswith("f__"):  # This is a file that is being modified and the contents need to be read
         k_content = re.sub(r"^f__", '', k)
         if not os.path.isfile(v):
-            logging.error("Unable to find path to new file '{}'. "
+            LOGGER.error("Unable to find path to new file '{}'. "
                           "Exiting and the reference package '{}' will remain unchanged.\n".format(v, ref_pkg.f__pkl))
             sys.exit(5)
         with open(v) as content_handler:
@@ -1255,11 +1332,11 @@ def edit(ref_pkg: ReferencePackage, attributes: list, output_dir: str, **kwargs)
         try:
             ref_pkg.__dict__[k_content] = v_content
         except KeyError:
-            logging.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, ref_pkg.f__pkl))
+            LOGGER.error("Unable to find ReferencePackage attribute '{}' in '{}'.\n".format(k_content, ref_pkg.f__pkl))
             sys.exit(7)
     elif k == "feature_annotations":
         if "phenotypes" not in kwargs or not os.path.isfile(kwargs["phenotypes"]):
-            logging.error("A taxonomy-phenotype table must be provided to update the feature_annotations attribute.\n")
+            LOGGER.error("A taxonomy-phenotype table must be provided to update the feature_annotations attribute.\n")
             sys.exit(7)
         taxa_phenotype_map = file_parsers.read_phenotypes(kwargs["phenotypes"])
         ref_pkg.add_feature_annotations(feature_name=v, feature_map=taxa_phenotype_map, reset=kwargs["reset"])
@@ -1284,11 +1361,11 @@ def edit(ref_pkg: ReferencePackage, attributes: list, output_dir: str, **kwargs)
 def rename(ref_pkg: ReferencePackage, attributes: list, output_dir: str, overwrite: bool) -> None:
     # Ensure that prefix is the first item in attributes
     if attributes.pop(0) != 'prefix':
-        logging.error("Incorrect format of 'rename' command. Please follow the format provided in help description.\n")
+        LOGGER.error("Incorrect format of 'rename' command. Please follow the format provided in help description.\n")
         sys.exit(3)
     # Attributes can only be length of two - first item is 'prefix' and second is the new name
     if len(attributes) > 1:
-        logging.error("Only one other argument should be provided to treesapp package rename - the new ref_pkg name.\n")
+        LOGGER.error("Only one other argument should be provided to treesapp package rename - the new ref_pkg name.\n")
         sys.exit(3)
 
     new_prefix = attributes.pop()
@@ -1321,7 +1398,7 @@ def load_refpkgs_from_assign_output(assign_intermediates_dir: str) -> dict:
     refpkg_dict = dict()
     refpkg_dirs = glob(assign_intermediates_dir + os.sep + "*_RefPkg")
     if len(refpkg_dirs) == 0:
-        logging.error("Unable to find reference packages written to '{}'.\n".format(assign_intermediates_dir))
+        LOGGER.error("Unable to find reference packages written to '{}'.\n".format(assign_intermediates_dir))
         return refpkg_dict
 
     for dir_path in refpkg_dirs:
@@ -1345,7 +1422,7 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
     """
     refpkg_dict = dict()
     refpkgs_found = set()
-    logging.debug("Gathering reference package files... ")
+    LOGGER.debug("Gathering reference package files... ")
 
     if targets is None:
         targets = set()
@@ -1354,7 +1431,7 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
 
     refpkg_files = glob(refpkg_data_dir + os.sep + "*_build.pkl")
     if len(refpkg_files) == 0:
-        logging.error("No reference package files were found in {}.\n".format(refpkg_data_dir))
+        LOGGER.error("No reference package files were found in {}.\n".format(refpkg_data_dir))
         sys.exit(3)
 
     for rp_file in refpkg_files:
@@ -1365,20 +1442,20 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
             if ref_pkg.prefix not in targets and ref_pkg.refpkg_code not in targets:
                 continue
             elif ref_pkg.prefix in refpkgs_found and ref_pkg.refpkg_code in refpkgs_found:
-                logging.warning("RefPkg for {} has already been found. Skipping {}.\n".format(ref_pkg.prefix, rp_file))
+                LOGGER.warning("RefPkg for {} has already been found. Skipping {}.\n".format(ref_pkg.prefix, rp_file))
             else:
                 match = targets.intersection({ref_pkg.prefix, ref_pkg.refpkg_code}).pop()
                 refpkgs_found.add(match)
         if ref_pkg.validate():
             refpkg_dict[ref_pkg.prefix] = ref_pkg
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
 
     targets = targets.difference(refpkgs_found)
     if len(targets) > 0:
-        logging.warning("Reference packages for targets {} could not be found.\n".format(", ".join(targets)))
+        LOGGER.warning("Reference packages for targets {} could not be found.\n".format(", ".join(targets)))
 
     if len(refpkg_dict) == 0:
-        logging.error("No reference package data was found.\n" +
+        LOGGER.error("No reference package data was found.\n" +
                       "Are there reference packages in '{}'?\n".format(refpkg_data_dir))
         sys.exit(3)
 

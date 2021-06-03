@@ -9,6 +9,7 @@ import tqdm
 from joblib import dump as jdump
 from joblib import load as jload
 
+from treesapp import seq_clustering
 from treesapp import entrez_utils
 from treesapp import file_parsers
 from treesapp import fasta
@@ -20,6 +21,7 @@ from treesapp import placement_trainer
 from treesapp import annotate_extra
 from treesapp import treesapp_args
 from treesapp import classy
+from treesapp import logger
 from treesapp import jplace_utils
 from treesapp import training_utils
 from treesapp import phylogeny_painting as paint
@@ -29,8 +31,9 @@ from treesapp import clade_exclusion_evaluator as ts_clade_ex
 from treesapp import assign as ts_assign_mod
 from treesapp import create_refpkg as ts_create_mod
 from treesapp import update_refpkg as ts_update_mod
-from treesapp import phylo_cluster as ts_potu
 from treesapp import hmmer_tbl_parser
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def info(sys_args):
@@ -40,7 +43,7 @@ def info(sys_args):
     parser = treesapp_args.TreeSAPPArgumentParser(description="Return package, executable and refpkg information.")
     treesapp_args.add_info_arguments(parser)
     args = parser.parse_args(sys_args)
-    classy.prep_logging()
+    logger.prep_logging()
     ts_info = classy.TreeSAPP("info")
 
     import treesapp
@@ -56,7 +59,7 @@ def info(sys_args):
     import samsum
     import pyfastx
     import tqdm
-    logging.info("TreeSAPP version " + treesapp.__version__ + ".\n")
+    LOGGER.info("TreeSAPP version " + treesapp.__version__ + ".\n")
 
     # Write the version of all python deps
     py_deps = {"biopython": Bio.__version__,
@@ -72,14 +75,14 @@ def info(sys_args):
                "seaborn": seaborn.__version__,
                "tqdm": tqdm.__version__}
 
-    logging.info("Python package dependency versions:\n\t" +
+    LOGGER.info("Python package dependency versions:\n\t" +
                  "\n\t".join([k + ": " + v for k, v in py_deps.items()]) + "\n")
 
     # Write the version of executable deps
     ts_info.furnish_with_arguments(args)
     if args.refpkg_dir:
         ts_info.refpkg_dir = args.refpkg_dir
-    logging.info(utilities.executable_dependency_versions(ts_info.executables))
+    LOGGER.info(utilities.executable_dependency_versions(ts_info.executables))
 
     if args.verbose:
         refpkg_dict = ts_ref_pkg.gather_ref_packages(ts_info.refpkg_dir)
@@ -92,7 +95,7 @@ def info(sys_args):
                                              refpkg.molecule, refpkg.tree_tool, refpkg.kind, str(refpkg.num_seqs),
                                              refpkg.description, refpkg.date, refpkg.update]
                                             ) + "\n"
-        logging.info(refpkg_summary_str)
+        LOGGER.info(refpkg_summary_str)
 
     return
 
@@ -135,7 +138,7 @@ Use '-h' to get subcommand-specific help, e.g. 'treesapp package view -h'
     else:
         log_dir = "./"
 
-    classy.prep_logging(log_file=os.path.join(log_dir, 'TreeSAPP_package_log.txt'))
+    logger.prep_logging(log_file=os.path.join(log_dir, 'TreeSAPP_package_log.txt'))
 
     for refpkg_pkl in args.pkg_path:
         ref_pkg.f__pkl = refpkg_pkl
@@ -154,7 +157,7 @@ Use '-h' to get subcommand-specific help, e.g. 'treesapp package view -h'
         elif args.subcommand == "rename":
             ts_ref_pkg.rename(ref_pkg, args.attributes, output_dir, args.overwrite)
         else:
-            logging.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
+            LOGGER.error("Unrecognized command: '{}'.\n{}\n".format(args.subcommand, pkg_usage))
             sys.exit(1)
 
     return
@@ -170,8 +173,8 @@ def train(sys_args):
     ts_trainer.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_trainer_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
+    logger.prep_logging(log_file_name, args.verbose)
+    LOGGER.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
     ts_trainer.check_trainer_arguments(args)
@@ -187,10 +190,10 @@ def train(sys_args):
     # STAGE 1: Optionally validate and reformat the input FASTA
     ##
     if ts_trainer.stage_status("clean"):
-        logging.info("Reading and formatting {}... ".format(ts_trainer.input_sequences))
+        LOGGER.info("Reading and formatting {}... ".format(ts_trainer.input_sequences))
         train_seqs.header_registry = fasta.format_fasta(fasta_input=ts_trainer.input_sequences, molecule="prot",
                                                         output_fasta=ts_trainer.formatted_input)
-        logging.info("done.\n")
+        LOGGER.info("done.\n")
         ts_trainer.increment_stage_dir()
     else:
         ts_trainer.formatted_input = ts_trainer.input_sequences
@@ -201,17 +204,17 @@ def train(sys_args):
     # STAGE 2: Run hmmsearch on the query sequences to search for reference package homologs
     ##
     if ts_trainer.stage_status("search"):
-        logging.info("Searching for homologous sequences with hmmsearch... ")
+        LOGGER.info("Searching for homologous sequences with hmmsearch... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"],
                                                  ts_trainer.ref_pkg.f__search_profile,
                                                  ts_trainer.formatted_input,
                                                  ts_trainer.stage_output_dir)
-        logging.info("done.\n")
+        LOGGER.info("done.\n")
         thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
         hmm_matches = file_parsers.parse_domain_tables(thresholds, hmm_domtbl_files)
         ts_assign_mod.load_homologs(hmm_matches, ts_trainer.formatted_input, train_seqs)
 
-        logging.info(train_seqs.summarize_fasta_sequences())
+        LOGGER.info(train_seqs.summarize_fasta_sequences())
         fasta.write_new_fasta(train_seqs.fasta_dict, ts_trainer.hmm_purified_seqs)
         train_seqs.file = ts_trainer.hmm_purified_seqs
         utilities.hmm_pile(hmm_matches)
@@ -222,12 +225,12 @@ def train(sys_args):
             train_seqs.file = ts_trainer.hmm_purified_seqs
             train_seqs.fasta_dict = fasta.read_fasta_to_dict(train_seqs.file)
             if not train_seqs.fasta_dict:
-                logging.error("No sequences were detected in the HMM-purified FASTA '{}'.\n".format(train_seqs.file))
+                LOGGER.error("No sequences were detected in the HMM-purified FASTA '{}'.\n".format(train_seqs.file))
                 sys.exit(13)
         else:
             train_seqs.file = ts_trainer.hmm_purified_seqs
             train_seqs.load_fasta()
-        logging.info("Profile HMM homology search skipped. Using all sequences in {}.\n".format(train_seqs.file))
+        LOGGER.info("Profile HMM homology search skipped. Using all sequences in {}.\n".format(train_seqs.file))
         train_seqs.change_dict_keys("original")
 
     training_utils.summarize_query_classes(set(ts_trainer.pkg_dbname_dict.keys()), set(train_seqs.fasta_dict.keys()))
@@ -276,12 +279,8 @@ def train(sys_args):
         placement_trainer.write_placement_table(clade_ex_pqueries,
                                                 ts_trainer.placement_table, ts_trainer.ref_pkg.prefix)
 
-        logging.info("Generating placement data without clade exclusion for SVM... ")
-        # TODO: Pause logging just to console and continue writing to log file
-        # Option 1. No logging to console or file
-        cl_log = logging.getLogger()
-        cl_log.disabled = True
-        # Option 2... ?
+        LOGGER.info("Generating placement data without clade exclusion for SVM... ")
+        LOGGER.disabled = True
 
         assign_prefix = os.path.join(ts_trainer.stage_output_dir, ts_trainer.ref_pkg.prefix + "_assign")
         assign_params = ["-i", train_seqs.file,
@@ -299,21 +298,21 @@ def train(sys_args):
             plain_pqueries = ts_phylo_seq.assignments_to_pqueries(file_parsers.read_classification_table(
                 os.path.join(assign_prefix, "final_outputs", "classifications.tsv")))
         except (SystemExit, IOError):
-            logging.info("failed.\n")
-            logging.error("treesapp assign did not complete successfully.\n")
+            LOGGER.info("failed.\n")
+            LOGGER.error("treesapp assign did not complete successfully.\n")
             sys.exit(11)
         jdump(value=plain_pqueries, filename=os.path.join(ts_trainer.plain_pquery_pkl))
 
-        # Re-enable logging at the previous level
-        cl_log.disabled = False
-        logging.info("done.\n")
+        # Re-enable LOGGER at the previous level
+        LOGGER.disabled = False
+        LOGGER.info("done.\n")
         ts_trainer.increment_stage_dir()
     else:
-        logging.info("Phylogenetic placement stage is being skipped. Reading saved pickles... ")
+        LOGGER.info("Phylogenetic placement stage is being skipped. Reading saved pickles... ")
         # Load saved pquery instances from a previous run
         clade_ex_pqueries = jload(filename=ts_trainer.clade_ex_pquery_pkl)
         plain_pqueries = jload(filename=ts_trainer.plain_pquery_pkl)
-        logging.info("done.\n")
+        LOGGER.info("done.\n")
 
     taxa_evo_dists = placement_trainer.evo_dists_from_pqueries(clade_ex_pqueries, ts_trainer.training_ranks)
     ts_trainer.pqueries.update(clade_ex_pqueries)
@@ -323,9 +322,9 @@ def train(sys_args):
         # Finish up the linear regression model
         ts_trainer.ref_pkg.pfit = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
         if ts_trainer.ref_pkg.pfit:
-            logging.info("Placement distance model complete.\n")
+            LOGGER.info("Placement distance model complete.\n")
         else:
-            logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
+            LOGGER.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
         # Reformat the dictionary containing PQuery instances for classifier training and testing
         refpkg_pqueries = placement_trainer.flatten_pquery_dict(ts_trainer.pqueries, ts_trainer.ref_pkg.prefix)
@@ -348,12 +347,12 @@ def train(sys_args):
             for refpkg_name, fp_query_seqs in fp.items():
                 fp_names[refpkg_name] = [qseq.seq_name for qseq in fp_query_seqs]
 
-        logging.info("Extracting features from TreeSAPP classifications... ")
+        LOGGER.info("Extracting features from TreeSAPP classifications... ")
         training_df = training_utils.load_training_data_frame(pqueries=refpkg_pqueries,
                                                               refpkg_map={ts_trainer.ref_pkg.prefix:
                                                                           ts_trainer.ref_pkg},
                                                               refpkg_positive_annots=tp_names)
-        logging.info("done.\n")
+        LOGGER.info("done.\n")
         training_utils.train_classifier_from_dataframe(training_df, args.kernel,
                                                        grid_search=args.grid_search,
                                                        num_threads=args.num_threads,
@@ -364,7 +363,7 @@ def train(sys_args):
 
     if ts_trainer.stage_status("update"):
         if not ts_trainer.ref_pkg.pfit:
-            logging.warning("Linear regression parameters could not be estimated. " +
+            LOGGER.warning("Linear regression parameters could not be estimated. " +
                             "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
             ts_trainer.ref_pkg.pfit = [0.0, 7.0]
 
@@ -401,8 +400,8 @@ def create(sys_args):
     ts_create.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_create_" + args.refpkg_name + "_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
+    logger.prep_logging(log_file_name, args.verbose)
+    LOGGER.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
     ts_create_mod.check_create_arguments(ts_create, args)
@@ -417,22 +416,22 @@ def create(sys_args):
     # Read the FASTA into a dictionary - homologous sequences will be extracted from this
     ref_seqs.load_fasta(format_it=True, molecule=ts_create.ref_pkg.molecule)
     if ts_create.stage_status("deduplicate"):
-        ts_potu.dereplicate_by_clustering(fasta_inst=ref_seqs,
-                                          prop_similarity=0.999,
-                                          mmseqs_exe=ts_create.executables["mmseqs"],
-                                          tmp_dir=ts_create.stage_output_dir,
-                                          num_threads=args.num_threads)
+        seq_clustering.dereplicate_by_clustering(fasta_inst=ref_seqs,
+                                                 prop_similarity=0.999,
+                                                 mmseqs_exe=ts_create.executables["mmseqs"],
+                                                 tmp_dir=ts_create.stage_output_dir,
+                                                 num_threads=args.num_threads)
         ts_create.input_sequences = ts_create.stage_output_dir + "deduplicated.fasta"
         fasta.write_new_fasta(fasta_dict=ref_seqs.fasta_dict, fasta_name=ts_create.input_sequences)
 
     if ts_create.stage_status("search"):
         profile_match_dict = dict()
-        logging.debug("Raw, unfiltered sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
+        LOGGER.debug("Raw, unfiltered sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
-        logging.info("Searching for domain sequences... ")
+        LOGGER.info("Searching for domain sequences... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], ts_create.hmm_profile,
                                                  ts_create.input_sequences, ts_create.var_output_dir, args.num_threads)
-        logging.info("done.\n")
+        LOGGER.info("done.\n")
         thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
         hmm_matches = file_parsers.parse_domain_tables(thresholds, hmm_domtbl_files)
         for k, v in utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry).items():
@@ -455,14 +454,14 @@ def create(sys_args):
     ref_seqs.add_accession_to_headers()
     # Get rid of ambiguity or unusual characters
     ref_seqs.replace_ambiguity_chars(ts_create.ref_pkg.molecule)
-    logging.info("Sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
+    LOGGER.info("Sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
     ##
     # If there are sequences that needs to be guaranteed to be included,
     #  add them now as its easier to work with more sequences than repeat everything
     ##
     if args.guarantee:
-        ref_seqs.update(args.guarantee)
+        ref_seqs.fasta_update(args.guarantee)
         ref_seqs.change_dict_keys("original")
 
     ##
@@ -492,7 +491,7 @@ def create(sys_args):
                                                                    ts_create.ref_pkg.taxa_trie, ref_seqs.amendments)
 
         if len(fasta_records.keys()) < 2:
-            logging.error("{} sequences post-homology + taxonomy filtering\n".format(len(fasta_records)))
+            LOGGER.error("{} sequences post-homology + taxonomy filtering\n".format(len(fasta_records)))
             sys.exit(11)
         # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
 
@@ -523,11 +522,11 @@ def create(sys_args):
             ts_create.clusters_table = ts_create.clusters_prefix + "_cluster.tsv"
             cluster_alignments = ts_create.clusters_prefix + "_cluster_aln.tsv"
 
-            cluster_dict = file_parsers.create_mmseqs_clusters(ts_create.clusters_table, cluster_alignments)
+            cluster_dict = seq_clustering.create_mmseqs_clusters(ts_create.clusters_table, cluster_alignments)
 
             # Revert headers in cluster_dict from 'formatted' back to 'original'
             fasta.rename_cluster_headers(cluster_dict, ref_seqs.header_registry)
-            logging.debug("\t{} sequence clusters\n".format(len(cluster_dict.keys())))
+            LOGGER.debug("\t{} sequence clusters\n".format(len(cluster_dict.keys())))
             ##
             # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
             ##
@@ -582,13 +581,13 @@ def create(sys_args):
 
         postfilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
         filtered_ref_seqs = utilities.dict_diff(prefilter_ref_seqs, postfilter_ref_seqs)
-        logging.debug("{0} references before and {1} remaining after filtering.\n".format(len(prefilter_ref_seqs),
+        LOGGER.debug("{0} references before and {1} remaining after filtering.\n".format(len(prefilter_ref_seqs),
                                                                                           len(postfilter_ref_seqs)))
         ts_create.ref_pkg.taxa_trie.jetison_taxa_from_hierarchy(filtered_ref_seqs)
 
         taxonomic_summary = ts_create_mod.summarize_reference_taxa(fasta_replace_dict, ts_create.ref_pkg.taxa_trie,
                                                                    args.taxa_lca)
-        logging.info(taxonomic_summary)
+        LOGGER.info(taxonomic_summary)
 
         ##
         # Perform multiple sequence alignment
@@ -599,10 +598,10 @@ def create(sys_args):
             ts_create_mod.create_new_ref_fasta(ts_create.unaln_ref_fasta, fasta_replace_dict)
 
         if args.multiple_alignment is False:
-            logging.info("Aligning the sequences using MAFFT... ")
+            LOGGER.info("Aligning the sequences using MAFFT... ")
             wrapper.run_mafft(ts_create.executables["mafft"], ts_create.unaln_ref_fasta,
                               ts_create.ref_pkg.f__msa, args.num_threads)
-            logging.info("done.\n")
+            LOGGER.info("done.\n")
         else:
             pass
         ref_seqs.file = ts_create.ref_pkg.f__msa
@@ -610,7 +609,7 @@ def create(sys_args):
         ts_create.ref_pkg.num_seqs = ref_seqs.n_seqs()
         n_rows, n_cols = fasta.multiple_alignment_dimensions(mfa_file=ts_create.ref_pkg.f__msa,
                                                              seq_dict=ref_seqs.fasta_dict)
-        logging.debug("Reference alignment contains {} sequences with {} character positions.\n".format(n_rows, n_cols))
+        LOGGER.debug("Reference alignment contains {} sequences with {} character positions.\n".format(n_rows, n_cols))
 
         ##
         # Build the HMM profile from the aligned reference FASTA file
@@ -644,14 +643,14 @@ def create(sys_args):
             unique_ref_headers = set(ref_seqs.fasta_dict.keys())
             qc_ma_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming(trimmed_mfa_file,
                                                                                                    unique_ref_headers)
-            logging.debug("Number of sequences discarded: " + summary_str + "\n")
+            LOGGER.debug("Number of sequences discarded: " + summary_str + "\n")
             if len(qc_ma_dict.keys()) == 0:
                 # At least one of the reference sequences were discarded and therefore this package is invalid.
-                logging.error("Trimming removed reference sequences. This could indicate non-homologous sequences.\n" +
+                LOGGER.error("Trimming removed reference sequences. This could indicate non-homologous sequences.\n" +
                               "Please improve sequence quality-control and/or rerun without the '--trim_align' flag.\n")
                 sys.exit(13)
             elif len(qc_ma_dict.keys()) > 1:
-                logging.error("Multiple trimmed alignment files are found when only one is expected:\n" +
+                LOGGER.error("Multiple trimmed alignment files are found when only one is expected:\n" +
                               "\n".join([str(k) + ": " + str(qc_ma_dict[k]) for k in qc_ma_dict]))
                 sys.exit(13)
             # NOTE: only a single trimmed-MSA file in the dictionary
@@ -700,7 +699,7 @@ def create(sys_args):
     if ts_create.stage_status("train"):
         train(trainer_cmd)
     else:
-        logging.info("Skipping training:\n$ treesapp train {}.\n".format(' '.join(trainer_cmd)))
+        LOGGER.info("Skipping training:\n$ treesapp train {}.\n".format(' '.join(trainer_cmd)))
 
     ##
     # Finish validating the file and append the reference package build parameters to the master table
@@ -729,8 +728,8 @@ def update(sys_args):
     ts_updater.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_update_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\tUpdating TreeSAPP reference package\t\t\t##\n")
+    logger.prep_logging(log_file_name, args.verbose)
+    LOGGER.info("\n##\t\t\tUpdating TreeSAPP reference package\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_updater_arguments(ts_updater, args)
@@ -754,7 +753,7 @@ def update(sys_args):
     ts_update_mod.drop_queries_by_accession(classified_targets, ref_seq_lineage_info)
 
     if len(classified_targets) == 0:
-        logging.error("No new candidate reference sequences. Skipping update.\n")
+        LOGGER.error("No new candidate reference sequences. Skipping update.\n")
         return
     classified_fasta.change_dict_keys("original")
 
@@ -762,11 +761,11 @@ def update(sys_args):
     # Filter out sequences that shouldn't be used in the update: different refpkg, too short, low LWR, etc.
     ##
     classified_fasta.keep_only(classified_targets)
-    logging.info(classified_fasta.summarize_fasta_sequences())
+    LOGGER.info(classified_fasta.summarize_fasta_sequences())
     ts_updater.min_length = ts_update_mod.decide_length_filter(ts_updater.ref_pkg, args.min_seq_length)
     classified_fasta.remove_shorter_than(ts_updater.min_length)
     if classified_fasta.n_seqs() == 0:
-        logging.error("No classified sequences exceed minimum length threshold of {}.\n".format(ts_updater.min_length))
+        LOGGER.error("No classified sequences exceed minimum length threshold of {}.\n".format(ts_updater.min_length))
         return
 
     ##
@@ -814,14 +813,14 @@ def update(sys_args):
     classified_seq_lineage_map.update(ref_accession_lineage_map)
     diff = num_ref_seqs + num_assigned_candidates - len(classified_seq_lineage_map)
     if diff > 0:
-        logging.warning("{} candidate sequences are already in the reference package."
+        LOGGER.warning("{} candidate sequences are already in the reference package."
                         " These will be excluded from any further analysis.\n".format(diff))
         # Remove the classified sequences that are redundant with the reference set
         classified_fasta.change_dict_keys("accession")
         classified_fasta.keep_only(list(novel))
         classified_fasta.change_dict_keys("original")
     elif diff < 0:
-        logging.error("Something's not adding up between the reference (%d), candidate (%d) and complete (%d) "
+        LOGGER.error("Something's not adding up between the reference (%d), candidate (%d) and complete (%d) "
                       "sequence collections. Reference and candidate should sum to equal complete.\n" %
                       (num_ref_seqs, num_assigned_candidates, len(classified_seq_lineage_map)))
         sys.exit(13)
@@ -839,7 +838,7 @@ def update(sys_args):
 
     combined_fasta = fasta.FASTA("")
     combined_fasta.clone(classified_fasta)
-    combined_fasta.update(ref_fasta.fasta_dict, False)
+    combined_fasta.fasta_join(ref_fasta)
     combined_fasta.unalign()
 
     if args.resolve:
@@ -857,11 +856,11 @@ def update(sys_args):
         clusters_table = ts_updater.clusters_prefix + "_cluster.tsv"
         cluster_alignments = ts_updater.clusters_prefix + "_cluster_aln.tsv"
 
-        cluster_dict = file_parsers.create_mmseqs_clusters(clusters_tbl=clusters_table, aln_tbl=cluster_alignments)
+        cluster_dict = seq_clustering.create_mmseqs_clusters(clusters_tbl=clusters_table, aln_tbl=cluster_alignments)
 
         # Revert headers in cluster_dict from 'formatted' back to 'original'
         fasta.rename_cluster_headers(cluster_dict, combined_fasta.header_registry)
-        logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
+        LOGGER.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
 
         # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
         entrez_records = ts_update_mod.simulate_entrez_records(combined_fasta, classified_seq_lineage_map)
@@ -896,7 +895,7 @@ def update(sys_args):
         try:
             classified_fasta.keep_only(still_repping, superset=True)
         except AssertionError:
-            logging.warning("No assigned sequences were retained for updating the reference package. Stopping now.\n")
+            LOGGER.warning("No assigned sequences were retained for updating the reference package. Stopping now.\n")
             return
 
         ref_fasta.keep_only(still_repping, superset=True)
@@ -904,13 +903,13 @@ def update(sys_args):
         combined_fasta.keep_only(still_repping)
 
         if refs_resolved:
-            logging.info("{} reference sequences were resolved by updating sequences:\n\t"
+            LOGGER.info("{} reference sequences were resolved by updating sequences:\n\t"
                          "{}\n".format(len(refs_resolved),
                                        "\n\t".join([ref_seq.accession + ' ' + ref_seq.description
                                                     for ref_seq in refs_resolved])))
 
     if classified_fasta.n_seqs() > 0:
-        logging.info("{} assigned sequence(s) will be used in the update.\n".format(classified_fasta.n_seqs()))
+        LOGGER.info("{} assigned sequence(s) will be used in the update.\n".format(classified_fasta.n_seqs()))
 
     # Write only the sequences that have been properly classified
     combined_fasta.change_dict_keys("original")
@@ -957,8 +956,8 @@ def colour(sys_args):
     args = parser.parse_args(sys_args)
 
     log_file_name = os.path.join(args.output, "TreeSAPP_colour_log.txt")
-    classy.prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\tPainting a phylogeny\t\t\t##\n")
+    logger.prep_logging(log_file_name, args.verbose)
+    LOGGER.info("\n##\t\t\tPainting a phylogeny\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
 
@@ -972,7 +971,7 @@ def colour(sys_args):
             try:
                 clade_annots = ref_pkg.feature_annotations[ts_painter.feature_name]
             except KeyError:
-                logging.warning("Reference package '{}' doesn't have the '{}' feature annotated. "
+                LOGGER.warning("Reference package '{}' doesn't have the '{}' feature annotated. "
                                 "It is being skipped\n".format(refpkg_name, ts_painter.feature_name))
                 continue
             for ca in clade_annots:
@@ -1002,7 +1001,7 @@ def colour(sys_args):
         ts_painter.harmonize_taxa_colours(taxon_leaf_map, args.set_op)
 
     if len(ts_painter.refpkg_leaf_nodes_to_colour.keys()) == 0:
-        logging.error("Unable to colour phylogenies by '{}' - attributes were not found in reference packages.\n"
+        LOGGER.error("Unable to colour phylogenies by '{}' - attributes were not found in reference packages.\n"
                       "".format(args.attribute))
         raise AssertionError
 
@@ -1049,8 +1048,9 @@ def layer(sys_args):
     ts_layer = annotate_extra.Layerer()
 
     log_file_name = args.output + os.sep + "TreeSAPP_layer_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\t\tLayering extra annotations on TreeSAPP classifications\t\t\t\t##\n\n")
+    logger.prep_logging(log_file_name, args.verbose)
+    LOGGER.info("\n##\t\t\t\tLayering extra annotations on TreeSAPP classifications\t\t\t\t##\n\n")
+    LOGGER.info("Arguments used:\n" + ' '.join(sys_args) + "\n")
 
     ts_layer.check_arguments(args)
 
@@ -1096,7 +1096,7 @@ def layer(sys_args):
 
     # Load the query sequence annotations
     for data_type in marker_subgroups:
-        logging.info("Annotating '%s' classifications for the following reference package(s):\n" % data_type)
+        LOGGER.info("Annotating '%s' classifications for the following reference package(s):\n" % data_type)
         if data_type not in marker_tree_info:
             marker_tree_info[data_type] = dict()
         for refpkg_name in unique_markers_annotated:  # type: str
@@ -1104,7 +1104,7 @@ def layer(sys_args):
                                   refpkg_name + "_complete_profile.jplace")
             ref_pkg = refpkg_dict[refpkg_name]  # type: ts_ref_pkg.ReferencePackage
             if data_type in ref_pkg.feature_annotations:
-                logging.info("\t" + refpkg_name + "\n")
+                LOGGER.info("\t" + refpkg_name + "\n")
                 # Create the dictionary mapping an internal node to all leaves
                 internal_node_map = entish.map_internal_nodes_leaves(jplace_utils.jplace_parser(jplace).tree)
                 # Routine for exchanging any organism designations for their respective node number
@@ -1121,14 +1121,14 @@ def layer(sys_args):
                         for leaf in internal_node_map[inode]:
                             if leaf not in leaves_in_clusters:
                                 unannotated.add(str(leaf))
-                    logging.warning("{} leaf nodes were not mapped to annotation groups. "
+                    LOGGER.warning("{} leaf nodes were not mapped to annotation groups. "
                                     "More information can be found in the log.\n".format(len(unannotated)))
-                    logging.debug("The following leaf nodes were not mapped to annotation groups:\n" +
+                    LOGGER.debug("The following leaf nodes were not mapped to annotation groups:\n" +
                                   "\t" + ', '.join(sorted(unannotated, key=lambda x: int(x.split('_')[0]))) + "\n")
             else:
                 pass
     marker_subgroups.clear()
-    master_dat = annotate_extra.map_queries_to_annotations(marker_tree_info, master_dat)
+    annotate_extra.map_queries_to_annotations(marker_tree_info, master_dat, join=True)
     annotate_extra.write_classification_table(ts_layer.layered_table, field_order, master_dat)
 
     return
@@ -1149,8 +1149,8 @@ def purity(sys_args):
     ts_purity.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_purity_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\tBeginning purity analysis\t\t\t##\n")
+    logger.prep_logging(log_file_name, args.verbose)
+    LOGGER.info("\n##\t\t\tBeginning purity analysis\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
     ts_purity.check_purity_arguments(args)
@@ -1176,7 +1176,7 @@ def purity(sys_args):
         try:
             ts_assign_mod.assign(assign_args)
         except:  # Just in case treesapp assign fails, just continue
-            logging.error("TreeSAPP failed.\n")
+            LOGGER.error("TreeSAPP failed.\n")
         ts_purity.increment_stage_dir()
 
     if ts_purity.stage_status("summarize"):
@@ -1186,13 +1186,13 @@ def purity(sys_args):
             assigned_lines = file_parsers.read_classification_table(ts_purity.classifications)
             ts_purity.assignments = file_parsers.parse_assignments(assigned_lines)
         else:
-            logging.error("{} is missing from output directory '{}'\n"
+            LOGGER.error("{} is missing from output directory '{}'\n"
                           "Please remove this directory and re-run.\n"
                           "".format(ts_purity.classification_tbl_name,
                                     os.path.dirname(ts_purity.classifications)))
             sys.exit(5)
 
-        logging.info("\nSummarizing assignments for reference package " + ts_purity.ref_pkg.prefix + "\n")
+        LOGGER.info("\nSummarizing assignments for reference package " + ts_purity.ref_pkg.prefix + "\n")
         # If an information table was provided, map the metadata to classified markers
         if ts_purity.metadata_file:
             metadat_dict.update(ts_purity.load_metadata())
@@ -1211,7 +1211,7 @@ def purity(sys_args):
         for ortholog_name in sorted(ortholog_map, key=lambda x: len(ortholog_map[x])):
             summary_str += ortholog_name + ":\n\t"
             summary_str += "\n\t".join(ortholog_map[ortholog_name]) + "\n"
-        logging.debug(summary_str)
+        LOGGER.debug(summary_str)
 
     return
 
@@ -1232,8 +1232,8 @@ def evaluate(sys_args):
     ts_evaluate.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_evaluation_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
+    logger.prep_logging(log_file_name, args.verbose)
+    LOGGER.info("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
     treesapp_args.check_evaluate_arguments(ts_evaluate, args)
@@ -1258,12 +1258,12 @@ def evaluate(sys_args):
     ts_evaluate.ref_pkg.taxa_trie.validate_rank_prefixes()
     ts_evaluate.ref_pkg.taxa_trie.build_multifurcating_trie()
 
-    logging.info("Selecting representative sequences for each taxon... ")
+    LOGGER.info("Selecting representative sequences for each taxon... ")
     # Filter the sequences from redundant taxonomic lineages, picking up to 5 representative sequences
     representative_seqs, ts_evaluate.taxa_filter = ts_clade_ex.pick_taxonomic_representatives(fasta_records,
                                                                                               ts_evaluate.taxa_filter)
-    logging.info("done.\n")
-    logging.info("\t{} representative sequences may be used by TreeSAPP evaluate.\n".format(len(representative_seqs)))
+    LOGGER.info("done.\n")
+    LOGGER.info("\t{} representative sequences may be used by TreeSAPP evaluate.\n".format(len(representative_seqs)))
 
     deduplicated_fasta_dict = ts_clade_ex.select_rep_seqs(representative_seqs,
                                                           test_sequences=fasta_records,
@@ -1288,7 +1288,7 @@ def evaluate(sys_args):
                                                              target_lineage=lineage)
                 # Decide whether to continue analyzing taxon based on number of query sequences
                 if len(taxon_rep_seqs.keys()) == 0:
-                    logging.debug("No query sequences for {}.\n".format(lineage))
+                    LOGGER.debug("No query sequences for {}.\n".format(lineage))
                     p_bar.update()
                     continue
 
@@ -1296,7 +1296,7 @@ def evaluate(sys_args):
                 tt_obj = ts_evaluate.new_taxa_test(lineage, args.tool)
                 tt_obj.queries = taxon_rep_seqs.keys()
 
-                logging.debug("Classifications for '{}' put in {}\n".format(tt_obj.taxon, tt_obj.intermediates_dir))
+                LOGGER.debug("Classifications for '{}' put in {}\n".format(tt_obj.taxon, tt_obj.intermediates_dir))
                 if args.tool in ["graftm", "diamond"]:
                     ts_clade_ex.run_clade_exclusion_graftm(tt_obj, taxon_rep_seqs, ts_evaluate.ref_pkg,
                                                            graftm_classifier=args.tool,
@@ -1315,7 +1315,7 @@ def evaluate(sys_args):
 
     if ts_evaluate.stage_status("calculate"):
         # everything has been prepared, only need to parse the classifications and map lineages
-        logging.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
+        LOGGER.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
         for rank in sorted(ts_evaluate.taxa_tests):
             for tt_obj in ts_evaluate.taxa_tests[rank]:  # type: classy.TaxonTest
                 if tt_obj.assignments:
@@ -1323,14 +1323,14 @@ def evaluate(sys_args):
                     # Return the number of correct, classified, and total sequences of that taxon at the current rank
                     # Identify the excluded rank for each query sequence
                     if len(marker_assignments) == 0:
-                        logging.debug("No '{}' sequences were classified.\n".format(tt_obj.taxon))
+                        LOGGER.debug("No '{}' sequences were classified.\n".format(tt_obj.taxon))
                         continue
 
                     for marker in marker_assignments:
                         ts_evaluate.markers.add(marker)
 
                     if ts_evaluate.ref_pkg.prefix not in marker_assignments:
-                        logging.debug("No sequences assigned as " + ts_evaluate.ref_pkg.prefix + "\n")
+                        LOGGER.debug("No sequences assigned as " + ts_evaluate.ref_pkg.prefix + "\n")
                         rank_assignments = {}
                     else:
                         rank_assignments = lca_calculations.identify_excluded_clade(
@@ -1339,7 +1339,7 @@ def evaluate(sys_args):
 
                     for a_rank in rank_assignments:
                         if a_rank != rank and len(rank_assignments[a_rank]) > 0:
-                            logging.warning("{}-level clade excluded but optimal classification found to be {}-level.\n"
+                            LOGGER.warning("{}-level clade excluded but optimal classification found to be {}-level.\n"
                                             "Assignments were: {}\n".format(rank, a_rank, rank_assignments[a_rank]))
                             continue
                         if a_rank not in ts_evaluate.classifications:
@@ -1351,18 +1351,18 @@ def evaluate(sys_args):
         # On to the standard clade-exclusion analysis...
         ##
         if ts_evaluate.taxa_filter["Classified"] != ts_evaluate.taxa_filter["Unique_taxa"]:
-            logging.debug("\n\t" + str(ts_evaluate.taxa_filter["Classified"] -
+            LOGGER.debug("\n\t" + str(ts_evaluate.taxa_filter["Classified"] -
                                        ts_evaluate.taxa_filter["Unique_taxa"]) +
                           " duplicate query taxonomies removed.\n")
 
         if ts_evaluate.taxa_filter["Unclassified"] > 0:
-            logging.debug("\t" + str(ts_evaluate.taxa_filter["Unclassified"]) +
+            LOGGER.debug("\t" + str(ts_evaluate.taxa_filter["Unclassified"]) +
                           " query sequences with unclassified taxonomies were removed.\n" +
                           "This is not a problem, its just they have 'unclassified' somewhere in their lineages\n" +
                           "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
 
         if ts_evaluate.ref_pkg.prefix not in ts_evaluate.markers:
-            logging.error("No sequences were classified as {}.\n".format(ts_evaluate.ref_pkg.prefix))
+            LOGGER.error("No sequences were classified as {}.\n".format(ts_evaluate.ref_pkg.prefix))
             sys.exit(21)
 
         # For debugging:

@@ -1,7 +1,3 @@
-__author__ = "Connor Morgan-Lang"
-__maintainer__ = "Connor Morgan-Lang"
-__license__ = "GPL-3.0"
-
 import sys
 import os
 import shutil
@@ -13,10 +9,12 @@ from collections import namedtuple
 
 import pyfastx
 import pandas as pd
+import numpy as np
 from numpy import array as np_array
 
 from treesapp import abundance
 from treesapp import classy
+from treesapp import logger
 from treesapp import phylo_seq
 from treesapp import refpkg
 from treesapp import treesapp_args
@@ -30,6 +28,8 @@ from treesapp import wrapper
 from treesapp import fasta
 from treesapp import training_utils
 from treesapp.hmmer_tbl_parser import HmmMatch
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class Assigner(classy.TreeSAPP):
@@ -66,7 +66,7 @@ class Assigner(classy.TreeSAPP):
         :return: 'args', a summary of TreeSAPP settings.
         """
         if not os.path.isfile(self.input_sequences):
-            logging.error("FASTX input file '{}' doesn't exist.\n".format(self.input_sequences))
+            self.ts_logger.error("FASTX input file '{}' doesn't exist.\n".format(self.input_sequences))
             sys.exit(5)
 
         self.find_sequence_molecule_type()
@@ -86,7 +86,7 @@ class Assigner(classy.TreeSAPP):
             self.query_sequences = self.input_sequences
             self.change_stage_status("orf-call", False)
             if args.rel_abund:
-                logging.error("Unable to calculate abundance values for protein sequences.\n")
+                self.ts_logger.error("Unable to calculate abundance values for protein sequences.\n")
                 sys.exit(3)
 
         self.formatted_input = self.stage_lookup("clean").dir_path + self.sample_prefix + "_formatted.fasta"
@@ -111,8 +111,8 @@ class Assigner(classy.TreeSAPP):
                     continue
                 training_frames.append(ref_pkg.training_df)
             if len(training_frames) == 0:
-                logging.error("All reference package training data frames are empty.\n"
-                              "Unable to train a classifier from combined training data.\n")
+                self.ts_logger.error("All reference package training data frames are empty.\n"
+                                     "Unable to train a classifier from combined training data.\n")
                 sys.exit(5)
 
             classifiers = training_utils.train_classifier_from_dataframe(training_df=pd.concat(training_frames),
@@ -136,26 +136,32 @@ class Assigner(classy.TreeSAPP):
                     untrained_refpkgs.append(ref_pkg.prefix)
 
         if untrained_refpkgs:
-            logging.warning("Unable to train classifiers for {} reference packages.\n".format(len(untrained_refpkgs)))
-            logging.debug("Reference packages that will not use SVC for filtering placements:\n\t"
-                          "{}\n".format("\n\t".join(untrained_refpkgs)))
+            self.ts_logger.warning(
+                "Unable to train classifiers for {} reference packages.\n".format(len(untrained_refpkgs)))
+            self.ts_logger.debug("Reference packages that will not use SVC for filtering placements:\n\t"
+                                 "{}\n".format("\n\t".join(untrained_refpkgs)))
 
         return
 
+    def define_hmm_domtbl_thresholds(self, stringency: str, hmm_cov: int, query_cov: int) -> namedtuple:
+        thresholds_nt = namedtuple("thresholds", ["perc_aligned", "query_aligned",
+                                                  "min_acc", "max_e", "max_ie", "min_score"])
 
-    @staticmethod
-    def define_hmm_domtbl_thresholds(args):
-        thresholds_nt = namedtuple("thresholds", ["perc_aligned", "min_acc", "max_e", "max_ie", "min_score"])
+        for opt, value in {"hmm_coverage": hmm_cov, "query_coverage": query_cov}.items():
+            if not 1 <= value <= 100:
+                self.ts_logger.error("Option '{}' needs to be between 1 and 100 percent (currently {}).\n"
+                                     .format(opt, value))
+                sys.exit(3)
 
         # Parameterizing the hmmsearch output parsing:
-        if args.stringency == "relaxed":
-            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage,
+        if stringency == "relaxed":
+            domtbl_thresholds = thresholds_nt(perc_aligned=hmm_cov, query_aligned=query_cov,
                                               min_acc=0.7, max_e=1E-3, max_ie=1E-1, min_score=15)
-        elif args.stringency == "strict":
-            domtbl_thresholds = thresholds_nt(perc_aligned=args.hmm_coverage,
+        elif stringency == "strict":
+            domtbl_thresholds = thresholds_nt(perc_aligned=hmm_cov, query_aligned=query_cov,
                                               min_acc=0.7, max_e=1E-5, max_ie=1E-3, min_score=30)
         else:
-            logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
+            self.ts_logger.error("Unknown HMM-parsing stringency option '{}'.\n".format(stringency))
             sys.exit(3)
         return domtbl_thresholds
 
@@ -180,18 +186,18 @@ class Assigner(classy.TreeSAPP):
         if args.rel_abund and self.molecule_type == "dna":
             if not args.reads:
                 if args.reverse:
-                    logging.error("File containing reverse reads provided but forward mates file missing!\n")
+                    self.ts_logger.error("File containing reverse reads provided but forward mates file missing!\n")
                     sys.exit(3)
                 else:
-                    logging.error("At least one FASTQ file must be provided if --rel_abund flag is active!\n")
+                    self.ts_logger.error("At least one FASTQ file must be provided if --rel_abund flag is active!\n")
                     sys.exit(3)
             for fp in args.reads:
                 if not os.path.isfile(fp):
-                    logging.error("Path to forward reads ('%s') doesn't exist.\n" % fp)
+                    self.ts_logger.error("Path to forward reads ('%s') doesn't exist.\n" % fp)
                     sys.exit(3)
             for fp in args.reverse:
                 if not os.path.isfile(fp):
-                    logging.error("Path to reverse reads ('%s') doesn't exist.\n" % fp)
+                    self.ts_logger.error("Path to reverse reads ('%s') doesn't exist.\n" % fp)
                     sys.exit(3)
             self.change_stage_status("abundance", True)
         else:
@@ -218,7 +224,7 @@ class Assigner(classy.TreeSAPP):
         :return: None
         """
 
-        logging.info("Predicting open-reading frames using Prodigal... ")
+        self.ts_logger.info("Predicting open-reading frames using Prodigal... ")
 
         start_time = time.time()
 
@@ -249,9 +255,9 @@ class Assigner(classy.TreeSAPP):
         tmp_prodigal_aa_orfs = glob.glob(self.stage_output_dir + self.sample_prefix + "*_ORFs.faa")
         tmp_prodigal_nuc_orfs = glob.glob(self.stage_output_dir + self.sample_prefix + "*_ORFs.fna")
         if not tmp_prodigal_aa_orfs or not tmp_prodigal_nuc_orfs:
-            logging.error("Prodigal outputs were not generated:\n"
-                          "Amino acid ORFs: " + ", ".join(tmp_prodigal_aa_orfs) + "\n" +
-                          "Nucleotide ORFs: " + ", ".join(tmp_prodigal_nuc_orfs) + "\n")
+            self.ts_logger.error("Prodigal outputs were not generated:\n"
+                                 "Amino acid ORFs: " + ", ".join(tmp_prodigal_aa_orfs) + "\n" +
+                                 "Nucleotide ORFs: " + ", ".join(tmp_prodigal_nuc_orfs) + "\n")
             sys.exit(5)
 
         # Concatenate outputs
@@ -274,13 +280,13 @@ class Assigner(classy.TreeSAPP):
                 if tmp_file != self.input_sequences:
                     os.remove(tmp_file)
 
-        logging.info("done.\n")
+        self.ts_logger.info("done.\n")
 
         end_time = time.time()
         hours, remainder = divmod(end_time - start_time, 3600)
         minutes, seconds = divmod(remainder, 60)
-        logging.debug("\tProdigal time required: " +
-                      ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+        self.ts_logger.debug("\tProdigal time required: " +
+                             ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
         self.query_sequences = self.aa_orfs_file
         # self.change_stage_status("clean", False)
@@ -320,19 +326,19 @@ class Assigner(classy.TreeSAPP):
                 nuc_orfs.header_registry = fasta.register_headers(nuc_orfs.fasta_dict.keys())
                 nuc_orfs.change_dict_keys()
                 if not os.path.isfile(self.classified_nuc_seqs):
-                    logging.info("Creating nucleotide FASTA file of classified sequences '{}'... "
-                                 "".format(self.classified_nuc_seqs))
+                    self.ts_logger.info("Creating nucleotide FASTA file of classified sequences '{}'... "
+                                        "".format(self.classified_nuc_seqs))
                     write_classified_sequences(pqueries, nuc_orfs.fasta_dict, self.classified_nuc_seqs)
-                    logging.info("done.\n")
+                    self.ts_logger.info("done.\n")
             else:
-                logging.warning("Unable to read '" + self.nuc_orfs_file + "'.\n" +
-                                "Cannot create the nucleotide FASTA file of classified sequences!\n")
+                self.ts_logger.warning("Unable to read '" + self.nuc_orfs_file + "'.\n" +
+                                       "Cannot create the nucleotide FASTA file of classified sequences!\n")
         return
 
     def fetch_hmmsearch_outputs(self, target_refpkg_prefixes: set) -> list:
         if self.current_stage.name != "search":
-            logging.error("Unable to fetch hmmsearch outputs as the current stage ({}) is incorrect.\n"
-                          "".format(self.current_stage.name))
+            self.ts_logger.error("Unable to fetch hmmsearch outputs as the current stage ({}) is incorrect.\n"
+                                 "".format(self.current_stage.name))
             sys.exit(3)
 
         # Collect all files from output directory
@@ -355,14 +361,14 @@ def replace_contig_names(numeric_contig_index: dict, fasta_obj: fasta.FASTA):
             try:
                 original_name = fasta_obj.header_registry[seq_name].original
             except KeyError:
-                logging.error("Unable to find TreeSAPP numerical ID '" + seq_name + "' in header registry.\n")
+                LOGGER.error("Unable to find TreeSAPP numerical ID '" + seq_name + "' in header registry.\n")
                 sys.exit(3)
             numeric_contig_index[marker][neg_num_id] = original_name + '|' + marker + '|' + coords
     return numeric_contig_index
 
 
 def load_pqueries(hmm_matches: dict, query_seq_fasta: fasta.FASTA) -> list:
-    logging.debug("Instantiating the PQuery instances... ")
+    LOGGER.debug("Instantiating the PQuery instances... ")
 
     pqueries = []
     query_seq_fasta.change_dict_keys("num")
@@ -383,7 +389,7 @@ def load_pqueries(hmm_matches: dict, query_seq_fasta: fasta.FASTA) -> list:
             qseq.seq_name = header.original
             qseq.place_name = "{}|{}|{}_{}".format(qseq.seq_name, qseq.ref_name, qseq.start, qseq.end)
 
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
 
     return pqueries
 
@@ -400,7 +406,7 @@ def load_homologs(hmm_matches: dict, hmmsearch_query_fasta: str, query_seq_fasta
     :param query_seq_fasta: A FASTA instance, typically with an empty fasta_dict attribute
     :return: None
     """
-    logging.info("Loading homologous sequences identified... ")
+    LOGGER.info("Loading homologous sequences identified... ")
     # Create a set of sequence names that matched a profile HMM
     matched_query_names = set()
     query_seq_fasta.fasta_dict.clear()
@@ -420,7 +426,7 @@ def load_homologs(hmm_matches: dict, hmmsearch_query_fasta: str, query_seq_fasta
     # Keep only the homologous sequences in FASTA.header_registry
     query_seq_fasta.synchronize_seqs_n_headers()
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
     return
 
 
@@ -439,7 +445,7 @@ def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
     :param fasta_dict: Stores either the original or ORF-predicted input FASTA. Headers are keys, sequences are values
     :return: List of files that go on to placement stage, dictionary mapping marker-specific numbers to contig names
     """
-    logging.info("Extracting and grouping the quality-controlled sequences... ")
+    LOGGER.info("Extracting and grouping the quality-controlled sequences... ")
     extracted_seq_dict = dict()  # Keys are markers -> bin_num -> negative integers -> extracted sequences
     numeric_contig_index = dict()  # Keys are markers -> negative integers -> headers
     bins = dict()
@@ -472,7 +478,7 @@ def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
             for bin_num in sorted(bins):
                 bin_rep = bins[bin_num][0]
                 overlap = min(hmm_match.pend, bin_rep.pend) - max(hmm_match.pstart, bin_rep.pstart)
-                if (100*overlap)/(bin_rep.pend - bin_rep.pstart) > 80:  # 80 refers to overlap proportion with seed
+                if (100 * overlap) / (bin_rep.pend - bin_rep.pstart) > 80:  # 80 refers to overlap proportion with seed
                     bins[bin_num].append(hmm_match)
                     extracted_seq_dict[marker][bin_num][numeric_decrementor] = full_sequence[
                                                                                hmm_match.start - 1:hmm_match.end]
@@ -488,7 +494,7 @@ def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
             numeric_decrementor -= 1
 
         bins.clear()
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     return extracted_seq_dict, numeric_contig_index
 
@@ -503,9 +509,9 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, r
         for group in sorted(extracted_seq_dict[marker]):
             if extracted_seq_dict[marker][group]:
                 group_size_string += "\t".join([marker, str(group), str(len(extracted_seq_dict[marker][group]))]) + "\n"
-    logging.debug(group_size_string + "\n")
+    LOGGER.debug(group_size_string + "\n")
 
-    logging.info("Writing the grouped sequences to FASTA files... ")
+    LOGGER.info("Writing the grouped sequences to FASTA files... ")
 
     for marker in extracted_seq_dict:
         ref_pkg = refpkg_dict[marker]  # type: refpkg.ReferencePackage
@@ -521,7 +527,8 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, r
                     bin_fasta[str(num)] = group_sequences[num]
                     # Ensuring the number of query sequences doesn't exceed the number of reference sequences
                     if len(bin_fasta) >= ref_pkg.num_seqs:
-                        fasta.write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+                        fasta.write_new_fasta(bin_fasta,
+                                              output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
                         hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
                         f_acc += 1
                         bin_fasta.clear()
@@ -536,7 +543,7 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, r
             trimmed_hits_fasta = output_dir + marker + "_hmm_purified.faa"
             fasta.write_new_fasta(bulk_marker_fasta, trimmed_hits_fasta)
         bulk_marker_fasta.clear()
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
     return hmmalign_input_fastas
 
 
@@ -559,7 +566,7 @@ def get_sequence_counts(concatenated_mfa_files: dict, ref_alignment_dimensions: 
     alignment_length_dict = dict()
     for refpkg_name in concatenated_mfa_files:
         if refpkg_name not in ref_alignment_dimensions:
-            logging.error("Unrecognized code '" + refpkg_name + "'.\n")
+            LOGGER.error("Unrecognized code '" + refpkg_name + "'.\n")
             sys.exit(3)
 
         ref_n_seqs, ref_seq_length = ref_alignment_dimensions[refpkg_name]
@@ -571,15 +578,15 @@ def get_sequence_counts(concatenated_mfa_files: dict, ref_alignment_dimensions: 
             elif file_type == "Stockholm":
                 seq_dict = file_parsers.read_stockholm_to_dict(msa_file)
             else:
-                logging.error("File type '" + file_type + "' is not recognized.")
+                LOGGER.error("File type '" + file_type + "' is not recognized.")
                 sys.exit(3)
             num_seqs, sequence_length = fasta.multiple_alignment_dimensions(msa_file, seq_dict)
             alignment_length_dict[msa_file] = sequence_length
 
             # Warn user if the multiple sequence alignment has grown significantly
-            if verbosity and ref_seq_length*1.5 < sequence_length:
-                logging.warning("Multiple alignment of '{}' caused >150% increase in the number of columns"
-                                " ({} -> {}).\n".format(refpkg_name, ref_seq_length, sequence_length))
+            if verbosity and ref_seq_length * 1.5 < sequence_length:
+                LOGGER.warning("Multiple alignment of '{}' caused >150% increase in the number of columns"
+                               " ({} -> {}).\n".format(refpkg_name, ref_seq_length, sequence_length))
     return alignment_length_dict
 
 
@@ -631,7 +638,7 @@ def multiple_alignments(executables: dict, single_query_sequence_files: list, re
         concatenated_msa_files = prepare_and_run_hmmalign(executables, single_query_sequence_files, refpkg_dict,
                                                           output_dir, num_proc)
     else:
-        logging.error("Unrecognized tool '" + str(tool) + "' for multiple sequence alignment.\n")
+        LOGGER.error("Unrecognized tool '" + str(tool) + "' for multiple sequence alignment.\n")
         sys.exit(3)
     return concatenated_msa_files
 
@@ -679,7 +686,7 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
 
     hmmalign_singlehit_files = dict()
     mfa_out_dict = dict()
-    logging.info("Running hmmalign... ")
+    LOGGER.info("Running hmmalign... ")
 
     start_time = time.time()
     task_list = list()
@@ -690,7 +697,7 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
         if file_name_info:
             refpkg_name, extension = file_name_info.groups()
         else:
-            logging.error("Unable to parse information from file name:" + "\n" + str(query_fa_in) + "\n")
+            LOGGER.error("Unable to parse information from file name:" + "\n" + str(query_fa_in) + "\n")
             sys.exit(3)
 
         query_mfa_out = os.path.join(output_dir,
@@ -719,7 +726,7 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
         cl_farmer.task_queue.close()
         cl_farmer.task_queue.join()
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     for prefix in mfa_out_dict:
         for query_mfa_out in mfa_out_dict[prefix]:
@@ -731,8 +738,8 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
     end_time = time.time()
     hours, remainder = divmod(end_time - start_time, 3600)
     minutes, seconds = divmod(remainder, 60)
-    logging.debug("\thmmalign time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    LOGGER.debug("\thmmalign time required: " +
+                 ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return hmmalign_singlehit_files
 
@@ -780,7 +787,7 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
     discarded_seqs_string = ""
     trimmed_away_seqs = dict()
     untrimmed_msa_failed = []
-    logging.debug("Validating trimmed multiple sequence alignment files... ")
+    LOGGER.debug("Validating trimmed multiple sequence alignment files... ")
 
     for refpkg_name in sorted(trimmed_msa_files.keys()):
         ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
@@ -788,8 +795,9 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
         # Create a set of the reference sequence names
         ref_headers = fasta.get_headers(ref_pkg.f__msa)
         unique_refs = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x)[1:] for x in ref_headers])
-        msa_passed, msa_failed, summary_str = file_parsers.validate_alignment_trimming(trimmed_msa_files[ref_pkg.prefix],
-                                                                                       unique_refs, True, min_len)
+        msa_passed, msa_failed, summary_str = file_parsers.validate_alignment_trimming(
+            trimmed_msa_files[ref_pkg.prefix],
+            unique_refs, True, min_len)
 
         # Report the number of sequences that are removed by BMGE
         for trimmed_msa_file in trimmed_msa_files[ref_pkg.prefix]:
@@ -797,7 +805,7 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
                 prefix = re.search('(' + re.escape(ref_pkg.prefix) + r"_.*_group\d+)-(BMGE|trimAl).fasta$",
                                    os.path.basename(trimmed_msa_file)).group(1)
             except TypeError:
-                logging.error("Unexpected file name format for a trimmed MSA.\n")
+                LOGGER.error("Unexpected file name format for a trimmed MSA.\n")
                 sys.exit(3)
             # Find the untrimmed query sequence MSA file - the trimmed MSA file's 'pair'
             pair = ""
@@ -808,16 +816,17 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
             if pair:
                 if trimmed_msa_file in msa_failed:
                     untrimmed_msa_failed.append(pair)
-                trimmed_away_seqs[ref_pkg.prefix] += len(set(fasta.get_headers(pair)).difference(set(fasta.get_headers(trimmed_msa_file))))
+                trimmed_away_seqs[ref_pkg.prefix] += len(
+                    set(fasta.get_headers(pair)).difference(set(fasta.get_headers(trimmed_msa_file))))
             else:
-                logging.error("Unable to map trimmed MSA file '" + trimmed_msa_file + "' to its original MSA.\n")
+                LOGGER.error("Unable to map trimmed MSA file '" + trimmed_msa_file + "' to its original MSA.\n")
                 sys.exit(5)
 
         if len(msa_failed) > 0:
             if len(untrimmed_msa_failed) != len(msa_failed):
-                logging.error("Not all of the failed ({}/{}),"
-                              " trimmed MSA files were mapped to their original MSAs."
-                              "\n".format(len(msa_failed), len(trimmed_msa_files[ref_pkg.prefix])))
+                LOGGER.error("Not all of the failed ({}/{}),"
+                             " trimmed MSA files were mapped to their original MSAs."
+                             "\n".format(len(msa_failed), len(trimmed_msa_files[ref_pkg.prefix])))
                 sys.exit(3)
             untrimmed_msa_passed, _, _ = file_parsers.validate_alignment_trimming(untrimmed_msa_failed, unique_refs,
                                                                                   True, min_len)
@@ -827,15 +836,15 @@ def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg
         discarded_seqs_string += summary_str
         untrimmed_msa_failed.clear()
 
-    logging.debug("done.\n")
-    logging.debug("\tSequences removed during trimming:\n\t\t" +
-                  '\n\t\t'.join([k + ": " + str(trimmed_away_seqs[k]) for k in trimmed_away_seqs.keys()]) + "\n")
+    LOGGER.debug("done.\n")
+    LOGGER.debug("\tSequences removed during trimming:\n\t\t" +
+                 '\n\t\t'.join([k + ": " + str(trimmed_away_seqs[k]) for k in trimmed_away_seqs.keys()]) + "\n")
 
-    logging.debug("\tSequences <" + str(min_len) + " characters removed after trimming:" +
-                  discarded_seqs_string + "\n")
+    LOGGER.debug("\tSequences <" + str(min_len) + " characters removed after trimming:" +
+                 discarded_seqs_string + "\n")
 
     if num_successful_alignments == 0:
-        logging.error("No quality alignment files to analyze after trimming. Exiting now.\n")
+        LOGGER.error("No quality alignment files to analyze after trimming. Exiting now.\n")
         sys.exit(0)  # Should be 3, but this allows Clade_exclusion_analyzer to continue after exit
 
     return qc_ma_dict
@@ -867,7 +876,7 @@ def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenate
             raw_align_len = alignment_length_dict[original_multi_align]
             diff = raw_align_len - trimmed_seq_length
             if diff < 0:
-                logging.warning("MSA length increased after {} processing for {}\n".format(tool, multi_align_file))
+                LOGGER.warning("MSA length increased after {} processing for {}\n".format(tool, multi_align_file))
             else:
                 trimmed_length_dict[denominator].append(diff)
 
@@ -876,11 +885,11 @@ def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenate
         trimming_performance_string += "\t\t" + denominator + "\t"
         n_trimmed_files = len(trimmed_length_dict[denominator])
         if n_trimmed_files > 0:
-            trimming_performance_string += str(round(sum(trimmed_length_dict[denominator])/n_trimmed_files, 1)) + "\n"
+            trimming_performance_string += str(round(sum(trimmed_length_dict[denominator]) / n_trimmed_files, 1)) + "\n"
         else:
             trimming_performance_string += str(0.0) + "\n"
 
-    logging.debug(trimming_performance_string + "\n")
+    LOGGER.debug(trimming_performance_string + "\n")
     return
 
 
@@ -912,7 +921,8 @@ def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
     return
 
 
-def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: float, max_pendant: float) -> None:
+def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
+                      min_lwr: float, max_pendant=None, max_bl_dist=None) -> None:
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
@@ -923,21 +933,28 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
     :param min_lwr: Likelihood-weight-ratio (LWR) threshold for filtering pqueries
     :param max_pendant: The maximum pendant length distance threshold.
     PQueries with pendant length > max_pendant will be unclassified.
+    :param max_bl_dist: The maximum evolutionary distance for placed queries (sum of all branch lengths to its leaves)
     :return: None
     """
     # The following list must match that of training_utils.vectorize_placement_data_by_rank()
     features = ["evalue", "hmm_cov", "leaves", "lwr", "distal", "pendant", "avg_tip_dist"]
 
-    logging.info("Filtering low-quality placements... ")
+    LOGGER.info("Filtering low-quality placements... ")
     unclassified_seqs = dict()  # A dictionary tracking the seqs unclassified for each marker
 
     for refpkg_name, pqueries in tree_saps.items():  # type: (str, list)
         ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
         unclassified_seqs[ref_pkg.prefix] = dict()
         unclassified_seqs[ref_pkg.prefix]["low_lwr"] = list()
+        unclassified_seqs[ref_pkg.prefix]["distant"] = list()
         unclassified_seqs[ref_pkg.prefix]["big_pendant"] = list()
+        unclassified_seqs[ref_pkg.prefix]["big_branch"] = list()
         unclassified_seqs[ref_pkg.prefix]["svm"] = list()
         svc_attempt = False
+        edge_maxes = ref_pkg.get_edge_tip_dist_map(min_dist=0.1)
+        error = np.std(list(edge_maxes.values()))  # Empirically determined that one standard-deviation is best here
+        LOGGER.debug("Maximum distance threshold for '{}' set to {}.\n"
+                     "".format(ref_pkg.prefix, max(edge_maxes.values())))
 
         for tree_sap in sorted(pqueries, key=lambda x: x.seq_name):  # type: phylo_seq.PQuery
             tree_sap.filter_min_weight_threshold(min_lwr)
@@ -950,8 +967,14 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
             tree_sap.avg_evo_dist = tree_sap.consensus_placement.total_distance()
             tree_sap.string_distances()
 
-            if tree_sap.consensus_placement.pendant_length > max_pendant:
+            if tree_sap.avg_evo_dist > edge_maxes[tree_sap.consensus_placement.edge_num] + error:
+                unclassified_seqs[ref_pkg.prefix]["distant"].append(tree_sap)
+                tree_sap.classified = False
+            elif max_pendant and tree_sap.consensus_placement.pendant_length > max_pendant:
                 unclassified_seqs[ref_pkg.prefix]["big_pendant"].append(tree_sap)
+                tree_sap.classified = False
+            elif max_bl_dist and tree_sap.avg_evo_dist > max_bl_dist:
+                unclassified_seqs[ref_pkg.prefix]["big_branch"].append(tree_sap)
                 tree_sap.classified = False
 
             if svc:
@@ -960,16 +983,17 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
                     call = 1
                 else:
                     classification_tup = training_utils.pquery_to_vector(tree_sap, ref_pkg)
-                    call = ref_pkg.svc.predict(np_array([getattr(classification_tup, feat) for feat in features]).reshape(1, -1))
+                    call = ref_pkg.svc.predict(
+                        np_array([getattr(classification_tup, feat) for feat in features]).reshape(1, -1))
                 # Discard this placement as a false positive if classifier calls this a 0
                 if call == 0:
                     unclassified_seqs[tree_sap.ref_name]["svm"].append(tree_sap)
                     tree_sap.classified = False
 
         if svc_attempt:
-            logging.warning("SVM classifier unavailable for reference package '{}'\n".format(ref_pkg.prefix))
+            LOGGER.warning("SVM classifier unavailable for reference package '{}'\n".format(ref_pkg.prefix))
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     declass_summary = ""
     for marker in unclassified_seqs:
@@ -977,7 +1001,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool, min_lwr: fl
         for declass in unclassified_seqs[marker]:
             declass_summary += marker + '\t' + declass + '\t' + str(len(unclassified_seqs[marker][declass])) + "\n"
 
-    logging.debug(declass_summary)
+    LOGGER.debug(declass_summary)
 
     return
 
@@ -989,7 +1013,7 @@ def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"
     :return: Dictionary of PQuery instances indexed by denominator (ref_pkg code e.g. M0701)
     """
 
-    logging.info('Selecting the optimal query placements... ')
+    LOGGER.info('Selecting the optimal query placements... ')
 
     function_start_time = time.time()
     classified_seqs = 0
@@ -1003,7 +1027,7 @@ def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"
             elif mode == "aelw":
                 pquery.calculate_consensus_placement(taxa_tree)
             else:
-                logging.error("Unknown PQuery consensus algorithm provided: '{}'.\n".format(mode))
+                LOGGER.error("Unknown PQuery consensus algorithm provided: '{}'.\n".format(mode))
                 raise ValueError
 
             classified_seqs += 1
@@ -1012,14 +1036,14 @@ def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"
             # I have decided to not remove the original JPlace files since some may find these useful
             # os.remove(filename)
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     function_end_time = time.time()
     hours, remainder = divmod(function_end_time - function_start_time, 3600)
     minutes, seconds = divmod(remainder, 60)
-    logging.debug("\tPQuery parsing time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    logging.debug("\t" + str(classified_seqs) + " sequences placed into trees by EPA-NG.\n")
+    LOGGER.debug("\tPQuery parsing time required: " +
+                 ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    LOGGER.debug("\t" + str(classified_seqs) + " sequences placed into trees by EPA-NG.\n")
 
     return pquery_dict
 
@@ -1040,7 +1064,7 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
          These instances store all PQuery instances from all JPlace files
     """
 
-    logging.info('Parsing the EPA-NG outputs... ')
+    LOGGER.info('Parsing the EPA-NG outputs... ')
 
     function_start_time = time.time()
 
@@ -1086,14 +1110,14 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
             # I have decided to not remove the original JPlace files since some may find these useful
             # os.remove(filename)
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     function_end_time = time.time()
     hours, remainder = divmod(function_end_time - function_start_time, 3600)
     minutes, seconds = divmod(remainder, 60)
-    logging.debug("\tJPlace parsing time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    logging.debug("\t" + str(len(jplace_files)) + " JPlace files.\n")
+    LOGGER.debug("\tJPlace parsing time required: " +
+                 ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    LOGGER.debug("\t" + str(len(jplace_files)) + " JPlace files.\n")
 
     return tree_saps, itol_data
 
@@ -1132,9 +1156,9 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
                     try:
                         output_fasta_dict[placed_sequence.place_name] = formatted_fasta_dict[prefix + seq_name]
                     except KeyError:
-                        logging.error("Unable to find '" + prefix + placed_sequence.place_name +
-                                      "' in predicted ORFs file!\nExample headers in the predicted ORFs file:\n\t" +
-                                      '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
+                        LOGGER.error("Unable to find '" + prefix + placed_sequence.place_name +
+                                     "' in predicted ORFs file!\nExample headers in the predicted ORFs file:\n\t" +
+                                     '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
                         sys.exit(3)
 
                 if not placed_sequence.seq_len:
@@ -1145,7 +1169,7 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
         fasta.write_new_fasta(output_fasta_dict, fasta_file)
 
     if len_parsing_problem:
-        logging.warning("Problem parsing homologous subsequence lengths from headers of classified sequences.\n")
+        LOGGER.warning("Problem parsing homologous subsequence lengths from headers of classified sequences.\n")
 
     return
 
@@ -1209,7 +1233,7 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
     :param treesapp_data_dir: Path to the directory containing reference packages and a iTOL_data directory
     :return: None
     """
-    logging.info("Generating inputs for iTOL... ")
+    LOGGER.info("Generating inputs for iTOL... ")
 
     if not os.path.exists(itol_base_dir):
         os.mkdir(itol_base_dir)  # drwxr-xr-x
@@ -1254,13 +1278,13 @@ def produce_itol_inputs(pqueries: dict, refpkg_dict: dict, jplaces: dict,
         itol_bar_file = os.path.join(itol_base_dir, ref_pkg.prefix, ref_pkg.prefix + "_abundance_simplebar.txt")
         abundance.generate_simplebar(ref_pkg.prefix, refpkg_pqueries, itol_bar_file)
 
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
     if style_missing:
-        logging.debug("A colours_style.txt file does not yet exist for markers:\n\t" +
-                      "\n\t".join(style_missing) + "\n")
+        LOGGER.debug("A colours_style.txt file does not yet exist for markers:\n\t" +
+                     "\n\t".join(style_missing) + "\n")
     if strip_missing:
-        logging.debug("A colours_strip.txt file does not yet exist for markers:\n\t" +
-                      "\n\t".join(strip_missing) + "\n")
+        LOGGER.debug("A colours_strip.txt file does not yet exist for markers:\n\t" +
+                     "\n\t".join(strip_missing) + "\n")
 
     return
 
@@ -1275,10 +1299,10 @@ def alert_for_refpkg_feature_annotations(pqueries: dict, refpkg_dict: dict) -> N
             feature_positive.append(ref_pkg.prefix)
 
     if len(feature_positive) > 0:
-        logging.info("Alert: {} reference package(s) have feature annotations. "
-                     "Consider running treesapp layer.\n".format(len(feature_positive)))
-        logging.debug("Reference packages with clade_annotations attribute filled:\n\t{}\n"
-                      "".format("\n\t".join(feature_positive)))
+        LOGGER.info("Alert: {} reference package(s) have feature annotations. "
+                    "Consider running treesapp layer.\n".format(len(feature_positive)))
+        LOGGER.debug("Reference packages with clade_annotations attribute filled:\n\t{}\n"
+                     "".format("\n\t".join(feature_positive)))
 
     return
 
@@ -1294,12 +1318,14 @@ def assign(sys_args):
     ts_assign.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
+    logger.prep_logging(log_file_name, args.verbose)
+    ts_assign.ts_logger.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
     ts_assign.check_classify_arguments(args)
-    hmm_parsing_thresholds = ts_assign.define_hmm_domtbl_thresholds(args)
+    hmm_parsing_thresholds = ts_assign.define_hmm_domtbl_thresholds(stringency=args.stringency,
+                                                                    hmm_cov=args.hmm_coverage,
+                                                                    query_cov=args.query_coverage)
     ts_assign.decide_stage(args)
     n_proc = args.num_threads
 
@@ -1317,15 +1343,15 @@ def assign(sys_args):
     query_seqs = fasta.FASTA(ts_assign.query_sequences)
     # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
     if ts_assign.stage_status("clean"):
-        logging.info("Reading and formatting {}... ".format(ts_assign.query_sequences))
+        LOGGER.info("Reading and formatting {}... ".format(ts_assign.query_sequences))
         query_seqs.header_registry = fasta.format_fasta(fasta_input=ts_assign.query_sequences, molecule="prot",
                                                         output_fasta=ts_assign.formatted_input,
                                                         full_name=ts_assign.fasta_full_name)
-        logging.info("done.\n")
+        LOGGER.info("done.\n")
     else:
         query_seqs.file = ts_assign.formatted_input
         query_seqs.header_registry = fasta.register_headers(fasta.get_headers(query_seqs.file))
-    logging.info("\tTreeSAPP will analyze the " + str(len(query_seqs.header_registry)) + " sequences found in input.\n")
+    LOGGER.info("\tTreeSAPP will analyze the " + str(len(query_seqs.header_registry)) + " sequences found in input.\n")
     ts_assign.increment_stage_dir()
 
     ##
@@ -1409,8 +1435,8 @@ def assign(sys_args):
         ts_assign.increment_stage_dir()
         # Set PQuery.consensus_placement attributes
         select_query_placements(tree_saps, refpkg_dict, mode=args.p_sum)
-        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr, args.max_pd)
-        determine_confident_lineage(tree_saps, refpkg_dict)
+        filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr, args.max_pd, args.max_evo)
+        determine_confident_lineage(tree_saps, refpkg_dict, mode=args.p_sum)
 
         ts_assign.write_classified_orfs(tree_saps, extracted_seq_dict)
         abundance_dict = dict()
@@ -1429,7 +1455,7 @@ def assign(sys_args):
             if args.reverse:
                 abundance_args += ["--reverse", ' '.join(args.reverse)]
             sample_id, abundance_dict = abundance.abundance(abundance_args).popitem()
-        phylo_seq.abundify_tree_saps(tree_saps, abundance_dict)
+        phylo_seq.quantify_pquery_instances(tree_saps, abundance_dict)
 
         file_parsers.write_classification_table(tree_saps, ts_assign.sample_prefix,
                                                 output_file=ts_assign.classification_table)

@@ -93,11 +93,13 @@ class TreesappTester(unittest.TestCase):
                                 "--hmm_coverage", str(20),
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "relaxed",
-                                "--placement_summary", "max_lwr",
+                                "--hmm_coverage", str(80),
+                                "--query_coverage", str(80),
+                                "--placement_summary", "aelw",
                                 "--trim_align", "--overwrite", "--delete", "--svm"]
         assign.assign(assign_commands_list)
         lines = read_classification_table("./TreeSAPP_assign/final_outputs/classifications.tsv")
-        self.assertEqual(15, len(lines))
+        self.assertEqual(13, len(lines))
         self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.faa"))
 
         # Test nucleotide sequence input
@@ -337,11 +339,11 @@ class TreesappTester(unittest.TestCase):
         test_refpkg.slurp()
         self.assertIsInstance(test_refpkg.feature_annotations, dict)
         self.assertTrue('Function' in test_refpkg.feature_annotations)
-        self.assertEqual(5, len(test_refpkg.feature_annotations["Function"]))
+        self.assertEqual(6, len(test_refpkg.feature_annotations["Function"]))
         self.assertIsInstance(test_refpkg.feature_annotations["Function"][0], CladeAnnotation)
         for ca in test_refpkg.feature_annotations["Function"]:
             if ca.name == "Short-chain alkane oxidation":
-                self.assertEqual(2, len(ca.members))
+                self.assertEqual(5, len(ca.members))
 
         # Test view with a complex attribute (feature_annotations)
         view_command_list = ["view",
@@ -421,10 +423,13 @@ class TreesappTester(unittest.TestCase):
         return
 
     # def test_tmp(self):
-    #     from treesapp.commands import create
-    #     base_dir = "/home/connor/Bioinformatics/Hallam_projects/RefPkgs/"
-    #     cmd = "".format(base_dir)
-    #     create(cmd.split())
+    #     from treesapp import phylo_cluster
+    #     base_dir = "/media/connor/Rufus/Gene_Centric_Guide/clustering_experiments"
+    #     cmd = "--refpkg_path {0}/clustering_refpkgs/RecA_build.pkl" \
+    #           " --assign_out {0}/length_100/proteome_classified/" \
+    #           " -o {0}/length_100/phylotu_outputs/RecA_phylotus_dn_psc_species/" \
+    #           " --mode de_novo --pre_cluster psc".format(base_dir)
+    #     phylo_cluster.cluster_phylogeny(cmd.split())
     #     return
 
 

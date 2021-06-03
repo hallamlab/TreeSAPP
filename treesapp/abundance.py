@@ -5,6 +5,7 @@ import logging
 from samsum import commands as samsum_cmd
 
 from treesapp import classy
+from treesapp import logger
 from treesapp import wrapper
 from treesapp import treesapp_args
 from treesapp import phylo_seq
@@ -78,7 +79,7 @@ def abundance(sys_args) -> dict:
     ts_abund.furnish_with_arguments(args)
 
     log_file_name = args.output + os.sep + "TreeSAPP_abundance_log.txt"
-    classy.prep_logging(log_file_name, args.verbose)
+    logger.prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCalculating abundance of classified sequences\t\t\t##\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
@@ -167,7 +168,7 @@ def abundance(sys_args) -> dict:
             absentee = set(abundance_map.keys()).difference(classified_seqs)
             while absentee:
                 abundance_map.pop(absentee.pop())
-            phylo_seq.abundify_tree_saps(refpkg_pqueries, abundance_map)
+            phylo_seq.quantify_pquery_instances(refpkg_pqueries, abundance_map)
             file_parsers.write_classification_table(refpkg_pqueries, sample_name, ts_abund.classifications,
                                                     append=ts_abund.append_abundance)
             # Write the simple_bar file for iTOL

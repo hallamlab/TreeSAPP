@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-
-__author__ = 'Connor Morgan-Lang'
-
-
 import sys
 import os
 
@@ -10,6 +5,11 @@ import logging
 
 from treesapp.classy import TreeSAPP
 from treesapp.clade_annotation import CladeAnnotation
+from treesapp import logger
+
+__author__ = 'Connor Morgan-Lang'
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class Layerer(TreeSAPP):
@@ -29,7 +29,7 @@ class Layerer(TreeSAPP):
         self.final_output_dir = self.treesapp_output + "final_outputs" + os.sep
 
         if not os.path.isfile(self.final_output_dir + self.classification_tbl_name):
-            logging.error("Could not find a classification file in " + self.final_output_dir + "\n")
+            self.ts_logger.error("Could not find a classification file in " + self.final_output_dir + "\n")
             sys.exit(3)
         if args.refpkg_dir:
             self.refpkg_dir = args.refpkg_dir
@@ -44,7 +44,7 @@ def identify_field_position(field_name: str, header_fields: list):
         if field == field_name:
             return x
         x += 1
-    logging.error("Unable to find field name '" + field_name + "' in classifications.tsv header!\n")
+    LOGGER.error("Unable to find field name '" + field_name + "' in classifications.tsv header!\n")
     sys.exit()
 
 
@@ -61,7 +61,7 @@ class ClassifiedSequence:
 
     def load_assignment_line(self, fields, header_fields, query_pos, node_pos):
         if header_fields != self.expected_header:
-            logging.error("Header in classifications.tsv is unexpected!\n")
+            LOGGER.error("Header in classifications.tsv is unexpected!\n")
             sys.exit(7)
         self.query_name = fields[query_pos]
         self.i_node = fields[node_pos]
@@ -82,7 +82,7 @@ def parse_marker_classification_table(marker_classification_file):
     try:
         classifications = open(marker_classification_file, 'r')
     except IOError:
-        logging.error("Unable to open " + marker_classification_file + " for reading!\n")
+        LOGGER.error("Unable to open " + marker_classification_file + " for reading!\n")
         sys.exit(3)
 
     header_fields = classifications.readline().strip().split("\t")
@@ -98,7 +98,7 @@ def parse_marker_classification_table(marker_classification_file):
     while line:
         fields = line.strip().split("\t")
         if len(fields) != len(header_fields):
-            logging.error("Inconsistent number of columns in table! Offending line:\n" + line + "\n")
+            LOGGER.error("Inconsistent number of columns in table! Offending line:\n" + line + "\n")
             sys.exit(3)
         if fields[marker_pos] not in master_dat:
             master_dat[fields[marker_pos]] = list()
@@ -112,34 +112,44 @@ def parse_marker_classification_table(marker_classification_file):
     return master_dat, field_order
 
 
-def map_queries_to_annotations(marker_tree_info: dict, master_dat: dict):
+def map_queries_to_annotations(refpkg_annotations: dict, refpkg_classifications: dict, join=True) -> None:
     """
+    Assigns ClassifiedSequence instances a feature annotation to their 'layers' dictionary by their placement edge.
 
-    :param marker_tree_info:
-    :param master_dat:
-    :return:
+    :param refpkg_annotations: A dictionary mapping reference packages to their different feature annotations
+    :param refpkg_classifications: Dictionary mapping reference package names to a list of ClassifiedSequence instances
+    :param join: Boolean indicating whether annotations with the same members should be joined with a semicolon or not
+    :return: None
     """
     num_unclassified = 0
+    unclassified_label = "Unknown"
     metadata_placement = set()
-    for data_type in marker_tree_info:
-        for marker in master_dat:
-            if marker in marker_tree_info[data_type]:
-                for query_obj in master_dat[marker]:  # type: ClassifiedSequence
-                    for group in marker_tree_info[data_type][marker]:
-                        if int(query_obj.i_node) in marker_tree_info[data_type][marker][group]:
+    for data_type in refpkg_annotations:
+        for marker in refpkg_classifications:
+            if marker in refpkg_annotations[data_type]:
+                for query_obj in refpkg_classifications[marker]:  # type: ClassifiedSequence
+                    for group in refpkg_annotations[data_type][marker]:
+                        if int(query_obj.i_node) in refpkg_annotations[data_type][marker][group]:
                             metadata_placement.add(group)
 
-                    if len(metadata_placement) == 0:
-                        metadata_placement.add("Unknown")
-                        num_unclassified += 1
-                    query_obj.layers[data_type] = ';'.join(sorted(metadata_placement))
+                    if len(metadata_placement) > 1:
+                        if join:
+                            query_obj.layers[data_type] = ';'.join(sorted(metadata_placement))
+                        else:
+                            query_obj.layers[data_type] = unclassified_label
+                    else:
+                        try:
+                            query_obj.layers[data_type] = metadata_placement.pop()
+                        except KeyError:
+                            query_obj.layers[data_type] = unclassified_label
+                            num_unclassified += 1
                     metadata_placement.clear()
             else:
-                num_unclassified += len(master_dat[marker])
+                num_unclassified += len(refpkg_classifications[marker])
                 continue
     if num_unclassified > 0:
-        logging.debug("Number of placed sequences that were unclassified: " + str(num_unclassified) + "\n")
-    return master_dat
+        LOGGER.debug("Number of placed sequences that were unclassified: {}\n".format(num_unclassified))
+    return
 
 
 def annotate_internal_nodes(internal_node_map: dict, clade_annotations: list) -> (dict, set):
@@ -158,13 +168,13 @@ def annotate_internal_nodes(internal_node_map: dict, clade_annotations: list) ->
     leaves_in_clusters = set()
 
     if len(clade_annotations) == 0:
-        logging.error("No clade annotations provided for layering.\n")
+        LOGGER.error("No clade annotations provided for layering.\n")
         raise AssertionError(17)
 
     for clade_annot in clade_annotations:  # type: CladeAnnotation
         annotation_internal_nodes = clade_annot.get_internal_nodes(internal_node_map)
         if len(annotation_internal_nodes) == 0:
-            logging.error("Unable to match leaf node names to internal nodes for the clade annotation:\n"
+            LOGGER.error("Unable to match leaf node names to internal nodes for the clade annotation:\n"
                           "{}.".format(str(clade_annot.feature)))
             sys.exit(17)
         annotation_clusters.update({clade_annot.name: clade_annot.get_internal_nodes(internal_node_map)})
@@ -176,22 +186,15 @@ def annotate_internal_nodes(internal_node_map: dict, clade_annotations: list) ->
         if annotation not in leaf_group_members:
             leaf_group_members[annotation] = set()
         for i_node in annotation_clusters[annotation]:
-            try:
-                for leaf in internal_node_map[int(i_node)]:
-                    leaf_group_members[annotation].add(leaf)
-                    leaves_in_clusters.add(leaf)
-            except ValueError:
-                # TODO: Convert headers to internal nodes where an annotation cluster is a single leaf
-                logging.warning("Unable to assign '{}' to an internal node ID.\n".format(i_node))
-            except KeyError:
-                logging.error("Unable to find internal node '{}' in internal node map.\n".format(i_node))
-                sys.exit(7)
+            for leaf in internal_node_map[int(i_node)]:
+                leaf_group_members[annotation].add(leaf)
+                leaves_in_clusters.add(leaf)
         # Find the set of internal nodes that are children of this annotated clade
         for i_node in internal_node_map:
             if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):
                 annotated_clade_members[annotation].add(i_node)
 
-    logging.debug("\tCaptured {} nodes in clusters.\n".format(len(leaves_in_clusters)))
+    LOGGER.debug("\tCaptured {} nodes in clusters.\n".format(len(leaves_in_clusters)))
 
     return annotated_clade_members, leaves_in_clusters
 
@@ -223,7 +226,7 @@ def write_classification_table(table_name: str, field_order: dict, master_dat: d
     try:
         table_handler = open(table_name, 'w')
     except IOError:
-        logging.error("Unable to open " + table_name + " for writing!\n")
+        LOGGER.error("Unable to open " + table_name + " for writing!\n")
         sys.exit(3)
     table_handler.write("\n".join(new_classification_lines) + "\n")
     table_handler.close()

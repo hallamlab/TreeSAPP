@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-
-__author__ = "Connor Morgan-Lang"
-__maintainer__ = "Connor Morgan-Lang"
-
 import logging
 import sys
 import re
@@ -15,6 +10,9 @@ from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp import entrez_utils
 from treesapp import fasta
 from treesapp import classy
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def check_create_arguments(creator: classy.Creator, args) -> None:
@@ -36,37 +34,37 @@ def check_create_arguments(creator: classy.Creator, args) -> None:
         args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
 
     if len(creator.ref_pkg.prefix) > 10:
-        logging.error("Name should be <= 10 characters.\n")
+        LOGGER.error("Name should be <= 10 characters.\n")
         sys.exit(13)
 
     # TODO: Check the substitution model for compatibility with RAxML-NG
 
     if args.cluster:
         if args.multiple_alignment:
-            logging.error("--cluster and --multiple_alignment are mutually exclusive!\n")
+            LOGGER.error("--cluster and --multiple_alignment are mutually exclusive!\n")
             sys.exit(13)
         if not 0.5 <= float(args.similarity) <= 1.0:
             if 0.5 < float(args.similarity) / 100 < 1.0:
                 args.similarity = str(float(args.similarity) / 100)
-                logging.warning("--similarity  set to {} for compatibility with VSEARCH.\n".format(args.similarity))
+                LOGGER.warning("--similarity  set to {} for compatibility with VSEARCH.\n".format(args.similarity))
             else:
-                logging.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
+                LOGGER.error("--similarity {} is not between the supported range [0.5-1.0].\n".format(args.similarity))
                 sys.exit(13)
 
     if args.taxa_lca and not args.cluster:
-        logging.error("Unable to perform LCA for representatives without clustering information: " +
+        LOGGER.error("Unable to perform LCA for representatives without clustering information: " +
                       "either with a provided VSEARCH file or by clustering within the pipeline.\n")
         sys.exit(13)
 
     if args.guarantee and not args.cluster:
-        logging.error("--guarantee used but without clustering there is no reason for it.\n" +
+        LOGGER.error("--guarantee used but without clustering there is no reason for it.\n" +
                       "Include all sequences in " + args.guarantee +
                       " in " + creator.input_sequences + " and re-run without --guarantee\n")
         sys.exit(13)
 
     if args.profile:
         if not os.path.isfile(args.profile):
-            logging.error("Unable to find HMM profile at '" + args.profile + "'.\n")
+            LOGGER.error("Unable to find HMM profile at '" + args.profile + "'.\n")
             sys.exit(3)
         creator.hmm_profile = args.profile
 
@@ -84,7 +82,7 @@ def check_create_arguments(creator: classy.Creator, args) -> None:
     if not os.path.exists(creator.phy_dir):
         os.mkdir(creator.phy_dir)
     else:
-        logging.error(creator.phy_dir + " already exists from a previous run! " +
+        LOGGER.error(creator.phy_dir + " already exists from a previous run! " +
                       "Please delete or rename it and try again.\n")
         sys.exit(13)
 
@@ -119,7 +117,7 @@ def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
     out_fasta_handle.close()
 
     if num_seqs_written == 0:
-        logging.error("No sequences written to " + out_fasta + ".\n" +
+        LOGGER.error("No sequences written to " + out_fasta + ".\n" +
                       "The headers in your input file are probably not accommodated in the regex patterns used. " +
                       "Function responsible: get_header_format. Please make an issue on the GitHub page.\n")
         sys.exit(5)
@@ -139,7 +137,7 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects: dict, header_regis
      each used to map various header formats to each other
     :return: Dictionary of ReferenceSequence objects with complete clustering information
     """
-    logging.debug("Finalizing representative sequence clusters... ")
+    LOGGER.debug("Finalizing representative sequence clusters... ")
 
     cluster_reps = dict()  # A set of unique sequence names (original headers) to rapidly query
     for cluster_id in cluster_dict:
@@ -155,7 +153,7 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects: dict, header_regis
         else:
             ref_seq.cluster_lca = cluster_reps[header.original].lca
 
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
     return
 
 
@@ -256,7 +254,7 @@ def screen_filter_taxa(fasta_records: dict, screen_strs="", filter_strs="", guar
         filter_terms = []
 
     if len(set(screen_terms).intersection(filter_terms)) > 0:
-        logging.error("Taxon name(s) {} present in both search and filter terms. This is confusing, please fix.\n"
+        LOGGER.error("Taxon name(s) {} present in both search and filter terms. This is confusing, please fix.\n"
                       "".format(', '.join(set(screen_terms).intersection(filter_terms))))
         sys.exit(13)
 
@@ -293,11 +291,11 @@ def screen_filter_taxa(fasta_records: dict, screen_strs="", filter_strs="", guar
             if filter_pass is False:
                 num_filtered += 1
 
-    logging.debug('\t' + str(num_screened) + " sequences removed after failing screen.\n" +
+    LOGGER.debug('\t' + str(num_screened) + " sequences removed after failing screen.\n" +
                   '\t' + str(num_filtered) + " sequences removed after failing filter.\n" +
                   '\t' + str(len(fasta_replace_dict)) + " sequences retained.\n")
     if saved:
-        logging.debug('\t' + str(len(saved)) + " guaranteed sequences saved from taxonomic filtering.\n")
+        LOGGER.debug('\t' + str(len(saved)) + " guaranteed sequences saved from taxonomic filtering.\n")
 
     return fasta_replace_dict
 
@@ -340,7 +338,7 @@ def remove_by_truncated_lineages(fasta_records: dict, min_taxonomic_rank: str, t
         else:
             fasta_replace_dict[treesapp_id] = ref_seq
 
-    logging.debug('\t' + str(num_removed) + " sequences removed with truncated taxonomic lineages.\n" +
+    LOGGER.debug('\t' + str(num_removed) + " sequences removed with truncated taxonomic lineages.\n" +
                   '\t' + str(len(fasta_replace_dict) - num_removed) + " sequences retained for building tree.\n")
 
     return fasta_replace_dict
@@ -355,7 +353,7 @@ def order_dict_by_lineage(ref_seqs: dict) -> dict:
     :return: An ordered, filtered version of the input dictionary
     """
     # Create a new dictionary with lineages as keys
-    logging.debug("Re-enumerating the reference sequences in taxonomic order... ")
+    LOGGER.debug("Re-enumerating the reference sequences in taxonomic order... ")
     lineage_dict = dict()
     sorted_lineage_dict = dict()
     for treesapp_id, e_record in ref_seqs.items():  # type: (str, entrez_utils.EntrezRecord)
@@ -379,7 +377,7 @@ def order_dict_by_lineage(ref_seqs: dict) -> dict:
                 sorted_lineage_dict[str(num_key)] = ref_seq
                 num_key += 1
 
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
     return sorted_lineage_dict
 
 
@@ -429,7 +427,7 @@ def lineages_to_dict(fasta_entrez_records: dict, taxa_lca=False) -> dict:
         reference_sequence = fasta_entrez_records[treesapp_id]  # type: entrez_utils.EntrezRecord
 
         if not reference_sequence.versioned:
-            logging.error("'versioned' attribute has not been set for the following EntrezRecord:\n"
+            LOGGER.error("'versioned' attribute has not been set for the following EntrezRecord:\n"
                           "{}\n".format(reference_sequence.get_info()))
             raise AssertionError("Unable to create the sequence lineage map.")
 
@@ -446,7 +444,7 @@ def lineages_to_dict(fasta_entrez_records: dict, taxa_lca=False) -> dict:
                                                                lineage)
 
     if len(no_lineage) > 0:
-        logging.warning("{0} reference sequences did not have a lineage:\n\t{1}\n".format(len(no_lineage),
+        LOGGER.warning("{0} reference sequences did not have a lineage:\n\t{1}\n".format(len(no_lineage),
                                                                                           "\n\t".join(no_lineage)))
 
     return ref_lineage_map
@@ -461,7 +459,7 @@ def remove_outlier_sequences(fasta_record_objects: dict, od_seq_exe: str, mafft_
 
     outlier_test_fasta_dict = order_dict_by_lineage(fasta_record_objects)
 
-    logging.info("Detecting outlier reference sequences... ")
+    LOGGER.info("Detecting outlier reference sequences... ")
     create_new_ref_fasta(od_input, outlier_test_fasta_dict)
     od_input_m = '.'.join(od_input.split('.')[:-1]) + ".mfa"
     # Perform MSA with MAFFT
@@ -479,8 +477,8 @@ def remove_outlier_sequences(fasta_record_objects: dict, od_seq_exe: str, mafft_
         ref_seq.cluster_rep = False
         outlier_names.append(ref_seq.accession)
 
-    logging.info("done.\n")
-    logging.debug(str(len(outlier_seqs)) + " outlier sequences detected and discarded.\n\t" +
+    LOGGER.info("done.\n")
+    LOGGER.debug(str(len(outlier_seqs)) + " outlier sequences detected and discarded.\n\t" +
                   "\n\t".join([outseq for outseq in outlier_names]) + "\n")
 
     return
@@ -534,11 +532,11 @@ def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:
 
     # Some final accounting - in case the header formats are altered!
     if important_seqs.difference(important_finds):
-        logging.error(str(len(important_finds)) + '/' + str(len(important_seqs)) +
+        LOGGER.error(str(len(important_finds)) + '/' + str(len(important_seqs)) +
                       " guaranteed sequences found in cluster output file. The following are missing:\n" +
                       ", ".join([vis for vis in list(important_seqs.difference(important_finds))]) + "\n")
         sys.exit(7)
-    logging.debug(str(num_swaps) + " former representative sequences were succeeded by 'guaranteed-sequences'.\n")
+    LOGGER.debug(str(num_swaps) + " former representative sequences were succeeded by 'guaranteed-sequences'.\n")
 
     return nonredundant_guarantee_cluster_dict
 
@@ -571,7 +569,7 @@ def find_cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_regi
                 num_id = formatted_to_num_map[member]
                 lineages.append(fasta_record_objects[num_id].lineage)
             except KeyError:
-                logging.warning("Unable to map '{}' to a TreeSAPP numeric ID. "
+                LOGGER.warning("Unable to map '{}' to a TreeSAPP numeric ID. "
                                 "It will not be used in determining the cluster LCA.\n".format(member))
 
         cleaned_lineages = clean_lineage_list(lineages)

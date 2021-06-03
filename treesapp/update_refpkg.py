@@ -11,6 +11,9 @@ from treesapp.fasta import FASTA
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp import refpkg as ts_ref_pkg
 from treesapp import clade_annotation
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def reformat_ref_seq_descriptions(original_header_map):
@@ -67,7 +70,7 @@ def strip_assigment_pattern(seq_names: list, refpkg_name: str) -> dict:
     return {seq_name: re.sub(r"\|{0}\|\d+_\d+$".format(refpkg_name), '', seq_name) for seq_name in seq_names}
 
 
-def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant: float, max_evo_distance: float) -> list:
+def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant=None, max_evo_distance=None) -> list:
     """
 
     :param pqueries: A dictionary of PQuery instances indexed by their respective ReferencePackage's
@@ -82,14 +85,14 @@ def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant: 
         for pquery in refpkg_pqueries:
             if pquery.consensus_placement.like_weight_ratio < min_lwr:
                 num_filtered += 1
-            elif pquery.consensus_placement.pendant_length > max_pendant:
+            elif max_pendant and pquery.consensus_placement.pendant_length > max_pendant:
                 num_filtered += 1
-            elif pquery.avg_evo_dist > max_evo_distance:
+            elif max_evo_distance and pquery.avg_evo_dist > max_evo_distance:
                 num_filtered += 1
             else:
                 good_placements.append(pquery)
 
-    logging.debug("{} classified sequences did not meet minimum LWR of {} for updating\n".format(num_filtered, min_lwr))
+    LOGGER.debug("{} classified sequences did not meet minimum LWR of {} for updating\n".format(num_filtered, min_lwr))
 
     return good_placements
 
@@ -97,7 +100,7 @@ def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant: 
 def decide_length_filter(refpkg: ts_ref_pkg.ReferencePackage, proposed_min_length=30, min_hmm_proportion=0.66) -> int:
     # Ensure the HMM fraction provided is a proportion
     if not 0 < min_hmm_proportion < 1:
-        logging.warning("Minimum HMM fraction provided ({}) isn't a proportion. Converting to {}.\n"
+        LOGGER.warning("Minimum HMM fraction provided ({}) isn't a proportion. Converting to {}.\n"
                         "".format(min_hmm_proportion, min_hmm_proportion/100))
         min_hmm_proportion = min_hmm_proportion/100
 
@@ -105,7 +108,7 @@ def decide_length_filter(refpkg: ts_ref_pkg.ReferencePackage, proposed_min_lengt
     # Use the smaller of the minimum sequence length or some proportion of the profile HMM to remove sequence fragments
     if proposed_min_length < min_hmm_proportion*hmm_length:
         min_length = int(round(min_hmm_proportion*hmm_length))
-        logging.debug("New minimum sequence length threshold set to {}% of HMM length ({}) instead of {}\n"
+        LOGGER.debug("New minimum sequence length threshold set to {}% of HMM length ({}) instead of {}\n"
                       "".format(min_hmm_proportion*100, min_length, proposed_min_length))
     else:
         min_length = proposed_min_length
@@ -156,10 +159,10 @@ def guided_header_lineage_map(header_registry: dict, entrez_records: dict) -> di
             continue
         seq_lineage_map[record.versioned] = record.lineage
     if missing:
-        logging.warning(str(len(missing)) + " sequences were not assigned a taxonomic lineage.\n" +
+        LOGGER.warning(str(len(missing)) + " sequences were not assigned a taxonomic lineage.\n" +
                         "This should match the number of accessions deduplicated while fetching lineages.\n")
         for treesapp_id in missing:
-            logging.debug("Unable to find '" + treesapp_id + "' in fasta records. More info:\n" +
+            LOGGER.debug("Unable to find '" + treesapp_id + "' in fasta records. More info:\n" +
                           header_registry[treesapp_id].original + "\n")
             header_registry.pop(treesapp_id)
         missing.clear()
@@ -285,7 +288,7 @@ def prefilter_clusters(cluster_dict: dict, lineage_lookup: dict, priority: list,
                 cluster.members = []
 
     if guaranteed_redundant:
-        logging.debug("{} original reference sequences saved from clustering:\n\t"
+        LOGGER.debug("{} original reference sequences saved from clustering:\n\t"
                       "{}\n".format(len(guaranteed_redundant),
                                     "\n\t".join(clust.representative for clust in guaranteed_redundant)))
 
@@ -329,9 +332,9 @@ def formulate_create_command(ts_updater: Updater, args, final_stage) -> list:
 def update_features(old_refpkg: ts_ref_pkg.ReferencePackage, new_refpkg: ts_ref_pkg.ReferencePackage) -> None:
     # Match leaf node identifiers to each other
     leaf_node_name_map = {}
-    old_leaf_desc_map = {leaf.description: leaf for leaf in old_refpkg.generate_tree_leaf_references_from_refpkg()}
+    old_leaf_desc_map = {leaf.description: leaf for leaf in old_refpkg._ref_leaves.values()}
     # Dictionary is indexed by the new leaf node names
-    for desc, leaf in {ln.description: ln for ln in new_refpkg.generate_tree_leaf_references_from_refpkg()}.items():
+    for desc, leaf in {ln.description: ln for ln in new_refpkg._ref_leaves.values()}.items():
         if desc in old_leaf_desc_map:
             leaf_node_name_map[old_leaf_desc_map[desc].number + '_' + old_refpkg.prefix] = leaf.number + '_' + new_refpkg.prefix
 
@@ -339,8 +342,12 @@ def update_features(old_refpkg: ts_ref_pkg.ReferencePackage, new_refpkg: ts_ref_
         new_refpkg.feature_annotations[feature] = []
         for clade_annot in old_refpkg.feature_annotations[feature]:  # type: clade_annotation.CladeAnnotation
             new_annotation = clade_annotation.CladeAnnotation(name=clade_annot.name, key=feature)
-            for leaf_node in clade_annot.members:
-                new_annotation.members.add(leaf_node_name_map[leaf_node])
+            # try:
+            for leaf_node, rank in clade_annot.members.items():
+                new_annotation.members[leaf_node_name_map[leaf_node]] = rank
+            # except AttributeError:
+            #     for leaf_node in clade_annot.members:
+            #         new_annotation.members[leaf_node_name_map[leaf_node]] = 7
             new_annotation.taxa = clade_annot.taxa
             new_annotation.colour = clade_annot.colour
             new_refpkg.feature_annotations[feature].append(new_annotation)

@@ -3,9 +3,15 @@ import sys
 import re
 
 from ete3 import Tree
+from sklearn import cluster
+import numpy as np
 
 from treesapp.phylo_dist import parent_to_tip_distances
-from treesapp.entish import load_ete3_tree, get_ete_edge, edge_from_node_name
+from treesapp import entish
+from treesapp import seq_clustering
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class PhyloPlace:
@@ -28,7 +34,7 @@ class PhyloPlace:
                     if len(placement[self.n_key]) == 1:
                         name_val = placement[self.n_key][0]
                     else:
-                        logging.error(
+                        LOGGER.error(
                             "{} sequence names found in PQuery name value when one was expected :\n{}"
                             "".format(len(placement[self.n_key]),
                                       "\t{}\n".join(placement['n'])))
@@ -37,14 +43,14 @@ class PhyloPlace:
                     name_val = placement[self.n_key]
                 self.name = name_val
             except KeyError:
-                logging.error("Unable to find name key ('{}') in placement: {}\n".format(self.n_key, placement))
+                LOGGER.error("Unable to find name key ('{}') in placement: {}\n".format(self.n_key, placement))
                 sys.exit(13)
 
             # Load the placement's PQuery information
             try:
                 fields = placement[self.p_key][0]
             except KeyError:
-                logging.error("Unable to find placement key ('{}') in placement: {}\n".format(self.p_key, placement))
+                LOGGER.error("Unable to find placement key ('{}') in placement: {}\n".format(self.p_key, placement))
                 sys.exit(15)
 
             # Load the placement information fields
@@ -55,11 +61,14 @@ class PhyloPlace:
                 try:
                     self.__dict__[field_positions[x]] = fields[x]
                 except KeyError:
-                    logging.error("Field '{}' not found in PhyloPlace class attributes.\n".format(field_positions[x]))
+                    LOGGER.error("Field '{}' not found in PhyloPlace class attributes.\n".format(field_positions[x]))
                     sys.exit(17)
                 x += 1
 
         return
+
+    def __str__(self):
+        return "Placement of sequence '{}' on edge {}".format(self.name, self.edge_num)
 
     def set_attribute_types(self, pquery_dists: str) -> None:
         self.distal_length, self.pendant_length, self.mean_tip_length = [float(d) for d in pquery_dists.split(',')]
@@ -69,7 +78,7 @@ class PhyloPlace:
 
     def calc_mean_tip_length(self, internal_leaf_node_map: dict, ref_tree, memoization_map=None) -> None:
         if isinstance(ref_tree, str):
-            ref_tree = load_ete3_tree(ref_tree)
+            ref_tree = entish.load_ete3_tree(ref_tree)
         leaf_children = internal_leaf_node_map[self.edge_num]
         if len(leaf_children) > 1:
             if memoization_map:
@@ -105,7 +114,7 @@ class PhyloPlace:
         name = set()
 
         if len(pplaces) == 0:
-            logging.error("No phylogenetic placements were provided, unable to format for JPlace.\n")
+            LOGGER.error("No phylogenetic placements were provided, unable to format for JPlace.\n")
             sys.exit(11)
 
         if not field_positions:
@@ -123,10 +132,10 @@ class PhyloPlace:
         if len(name) == 1:
             jplace_dict['n'] = [name.pop()]
         elif len(name) == 0:
-            logging.error("No unique name feature was found for phylogenetic placements.\n")
+            LOGGER.error("No unique name feature was found for phylogenetic placements.\n")
             sys.exit(11)
         else:
-            logging.error("More than one query name provided when rebuilding JPlace file:\n{}\n".format(','.join(name)))
+            LOGGER.error("More than one query name provided when rebuilding JPlace file:\n{}\n".format(','.join(name)))
             sys.exit(13)
 
         jplace_dict['p'] = placements_list
@@ -233,7 +242,7 @@ class PQuery:
                         names.add(n)
 
         if len(names) > 1:
-            logging.error("Multiple names encountered for a single PQuery:\n{}\n".format(','.join(names)))
+            LOGGER.error("Multiple names encountered for a single PQuery:\n{}\n".format(','.join(names)))
             raise AssertionError
         self.place_name = names.pop()
 
@@ -274,7 +283,7 @@ class PQuery:
         try:
             normalized_abundance = float(self.abundance/len(tree_leaves))
         except TypeError:
-            logging.warning("Unable to find abundance for " + self.place_name + "... setting to 0.\n")
+            LOGGER.warning("Unable to find abundance for " + self.place_name + "... setting to 0.\n")
             normalized_abundance = 0.0
 
         for tree_leaf in tree_leaves:  # type: str
@@ -296,7 +305,7 @@ class PQuery:
             place_len = float(pquery.distal_length)
             tree_len = tree_index[str(pquery.edge_num)]
             if place_len > tree_len:
-                logging.debug("Distal length adjusted to fit JPlace {} tree for {}.\n"
+                LOGGER.debug("Distal length adjusted to fit JPlace {} tree for {}.\n"
                               "".format(self.ref_name, self.place_name))
                 pquery.distal_length = tree_len
 
@@ -316,29 +325,29 @@ class PQuery:
         try:
             tree_leaves = self.node_map[self.consensus_placement.edge_num]
         except KeyError:
-            logging.error("Unable to find placement edge '{}'"
+            LOGGER.error("Unable to find placement edge '{}'"
                           " in the PhyloPlace's node_map.\n".format(self.consensus_placement.edge_num))
             sys.exit(13)
         except AttributeError:
-            logging.error("Pquery.consensus_placement was not instantiated.\n")
+            LOGGER.error("Pquery.consensus_placement was not instantiated.\n")
             sys.exit(15)
 
         for leaf_node in tree_leaves:
             try:
                 leaf_num = leaf_node.split('_')[0]
             except TypeError:
-                logging.error("Unexpected format of leaf node: '" + str(leaf_node) + "'.\n")
+                LOGGER.error("Unexpected format of leaf node: '" + str(leaf_node) + "'.\n")
                 sys.exit(3)
             try:
                 ref_lineage = leaves_taxa_map[leaf_num]
             except KeyError:
-                logging.error("Unable to find '" + leaf_num + "' in leaf-lineage map.\n")
+                LOGGER.error("Unable to find '" + leaf_num + "' in leaf-lineage map.\n")
                 sys.exit(3)
 
             if ref_lineage:
                 children.append(ref_lineage)
             else:
-                logging.warning("No lineage information available for " + leaf_node + ".\n")
+                LOGGER.warning("No lineage information available for " + leaf_node + ".\n")
 
         return children
 
@@ -374,9 +383,10 @@ class PQuery:
         :return: None
         """
         # If the number of placements is one, set the consensus placement to the only placement
-        if len(self.placements) == 1:
-            self.consensus_placement = self.placements[0]
-            _, down_node = get_ete_edge(labelled_tree, self.consensus_placement.edge_num)
+        self.placements = sorted(self.placements, key=lambda x: float(x.like_weight_ratio))
+        if len(self.placements) == 1 or self.placements[-1].like_weight_ratio >= min_aelw:
+            self.consensus_placement = self.placements[-1]
+            _, down_node = entish.get_ete_edge(labelled_tree, self.consensus_placement.edge_num)
             self.lineage = "; ".join([t.prefix_taxon() for t in down_node.taxon.lineage()])
             self.lct = self.lineage
             return
@@ -387,23 +397,23 @@ class PQuery:
         node_name_map = {}  # Maps internal node names to TreeNode instances
         taxon_name_map = {}  # Maps taxon names to Taxon instances
         contributors = []
+        p_dists = []
         # Sort to pop the placements in order of biggest likelihood weight ratio to smallest
-        self.placements = sorted(self.placements, key=lambda x: float(x.like_weight_ratio))
         self.consensus_placement = PhyloPlace()
         self.consensus_placement.name = self.placements[-1].name
         self.consensus_placement.likelihood = self.placements[-1].likelihood
         while self.placements:
             # Remove the placements contributing to the aELW and replace with the consensus placement
             pplace = self.placements.pop(-1)  # type: PhyloPlace
-            up_node, down_node = get_ete_edge(labelled_tree, pplace.edge_num)
-            parent, child = up_node.taxon, down_node.taxon
+            p_dists.append(pplace.pendant_length)
+            up_node, down_node = entish.get_ete_edge(labelled_tree, pplace.edge_num)
             # Ensure each of the taxon in a lineage is in the aELW dictionary
             for node in [up_node, down_node]:
                 node_name_map[node.name] = node
                 if node.name not in node_aelw_map:
                     node_aelw_map[node.name] = 0
 
-            if parent == child:
+            if up_node.taxon == down_node.taxon:
                 node_aelw_map[up_node.name] += (pplace.like_weight_ratio/2)
                 node_aelw_map[down_node.name] += (pplace.like_weight_ratio/2)
             else:
@@ -424,8 +434,10 @@ class PQuery:
         # Find the LCA edge of all placements that contributed to the taxonomic assignment
         node_lca = contributors[0].get_common_ancestor(contributors)  # type: Tree
         # Populate the new placement's attributes
-        self.consensus_placement.distal_length, self.consensus_placement.pendant_length, self.consensus_placement.mean_tip_length = 0.0, 0.0, 0.0
-        self.consensus_placement.edge_num = edge_from_node_name(labelled_tree, node_name=node_lca.name)
+        self.consensus_placement.edge_num = entish.edge_from_node_name(labelled_tree, node=node_lca.name)
+        self.consensus_placement.pendant_length = min(p_dists)
+        self.consensus_placement.distal_length = 0.5*node_lca.dist
+        self.consensus_placement.calc_mean_tip_length(internal_leaf_node_map=self.node_map, ref_tree=labelled_tree)
         # Replace the placements that were used in the LCA with the consensus placement
         self.placements.append(self.consensus_placement)
 
@@ -451,8 +463,11 @@ class PQuery:
         at multiple edges with similar likelihood. This function aims to select the single best placement based on
         it's respective Likelihood Weight Ratio (LWR)/PQuery like_weight_ratio attribute.
 
-        The PQuery.consensus_placement attribute is set to this placement with maximum LWR. The PQuery.placements
-        attribute is unmodified.
+        The following PQuery attributes are modified:
+        1. 'consensus_placement' attribute is set to this placement with maximum LWR.
+        2. 'lineage' is set to the lowest common ancestor of the placement edge's distal node
+        3. 'lct' is set to 'lineage' after modification
+        The PQuery.placements attribute is unmodified (ie. all placements are kept).
 
         :param ref_tree: A taxonomically-labelled ETE3 Tree i.e. each TreeNode contains a 'taxon' attribute
         :return: None
@@ -465,16 +480,16 @@ class PQuery:
                     max_lwr = pplace.like_weight_ratio
                     self.consensus_placement = pplace
             else:
-                logging.error("Unexpected state of PhyloPlace instance!\n{}\n".format(pplace.summary()))
+                LOGGER.error("Unexpected state of PhyloPlace instance!\n{}\n".format(pplace.summary()))
                 sys.exit(3)
 
         # Determine the taxonomic lineage of the placement using the labelled tree
         try:
-            up_node, down_node = get_ete_edge(ref_tree, self.consensus_placement.edge_num)
+            _up_node, down_node = entish.get_ete_edge(ref_tree, self.consensus_placement.edge_num)
         except TypeError:
-            logging.error("Unable to process placement of '{}' as its placement edge '{}' was not found"
-                          " in the reference tree for {} with {} nodes.\n"
-                          "".format(self.place_name, self.consensus_placement.edge_num, self.ref_name, len(ref_tree)))
+            LOGGER.error("Unable to process placement of '{}' as its placement edge '{}' was not found"
+                         " in the reference tree for {} with {} nodes.\n"
+                         "".format(self.place_name, self.consensus_placement.edge_num, self.ref_name, len(ref_tree)))
             sys.exit(5)
         node_taxon = down_node.taxon
         self.lineage = "; ".join([t.prefix_taxon() for t in node_taxon.lineage()])
@@ -500,7 +515,7 @@ def assignments_to_pqueries(classified_lines: list) -> dict:
             _, pquery.seq_name, pquery.ref_name, pquery.start, pquery.end, pquery.recommended_lineage, pquery.abundance,\
             con_place.edge_num, pquery.evalue, con_place.like_weight_ratio, pquery.avg_evo_dist, pquery.distances = fields
         except ValueError:
-            logging.error("Bad line in classification table:\n" +
+            LOGGER.error("Bad line in classification table:\n" +
                           '\t'.join(fields) + "\n")
             sys.exit(21)
         pquery.place_name = "{}|{}|{}_{}".format(pquery.seq_name, pquery.ref_name, pquery.start, pquery.end)
@@ -534,7 +549,7 @@ def split_placements(placements: dict) -> list:
     return phylo_places
 
 
-def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
+def quantify_pquery_instances(tree_saps: dict, abundance_dict: dict):
     """
     Add abundance (RPKM or presence count) values to the PQuery instances (abundance variable)
 
@@ -556,9 +571,66 @@ def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
                     pquery.abundance = 0.0
 
     if abundance_mapped_acc == 0:
-        logging.warning("No placed sequences with abundances identified.\n")
+        LOGGER.warning("No placed sequences with abundances identified.\n")
 
     return
+
+
+def sort_centroids_from_clusters(pqueries: list, cluster_indices: list) -> list:
+    cluster_map = {}
+    final_clusters = []
+    # Sort the PQuery instances into an indexed dictionary based on their assigned cluster
+    i = 0
+    while i < len(cluster_indices):
+        try:
+            cluster_map[cluster_indices[i]].append(pqueries[i])
+        except KeyError:
+            cluster_map[cluster_indices[i]] = [pqueries[i]]
+        i += 1
+
+    # Create Cluster instances for each KMeans cluster and choose the longest sequence as the representative
+    for num in cluster_map:  # type: int
+        rep = sorted(cluster_map[num], key=lambda n: n.end - n.start)[0]  # type: PQuery
+        cluster = seq_clustering.Cluster(rep.place_name)
+        cluster.members = cluster_map[num]
+        final_clusters.append(cluster)
+
+    return final_clusters
+
+
+def psc_cluster_edges(dist_mat: np.array, min_cluster_size: int, n_points: int) -> list:
+    if n_points >= min_cluster_size:
+        edge_clusters = list(cluster.DBSCAN(min_samples=min_cluster_size,
+                                            eps=1).fit(np.array(dist_mat)).labels_)
+    else:
+        edge_clusters = list(range(n_points))
+    return edge_clusters
+
+
+def cluster_pquery_placement_space_distances(pqueries: list, min_cluster_size=10) -> dict:
+    pquery_clusters = []
+
+    previous = 0
+    dist_mat = []
+    edge_pquery_instances = []
+    for pq in sorted(pqueries, key=lambda n: n.consensus_placement.edge_num):  # type: PQuery
+        if pq.consensus_placement.edge_num != previous and dist_mat:
+            edge_clusters = psc_cluster_edges(np.array(dist_mat),
+                                              min_cluster_size,
+                                              n_points=len(edge_pquery_instances))
+            pquery_clusters += sort_centroids_from_clusters(edge_pquery_instances, edge_clusters)
+            dist_mat.clear()
+            edge_pquery_instances.clear()
+        dist_mat.append([pq.consensus_placement.pendant_length, pq.consensus_placement.distal_length])
+        edge_pquery_instances.append(pq)
+        previous = pq.consensus_placement.edge_num
+
+    edge_clusters = psc_cluster_edges(np.array(dist_mat), min_cluster_size, n_points=len(edge_pquery_instances))
+    pquery_clusters += sort_centroids_from_clusters(edge_pquery_instances, edge_clusters)
+
+    cluster_map = {str(n): pquery_clusters[n] for n in range(0, len(pquery_clusters))}
+
+    return cluster_map
 
 
 class TreeLeafReference:

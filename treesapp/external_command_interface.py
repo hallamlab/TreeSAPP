@@ -5,7 +5,13 @@ import re
 import sys
 import logging
 import subprocess
-from multiprocessing import Process, JoinableQueue
+import multiprocessing
+
+from tqdm import tqdm
+
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def launch_write_command(cmd_list, collect_all=True):
@@ -33,16 +39,16 @@ def launch_write_command(cmd_list, collect_all=True):
 
     # Ensure the command completed successfully
     if proc.returncode != 0:
-        logging.error(cmd_list[0] + " did not complete successfully! Command used:\n" +
+        LOGGER.error(cmd_list[0] + " did not complete successfully! Command used:\n" +
                       ' '.join(cmd_list) + "\nOutput:\n" + stdout)
         sys.exit(19)
 
     return stdout, proc.returncode
 
 
-class CommandLineWorker(Process):
+class CommandLineWorker(multiprocessing.Process):
     def __init__(self, task_queue, commander):
-        Process.__init__(self)
+        multiprocessing.Process.__init__(self)
         self.task_queue = task_queue
         self.master = commander
 
@@ -53,7 +59,7 @@ class CommandLineWorker(Process):
                 # Poison pill means shutdown
                 self.task_queue.task_done()
                 break
-            logging.debug("STAGE: " + self.master + "\n" +
+            LOGGER.debug("STAGE: " + self.master + "\n" +
                           "\tCOMMAND:\n" + " ".join(next_task) + "\n")
             launch_write_command(next_task)
             self.task_queue.task_done()
@@ -72,7 +78,7 @@ class CommandLineFarmer:
         :param num_threads:
         """
         self.max_size = 32767  # The actual size limit of a JoinableQueue
-        self.task_queue = JoinableQueue(self.max_size)
+        self.task_queue = multiprocessing.JoinableQueue(self.max_size)
         self.num_threads = int(num_threads)
 
         process_queues = [CommandLineWorker(self.task_queue, command) for i in range(int(self.num_threads))]
@@ -120,3 +126,24 @@ def create_dir_from_taxon_name(taxon_lineage: str, output_dir: str):
     dir_path = output_dir + query_name + os.sep
     os.mkdir(dir_path)
     return dir_path
+
+
+def run_apply_async_multiprocessing(func, arguments_list: list, num_processes: int, pbar_desc: str) -> list:
+    pool = multiprocessing.Pool(processes=num_processes)
+
+    def update(*a):
+        pbar.update()
+
+    jobs = []
+    for args in arguments_list:
+        jobs.append(pool.apply_async(func=func, args=(*args,), callback=update))
+    pool.close()
+    result_list_tqdm = []
+    pbar = tqdm(jobs, desc=pbar_desc, ncols=100)
+
+    for job in pbar:
+        result_list_tqdm.append(job.get())
+
+    pbar.close()
+
+    return result_list_tqdm

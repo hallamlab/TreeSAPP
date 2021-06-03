@@ -82,10 +82,11 @@ class ColourTestCase(unittest.TestCase):
         from treesapp.phylogeny_painting import convert_taxa_to_phenotypes
 
         phenotypes = read_phenotypes(self.mcra_metabolism)
+        self.assertEqual(20, len(phenotypes))
         taxon_leaf_map = self.mcra_refpkg.map_taxa_to_leaf_nodes(list(phenotypes.keys()))
         phenotype_leaf_map = convert_taxa_to_phenotypes(phenotypes_map=phenotypes,
                                                         taxon_leaf_map=taxon_leaf_map)
-        self.assertEqual(5, len(phenotype_leaf_map))
+        self.assertEqual(6, len(phenotype_leaf_map))
         self.assertEqual(19, len(phenotype_leaf_map["Aceticlastic"]))
         return
 

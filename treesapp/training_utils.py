@@ -1,4 +1,3 @@
-
 import os
 import logging
 import sys
@@ -20,11 +19,13 @@ from treesapp import wrapper
 from treesapp import fasta
 from treesapp import classy
 from treesapp import phylo_seq
+from treesapp import logger
 from treesapp.external_command_interface import launch_write_command, create_dir_from_taxon_name
 from treesapp.jplace_utils import jplace_parser, demultiplex_pqueries, calc_pquery_mean_tip_distances
 from treesapp.entish import map_internal_nodes_leaves
 from treesapp.refpkg import ReferencePackage
 
+LOGGER = logging.getLogger(logger.logger_name())
 
 _named_vec = namedtuple("_named_vec", ["refpkg", "tp", "tax_rank", "evalue", "hmm_cov",
                                        "leaves", "lwr", "distal", "pendant", "avg_tip_dist"])
@@ -80,7 +81,7 @@ class PhyTrainer(classy.TreeSAPP):
             if os.path.isfile(self.acc_to_lin):
                 self.change_stage_status("lineages", False)
             else:
-                logging.error("Unable to find accession-lineage mapping file '{}'\n".format(self.acc_to_lin))
+                self.ts_logger.error("Unable to find accession-lineage mapping file '{}'\n".format(self.acc_to_lin))
                 sys.exit(3)
 
         if os.path.isfile(self.clade_ex_pquery_pkl) and os.path.isfile(self.plain_pquery_pkl):
@@ -105,12 +106,12 @@ class PhyTrainer(classy.TreeSAPP):
         # Check whether the parameters for the classifier make sense
         if args.classifier == "bin":
             if not args.annot_map:
-                logging.error("An annotation mapping file is required when building a binary classifier.\n")
+                self.ts_logger.error("An annotation mapping file is required when building a binary classifier.\n")
                 sys.exit(3)
             else:
                 self.annot_map = args.annot_map
         elif args.classifier == "occ" and args.annot_map:
-            logging.warning("Annotation mapping file is ignored when building a One-Class Classifier (OCC).\n")
+            self.ts_logger.warning("Annotation mapping file is ignored when building a One-Class Classifier (OCC).\n")
 
         if args.tsne:
             self.tsne_plot = os.path.join(self.var_output_dir, "train", "tSNE.png")
@@ -146,8 +147,9 @@ class PhyTrainer(classy.TreeSAPP):
 
         return info_string
 
+
 def summarize_query_classes(positives: set, query_seq_names: set) -> None:
-    logging.info("Enumeration of potential query sequence classes:\n")
+    LOGGER.info("Enumeration of potential query sequence classes:\n")
     false_pos = set()
     false_neg = set()
     true_pos = set()
@@ -164,7 +166,7 @@ def summarize_query_classes(positives: set, query_seq_names: set) -> None:
         if seq_name not in false_neg:
             false_pos.add(seq_name)
 
-    logging.info("\tTrue positives:          {:>9}\n"
+    LOGGER.info("\tTrue positives:          {:>9}\n"
                  "\tFalse positives:         {:>9}\n"
                  "\tFalse negatives:         {:>9}\n"
                  "\tSequence names provided: {:>9}\n"
@@ -191,7 +193,7 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
     tp = {}
     fp = {}
     fn = {}
-    logging.info("Assigning test sequences to the four class conditions... ")
+    LOGGER.info("Assigning test sequences to the four class conditions... ")
     missing = set()
     # Create a dictionary for rapid look-ups of queries that are homologs of sequences in the refpkg
     for qname in annot_map:
@@ -209,7 +211,7 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
             if refpkg.refpkg_code in positive_queries:
                 positives = positive_queries[refpkg.refpkg_code]
             else:
-                logging.error("Unable to find '{}' in the set of positive queries:\n".format(refpkg_name) +
+                LOGGER.error("Unable to find '{}' in the set of positive queries:\n".format(refpkg_name) +
                               ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
                 sys.exit(5)
         true_positives = set()
@@ -251,12 +253,12 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
                 continue
             qseq.ncbi_tax = e_record.ncbi_tax
             fn[refpkg_name].add(qseq)
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     if missing:
-        logging.warning("Unable to find {}/{} sequence accessions in the Entrez records.\n".format(len(missing),
+        LOGGER.warning("Unable to find {}/{} sequence accessions in the Entrez records.\n".format(len(missing),
                                                                                                    len(entrez_query_dict)))
-        logging.debug("Unable to find the following sequence accessions in the Entrez records:\n"
+        LOGGER.debug("Unable to find the following sequence accessions in the Entrez records:\n"
                       "{}\n".format(', '.join(missing)))
 
     return tp, fp, fn
@@ -338,7 +340,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
         query_seq_name_map[query_seq_decrementor] = seq_name
         taxonomy_filtered_query_seqs[str(query_seq_decrementor)] = test_fasta.fasta_dict[seq_name]
         query_seq_decrementor -= 1
-    logging.debug("\t{} query sequences.\n".format(len(taxonomy_filtered_query_seqs.keys())))
+    LOGGER.debug("\t{} query sequences.\n".format(len(taxonomy_filtered_query_seqs.keys())))
 
     fasta.write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=query_fasta_file)
 
@@ -351,7 +353,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     sto_dict = file_parsers.read_stockholm_to_dict(query_sto_file)
     fasta.write_new_fasta(sto_dict, all_msa)
 
-    logging.debug(str(aln_stdout) + "\n")
+    LOGGER.debug(str(aln_stdout) + "\n")
 
     trim_command, combined_msa = wrapper.get_msa_trim_command(executables, all_msa, ce_refpkg.molecule)
     launch_write_command(trim_command)
@@ -363,14 +365,14 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
                                                                                        True)
     nrow, ncolumn = fasta.multiple_alignment_dimensions(mfa_file=combined_msa,
                                                         seq_dict=fasta.read_fasta_to_dict(combined_msa))
-    logging.debug("Columns = " + str(ncolumn) + "\n")
+    LOGGER.debug("Columns = " + str(ncolumn) + "\n")
     if combined_msa not in msa_dict.keys():
-        logging.debug("Placements for '{}' are being skipped after failing MSA validation.\n".format(taxon))
+        LOGGER.debug("Placements for '{}' are being skipped after failing MSA validation.\n".format(taxon))
         for old_file in intermediate_files:
             os.remove(old_file)
             intermediate_files.clear()
         return pqueries
-    logging.debug("Number of sequences discarded: " + summary_str + "\n")
+    LOGGER.debug("Number of sequences discarded: " + summary_str + "\n")
 
     # Create the query-only FASTA file required by EPA-ng
     fasta.split_combined_ref_query_fasta(combined_msa, query_msa, ref_msa)
@@ -472,7 +474,7 @@ def load_training_data_frame(pqueries: dict, refpkg_map: dict, refpkg_positive_a
                 continue
 
             if int(pquery.consensus_placement.edge_num) not in internal_nodes:
-                logging.error("Unable to find internal node '{}' in the {} node-leaf map indicating a discrepancy "
+                LOGGER.error("Unable to find internal node '{}' in the {} node-leaf map indicating a discrepancy "
                               "between reference package versions used by treesapp assign and those used here.\n"
                               "Was the correct output directory provided?"
                               "".format(pquery.consensus_placement.edge_num, pquery.ref_name))
@@ -568,7 +570,7 @@ def generate_tsne(x, y, tsne_file):
     time_start = time.time()
     tsne = manifold.TSNE(n_components=2, verbose=1, perplexity=30, n_iter=300)
     tsne_results = tsne.fit_transform(df)
-    logging.debug('t-SNE done! Time elapsed: {} seconds\n'.format(time.time() - time_start))
+    LOGGER.debug('t-SNE done! Time elapsed: {} seconds\n'.format(time.time() - time_start))
 
     df['tsne-2d-one'] = tsne_results[:, 0]
     df['tsne-2d-two'] = tsne_results[:, 1]
@@ -582,7 +584,7 @@ def generate_tsne(x, y, tsne_file):
         alpha=0.3
     )
     plt.savefig(tsne_file, format="png")
-    logging.info("tSNE plot '{}' created.\n".format(tsne_file))
+    LOGGER.info("tSNE plot '{}' created.\n".format(tsne_file))
     return
 
 
@@ -601,7 +603,7 @@ def evaluate_grid_scores(kernel, x_train, x_test, y_train, y_test, score="f1", j
             {'C': [0.1, 1, 10, 100, 1000], 'gamma': [0.01, 0.001, 0.001, 0.0001], 'degree': [1, 3, 5, 7]}]
         svc = svm.SVC(kernel="poly")
     else:
-        logging.error("Unsupported kernel %s" % kernel)
+        LOGGER.error("Unsupported kernel %s" % kernel)
         sys.exit()
 
     print("# Parameters: %s" % svc.get_params())
@@ -661,11 +663,11 @@ def instantiate_classifier(kernel_name, occ=False):
             clf = svm.SVC(kernel="poly", tol=1E-5, gamma="auto", C=100)
         k_name = "polynomial"
     else:
-        logging.error("Unknown SVM kernel '{}'.\n".format(kernel_name))
+        LOGGER.error("Unknown SVM kernel '{}'.\n".format(kernel_name))
         # poly_clf = svm.SVC(kernel="poly", tol=1E-3, max_iter=1E6, degree=6, gamma="auto")
         sys.exit(3)
 
-    logging.debug("Using a '{}' kernel for the SVM classifier\n".format(k_name))
+    LOGGER.debug("Using a '{}' kernel for the SVM classifier\n".format(k_name))
 
     return clf
 
@@ -674,7 +676,7 @@ def evaluate_classifier(clf, x_test: np.array, y_test: np.array,
                         classified_data: np.array, conditions: np.array) -> np.array:
     """
     Performs 10-fold cross-validation, computing F1-scores, as well as accuracy, precision and recall.
-    All stats are written to the logging info stream
+    All stats are written to the LOGGER info stream
 
     :param clf: A scikit-learn classifier, either a svm.SVC or svm.LinearSVC
     :param x_test: A Numpy array containing feature vectors of the true positives
@@ -683,19 +685,19 @@ def evaluate_classifier(clf, x_test: np.array, y_test: np.array,
     :param conditions: A Numpy array containing the class condition of each feature vector in classified_data
     :return: None
     """
-    logging.info("Evaluating model predictions with test data... ")
+    LOGGER.info("Evaluating model predictions with test data... ")
     # Predict the response for test dataset
     y_pred = clf.predict(x_test)
     scores = model_selection.cross_val_score(clf, classified_data, conditions, cv=10, scoring='f1')
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
-    logging.info("F1-score\t%0.2f (+/- %0.2f)\n" % (scores.mean(), scores.std() * 2))
+    LOGGER.info("F1-score\t%0.2f (+/- %0.2f)\n" % (scores.mean(), scores.std() * 2))
     # Model Accuracy: how often is the classifier correct?
-    logging.info("Accuracy\t" + str(round(metrics.accuracy_score(y_test, y_pred), 2)) + "\n")
+    LOGGER.info("Accuracy\t" + str(round(metrics.accuracy_score(y_test, y_pred), 2)) + "\n")
     # Model Precision: what percentage of positive tuples are labeled as such?
-    logging.info("Precision\t" + str(round(metrics.precision_score(y_test, y_pred), 2)) + "\n")
+    LOGGER.info("Precision\t" + str(round(metrics.precision_score(y_test, y_pred), 2)) + "\n")
     # Model Recall: what percentage of positive tuples are labelled as such?
-    logging.info("Recall\t\t" + str(round(metrics.recall_score(y_test, y_pred), 2)) + "\n")
+    LOGGER.info("Recall\t\t" + str(round(metrics.recall_score(y_test, y_pred), 2)) + "\n")
 
     return y_pred
 
@@ -711,17 +713,17 @@ def summarize_pquery_ranks(pqueries: list) -> None:
         except AttributeError:
             n_skipped += 1
 
-    logging.info("\n".join(["{}\t{}".format(rank, rank_counts[rank]) for
+    LOGGER.info("\n".join(["{}\t{}".format(rank, rank_counts[rank]) for
                             rank in sorted(rank_counts, key=lambda x: rank_counts[x])]) + "\n")
 
-    logging.debug("{} PQuery instances not included in rank summary.\n".format(n_skipped))
+    LOGGER.debug("{} PQuery instances not included in rank summary.\n".format(n_skipped))
 
     return
 
 
 def characterize_predictions(preds: np.array, pquery_test_map: dict) -> None:
     # Summarise the number of samples for each rank
-    logging.info("Rank representation across clade-exclusion samples tested:\n")
+    LOGGER.info("Rank representation across clade-exclusion samples tested:\n")
     summarize_pquery_ranks(list(itertools.chain.from_iterable(pquery_test_map.values())))
 
     # Summarise the number of false negatives for each rank
@@ -729,7 +731,7 @@ def characterize_predictions(preds: np.array, pquery_test_map: dict) -> None:
     for i in pquery_test_map:
         if preds[i] == -1:
             fn_pqueries += pquery_test_map[i]
-    logging.info("Rank representation across clade-exclusion false negatives:\n")
+    LOGGER.info("Rank representation across clade-exclusion false negatives:\n")
     summarize_pquery_ranks(fn_pqueries)
     return
 
@@ -781,7 +783,7 @@ def generate_train_test_data(true_ps: np.array, false_ps: np.array, test_pr=0.4)
         conditions = np.array([1] * len(true_ps))
 
     if len(conditions) != len(classified_data):
-        logging.error("Inconsistent array lengths between data points (%d) and targets (%d).\n"
+        LOGGER.error("Inconsistent array lengths between data points (%d) and targets (%d).\n"
                       % (len(classified_data), len(conditions)))
         sys.exit(5)
 
@@ -797,11 +799,11 @@ def train_binary_classifier(x_train: np.array, y_train: np.array, kernel: str):
     # Create a SVM Classifier
     clf = instantiate_classifier(kernel)  # type: svm.SVC
 
-    # logging.info("Using a '{}' kernel for the SVM classifier\n".format(k_name))
-    logging.info("Training the '{}' classifier... ".format(kernel))
+    # LOGGER.info("Using a '{}' kernel for the SVM classifier\n".format(k_name))
+    LOGGER.info("Training the '{}' classifier... ".format(kernel))
     # Train the model using the training sets
     clf.fit(x_train, y_train)
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     return clf
 
@@ -809,9 +811,9 @@ def train_binary_classifier(x_train: np.array, y_train: np.array, kernel: str):
 def train_oc_classifier(x_train: np.array, kernel: str):
     clf = instantiate_classifier(kernel, occ=True)  # type: svm.OneClassSVM
 
-    logging.info("Training the '{}' classifier... ".format(kernel))
+    LOGGER.info("Training the '{}' classifier... ".format(kernel))
     clf.fit(x_train)
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     return clf
 
@@ -844,7 +846,7 @@ def train_classification_filter(classified_data: np.array, conditions: np.array,
     """
     classifiers = dict()
     if len(x_train) == 0:
-        logging.error("No positive examples are available for training.\n")
+        LOGGER.error("No positive examples are available for training.\n")
         sys.exit(17)
     elif 0 in y_train:  # See if there are any negative examples for binary classification
         if grid_search:

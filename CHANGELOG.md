@@ -1,12 +1,25 @@
-## [0.11.1] - 2021-05
+## [0.11.2] - 2021-06
 ### Added
 - Option '--unknown_colour' for `treesapp colour` where a colour for "Unknown" features or taxa are included in the iTOL files.
+- New options for pre-clustering the classified sequences using either Barberra et al.'s placement-space method or 
+  pairwise alignment to speed up pOTU inference. Controlled with the "-p/--pre_mode" argument
+- Dynamic evolutionary distance threshold for query sequences based on branch lengths descendent from placement position 
+- RecA, RadA and RpoB reference packages being distributed as part of the core set
+- The new '--query_coverage' command-line parameter is available in `treesapp assign` and drastically improves precision
+  and recall in conjunction with '--hmm_coverage'. Both are set to 80% by default. 
 
 ### Fixed
+- `treesapp package edit` assigns a leaf node only to the most resolved feature annotation
+- Estimating `treesapp phylotu`'s alpha threshold is improved
+- Setting distal and pendant lengths during aelw summary allows placements to be correctly filtered
+- Final rank of a query sequence's assigned taxonomic lineage is not adjusted with aELW placement summary 
 
 ### Changed
 - Non-taxonomic features are coloured in alphabetical order (according to the palette used) in `treesapp colour`
-- iTOL colour-strip files dataset labels are now the feature name 
+- iTOL colour-strip files dataset labels are now the feature name
+- Users are warned if multiple feature annotations are assigned to a leaf node during `treesapp package edit`
+- `treesapp phylotu`'s _de novo_ pOTU workflow adds the most related reference sequences when inferring each phylogeny 
+  to handle truncated query sequences
 
 ## [0.11.0] - 2021-04-27
 TreeSAPP version 0.11.0 changes how users store and interact with reference package feature annotations.

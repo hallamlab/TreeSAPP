@@ -15,22 +15,25 @@ from treesapp import file_parsers
 from treesapp import wrapper
 from treesapp import utilities
 from treesapp import assign
+from treesapp import logger
 from treesapp.phylo_seq import assignments_to_pqueries
 from treesapp import refpkg as ts_ref_pkg
 from treesapp.fasta import get_headers, register_headers
-from treesapp.classy import prep_logging, get_header_info
+from treesapp.classy import get_header_info
 from treesapp.entrez_utils import EntrezRecord, get_multiple_lineages
 from treesapp import lca_calculations as ts_lca
 from treesapp.treesapp_args import TreeSAPPArgumentParser
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.training_utils import bin_headers, QuerySequence
 
+LOGGER = logging.getLogger(logger.logger_name())
+
 
 class ConfusionTest:
     def __init__(self, gene_list):
         self._MAX_TAX_DIST = -1
         self.ref_packages = {key: ts_ref_pkg.ReferencePackage() for key in gene_list}
-        self.fn = {key: [] for key in gene_list}
+        self.fn = {key: set() for key in gene_list}
         self.fp = {key: set() for key in gene_list}
         self.tp = {key: [] for key in gene_list}  # This will be a list of QuerySequence instances
         self.unlabelled_tp_query_names = {}  # These are to be added to the table at distance seven
@@ -72,7 +75,7 @@ class ConfusionTest:
         elif tool == "diamond":
             self.data_dir = output_dir + os.sep + "DIAMOND_output" + os.sep
         else:
-            logging.error("Unrecognized tool: " + tool + "\n")
+            LOGGER.error("Unrecognized tool: " + tool + "\n")
             sys.exit(1)
         return
 
@@ -139,7 +142,7 @@ class ConfusionTest:
             warn_str = ""
             for taxid in sorted(unknowns, key=int):
                 warn_str += "\t{} query sequences with unknown taxid '{}'\n".format(unknowns[taxid], taxid)
-            logging.warning("Lineage information unavailable for taxonomy IDs:\n" + warn_str)
+            LOGGER.warning("Lineage information unavailable for taxonomy IDs:\n" + warn_str)
         return
 
     def map_true_lineages(self) -> None:
@@ -175,7 +178,7 @@ class ConfusionTest:
 
         with open(classification_file, 'w') as info_handler:
             info_handler.write(info_string)
-        logging.debug("Taxonomic lineage distribution of " + str(len(lineage_list)) + " 'true' reference sequences.\n")
+        LOGGER.debug("Taxonomic lineage distribution of " + str(len(lineage_list)) + " 'true' reference sequences.\n")
         input_taxa_dist = summarize_taxonomy(taxa_list=lineage_list,
                                              rank=rank,
                                              rank_depth_map=self.rank_depth_map)
@@ -183,7 +186,7 @@ class ConfusionTest:
         summary_string = ""
         for summary_lineage in sorted(input_taxa_dist, key=lambda x: input_taxa_dist[x]):
             summary_string += "\t'" + summary_lineage + "'\t" + str(input_taxa_dist[summary_lineage]) + "\n"
-        logging.debug(summary_string)
+        LOGGER.debug(summary_string)
         return
 
     def bin_true_positives_by_taxdist(self):
@@ -206,13 +209,13 @@ class ConfusionTest:
                 tp_inst.true_lineage = refpkg.taxa_trie.clean_lineage_string(tp_inst.true_lineage)
                 optimal_taxon = ts_lca.optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
                 if not optimal_taxon:
-                    logging.debug("Optimal taxonomic assignment '{}' for {}"
+                    LOGGER.debug("Optimal taxonomic assignment '{}' for {}"
                                   " not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.place_name))
                     continue
                 tp_inst.optimal_lineage = optimal_taxon
                 tp_inst.tax_dist, status = ts_lca.compute_taxonomic_distance(tp_inst.assigned_lineage, optimal_taxon)
                 if status > 0:
-                    logging.debug("Lineages didn't converge between:\n"
+                    LOGGER.debug("Lineages didn't converge between:\n"
                                   "'{}' and '{}' (taxid: {})\n".format(tp_inst.assigned_lineage,
                                                                        optimal_taxon, tp_inst.ncbi_tax))
                 try:
@@ -223,13 +226,13 @@ class ConfusionTest:
 
     def check_dist(self):
         if self._MAX_TAX_DIST < 0:
-            logging.error("ConfusionTest's _MAX_TAX_DIST has yet to be set.\n")
+            LOGGER.error("ConfusionTest's _MAX_TAX_DIST has yet to be set.\n")
             sys.exit(5)
         return
 
     def check_refpkg_name(self, refpkg_name):
         if refpkg_name not in self.ref_packages:
-            logging.error(refpkg_name + " is not found in the names of markers to be tested.\n")
+            LOGGER.error(refpkg_name + " is not found in the names of markers to be tested.\n")
             sys.exit(9)
         return
 
@@ -395,7 +398,7 @@ class ConfusionTest:
             try:
                 internal_nodes_dict[refpkg.prefix] = refpkg.get_internal_node_leaf_map()
             except IndexError:
-                logging.error("Unable to read tree for reference package %s from '%s'.\n" % (name, refpkg.tree))
+                LOGGER.error("Unable to read tree for reference package %s from '%s'.\n" % (name, refpkg.tree))
                 sys.exit(3)
             hmm_lengths[refpkg.prefix] = refpkg.profile_length
         #
@@ -491,7 +494,7 @@ class ConfusionTest:
             mcc = calculate_matthews_correlation_coefficient(num_tp, num_fp, num_fn, num_tn)
             mcc_string += "\t".join([str(x) for x in [d, mcc, num_tp, num_tn, num_fp, num_fn]]) + "\n"
             d += 1
-        logging.info(mcc_string)
+        LOGGER.info(mcc_string)
         with open(mcc_table_file, 'w') as mcc_handler:
             mcc_handler.write(mcc_string)
         return
@@ -520,7 +523,7 @@ def summarize_taxonomy(taxa_list, rank, rank_depth_map=None):
     try:
         depth = rank_depth_map[rank] + 1
     except KeyError:
-        logging.error("Rank '{}' not present in rank-depth map:\n"
+        LOGGER.error("Rank '{}' not present in rank-depth map:\n"
                       "{}\n".format(rank, rank_depth_map))
         sys.exit(3)
 
@@ -541,7 +544,7 @@ def summarize_taxonomy(taxa_list, rank, rank_depth_map=None):
         except KeyError:
             taxa_census[summary_lineage] = 1
         acc += 1
-    logging.debug(str(empty) + " empty lineages encountered.\n")
+    LOGGER.debug(str(empty) + " empty lineages encountered.\n")
 
     return taxa_census
 
@@ -591,7 +594,7 @@ def get_arguments(sys_args):
         args.output += os.sep
 
     if len(args.input) > 1:
-        logging.error("Unable to handle more than one fastx_input file.\n")
+        LOGGER.error("Unable to handle more than one fastx_input file.\n")
         sys.exit(7)
     args.input = args.input.pop(0)
 
@@ -599,7 +602,7 @@ def get_arguments(sys_args):
 
 
 def validate_command(args, sys_args):
-    logging.debug("Command used:\n" + ' '.join(sys_args) + "\n")
+    LOGGER.debug("Command used:\n" + ' '.join(sys_args) + "\n")
 
     if not os.path.isdir(args.output):
         os.mkdir(args.output)
@@ -609,20 +612,20 @@ def validate_command(args, sys_args):
         args.refpkg_dir = args.treesapp + "data" + os.sep
 
     if sys.version_info < (2, 9):
-        logging.error("Python version '" + str(sys.version_info) + "' not supported.\n")
+        LOGGER.error("Python version '" + str(sys.version_info) + "' not supported.\n")
         sys.exit(3)
 
     if args.refpkg_dir and args.refpkg_dir[-1] != os.sep:
         args.refpkg_dir += os.sep
     if args.tool in ["diamond", "graftm"]:
         if not args.refpkg_dir:
-            logging.error(args.tool + " specified but a GraftM reference package directory was not provided.\n")
+            LOGGER.error(args.tool + " specified but a GraftM reference package directory was not provided.\n")
             sys.exit(17)
         elif not os.path.isdir(args.refpkg_dir):
-            logging.error(args.refpkg_dir + " GraftM reference package directory does not exist!\n")
+            LOGGER.error(args.refpkg_dir + " GraftM reference package directory does not exist!\n")
             sys.exit(17)
         elif len(glob(args.refpkg_dir + "*gpkg")) == 0:
-            logging.error("No GraftM reference packages found in " + args.refpkg_dir + ".\n")
+            LOGGER.error("No GraftM reference packages found in " + args.refpkg_dir + ".\n")
             sys.exit(17)
 
     if args.targets:
@@ -647,7 +650,7 @@ def check_previous_output(output_dir: str, files: list, overwrite=False) -> None
         os.mkdir(output_dir)
     elif overwrite:
         if os.path.isdir(output_dir):
-            logging.warning("Overwriting directory '{}' in 5 seconds. Press Ctrl-C to cancel.\n".format(output_dir))
+            LOGGER.warning("Overwriting directory '{}' in 5 seconds. Press Ctrl-C to cancel.\n".format(output_dir))
             sleep(5)
             shutil.rmtree(output_dir)
         os.mkdir(output_dir)
@@ -677,10 +680,10 @@ def filter_redundant_og(query_og_map: dict) -> set:
             redundants.add(query_name)
 
     if redundants:
-        logging.warning("{}/{} query sequences were annotated as multiple reference packages and have been removed.\n"
+        LOGGER.warning("{}/{} query sequences were annotated as multiple reference packages and have been removed.\n"
                         "".format(len(redundants), len(query_og_map)))
         for og in sorted(ortho_filters):
-            logging.info("{}% of annotated sequences were filtered for '{}'.\n"
+            LOGGER.info("{}% of annotated sequences were filtered for '{}'.\n"
                          "".format(round((ortho_filters[og]*100)/ortho_counts[og], 1), og))
 
     for query_name in redundants:
@@ -747,9 +750,9 @@ def match_queries_to_refpkgs(query_name_map: dict, refpkg_dict: dict) -> (dict, 
         query_to_code.pop(qname)
 
     if missing_matches:
-        logging.info("{} unique reference packages ({} total) referred to in the annotation file were not found"
+        LOGGER.info("{} unique reference packages ({} total) referred to in the annotation file were not found"
                      " in the reference package list.\n".format(len(set(missing_matches)), len(missing_matches)))
-        logging.debug("Unique annotation names that couldn't be mapped to reference packages:\n{}\n"
+        LOGGER.debug("Unique annotation names that couldn't be mapped to reference packages:\n{}\n"
                       "".format(set(missing_matches)))
 
     return query_to_prefix, query_to_code
@@ -766,10 +769,10 @@ def mcc_calculator(sys_args):
     classification_info_output = output_prefix + "_classifications.tsv"
     graftm_exe = ""
 
-    # Instantiate the logging instance and write the log
-    prep_logging(log_name, args.verbose)
+    # Instantiate the LOGGER instance and write the log
+    logger.prep_logging(log_name, args.verbose)
 
-    logging.info("\n##\t\t\tBeginning Matthews Correlation Coefficient analysis\t\t\t##\n")
+    LOGGER.info("\n##\t\t\tBeginning Matthews Correlation Coefficient analysis\t\t\t##\n")
     validate_command(args, sys.argv)
 
     ##
@@ -788,7 +791,7 @@ def mcc_calculator(sys_args):
     test_obj.redundant_queries = filter_redundant_og(query_name_dict)
     query_to_prefix, query_to_code = match_queries_to_refpkgs(query_name_dict, refpkg_dict)
     if len(query_to_code) == 0 or len(query_to_prefix) == 0:
-        logging.error("Matching reference package annotations to queries failed.\n")
+        LOGGER.error("Matching reference package annotations to queries failed.\n")
         sys.exit(13)
 
     refpkg_name_query_map = create_refpkg_query_map(query_to_code, refpkg_dict)
@@ -814,9 +817,9 @@ def mcc_calculator(sys_args):
                                                      gpkg_name + "*taxonomy.csv")).pop()
                     test_obj.ref_packages[gpkg_name].taxa_trie = file_parsers.grab_graftm_taxa(tax_ids_file)
                 except IndexError:
-                    logging.warning("No GraftM taxonomy file found for {}. Is this gpkg complete?\n".format(gpkg_name))
+                    LOGGER.warning("No GraftM taxonomy file found for {}. Is this gpkg complete?\n".format(gpkg_name))
     else:
-        logging.error("Unrecognized tool name '{}'\n".format(args.tool))
+        LOGGER.error("Unrecognized tool name '{}'\n".format(args.tool))
         sys.exit(3)
 
     ##
@@ -836,14 +839,18 @@ def mcc_calculator(sys_args):
                              "--output", test_obj.data_dir,
                              "--stringency", args.stringency,
                              "--hmm_coverage", str(args.hmm_coverage),
+                             "--query_coverage", str(args.query_coverage),
                              "--placement_summary", args.p_sum,
                              "--min_like_weight_ratio", str(args.min_lwr),
-                             "--max_pendant_length", str(args.max_pd),
                              "--overwrite", "--delete"]
             if args.trim_align:
                 classify_args.append("--trim_align")
             if args.svm:
                 classify_args.append("--svm")
+            if args.max_pd:
+                classify_args += ["--max_pendant_length", str(args.max_pd)]
+            if args.max_evo:
+                classify_args += ["--max_evol_distance", str(args.max_evo)]
             assign.assign(classify_args)
         classification_lines = file_parsers.read_classification_table(classification_table)
         assignments = assignments_to_pqueries(classification_lines)
@@ -852,10 +859,10 @@ def mcc_calculator(sys_args):
         for gpkg in glob(args.refpkg_dir + "*gpkg"):
             pkg_name = str(os.path.basename(gpkg).split('.')[0])
             if not pkg_name:
-                logging.error("Unable to parse marker name from gpkg '{}'\n".format(gpkg))
+                LOGGER.error("Unable to parse marker name from gpkg '{}'\n".format(gpkg))
                 sys.exit(5)
             if pkg_name not in test_obj.ref_packages:
-                logging.warning("'{}' not in {} and will be skipped...\n".format(pkg_name, args.annot_map))
+                LOGGER.warning("'{}' not in {} and will be skipped...\n".format(pkg_name, args.annot_map))
                 continue
             output_dir = test_obj.data_dir + pkg_name + os.sep
             classification_table = output_dir + test_fa_prefix + os.sep + test_fa_prefix + "_read_tax.tsv"
@@ -867,13 +874,13 @@ def mcc_calculator(sys_args):
             assignments[pkg_name] = file_parsers.read_graftm_classifications(classification_table)
 
     if len(assignments) == 0:
-        logging.error("No sequences were classified by " + args.tool + ".\n")
+        LOGGER.error("No sequences were classified by " + args.tool + ".\n")
         sys.exit(3)
 
-    logging.info("Reading headers in " + args.input + "... ")
+    LOGGER.info("Reading headers in " + args.input + "... ")
     test_obj.all_queries = set([seq_name[1:] if seq_name[0] == '>' else seq_name for
                                 seq_name in get_headers(args.input)])
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     ##
     # Bin the test sequence names into their respective confusion categories (TP, TN, FP, FN)
@@ -887,15 +894,15 @@ def mcc_calculator(sys_args):
 
     test_obj.summarise_reference_taxa(taxa_dist_output, classification_info_output, summary_rank)
     if args.tool == "treesapp" and classification_lines:
-        logging.debug(test_obj.summarise_type_one_placements(classification_lines))
-    logging.debug(test_obj.summarize_type_two_taxa(summary_rank))
-    logging.debug(test_obj.true_positive_taxonomic_summary(summary_rank, True))
+        LOGGER.debug(test_obj.summarise_type_one_placements(classification_lines))
+    LOGGER.debug(test_obj.summarize_type_two_taxa(summary_rank))
+    LOGGER.debug(test_obj.true_positive_taxonomic_summary(summary_rank, True))
 
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
     test_obj._MAX_TAX_DIST = 6
-    logging.debug(test_obj.get_info(True))
+    LOGGER.debug(test_obj.get_info(True))
     test_obj.tabularise_mcc_stats(mcc_file)
     return
 

@@ -1,11 +1,13 @@
-__author__ = 'Connor Morgan-Lang'
-
 import sys
 import re
 import os
 import logging
 
 from ete3 import Tree, TreeNode
+
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 def get_node(tree: str, pos: int) -> (int, int):
@@ -26,14 +28,16 @@ def get_node(tree: str, pos: int) -> (int, int):
     return int(node), pos
 
 
-def label_internal_nodes_ete(ete_tree: Tree, relabel=False) -> None:
+def label_internal_nodes_ete(ete_tree: Tree, relabel=False, attr="name", attr_type=str) -> None:
     i = 0
     if len(ete_tree.children) > 2:
         ete_tree.resolve_polytomy(recursive=True)
     for n in ete_tree.traverse(strategy="postorder"):  # type: Tree
         # Name the edge by it's unique internal node number
-        if not n.name or relabel:
-            n.name = str(i)
+        if not hasattr(n, attr):
+            n.add_feature(attr, attr_type(i))
+        elif not getattr(n, attr) or relabel:
+            setattr(n, attr, attr_type(i))
         i += 1
     return
 
@@ -50,24 +54,23 @@ def match_leaves_to_internal_nodes(leaf_names: list, internal_node_leaf_map: dic
     return node_leaf_map
 
 
-def edge_from_node_name(ete_tree: Tree, node_name) -> int:
+def edge_from_node_name(ete_tree: Tree, node) -> int:
     """
     Returns the number corresponding to a node's proximal edge (i.e. the edge connecting the node to its parent)
 
     Note: this algorithm is only suitable for complete trees, not subtrees!
 
     :param ete_tree: An ETE3 Tree instance where all nodes have names that can be matches
-    :param node_name: The name of the node to retrieve the edge of
+    :param node: The name of the node to retrieve the edge of
     :return: An integer representing the name of the node's edge
     """
     edge_name = 0
-    if len(ete_tree.children) > 2:
-        ete_tree.resolve_polytomy(recursive=False)
+    name = str(node)
     ete_tree = ete_tree.get_tree_root()
-    for node in ete_tree.traverse(strategy="postorder"):  # type: Tree
-        if len(node.children) > 2:
-            node.resolve_polytomy(recursive=False)
-        if str(node_name) == node.name:
+    for tree_node in ete_tree.traverse(strategy="postorder"):  # type: Tree
+        if len(tree_node.children) > 2:
+            tree_node.resolve_polytomy(recursive=False)
+        if name == str(tree_node.name):
             return edge_name
         edge_name += 1
     return -1
@@ -118,6 +121,18 @@ def load_ete3_tree(newick_tree) -> Tree:
         return newick_tree
 
 
+def collapse_ete_tree(tree_root: Tree, min_branch_length: float):
+    for n in tree_root.traverse(strategy="postorder"):
+        if n.is_leaf():
+            continue
+        else:
+            closest_leaf, leaf_dist = n.get_closest_leaf()  # type: (Tree, float)
+            if leaf_dist < min_branch_length:
+                closest_leaf.delete(prevent_nondicotomic=True, preserve_branch_length=True)
+
+    return
+
+
 def map_internal_nodes_leaves(tree: str) -> dict:
     """
     Loads a Newick-formatted tree into a dictionary of all internal nodes (keys) and a list of child leaves (values).
@@ -147,7 +162,7 @@ def map_internal_nodes_leaves(tree: str) -> dict:
             # Append the most recent leaf
             current_node, x = get_node(no_length_tree, x + 1)
             if current_node in node_map:
-                logging.error("Key '" + str(current_node) + "' being overwritten in internal-node map\n")
+                LOGGER.error("Key '" + str(current_node) + "' being overwritten in internal-node map\n")
                 sys.exit(11)
             node_map[current_node] = node_stack.pop()
             leaf_stack.append(current_node)
@@ -161,7 +176,7 @@ def map_internal_nodes_leaves(tree: str) -> dict:
                     c = no_length_tree[x]
                 current_node, x = get_node(no_length_tree, x)
                 if current_node in node_map:
-                    logging.error("Key '" + str(current_node) + "' being overwritten in internal-node map\n")
+                    LOGGER.error("Key '" + str(current_node) + "' being overwritten in internal-node map\n")
                     sys.exit(11)
                 node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
                 leaf_stack.append(current_node)
@@ -170,7 +185,7 @@ def map_internal_nodes_leaves(tree: str) -> dict:
         x += 1
 
     if node_stack:
-        logging.error("Node stack not empty by end of loading internal-node map:\n" + str(node_stack) + "\n")
+        LOGGER.error("Node stack not empty by end of loading internal-node map:\n" + str(node_stack) + "\n")
         sys.exit(11)
 
     # Ensure all the leaves were popped in case the tree was unrooted
@@ -179,7 +194,7 @@ def map_internal_nodes_leaves(tree: str) -> dict:
         try:
             node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
         except IndexError:
-            logging.error("Tried to generate leaf-to-internal node map from multifurcating tree.\n")
+            LOGGER.error("Tried to generate leaf-to-internal node map from multifurcating tree.\n")
             sys.exit(11)
         if leaf_stack:
             leaf_stack.append(current_node)
@@ -197,7 +212,7 @@ def annotate_partition_tree(refpkg_name: str, leaf_nodes: list, bipart_tree: str
     tree_file.close()
     for leaf_node in leaf_nodes:
         if not re.search(r"[,(]{0}_{1}".format(leaf_node.number, refpkg_name), tree):
-            logging.warning("Unable to find '{}' in {}.\n"
+            LOGGER.warning("Unable to find '{}' in {}.\n"
                             "The bipartition tree will not be annotated"
                             " (no effect on reference package).\n".format(leaf_node.number + '_' + refpkg_name,
                                                                           bipart_tree))

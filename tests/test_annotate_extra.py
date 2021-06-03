@@ -86,18 +86,27 @@ class MyTestCase(unittest.TestCase):
 
     def test_map_queries_to_annotations(self):
         from treesapp.annotate_extra import map_queries_to_annotations
+
+        annot_map = {"Function": {"McrA": {"SCAO": {290, 289},
+                                           "Aceticlastic": {340, 2},
+                                           "Methanotrophic": {289, 300, 301, 302}}}}
         # Functional test
-        map_queries_to_annotations(master_dat={"McrA": [self.cs1, self.cs2, self.cs3]},
-                                   marker_tree_info={"Function": {"McrA": {"SCO": {290, 289},
-                                                                           "Aceticlastic": {340, 2}}}})
-        self.assertEqual({"Function": "SCO"}, self.cs1.layers)
+        map_queries_to_annotations(refpkg_classifications={"McrA": [self.cs1, self.cs2, self.cs3]},
+                                   refpkg_annotations=annot_map,
+                                   join=False)
+        self.assertEqual({"Function": "Unknown"}, self.cs1.layers)
         self.assertEqual({"Function": "Unknown"}, self.cs2.layers)
         self.assertEqual({"Function": "Aceticlastic"}, self.cs3.layers)
 
+        map_queries_to_annotations(refpkg_classifications={"McrA": [self.cs1, self.cs2, self.cs3]},
+                                   refpkg_annotations=annot_map,
+                                   join=True)
+        self.assertEqual({"Function": "Methanotrophic;SCAO"}, self.cs1.layers)
+
         # Fails because the value in the marker_tree_info is a set, not a dictionary
         with pytest.raises(TypeError):
-            map_queries_to_annotations(master_dat={"McrA": [self.cs1, self.cs2, self.cs3]},
-                                       marker_tree_info={"Function": {"McrA": {290}}})
+            map_queries_to_annotations(refpkg_classifications={"McrA": [self.cs1, self.cs2, self.cs3]},
+                                       refpkg_annotations={"Function": {"McrA": {290}}})
 
         return
 

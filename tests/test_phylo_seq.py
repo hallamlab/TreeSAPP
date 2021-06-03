@@ -22,8 +22,8 @@ class PhyloSeqTests(unittest.TestCase):
         from treesapp.phylo_seq import PQuery
         from treesapp.refpkg import ReferencePackage
         # A generic placement dictionary parsed from a JPlace file
-        self.placement_dict = {'p': [[489, -50.7, 0.7, 0.859, 1.227],
-                                     [1, -50.8, 0.3, 0.1, 1.1]],
+        self.placement_dict = {'p': [[489, -50.7, 0.6, 0.859, 1.227],
+                                     [1, -50.8, 0.4, 0.1, 1.1]],
                                'n': ['seq_test_1']}
         self.field_order = ['edge_num', 'likelihood', 'like_weight_ratio', 'distal_length', 'pendant_length']
 
@@ -44,6 +44,9 @@ class PhyloSeqTests(unittest.TestCase):
                                                [393, -56289.2785075033, 0.0189423138, 0.0153064082, 0.0729607682],
                                                [388, -56285.7632899202, 0.6369020189, 0.0103030924, 0.0686955093]],
                                          'n': ['AFD09581.1']}
+        for pq in [self.pquery_test_1, self.pquery_test_2, self.pquery_test_3, self.pquery_test_4, self.pquery_test_5]:
+            pq.node_map = self.db.node_map
+
         # Reference packages
         puha_rp = ReferencePackage()
         puha_rp.f__pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
@@ -72,14 +75,21 @@ class PhyloSeqTests(unittest.TestCase):
         pquery_1, pquery_2 = self.pqueries["PuhA"]
 
         # Test when no names map
-        phylo_seq.abundify_tree_saps(tree_saps=self.pqueries, abundance_dict=abund_dict)
+        phylo_seq.quantify_pquery_instances(tree_saps=self.pqueries, abundance_dict=abund_dict)
         self.assertEqual(0.0, pquery_2.abundance)
 
         # Set the place name so the names now match
         pquery_1.place_name = "{}|{}|{}_{}".format(pquery_1.seq_name, pquery_1.ref_name, pquery_1.start, pquery_1.end)
-        phylo_seq.abundify_tree_saps(tree_saps=self.pqueries, abundance_dict=abund_dict)
+        phylo_seq.quantify_pquery_instances(tree_saps=self.pqueries, abundance_dict=abund_dict)
         self.assertEqual(100, pquery_1.abundance)
 
+        return
+
+    def test_phyloplace_str(self):
+        from treesapp import phylo_seq
+        pplace = phylo_seq.PhyloPlace(placement={"n": "test_seq_1", "p": [["13", "0.01", "0.02"]]},
+                                      field_positions=["edge_num", "distal_length", "pendant_length"])
+        self.assertEqual("Placement of sequence 'test_seq_1' on edge 13", str(pplace))
         return
 
     def test_calc_mean_tip_length(self):
@@ -121,10 +131,11 @@ class PhyloSeqTests(unittest.TestCase):
             self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
         # Now format and test for a proper PQuery with multiple placements near the root
         self.pquery_test_1.placements = split_placements(self.placement_dict)
-        self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree(), min_aelw=0.6)
+        self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
         self.assertEqual("r__Root", self.pquery_test_1.lct)
-        self.assertEqual(2, len(self.pquery_test_1.placements))
-        self.assertEqual(490, self.pquery_test_1.consensus_placement.edge_num)
+        self.assertEqual(1, len(self.pquery_test_1.placements))
+        self.assertEqual(1.1, self.pquery_test_1.consensus_placement.pendant_length)
+        self.assertEqual(498, self.pquery_test_1.consensus_placement.edge_num)
 
         # Test for a PQuery with just a single placement
         self.pquery_test_3.placements = split_placements(self.pquery_test_3.placements)
@@ -180,6 +191,38 @@ class PhyloSeqTests(unittest.TestCase):
 
         # Test when the seq_name attribute is set - nothing should be changed
 
+        return
+
+    def test_sort_centroids_from_clusters(self):
+        from treesapp import phylo_seq
+        with pytest.raises(AttributeError):
+            phylo_seq.sort_centroids_from_clusters(list(range(8)), [0]*2 + [1]*6)
+        pq_1 = phylo_seq.PQuery()
+        pq_2 = phylo_seq.PQuery()
+        final_clusters = phylo_seq.sort_centroids_from_clusters(pqueries=[pq_1, pq_2],
+                                                                cluster_indices=[0, 0])
+        self.assertIsInstance(final_clusters, list)
+        self.assertEqual(1, len(final_clusters))
+        return
+
+    def test_cluster_pquery_distances(self):
+        from treesapp import phylo_seq
+        from treesapp import file_parsers
+        from treesapp.seq_clustering import Cluster
+        from treesapp.assign import Assigner
+        refpkg_pquery_map = file_parsers.load_classified_sequences_from_assign_output(get_test_data("test_output_TarA"),
+                                                                                      Assigner(),
+                                                                                      refpkg_name="McrA")
+        test_pqueries = refpkg_pquery_map["McrA"]
+        self.assertEqual(11, len(test_pqueries))
+
+        pquery_clusters = phylo_seq.cluster_pquery_placement_space_distances(test_pqueries)
+        self.assertEqual(11, len(pquery_clusters))
+        self.assertIsInstance(pquery_clusters['0'], Cluster)
+
+        phylo_seq.cluster_pquery_placement_space_distances(test_pqueries, min_cluster_size=2)
+        self.assertEqual(1, max([len(i.members) for i in pquery_clusters.values()]))
+        self.assertEqual(11, len(pquery_clusters))
         return
 
     def test_split_placements(self):

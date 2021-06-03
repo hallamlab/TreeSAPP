@@ -1,5 +1,3 @@
-__author__ = 'Connor Morgan-Lang'
-
 import sys
 import time
 import re
@@ -12,6 +10,9 @@ from tqdm import tqdm
 
 from treesapp.utilities import get_list_positions, get_field_delimiter
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
+from treesapp import logger
+
+LOGGER = logging.getLogger(logger.logger_name())
 
 
 class EntrezRecord:
@@ -84,7 +85,7 @@ def validate_target_db(db_type: str):
     elif db_type == "tax":
         database = "Taxonomy"
     else:
-        logging.error("Welp. We're not sure how but the molecule type is not recognized!\n" +
+        LOGGER.error("Welp. We're not sure how but the molecule type is not recognized!\n" +
                       "Please create an issue on the GitHub page.\n")
         sys.exit(9)
 
@@ -110,7 +111,7 @@ def tolerant_entrez_query(search_term_list: list, db="Taxonomy", method="fetch",
 
     # Check the database name
     if db not in ["nucleotide", "protein", "Taxonomy"]:
-        logging.error("Unknown Entrez database '" + db + "'.\n")
+        LOGGER.error("Unknown Entrez database '" + db + "'.\n")
         sys.exit(9)
 
     if len(search_term_list) == 0:
@@ -157,11 +158,11 @@ def tolerant_entrez_query(search_term_list: list, db="Taxonomy", method="fetch",
         minutes, seconds = divmod(remainder, 60)
         durations.append(str(i) + ' - ' + str(i + chunk_size) + "\t" + ':'.join([str(minutes), str(round(seconds, 2))]))
 
-    logging.debug("Entrez query time for accessions (minutes:seconds):\n\t" +
+    LOGGER.debug("Entrez query time for accessions (minutes:seconds):\n\t" +
                   "\n\t".join(durations) + "\n")
 
     if failures:
-        logging.warning("Unable to parse XML data from Entrez! "
+        LOGGER.warning("Unable to parse XML data from Entrez! "
                         "Either the XML is corrupted or the query terms cannot be found in the database.\n"
                         "Offending accessions from this batch:\n" + "\n".join(failures) + "\n")
     return read_records, durations, failures
@@ -188,7 +189,7 @@ def parse_accessions_from_entrez_xml(record):
                 try:
                     alternatives.append(re.search(r"\|+(.*)$", alt).group(1))
                 except AttributeError:
-                    logging.debug("Unable to parse alternative accession from string: '" + str(record[alt_key]) + "'\n")
+                    LOGGER.debug("Unable to parse alternative accession from string: '" + str(record[alt_key]) + "'\n")
     return accession, versioned, alternatives
 
 
@@ -210,7 +211,7 @@ def parse_gbseq_info_from_entrez_xml(record: dict, gb_key="GBSeq_organism"):
             # except TypeError:
             #     return gb_value
         except (IndexError, KeyError):
-            logging.debug("'" + gb_key + "' not found in Entrez record:\n" + str(record) + "\n")
+            LOGGER.debug("'" + gb_key + "' not found in Entrez record:\n" + str(record) + "\n")
     return gb_value
 
 
@@ -232,16 +233,16 @@ def prep_for_entrez_query():
     :return: None
     """
 
-    logging.debug("Preparing Bio.Entrez for NCBI queries... ")
+    LOGGER.debug("Preparing Bio.Entrez for NCBI queries... ")
     Entrez.email = "c.morganlang@gmail.com"
     Entrez.tool = "treesapp"
     # Test the internet connection:
     try:
         record = Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
     except error.URLError:
-        logging.warning("Unable to serve Entrez query. Are you connected to the internet?\n")
+        LOGGER.warning("Unable to serve Entrez query. Are you connected to the internet?\n")
         record = None
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
     return record
 
 
@@ -256,7 +257,7 @@ def repair_conflict_lineages(t_hierarchy: TaxonomicHierarchy, ref_seq_dict: dict
     """
     if len(t_hierarchy.conflicts) == 0:
         return
-    logging.debug("Resolving conflicting lineages within taxonomic hierarchy... ")
+    LOGGER.debug("Resolving conflicting lineages within taxonomic hierarchy... ")
     nodes_replaced_map = t_hierarchy.resolve_conflicts()  # return taxa whose nodes were merged
 
     for new_taxon, old_taxa in nodes_replaced_map.items():  # type: (Taxon, list)
@@ -283,17 +284,17 @@ def repair_conflict_lineages(t_hierarchy: TaxonomicHierarchy, ref_seq_dict: dict
                     i -= 1
                 for taxon in ref_taxon.lineage():
                     if taxon.parent and taxon.coverage > taxon.parent.coverage:
-                        logging.error("Coverage of descendent {} ({}) is greater than that of ancestral taxon {} ({}).\n"
+                        LOGGER.error("Coverage of descendent {} ({}) is greater than that of ancestral taxon {} ({}).\n"
                                       "".format(taxon.name, taxon.coverage, taxon.parent.name, taxon.parent.coverage))
                         sys.exit(13)
                 try:
                     record.lineage = t_hierarchy.lin_sep.join([taxon.prefix_taxon() for taxon in ref_taxon.lineage()])
                     continue
                 except AttributeError:
-                    logging.warning("Unable to repair the conflicted lineage of record {}, "
+                    LOGGER.warning("Unable to repair the conflicted lineage of record {}, "
                                     "'{}'".format(record.accession, record.lineage))
                     continue
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
     return
 
 
@@ -335,7 +336,7 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     t_hierarchy.clean_trie = True
     repair_conflict_lineages(t_hierarchy, ref_seq_dict)
     t_hierarchy.build_multifurcating_trie(key_prefix=True)
-    logging.debug("Repairing any taxonomic lineages lacking rank prefixes... ")
+    LOGGER.debug("Repairing any taxonomic lineages lacking rank prefixes... ")
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         ref_seq = ref_seq_dict[treesapp_id]  # type: EntrezRecord
         if ref_seq.lineage:
@@ -356,7 +357,7 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
                                                               t_hierarchy.get_taxon_names())
 
     while entrez_query_list:
-        logging.info("Repairing {0} taxonomic lineages for {1} references.\n".format(len(entrez_query_list),
+        LOGGER.info("Repairing {0} taxonomic lineages for {1} references.\n".format(len(entrez_query_list),
                                                                                      len(to_repair)))
         # Gather NCBI taxid
         o_search_terms = entrez_records_to_organism_set(entrez_query_list, 3)
@@ -385,23 +386,23 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
         ref_seq.lineage = ref_lineage
 
         if len(to_repair) == 0:
-            logging.info("done.\n")
-    logging.debug("done.\n")
+            LOGGER.info("done.\n")
+    LOGGER.debug("done.\n")
 
-    logging.debug("Rooting domains in taxonomic hierarchy... ")
+    LOGGER.debug("Rooting domains in taxonomic hierarchy... ")
     t_hierarchy.root_domains(root=t_hierarchy.find_root_taxon())
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
 
-    logging.debug("Validating lineages of all entrez records... ")
+    LOGGER.debug("Validating lineages of all entrez records... ")
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         e_record = ref_seq_dict[treesapp_id]  # type: EntrezRecord
         valid_lineage = t_hierarchy.check_lineage(e_record.lineage, e_record.organism)
         if not valid_lineage:
-            logging.warning("{} lineage '{}' shall not pass! It will be labelled as {} instead.\n"
+            LOGGER.warning("{} lineage '{}' shall not pass! It will be labelled as {} instead.\n"
                             "".format(e_record.versioned, e_record.lineage, t_hierarchy.root_taxon))
             valid_lineage = t_hierarchy.root_taxon
         e_record.lineage = valid_lineage
-    logging.debug("done.\n")
+    LOGGER.debug("done.\n")
 
     return
 
@@ -436,7 +437,7 @@ def fill_ref_seq_lineages(entrez_record_map: dict, accession_lineages: dict, com
                 elif not complete:
                     continue
                 else:
-                    logging.error("Lineage information not retrieved for, or could not be mapped to, accession '{}'.\n"
+                    LOGGER.error("Lineage information not retrieved for, or could not be mapped to, accession '{}'.\n"
                                   "Please remove the output directory and restart.\n".format(ref_seq.accession))
                     sys.exit(13)
             # Add the species designation since it is often not included in the sequence record's lineage
@@ -452,7 +453,7 @@ def fill_ref_seq_lineages(entrez_record_map: dict, accession_lineages: dict, com
         ref_seq.tracking_stamp()
 
     if lineage_added == 0:
-        logging.debug("No lineages from the accession map were added to the EntrezRecord attributes.\n")
+        LOGGER.debug("No lineages from the accession map were added to the EntrezRecord attributes.\n")
 
     return
 
@@ -500,7 +501,7 @@ def map_accession2taxid(query_accessions: list, accession2taxid_list: str) -> di
             er_acc_dict[e_record.accession] = [e_record]
         unmapped_queries.append(e_record.accession)
 
-    logging.info("Mapping query accessions to NCBI taxonomy IDs... ")
+    LOGGER.info("Mapping query accessions to NCBI taxonomy IDs... ")
     for accession2taxid in accession2taxid_list.split(','):
         init_qlen = len(unmapped_queries)
         final_qlen = len(unmapped_queries)
@@ -508,14 +509,14 @@ def map_accession2taxid(query_accessions: list, accession2taxid_list: str) -> di
         try:
             rosetta_handler = open(accession2taxid, 'r')
         except IOError:
-            logging.error("Unable to open '" + accession2taxid + "' for reading.\n")
+            LOGGER.error("Unable to open '" + accession2taxid + "' for reading.\n")
             sys.exit(13)
 
         for line_match in match_file_to_dict(rosetta_handler, er_acc_dict):
             try:
                 accession, ver, taxid, _ = line_match.strip().split("\t")
             except (ValueError, IndexError):
-                logging.warning("Parsing '" + accession2taxid + "' failed.\n")
+                LOGGER.warning("Parsing '" + accession2taxid + "' failed.\n")
                 break
 
             try:
@@ -537,17 +538,17 @@ def map_accession2taxid(query_accessions: list, accession2taxid_list: str) -> di
                 if final_qlen == 0:
                     break
             except KeyError:
-                logging.error("Bad key returned by generator.\n")
+                LOGGER.error("Bad key returned by generator.\n")
                 sys.exit(13)
 
         rosetta_handler.close()
         end = time.time()
-        logging.debug("Time required to parse '" + accession2taxid + "': " + str(round(end - start, 1)) + "s.\n")
+        LOGGER.debug("Time required to parse '" + accession2taxid + "': " + str(round(end - start, 1)) + "s.\n")
         # Report the number percentage of query accessions mapped
-        logging.debug(
+        LOGGER.debug(
             str(round(((init_qlen - final_qlen) * 100 / len(query_accessions)), 2)) +
             "% of query accessions mapped by " + accession2taxid + ".\n")
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     return er_acc_dict
 
@@ -596,20 +597,20 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
             continue
         elif e_record.bitflag < 2:
             # NCBI taxonomy ID has not been added
-            logging.debug("Empty NCBI taxonomy ID for incomplete EntrezRecord query:\n" + e_record.get_info() + "\n")
+            LOGGER.debug("Empty NCBI taxonomy ID for incomplete EntrezRecord query:\n" + e_record.get_info() + "\n")
             continue
         taxid = e_record.ncbi_tax
         if taxid and taxid not in tax_id_map:
             tax_id_map[taxid] = []
         tax_id_map[taxid].append(e_record)
 
-    logging.info("Retrieving lineage information for each taxonomy ID... ")
+    LOGGER.info("Retrieving lineage information for each taxonomy ID... ")
     records_batch, durations, lin_failures = tolerant_entrez_query(list(tax_id_map.keys()))
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
     for record in records_batch:
         tax_id = parse_gbseq_info_from_entrez_xml(record, "TaxId")
         if len(tax_id) == 0:
-            logging.warning("Empty TaxId returned in Entrez XML.\n")
+            LOGGER.warning("Empty TaxId returned in Entrez XML.\n")
             continue
         pulled_tax_ids.add(tax_id)
         tax_lineage = parse_gbseq_info_from_entrez_xml(record, "Lineage")
@@ -617,7 +618,7 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
         tax_rank = parse_gbseq_info_from_entrez_xml(record, "Rank")
         lineage_ex = parse_gbseq_info_from_entrez_xml(record, "LineageEx")
         if not lineage_ex:
-            logging.debug("Unable to find taxonomic ranks for organism '{0}' in record:\n"
+            LOGGER.debug("Unable to find taxonomic ranks for organism '{0}' in record:\n"
                           "{1}\n.".format(tax_organism, record))
             continue
 
@@ -641,7 +642,7 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
 
     if len(pulled_tax_ids.symmetric_difference(set(tax_id_map.keys()))) > 0:
         dl_taxids = set(tax_id_map.keys())
-        logging.debug("The following NCBI taxids are unique to the queries:\n{}\n"
+        LOGGER.debug("The following NCBI taxids are unique to the queries:\n{}\n"
                       "The following NCBI taxids are unique to the downloads:\n{}\n"
                       "".format(", ".join(dl_taxids.difference(pulled_tax_ids)),
                                 ", ".join(pulled_tax_ids.difference(dl_taxids))))
@@ -733,23 +734,23 @@ def fetch_taxids_from_organisms(search_terms: dict) -> None:
     :param search_terms: A dictionary containing organism names as keys and lists of EntrezRecords as values
     :return: None
     """
-    logging.debug(str(len(search_terms.keys())) + " unique organism queries.\n")
-    logging.info("Retrieving NCBI taxonomy IDs for each organism... ")
+    LOGGER.debug(str(len(search_terms.keys())) + " unique organism queries.\n")
+    LOGGER.info("Retrieving NCBI taxonomy IDs for each organism... ")
     records_batch, durations, taxid_failures = tolerant_entrez_query(list(search_terms.keys()),
                                                                      "Taxonomy", "search", "xml", 1)
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     for record in records_batch:
         try:
             organism = parse_gbseq_info_from_esearch_record(record, 'TranslationStack')['Term']
         except (IndexError, KeyError, TypeError):
-            logging.debug("Value for 'TranslationStack' not found in Entrez record."
+            LOGGER.debug("Value for 'TranslationStack' not found in Entrez record."
                           " It is likely this organism name doesn't exist in Entrez's taxonomy database.\n" +
                           "Unable to link taxonomy ID to organism.\nRecord:\n{}\n".format(record))
             continue
         tax_id = parse_gbseq_info_from_esearch_record(record)
         if not tax_id:
-            logging.warning("Entrez returned an empty TaxId for organism '" + organism + "'\n")
+            LOGGER.warning("Entrez returned an empty TaxId for organism '" + organism + "'\n")
         try:
             # This can, and will, lead to multiple accessions being assigned the same tax_id - not a problem, though
             for e_record in search_terms[organism]:
@@ -758,7 +759,7 @@ def fetch_taxids_from_organisms(search_terms: dict) -> None:
                 e_record.ncbi_tax = tax_id
                 e_record.tracking_stamp()
         except KeyError:
-            logging.warning("Unable to map organism '" + organism + "' to an EntrezRecord:\n")
+            LOGGER.warning("Unable to map organism '" + organism + "' to an EntrezRecord:\n")
             continue
     return
 
@@ -788,12 +789,12 @@ def entrez_records_to_accession_lineage_map(entrez_records: list):
         elif e_record.bitflag == 1:
             bad_org += 1
         else:
-            logging.error("Unexpected bitflag (" + str(e_record.bitflag) + ") encountered for EntrezRecord:\n" +
+            LOGGER.error("Unexpected bitflag (" + str(e_record.bitflag) + ") encountered for EntrezRecord:\n" +
                           e_record.get_info() + "tax_id = " + str(e_record.ncbi_tax) + "\n")
             sys.exit(19)
         e_record_key = (e_record.accession, e_record.versioned)
         if e_record_key in accession_lineage_map and e_record.lineage != accession_lineage_map[e_record_key]["lineage"]:
-            logging.warning(str(e_record_key) + " already present in accession-lineage map with different lineage.\n" +
+            LOGGER.warning(str(e_record_key) + " already present in accession-lineage map with different lineage.\n" +
                             "The most complete lineage will be used.\n")
             if len(e_record.lineage) <= len(accession_lineage_map[e_record_key]["lineage"]):
                 continue
@@ -801,7 +802,7 @@ def entrez_records_to_accession_lineage_map(entrez_records: list):
         accession_lineage_map[e_record_key]["lineage"] = e_record.lineage
         accession_lineage_map[e_record_key]["organism"] = e_record.organism
 
-    logging.debug("Queries mapped ideally = " + str(success) +
+    LOGGER.debug("Queries mapped ideally = " + str(success) +
                   "\nQueries with organism unmapped = " + str(bad_org) +
                   "\nQueries with NCBI taxonomy ID unmapped = " + str(bad_tax) +
                   "\nQueries mapped with alternative accessions = " + str(rescued) +
@@ -823,7 +824,7 @@ def get_multiple_lineages(entrez_query_list: list, t_hierarchy: TaxonomicHierarc
     :return: None
     """
     if not entrez_query_list:
-        logging.error("Search_term for Entrez query is empty\n")
+        LOGGER.error("Search_term for Entrez query is empty\n")
         sys.exit(9)
 
     prep_for_entrez_query()
@@ -833,9 +834,9 @@ def get_multiple_lineages(entrez_query_list: list, t_hierarchy: TaxonomicHierarc
     # Step 1: Query Entrez's Taxonomy database using accession IDs to obtain corresponding organisms
     ##
     search_terms = entrez_records_to_accession_set(entrez_query_list, 1)
-    logging.info("Retrieving Entrez taxonomy records for each accession... ")
+    LOGGER.info("Retrieving Entrez taxonomy records for each accession... ")
     records_batch, durations, org_failures = tolerant_entrez_query(list(search_terms.keys()), entrez_db)
-    logging.info("done.\n")
+    LOGGER.info("done.\n")
 
     # Parse the records returned by tolerant_entrez_query, mapping accessions to organism names
     for record in records_batch:
@@ -852,7 +853,7 @@ def get_multiple_lineages(entrez_query_list: list, t_hierarchy: TaxonomicHierarc
                     e_record = search_terms[alt_key]
                     break
         if not e_record:
-            logging.warning("Unable to map neither a record's accession nor accession.version to an EntrezRecord:\n" +
+            LOGGER.warning("Unable to map neither a record's accession nor accession.version to an EntrezRecord:\n" +
                             "Accession: '" + str(accession) + "'\n" +
                             "Acc.Version: '" + str(ver) + "'\n" +
                             "Alternatives:" + str(alt) + "\n" +
@@ -886,9 +887,9 @@ def verify_lineage_information(accession_lineage_map: dict, entrez_record_map: d
     """
     if (len(accession_lineage_map.keys()) + taxa_searched) != len(entrez_record_map):
         # Records were not returned for all sequences. Time to figure out which ones!
-        logging.warning("Entrez did not return a record for every accession queried.\n"
+        LOGGER.warning("Entrez did not return a record for every accession queried.\n"
                         "Don't worry, though. We'll figure out which ones are missing.\n")
-    logging.debug("Entrez.efetch query stats:\n"
+    LOGGER.debug("Entrez.efetch query stats:\n"
                   "\tDownloaded\t" + str(len(accession_lineage_map.keys())) + "\n" +
                   "\tProvided\t" + str(taxa_searched) + "\n" +
                   "\tTotal\t\t" + str(len(entrez_record_map)) + "\n\n")
@@ -912,7 +913,7 @@ def verify_lineage_information(accession_lineage_map: dict, entrez_record_map: d
                         ref_seq.organism = accession_lineage_map[tuple_key]["organism"]
 
             if not lineage and ref_seq.bitflag == 0:
-                logging.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
+                LOGGER.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
                               "Please remove the output directory and restart.\n")
                 sys.exit(13)
             # elif not lineage and ref_seq.bitflag >= 1:
@@ -927,7 +928,7 @@ def verify_lineage_information(accession_lineage_map: dict, entrez_record_map: d
             taxa_searched += 1
 
     if taxa_searched < len(entrez_record_map.keys()):
-        logging.error("Some sequences ({}/{}) were not used to query Entrez's taxonomy database!\n"
+        LOGGER.error("Some sequences ({}/{}) were not used to query Entrez's taxonomy database!\n"
                       "".format(len(entrez_record_map)-taxa_searched, len(entrez_record_map)))
         sys.exit(9)
 
@@ -958,7 +959,7 @@ def read_accession_taxa_map(mapping_file):
     try:
         map_file_handler = open(mapping_file, 'r')
     except (IOError, FileNotFoundError):
-        logging.error("Unable to open " + mapping_file + " for reading!\n")
+        LOGGER.error("Unable to open " + mapping_file + " for reading!\n")
         sys.exit(9)
 
     accession_lineage_map = dict()
@@ -967,7 +968,7 @@ def read_accession_taxa_map(mapping_file):
         if accession not in accession_lineage_map:
             accession_lineage_map[accession] = str(lineage)
         else:
-            logging.error("Accession '{}' present in {} multiple times!\n".format(accession, mapping_file))
+            LOGGER.error("Accession '{}' present in {} multiple times!\n".format(accession, mapping_file))
             sys.exit(9)
 
     map_file_handler.close()
@@ -995,7 +996,7 @@ def build_entrez_queries(fasta_record_objects: dict):
         else:
             unavailable.append(ref_seq.get_info())
     if len(unavailable) > 0:
-        logging.warning("Neither accession nor lineage available for:\n\t" +
+        LOGGER.warning("Neither accession nor lineage available for:\n\t" +
                         "\n\t".join(unavailable))
     return list(entrez_query_list), num_lineages_provided
 
@@ -1011,7 +1012,7 @@ def load_ref_seqs(fasta_dict: dict, header_registry: dict, ref_seq_dict: dict):
     """
     missing = list()
     if len(header_registry) != len(fasta_dict):
-        logging.warning("Number of records in FASTA collection and header list differ.\n" +
+        LOGGER.warning("Number of records in FASTA collection and header list differ.\n" +
                         "Chances are these were short sequences that didn't pass the filter. Carrying on.\n")
 
     for num_id in sorted(ref_seq_dict.keys(), key=int):
@@ -1021,11 +1022,11 @@ def load_ref_seqs(fasta_dict: dict, header_registry: dict, ref_seq_dict: dict):
             ref_seq.sequence = fasta_dict[header.original]
         except KeyError:
             if len(header_registry) == len(fasta_dict):
-                logging.error("{} not found in FASTA records due to format incompatibilities.\n".format(header.original))
+                LOGGER.error("{} not found in FASTA records due to format incompatibilities.\n".format(header.original))
                 sys.exit(21)
             missing.append(str(header.original))
     if len(missing) > 0:
-        logging.debug("The following sequences have been removed from further analyses:\n\t" +
+        LOGGER.debug("The following sequences have been removed from further analyses:\n\t" +
                       "\n\t".join(missing) + "\n")
     return
 
@@ -1049,7 +1050,7 @@ def map_accessions_to_lineages(query_accession_list: list, t_hierarchy: Taxonomi
                 try:
                     entrez_record_dict[e_record.accession].append(e_record)
                 except KeyError:
-                    logging.warning(e_record.accession + " not found in original query list.\n")
+                    LOGGER.warning(e_record.accession + " not found in original query list.\n")
                     continue
                 entrez_records.append(e_record)
         entrez_record_dict.clear()
@@ -1117,7 +1118,7 @@ class Lineage:
         self.verify_rank_occupancy()
 
         if not self.Lineage:
-            logging.warning("Taxonomic lineage information was found in neither lineage nor taxonomic rank fields.\n")
+            LOGGER.warning("Taxonomic lineage information was found in neither lineage nor taxonomic rank fields.\n")
             return ""
 
         if add_organism and self.Organism:
@@ -1174,7 +1175,7 @@ class Lineage:
                     return False
 
         except ValueError:
-            logging.error("Unable to split the lineage '{}' by the separator {}.\n".format(self.Lineage, self.lin_sep))
+            LOGGER.error("Unable to split the lineage '{}' by the separator {}.\n".format(self.Lineage, self.lin_sep))
             raise ValueError()
 
     def domain_check(self) -> None:
@@ -1188,7 +1189,7 @@ class Lineage:
             return
         else:
             if re.sub(r"[a-z]__", '', self.Domain) not in ["Bacteria", "Archaea", "Eukaryota", "Viruses"]:
-                logging.error("I've seen some taxonomic domains in my time and, friend, '{}' isn't one of them.\n"
+                LOGGER.error("I've seen some taxonomic domains in my time and, friend, '{}' isn't one of them.\n"
                               "This may indicate a problem parsing your seqs2lineage file.\n".format(self.Domain))
                 sys.exit(19)
             return
@@ -1212,7 +1213,7 @@ def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
     try:
         handler = open(seq_names_to_taxa, 'r', newline='')
     except IOError:
-        logging.error("Unable to open '" + seq_names_to_taxa + "' for reading!\n")
+        LOGGER.error("Unable to open '" + seq_names_to_taxa + "' for reading!\n")
         sys.exit(3)
     tbl_reader = csv.reader(handler, delimiter=sep)
     # Set up the named tuple that will be used for storing lineage information
@@ -1220,7 +1221,7 @@ def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
     fields = next(tbl_reader)
     field_positions = get_list_positions(fields, header_names)
     if not field_positions:
-        logging.error("Unable to read headers from sequence-taxa table file {}."
+        LOGGER.error("Unable to read headers from sequence-taxa table file {}."
                       " The table must have some combination of the following column names:\n{}\n"
                       "".format(seq_names_to_taxa, ','.join(header_names)))
         sys.exit(3)
@@ -1235,7 +1236,7 @@ def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
                 seq_lin_info.__dict__[field_name] = row[field_positions[field_name]].strip()
             seq_lineage_map[seq_name] = seq_lin_info
     except (csv.Error, IndexError) as e:
-        logging.error("Reading file '{}', line {}:\n{}\n".format(seq_names_to_taxa, tbl_reader.line_num, e))
+        LOGGER.error("Reading file '{}', line {}:\n{}\n".format(seq_names_to_taxa, tbl_reader.line_num, e))
         sys.exit(3)
 
     handler.close()
@@ -1253,7 +1254,7 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
     :param refpkg_name: The reference package's name
     :return: A dictionary mapping each classified sequence to a lineage and list of TreeSAPP IDs that were mapped
     """
-    logging.info("Mapping sequence names to provided taxonomic lineages in {}:\n".format(seq_lineage_tbl))
+    LOGGER.info("Mapping sequence names to provided taxonomic lineages in {}:\n".format(seq_lineage_tbl))
     seq_lineage_map = read_seq_taxa_table(seq_lineage_tbl)
     classified_seq_lineage_map = dict()
     treesapp_nums = list(header_registry.keys())
@@ -1269,7 +1270,7 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
         while x < len(treesapp_nums):
             header = header_registry[treesapp_nums[x]]
             if not header.first_split:
-                logging.error("Sequence header '{}'s first_split attribute hasn't been set.\n".format(header.original))
+                LOGGER.error("Sequence header '{}'s first_split attribute hasn't been set.\n".format(header.original))
                 raise AssertionError("Sequence header '{}'s first_split attribute hasn't been set.\n"
                                      .format(header.original))
 
@@ -1303,12 +1304,12 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
         classified_seq_lineage_map[query_name] = seq_lineage_map[match_name].build_lineage(add_organism=True)
 
     if treesapp_nums:
-        logging.debug("Unable to find parent sequence for {} ORFs in {} map:\n{}\n".format(
+        LOGGER.debug("Unable to find parent sequence for {} ORFs in {} map:\n{}\n".format(
             len(treesapp_nums), seq_lineage_tbl,
             "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n"))
 
     if len(mapped_treesapp_nums) == 0:
-        logging.error("Unable to match any sequence names in {}.\n".format(seq_lineage_tbl))
+        LOGGER.error("Unable to match any sequence names in {}.\n".format(seq_lineage_tbl))
         sys.exit(13)
 
     return classified_seq_lineage_map, mapped_treesapp_nums
