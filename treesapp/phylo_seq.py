@@ -396,6 +396,7 @@ class PQuery:
         node_name_map = {}  # Maps internal node names to TreeNode instances
         taxon_name_map = {}  # Maps taxon names to Taxon instances
         contributors = []
+        p_dists = []
         # Sort to pop the placements in order of biggest likelihood weight ratio to smallest
         self.placements = sorted(self.placements, key=lambda x: float(x.like_weight_ratio))
         self.consensus_placement = PhyloPlace()
@@ -404,6 +405,7 @@ class PQuery:
         while self.placements:
             # Remove the placements contributing to the aELW and replace with the consensus placement
             pplace = self.placements.pop(-1)  # type: PhyloPlace
+            p_dists.append(pplace.pendant_length)
             up_node, down_node = get_ete_edge(labelled_tree, pplace.edge_num)
             parent, child = up_node.taxon, down_node.taxon
             # Ensure each of the taxon in a lineage is in the aELW dictionary
@@ -433,8 +435,10 @@ class PQuery:
         # Find the LCA edge of all placements that contributed to the taxonomic assignment
         node_lca = contributors[0].get_common_ancestor(contributors)  # type: Tree
         # Populate the new placement's attributes
-        self.consensus_placement.distal_length, self.consensus_placement.pendant_length, self.consensus_placement.mean_tip_length = 0.0, 0.0, 0.0
         self.consensus_placement.edge_num = edge_from_node_name(labelled_tree, node_name=node_lca.name)
+        self.consensus_placement.pendant_length = np.mean(p_dists)
+        self.consensus_placement.distal_length = 0.5*node_lca.dist
+        self.consensus_placement.calc_mean_tip_length(internal_leaf_node_map=self.node_map, ref_tree=labelled_tree)
         # Replace the placements that were used in the LCA with the consensus placement
         self.placements.append(self.consensus_placement)
 
@@ -460,8 +464,11 @@ class PQuery:
         at multiple edges with similar likelihood. This function aims to select the single best placement based on
         it's respective Likelihood Weight Ratio (LWR)/PQuery like_weight_ratio attribute.
 
-        The PQuery.consensus_placement attribute is set to this placement with maximum LWR. The PQuery.placements
-        attribute is unmodified.
+        The following PQuery attributes are modified:
+        1. 'consensus_placement' attribute is set to this placement with maximum LWR.
+        2. 'lineage' is set to the lowest common ancestor of the placement edge's distal node
+        3. 'lct' is set to 'lineage' after modification
+        The PQuery.placements attribute is unmodified (ie. all placements are kept).
 
         :param ref_tree: A taxonomically-labelled ETE3 Tree i.e. each TreeNode contains a 'taxon' attribute
         :return: None
@@ -479,11 +486,11 @@ class PQuery:
 
         # Determine the taxonomic lineage of the placement using the labelled tree
         try:
-            up_node, down_node = get_ete_edge(ref_tree, self.consensus_placement.edge_num)
+            _up_node, down_node = get_ete_edge(ref_tree, self.consensus_placement.edge_num)
         except TypeError:
             LOGGER.error("Unable to process placement of '{}' as its placement edge '{}' was not found"
-                          " in the reference tree for {} with {} nodes.\n"
-                          "".format(self.place_name, self.consensus_placement.edge_num, self.ref_name, len(ref_tree)))
+                         " in the reference tree for {} with {} nodes.\n"
+                         "".format(self.place_name, self.consensus_placement.edge_num, self.ref_name, len(ref_tree)))
             sys.exit(5)
         node_taxon = down_node.taxon
         self.lineage = "; ".join([t.prefix_taxon() for t in node_taxon.lineage()])
