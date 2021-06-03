@@ -28,7 +28,7 @@ __python_requires__ = ">=3.6"
 __status__ = "Production/Stable"
 __title__ = "TreeSAPP"
 __url__ = "https://github.com/hallamlab/TreeSAPP"
-__version__ = "0.11.1"
+__version__ = "0.11.2"
 
 __all__ = ['abundance', 'annotate_extra', 'assign', 'clade_annotation',
            'classy', 'commands', 'create_refpkg', 'entish', 'entrez_utils',
