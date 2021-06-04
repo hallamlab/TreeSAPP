@@ -560,7 +560,7 @@ def vectorize_placement_data_by_rank(placement_training_df: pd.DataFrame) -> np.
     return feature_vectors
 
 
-def generate_tsne(x, y, tsne_file):
+def generate_tsne(x, y, tsne_file: str) -> None:
     matplotlib.use('Agg')
     feat_cols = ['pixel' + str(i) for i in range(x.shape[1])]
     df = pd.DataFrame(x, columns=feat_cols)
@@ -588,7 +588,7 @@ def generate_tsne(x, y, tsne_file):
     return
 
 
-def evaluate_grid_scores(kernel, x_train, x_test, y_train, y_test, score="f1", jobs=4):
+def evaluate_grid_scores(kernel: str, x_train, x_test, y_train, y_test, score="f1", jobs=4) -> None:
     print("# Tuning hyper-parameters for '%s'" % kernel)
     print()
 
@@ -633,6 +633,7 @@ def evaluate_grid_scores(kernel, x_train, x_test, y_train, y_test, score="f1", j
     y_true, y_pred = y_test, clf.predict(x_test)
     print(metrics.classification_report(y_true, y_pred))
     print()
+    return
 
 
 def instantiate_classifier(kernel_name, occ=False):

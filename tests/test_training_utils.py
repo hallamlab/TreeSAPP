@@ -29,6 +29,7 @@ class ClassifierTester(unittest.TestCase):
         self.puha_rp = ReferencePackage()
         self.puha_rp.f__pkl = get_test_data(os.path.join("refpkgs", "PuhA_build.pkl"))
         self.puha_rp.slurp()
+        self.num_threads = 2
         return
 
     def tearDown(self) -> None:
@@ -114,6 +115,43 @@ class ClassifierTester(unittest.TestCase):
         self.assertEqual(4, len(training_df))
         self.assertTrue(set(training_df["tp"]))
 
+        return
+
+    def test_generate_tsne(self):
+        from treesapp import training_utils
+        import numpy as np
+        tsne_file = os.path.join("tests", "tsne.png")
+        x = np.array([[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1]])
+        training_utils.generate_tsne(x=x, y=[0, 1, 1, 1], tsne_file=tsne_file)
+        self.assertTrue(os.path.isfile(tsne_file))
+        if os.path.isfile(tsne_file):
+            os.remove(tsne_file)
+        return
+
+    def test_train_classifier_from_dataframe(self):
+        from treesapp import training_utils
+        from treesapp import refpkg
+        import pandas as pd
+        mcra_rp = refpkg.ReferencePackage()
+        mcra_rp.f__pkl = get_test_data(os.path.join("refpkgs", "McrA_build.pkl"))
+        mcra_rp.slurp()
+
+        y_len = 40
+        mock_fps = {"refpkg": ["McrA"]*y_len,
+                    "tp": [False]*y_len,
+                    "tax_rank": ["domain"]*y_len,
+                    "evalue": list(mcra_rp.training_df["evalue"].sample(n=y_len)),
+                    "hmm_cov": list(mcra_rp.training_df["hmm_cov"].sample(n=y_len)),
+                    "leaves": list(mcra_rp.training_df["leaves"].sample(n=y_len)),
+                    "lwr": [1.0]*y_len,
+                    "distal": list(mcra_rp.training_df["distal"].sample(n=y_len)),
+                    "pendant": list(mcra_rp.training_df["pendant"].sample(n=y_len)),
+                    "avg_tip_dist": list(mcra_rp.training_df["avg_tip_dist"].sample(n=y_len))}
+        mock_df = pd.concat([mcra_rp.training_df.head(y_len), pd.DataFrame(mock_fps)])
+        training_utils.train_classifier_from_dataframe(training_df=mock_df,
+                                                       kernel="lin",
+                                                       num_threads=self.num_threads,
+                                                       grid_search=True)
         return
 
 
