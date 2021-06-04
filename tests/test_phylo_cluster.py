@@ -247,6 +247,14 @@ class PhyloClusterTester(unittest.TestCase):
 
         return
 
+    def test_format_precluster_map(self):
+        from treesapp import phylo_cluster
+        precluster_map = {0: "Cluster", 1: "Cluster", 2: "Cluster"}
+        phylo_groups = phylo_cluster.format_precluster_map(cluster_method="align", precluster_map=precluster_map)
+        self.assertEqual(1, len(phylo_groups))
+        self.assertEqual(3, len(phylo_groups[0]))
+        return
+
     def test_de_novo_phylo_clusters(self):
         from treesapp import phylo_cluster
         from treesapp import rel_evo_dist
@@ -270,6 +278,8 @@ class PhyloClusterTester(unittest.TestCase):
         p_clust._edges_to_cluster_index.clear()
         phylo_cluster.de_novo_phylo_clusters(p_clust, taxa_tree, cluster_method="align", drep_id=0.8)
         self.assertEqual(10, len(set([pq.p_otu for pq in p_clust.clustered_pqueries])))
+
+        phylo_cluster.de_novo_phylo_clusters(p_clust, taxa_tree, cluster_method="psc", phylo_group=None)
 
         return
 

@@ -729,9 +729,8 @@ def format_precluster_map(cluster_method: str, precluster_map: dict) -> dict:
     return batch_indexed_cluster_map
 
 
-def de_novo_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree, cluster_method=None, drep_id=1.0):
-    psc_cluster_size = 10
-    phylo_group = "partition"
+def de_novo_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree,
+                           cluster_method=None, phylo_group="partition", psc_cluster_size=10, drep_id=1.0) -> None:
 
     # Gather all classified sequences for a reference package from the treesapp assign outputs
     classified_pqueries = {}
