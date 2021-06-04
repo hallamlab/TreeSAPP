@@ -316,7 +316,14 @@ class PhyloClusterTester(unittest.TestCase):
         ref_fasta = phylo_cluster.select_subtree_sequences(ref_pkg=self.refpkg,
                                                            clusters=[mock_cluster],
                                                            subtree_size=n)
-        self.assertEqual(n, ref_fasta.n_seqs())
+        self.assertEqual(n+1, ref_fasta.n_seqs())
+        return
+
+    def test_get_outgroup(self):
+        from treesapp import phylo_cluster
+        outgroup = phylo_cluster.get_outgroup(tree=self.mock_tree, target="D")
+        self.assertIsInstance(outgroup, TreeNode)
+        self.assertEqual('A', outgroup.name)
         return
 
 

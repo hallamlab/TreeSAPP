@@ -647,6 +647,17 @@ def subtree_finder(ref_tree: Tree, leaf_nodes: set, tree_size=3) -> Tree:
     return subtree_root
 
 
+def get_outgroup(tree: Tree, target: str) -> TreeNode:
+    max_dist = 0.0
+    outgroup = None
+    target_leaf = tree.get_leaves_by_name(name=target).pop()
+    for node in tree.get_leaves():
+        if target_leaf.get_distance(node) > max_dist:
+            outgroup = node
+            max_dist = target_leaf.get_distance(node)
+    return outgroup
+
+
 def select_subtree_sequences(clusters: list, ref_pkg: refpkg.ReferencePackage, subtree_size=3) -> fasta.FASTA:
     """Find the reference sequences that are descendents of the placement edge and create a representative subset."""
     placement_edges = set()
@@ -659,9 +670,11 @@ def select_subtree_sequences(clusters: list, ref_pkg: refpkg.ReferencePackage, s
         leaf_nodes += internal_node_leaves_map[edge_num]
 
     sub_tree = subtree_finder(ref_pkg.get_ete_tree(), set(leaf_nodes), subtree_size)
+    ingroup_leaf = sub_tree.get_closest_leaf()[0]  # type: TreeNode
+    outgroup = get_outgroup(tree=ref_pkg.get_ete_tree(), target=ingroup_leaf.name)
 
     ref_leaf_sequences = ref_pkg.get_fasta()
-    ref_leaf_sequences.keep_only(sub_tree.get_leaf_names())
+    ref_leaf_sequences.keep_only(sub_tree.get_leaf_names() + outgroup.get_leaf_names())
     return ref_leaf_sequences
 
 
