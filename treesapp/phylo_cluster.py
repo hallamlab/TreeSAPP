@@ -8,6 +8,7 @@ import logging
 import numpy as np
 import scipy as sp
 from ete3 import Tree, TreeNode
+from tqdm import tqdm
 
 from treesapp.treesapp_args import TreeSAPPArgumentParser
 from treesapp import file_parsers
@@ -451,20 +452,24 @@ class PhyloClust(ts_classy.TreeSAPP):
 
     def assign_pqueries_to_leaf_clusters(self, pqueries: list, cluster_map: dict) -> None:
         # Build a map between the leaf node names and cluster numbers
+        LOGGER.info("Indexing cluster members...")
         leaf_cluster_map = {}
         for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
             for leaf in p_otu.tree_node.get_leaf_names():
                 leaf_cluster_map[leaf] = cluster_num
 
-        # Match the PQuery names to clusters
+        member_cluster_map = {}
+        for _edge_num, cluster_idx in cluster_map.items():  # type: (int, dict)
+            for _num, cluster in cluster_idx.items():
+                member_cluster_map.update({member.place_name: cluster.representative for member in cluster.members})
+        LOGGER.info("done.\n")
+
+        p_bar = tqdm(total=len(pqueries), ncols=100, desc="Matching query sequences to clusters")
         for pquery in pqueries:  # type: phylo_seq.PQuery
             try:
                 pquery.p_otu = leaf_cluster_map[pquery.place_name]
             except KeyError:
-                for _edge_num, cluster_idx in cluster_map.items():  # type: (int, dict)
-                    for _num, cluster in cluster_idx.items():
-                        if pquery.place_name in set([member.place_name for member in cluster.members]):
-                            pquery.p_otu = leaf_cluster_map[cluster.representative]
+                pquery.p_otu = leaf_cluster_map[member_cluster_map[pquery.place_name]]
             if getattr(pquery, "sample_name") not in self.sample_mat:
                 self.sample_mat[getattr(pquery, "sample_name")] = {n: 0 for n in self.cluster_index}
             try:
@@ -472,6 +477,8 @@ class PhyloClust(ts_classy.TreeSAPP):
             except KeyError:
                 self.sample_mat[getattr(pquery, "sample_name")][pquery.p_otu] = 1
             self.cluster_index[pquery.p_otu].cardinality += 1
+            p_bar.update()
+        p_bar.close()
         return
 
     def assign_pqueries_to_edge_clusters(self, pqueries: list) -> None:

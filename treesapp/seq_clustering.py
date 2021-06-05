@@ -15,6 +15,9 @@ class Cluster:
         self.members = list()
         self.lca = ''
 
+    def __str__(self):
+        return "Cluster instance with {} members represented by '{}'".format(len(self.members), self.representative)
+
     def get_info(self):
         info_string = "Representative: " + str(self.representative) + "\n" + \
                       "LCA: " + self.lca + "\n" + \

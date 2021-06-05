@@ -608,6 +608,7 @@ def psc_cluster_edges(dist_mat: np.array, min_cluster_size: int, n_points: int) 
 
 
 def cluster_pquery_placement_space_distances(pqueries: list, min_cluster_size=10) -> dict:
+    LOGGER.info("Clustering {} query sequences in placement space... ".format(len(pqueries)))
     pquery_clusters = []
 
     previous = 0
@@ -629,6 +630,7 @@ def cluster_pquery_placement_space_distances(pqueries: list, min_cluster_size=10
     pquery_clusters += sort_centroids_from_clusters(edge_pquery_instances, edge_clusters)
 
     cluster_map = {str(n): pquery_clusters[n] for n in range(0, len(pquery_clusters))}
+    LOGGER.info("done.\n")
 
     return cluster_map
 
