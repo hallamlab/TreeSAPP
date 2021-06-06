@@ -148,21 +148,6 @@ def map_headers_to_lineage(assignments: dict, ref_sequences: dict) -> dict:
     return lineage_assignments
 
 
-def get_unclassified_rank(pos, split_lineage):
-    """
-    Recursive function to retrieve the first rank at which the
-
-    :param pos:
-    :param split_lineage:
-    :return:
-    """
-    if re.search("unclassified", split_lineage[pos], re.IGNORECASE):
-        return pos
-    else:
-        pos = get_unclassified_rank(pos+1, split_lineage)
-    return pos
-
-
 def check_lineage_compatibility(lineage_map: dict, taxonomy: taxonomic_hierarchy.TaxonomicHierarchy) -> None:
     """Ensures that all the lineages are rooted."""
     unrooted = False
@@ -322,42 +307,6 @@ def map_seqs_to_lineages(accession_lineage_map, deduplicated_fasta_dict):
         else:
             seq_taxa_map[seq_name] = accession_lineage_map[seq_name]
     return seq_taxa_map
-
-
-# def filter_queries_by_taxonomy(taxonomic_lineages):
-#     """
-#     Removes queries with duplicate taxa - to prevent the taxonomic composition of the input
-#     from biasing the accuracy to over- or under-perform by classifying many sequences from very few groups.
-#     Also removes taxonomies with "*nclassified" in their lineage
-#
-#     :param taxonomic_lineages: A list of lineages that need to be filtered
-#     :return: A list that contains no more than 3 of each query taxonomy (arbitrarily normalized) and counts
-#     """
-#     unclassifieds = 0
-#     classified = 0
-#     unique_query_taxonomies = 0
-#     lineage_enumerator = dict()
-#     normalized_lineages = list()
-#     for query_taxonomy in sorted(taxonomic_lineages):
-#         can_classify = True
-#         if re.search("unclassified", query_taxonomy, re.IGNORECASE):
-#             # Remove taxonomic lineages that are unclassified at the Phylum level or higher
-#             unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
-#             if unclassified_depth <= 3:
-#                 can_classify = False
-#
-#         if can_classify:
-#             if query_taxonomy not in lineage_enumerator:
-#                 lineage_enumerator[query_taxonomy] = 0
-#                 classified += 1
-#             if lineage_enumerator[query_taxonomy] < 3:
-#                 normalized_lineages.append(query_taxonomy)
-#             lineage_enumerator[query_taxonomy] += 1
-#         else:
-#             unclassifieds += 1
-#     unique_query_taxonomies += len(lineage_enumerator)
-#
-#     return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
 
 
 def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_pkg, num_threads, executables,

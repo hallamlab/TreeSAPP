@@ -6,7 +6,9 @@
 - Dynamic evolutionary distance threshold for query sequences based on branch lengths descendent from placement position 
 - RecA, RadA and RpoB reference packages being distributed as part of the core set
 - The new '--query_coverage' command-line parameter is available in `treesapp assign` and drastically improves precision
-  and recall in conjunction with '--hmm_coverage'. Both are set to 80% by default. 
+  and recall in conjunction with '--hmm_coverage'. Both are set to 80% by default.
+- '--delete' flag added to `treesapp phylotu` to optionally remove all intermediate files and directories.
+  Useful for de novo methods when multiple phylogenies are inferred.
 
 ### Fixed
 - `treesapp package edit` assigns a leaf node only to the most resolved feature annotation
