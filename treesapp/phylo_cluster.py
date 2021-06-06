@@ -3,6 +3,7 @@
 import os
 import sys
 import re
+import glob
 import logging
 
 import numpy as np
@@ -59,6 +60,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.output_dir = ""
         self.sample_re = None
         self.num_processes = 1
+        self.clean = True
 
         # Objects for clustering
         self.clustered_pqueries = []
@@ -118,6 +120,11 @@ class PhyloClust(ts_classy.TreeSAPP):
 
         self.executables = self.find_executables(args)
         self.num_processes = args.num_threads
+
+        if args.delete is True:
+            self.clean = True
+        else:
+            self.clean = False
         # Determine whether to normalise the evolutionary distances or not
         # if args.evo_dist == "red":
         #     self.normalize = True
@@ -166,6 +173,7 @@ class PhyloClust(ts_classy.TreeSAPP):
                                             help="A regular expression for parsing the sample name from a query "
                                                  "sequence name. Example: '^(\d+)\.a:.*'. [ DEFAULT = None ].")
         self.arg_parser.add_compute_miscellany()
+        self.arg_parser.add_delete()
         # TODO: Implement and validate these options
         # self.arg_parser.pplace_args.add_argument("-d", "--evo_dist",
         #                                          choices=["raw", "red"], default="red", required=False,
@@ -193,6 +201,24 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.ts_logger.info(banner)
         self.ts_logger.debug("Arguments used:\n" + ' '.join(sys.argv[1:]) + "\n" +
                              run_params + "\n")
+        return
+
+    def clean_intermediate_files(self):
+        """
+        Removes all intermediate files, subdirectories and the 'intermediates' directory for phylotu
+        """
+        file_extensions = ["log", "mfa", "fasta", "nwk"]
+        if self.clean:
+            for order, stage in self.stages.items():  # type: (int, ts_classy.ModuleFunction)
+                if os.path.isdir(stage.dir_path):
+                    for ext in file_extensions:
+                        for f_path in glob.glob(stage.dir_path + "*" + ext):
+                            if os.path.isfile(f_path):
+                                os.remove(f_path)
+                    if len(os.listdir(stage.dir_path)) == 0:
+                        os.rmdir(stage.dir_path)
+            if len(os.listdir(self.var_output_dir)) == 0:
+                os.rmdir(self.var_output_dir)
         return
 
     @staticmethod
@@ -915,6 +941,8 @@ def cluster_phylogeny(sys_args: list) -> None:
 
     # Write a table mapping PQuery sequence names to their cluster
     p_clust.write_pquery_otu_classifications()
+
+    p_clust.clean_intermediate_files()
 
     # TODO: Centroids? Options are discussed in TreeCluster
     return

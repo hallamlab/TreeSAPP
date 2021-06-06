@@ -163,31 +163,6 @@ class PhyloClusterTester(unittest.TestCase):
         self.assertEqual(0.05, p_clust.alpha)
         return
 
-    def test_cluster_phylogeny(self):
-        from treesapp.phylo_cluster import cluster_phylogeny
-        # Should fail when multiple refpkgs provided
-        with pytest.raises(SystemExit):
-            cluster_phylogeny(["--refpkg_path",
-                               self.refpkg.f__pkl, get_test_data(os.path.join("refpkgs", "McrB_build.pkl")),
-                               "--jplace", get_test_data("epa_result.jplace")])
-
-        # Test input is a treesapp assign output directory
-        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
-                           "--assign_output", get_test_data("test_output_TarA"),
-                           "--output", self.tmp_dir,
-                           "--alpha", str(0.4),
-                           "--mode", "de_novo"])
-
-        # Test input is a single JPlace file
-        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
-                           "--jplace", get_test_data("epa_result.jplace"),
-                           "--output", self.tmp_dir])
-
-        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_taxa.tsv")))
-        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_matrix.tsv")))
-        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_pquery_assignments.tsv")))
-        return
-
     def test_infer_cluster_phylogeny(self):
         from treesapp import phylo_cluster
         from treesapp import fasta
@@ -324,6 +299,33 @@ class PhyloClusterTester(unittest.TestCase):
         outgroup = phylo_cluster.get_outgroup(tree=self.mock_tree, target="D")
         self.assertIsInstance(outgroup, TreeNode)
         self.assertEqual('A', outgroup.name)
+        return
+
+    def test_cluster_phylogeny(self):
+        from treesapp.phylo_cluster import cluster_phylogeny
+        # Should fail when multiple refpkgs provided
+        with pytest.raises(SystemExit):
+            cluster_phylogeny(["--refpkg_path",
+                               self.refpkg.f__pkl, get_test_data(os.path.join("refpkgs", "McrB_build.pkl")),
+                               "--jplace", get_test_data("epa_result.jplace")])
+
+        # Test input is a treesapp assign output directory
+        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
+                           "--assign_output", get_test_data("test_output_TarA"),
+                           "--output", self.tmp_dir,
+                           "--alpha", str(0.4),
+                           "--mode", "de_novo",
+                           "--delete"])
+        self.assertFalse(os.path.isdir(os.path.join(self.tmp_dir, "intermediates")))
+
+        # Test input is a single JPlace file
+        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
+                           "--jplace", get_test_data("epa_result.jplace"),
+                           "--output", self.tmp_dir])
+
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_taxa.tsv")))
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_matrix.tsv")))
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_pquery_assignments.tsv")))
         return
 
 
