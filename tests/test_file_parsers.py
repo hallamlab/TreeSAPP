@@ -27,7 +27,11 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_grab_graftm_taxa(self):
-        from treesapp.file_parsers import grab_graftm_taxa
+        from treesapp import file_parsers
+        from pygtrie import StringTrie
+        tax_trie = file_parsers.grab_graftm_taxa(tax_ids_file=get_test_data("graftm_taxonomy.csv"))
+        self.assertIsInstance(tax_trie, StringTrie)
+        self.assertEqual(211, len(tax_trie))
         return
 
     def test_best_discrete_matches(self):
