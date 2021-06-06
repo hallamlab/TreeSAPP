@@ -452,7 +452,7 @@ class PhyloClust(ts_classy.TreeSAPP):
 
     def assign_pqueries_to_leaf_clusters(self, pqueries: list, cluster_map: dict) -> None:
         # Build a map between the leaf node names and cluster numbers
-        LOGGER.info("Indexing cluster members...")
+        LOGGER.info("Indexing cluster members... ")
         leaf_cluster_map = {}
         for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
             for leaf in p_otu.tree_node.get_leaf_names():
@@ -586,6 +586,23 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.ts_logger.info("{} classified sequences occupy {}/{} '{}' pOTUs in sample '{}'.\n"
                             "".format(n_pqueries, occupancy, len(self.cluster_index),
                                       self.ref_pkg.prefix, sample_name))
+
+        return
+
+    def summarise_cluster_sizes(self, clusters: dict):
+        membership_sizes = []
+        for _num, cluster in clusters.items():  # type: (int, seq_clustering.Cluster)
+            membership_sizes.append(len(cluster.members))
+
+        if self.current_stage.name == "phylogeny":
+            cluster_state = "pre-cluster"
+        else:
+            cluster_state = "cluster"
+
+        self.ts_logger.info("Created {} {}(s) with an average size of {}.\n"
+                            "".format(len(membership_sizes),
+                                      cluster_state,
+                                      round(sum(membership_sizes) / len(membership_sizes), 1)))
         return
 
 
@@ -685,6 +702,17 @@ def select_subtree_sequences(clusters: list, ref_pkg: refpkg.ReferencePackage, s
     return ref_leaf_sequences
 
 
+def remap_leaf_names(subtree_fasta: fasta.FASTA, de_novo_tree: Tree) -> None:
+    """Adds a 'taxon' feature to all TreeNodes and replaces these Nodes' 'name' attribute with the sequence name."""
+    # Propagate a 'taxon' feature - None by default - to all TreeNodes for holding Taxon instances
+    for n in de_novo_tree.traverse(strategy="postorder"):  # type: Tree
+        n.add_feature(pr_name="taxon", pr_value=None)
+    # Add the query sequence name for each leaf
+    for leaf_node in de_novo_tree.get_leaves():
+        leaf_node.name = subtree_fasta.header_registry[leaf_node.name].original
+    return
+
+
 def generate_trees_for_preclusters(phylo_clust: PhyloClust, pre_clusters: dict, pqueries_fasta: fasta.FASTA) -> None:
     task_list = []
     fa_index = {}
@@ -711,20 +739,16 @@ def generate_trees_for_preclusters(phylo_clust: PhyloClust, pre_clusters: dict, 
                                                                              arguments_list=task_list,
                                                                              num_processes=phylo_clust.num_processes,
                                                                              pbar_desc="Inferring phylogenies for each partition")
-
+    p_bar = tqdm(desc="Defining clusters for subtrees", total=len(phylogenies), ncols=100)
     for tree_map in phylogenies:  # type: tuple
         fa_file, de_novo_tree = tree_map  # type: (str, Tree)
-        # Propagate a 'taxon' feature - None by default - to all TreeNodes for holding Taxon instances
-        for n in de_novo_tree.traverse(strategy="postorder"):  # type: Tree
-            n.add_feature(pr_name="taxon", pr_value=None)
-        # Add the query sequence name for each leaf
-        for leaf_node in de_novo_tree.get_leaves():
-            leaf_node.name = fa_index[fa_file].header_registry[leaf_node.name].original
-
+        remap_leaf_names(fa_index[fa_file], de_novo_tree)
         # Use the taxonomy of each classified sequence as leaf node taxon attribute
         phylo_clust.set_pquery_leaf_node_taxa(tree=de_novo_tree)
         # Define tree clusters
         phylo_clust.define_tree_clusters(tree=de_novo_tree, internal=False)
+        p_bar.update()
+    p_bar.close()
 
     # Remove clusters only occupied by reference sequences from PhyloClust.cluster_index
     pquery_names = set([pq.place_name for pq in phylo_clust.clustered_pqueries])
@@ -789,7 +813,9 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree,
         pqueries_fasta.change_dict_keys()
         pqueries_fasta.keep_only(header_subset=[c.representative for num, c in pquery_precluster_map.items()])
 
+    phylo_clust.summarise_cluster_sizes(pquery_precluster_map)
     if phylo_group == "partition":
+        LOGGER.info("Grouping representative query sequences into clades for tree inference... ")
         broader_rank = phylo_clust.ref_pkg.taxa_trie.deeper_rank(phylo_clust.tax_rank)
         # Broadly partition reference phylogeny for phylogenetic trees
         phylo_clust.ts_logger.disabled = True
@@ -801,6 +827,7 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree,
                                             override_alpha=alpha)
         # Find the minimal set of clusters that contain all pqueries.
         phylo_groups = phylo_clust.match_pqueries_to_clusters(pquery_precluster_map)
+        LOGGER.info("done.\n")
     else:
         # Combine clusters into batches based on the pre-cluster method used
         phylo_groups = format_precluster_map(cluster_method, pquery_precluster_map)
