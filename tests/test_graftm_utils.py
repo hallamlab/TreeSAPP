@@ -31,9 +31,11 @@ class MyTestCase(unittest.TestCase):
 
     def test_read_graftm_classifications(self):
         from treesapp import graftm_utils
+        from treesapp import phylo_seq
         assignments = graftm_utils.read_graftm_classifications(get_test_data("graftm_raw_read_tax.tsv"))
-        self.assertEqual(8, len(assignments))
-        self.assertEqual(9, len(sum(assignments.values(), [])))
+        self.assertIsInstance(assignments, list)
+        self.assertEqual(9, len(assignments))
+        self.assertIsInstance(assignments[0], phylo_seq.PQuery)
         return
 
     def test_grab_graftm_taxa(self):
