@@ -83,27 +83,28 @@ class ExecutableWrapperTester(unittest.TestCase):
         self.assertEqual(39, len(bs_tree))
         return
 
-    # def test_construct_tree(self):
-    #     from treesapp.utilities import fetch_executable_path
-    #     from treesapp.wrapper import construct_tree
-    #     from treesapp.entish import load_ete3_tree
-    #     # Test with an absurd number of threads to ensure RAxML-NG's auto-scaling works
-    #     best_tree = construct_tree(tree_builder="RAxML-NG",
-    #                                executables={"raxml-ng": fetch_executable_path(exe_name="raxml-ng",
-    #                                                                               treesapp_dir=self.ts_dir)},
-    #                                evo_model="WAG+R2",
-    #                                multiple_alignment_file=get_test_data("PuhA.phy"),
-    #                                tree_output_dir=self.tmp_dir,
-    #                                tree_prefix="TMP",
-    #                                num_trees=1,
-    #                                num_threads=24,
-    #                                verbosity=0)
-    #     self.assertTrue(os.path.isfile(best_tree))
-    #     bs_tree = load_ete3_tree(best_tree)
-    #     self.assertEqual(39, len(bs_tree))
-    #     # self.assertEqual(logging.INFO,
-    #     #                  logging.getLogger().level)
-    #     return
+    def test_construct_tree(self):
+        from treesapp import utilities
+        from treesapp import wrapper
+        from treesapp import entish
+        n_cpu = utilities.available_cpu_count()
+        raxml_exe = utilities.fetch_executable_path(exe_name="raxml-ng", treesapp_dir=self.ts_dir)
+        # Test with an absurd number of threads to ensure RAxML-NG's auto-scaling works
+        best_tree = wrapper.construct_tree(tree_builder="RAxML-NG",
+                                           executables={"raxml-ng": raxml_exe},
+                                           evo_model="WAG+R2",
+                                           multiple_alignment_file=get_test_data("PuhA.phy"),
+                                           tree_output_dir=self.tmp_dir,
+                                           tree_prefix="TMP",
+                                           num_trees=1,
+                                           num_threads=n_cpu*2,
+                                           verbosity=0)
+        self.assertTrue(os.path.isfile(best_tree))
+        bs_tree = entish.load_ete3_tree(best_tree)
+        self.assertEqual(39, len(bs_tree))
+        # self.assertEqual(logging.INFO,
+        #                  logging.getLogger().level)
+        return
 
     def test_build_hmm_profile(self):
         from treesapp.wrapper import build_hmm_profile
