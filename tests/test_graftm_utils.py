@@ -29,6 +29,21 @@ class MyTestCase(unittest.TestCase):
             shutil.rmtree(self.tmp_dir)
         return
 
+    def test_read_graftm_classifications(self):
+        from treesapp import graftm_utils
+        assignments = graftm_utils.read_graftm_classifications(get_test_data("graftm_raw_read_tax.tsv"))
+        self.assertEqual(8, len(assignments))
+        self.assertEqual(9, len(sum(assignments.values(), [])))
+        return
+
+    def test_grab_graftm_taxa(self):
+        from treesapp import graftm_utils
+        from pygtrie import StringTrie
+        tax_trie = graftm_utils.grab_graftm_taxa(tax_ids_file=get_test_data("graftm_taxonomy.csv"))
+        self.assertIsInstance(tax_trie, StringTrie)
+        self.assertEqual(211, len(tax_trie))
+        return
+
     def test_run_graftm_graft(self):
         from treesapp import graftm_utils as g_utils
         if not self.graftm_exe:
@@ -39,7 +54,7 @@ class MyTestCase(unittest.TestCase):
         g_utils.run_graftm_graft(graftm_exe=self.graftm_exe,
                                  input_path=get_test_data("EggNOG_McrA.faa"),
                                  output_dir=self.tmp_dir,
-                                 gpkg_path=get_test_data(os.path.join("refpkgs", "7.27_mcrA.gpkg")),
+                                 gpkg_path=get_test_data(os.path.join("refpkgs", "McrA.gpkg")),
                                  classifier="graftm",
                                  num_threads=self.num_procs)
 

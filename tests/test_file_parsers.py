@@ -19,21 +19,6 @@ class TreesappTester(unittest.TestCase):
             os.remove(self.test_data_file)
         return
 
-    def test_read_graftm_classifications(self):
-        from treesapp.file_parsers import read_graftm_classifications
-        assignments = read_graftm_classifications(get_test_data("graftm_raw_read_tax.tsv"))
-        self.assertEqual(8, len(assignments))
-        self.assertEqual(9, len(sum(assignments.values(), [])))
-        return
-
-    def test_grab_graftm_taxa(self):
-        from treesapp import file_parsers
-        from pygtrie import StringTrie
-        tax_trie = file_parsers.grab_graftm_taxa(tax_ids_file=get_test_data("graftm_taxonomy.csv"))
-        self.assertIsInstance(tax_trie, StringTrie)
-        self.assertEqual(211, len(tax_trie))
-        return
-
     def test_best_discrete_matches(self):
         from treesapp.file_parsers import best_discrete_matches
         from treesapp.hmmer_tbl_parser import HmmMatch
