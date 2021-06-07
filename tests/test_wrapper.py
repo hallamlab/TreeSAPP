@@ -105,29 +105,6 @@ class ExecutableWrapperTester(unittest.TestCase):
         #                  logging.getLogger().level)
         return
 
-    def test_run_graftm_graft(self):
-        from treesapp.utilities import fetch_executable_path
-        from treesapp.wrapper import run_graftm_graft
-        try:
-            graftm_exe = fetch_executable_path("graftM", self.ts_dir)
-        except SystemExit:
-            return
-        classification_tbl = os.path.join(self.tmp_dir, "EggNOG_McrA", "EggNOG_McrA_read_tax.tsv")
-
-        # Run graftM graft
-        run_graftm_graft(graftm_exe,
-                         input_path=get_test_data("EggNOG_McrA.faa"),
-                         output_dir=self.tmp_dir,
-                         gpkg_path=get_test_data(os.path.join("refpkgs", "7.27_mcrA.gpkg")),
-                         classifier="graftm",
-                         num_threads=self.num_procs)
-
-        self.assertTrue(os.path.isfile(classification_tbl))
-        with open(classification_tbl) as tbl_handler:
-            tbl_lines = tbl_handler.readlines()
-        self.assertEqual(54, len(tbl_lines))
-        return
-
     def test_build_hmm_profile(self):
         from treesapp.wrapper import build_hmm_profile
         from treesapp.utilities import fetch_executable_path

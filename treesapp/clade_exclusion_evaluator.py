@@ -4,15 +4,15 @@ import sys
 import re
 import shutil
 
-from treesapp.external_command_interface import launch_write_command
 from treesapp import refpkg
-from treesapp.entrez_utils import EntrezRecord
+from treesapp import entrez_utils as ez_utils
 from treesapp import fasta
 from treesapp import classy
 from treesapp import taxonomic_hierarchy
 from treesapp import assign
 from treesapp import file_parsers
 from treesapp import logger
+from treesapp import graftm_utils
 
 LOGGER = logging.getLogger(logger.logger_name())
 
@@ -68,7 +68,7 @@ def determine_containment(marker_eval_inst: classy.Evaluator):
         correct = 0
         incorrect = 0
         too_shallow = 0
-        parse_depth = depth-1
+        parse_depth = depth - 1
         for assignments in rank_assigned_dict[lowest_rank]:
             for classified in assignments:
                 status = 0  # 0 == incorrect, 1 == correct
@@ -130,7 +130,7 @@ def map_headers_to_lineage(assignments: dict, ref_sequences: dict) -> dict:
             lineage_assignments[refpkg_name][assigned_lineage] = list()
             for query in classified_headers:
                 mapped = False
-                for _, ref_seq in ref_sequences.items():  # type: (int, EntrezRecord)
+                for _, ref_seq in ref_sequences.items():  # type: (int, ez_utils.EntrezRecord)
                     if ref_seq.accession == query:
                         lineage_assignments[refpkg_name][assigned_lineage].append(ref_seq.lineage)
                         mapped = True
@@ -140,11 +140,11 @@ def map_headers_to_lineage(assignments: dict, ref_sequences: dict) -> dict:
                     sys.exit(3)
             if len(lineage_assignments[refpkg_name][assigned_lineage]) > len(classified_headers):
                 LOGGER.error(str(len(classified_headers)) + " accessions mapped to " +
-                              str(len(lineage_assignments[refpkg_name][assigned_lineage])) + " lineages.\n")
+                             str(len(lineage_assignments[refpkg_name][assigned_lineage])) + " lineages.\n")
                 sys.exit(21)
             elif len(lineage_assignments[refpkg_name][assigned_lineage]) < len(classified_headers):
                 LOGGER.debug(str(len(classified_headers)) + " accessions mapped to " +
-                              str(len(lineage_assignments[refpkg_name][assigned_lineage])) + " lineages.\n")
+                             str(len(lineage_assignments[refpkg_name][assigned_lineage])) + " lineages.\n")
     return lineage_assignments
 
 
@@ -253,9 +253,9 @@ def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict,
     taxonomic_filter_stats["Unique_taxa"] += len(dereplicated_lineages)
 
     LOGGER.debug("Representative sequence stats:\n\t" +
-                  "Maximum representative sequences for a taxon " + str(taxonomic_filter_stats["Max"]) + "\n\t" +
-                  "Minimum representative sequences for a taxon " + str(taxonomic_filter_stats["Min"]) + "\n\t" +
-                  "Mean representative sequences for a taxon " + str(taxonomic_filter_stats["Mean"]) + "\n")
+                 "Maximum representative sequences for a taxon " + str(taxonomic_filter_stats["Max"]) + "\n\t" +
+                 "Minimum representative sequences for a taxon " + str(taxonomic_filter_stats["Min"]) + "\n\t" +
+                 "Mean representative sequences for a taxon " + str(taxonomic_filter_stats["Mean"]) + "\n")
 
     return dereplicated_lineages, taxonomic_filter_stats
 
@@ -354,9 +354,9 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
         tt_obj.distances = parse_distances(assigned_lines)
     else:
         LOGGER.error("{} is missing from output directory '{}'\n"
-                      "Please remove this directory and re-run.\n"
-                      "".format(os.path.basename(tt_obj.classification_table),
-                                os.path.dirname(tt_obj.classification_table)))
+                     "Please remove this directory and re-run.\n"
+                     "".format(os.path.basename(tt_obj.classification_table),
+                               os.path.dirname(tt_obj.classification_table)))
         sys.exit(21)
     return
 
@@ -370,22 +370,23 @@ def run_clade_exclusion_graftm(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_pkg
     gpkg_tax_ids_file = gpkg_refpkg_path + ref_pkg.prefix + "_taxonomy.csv"
     if not os.path.isfile(tt_obj.classification_table):
         # Copy reference files, then exclude all clades belonging to the taxon being tested
-        output_paths = prep_graftm_ref_files(tmp_dir=tt_obj.intermediates_dir,
-                                             target_clade=tt_obj.lineage,
-                                             ref_pkg=ref_pkg,
-                                             executables=executables)
+        output_paths = graftm_utils.prep_graftm_ref_files(tmp_dir=tt_obj.intermediates_dir,
+                                                          target_clade=tt_obj.lineage,
+                                                          ref_pkg=ref_pkg,
+                                                          executables=executables)
 
         if not os.path.isdir(tt_obj.refpkg_path):
-            build_graftm_package(gpkg_path=tt_obj.refpkg_path,
-                                 tax_file=output_paths["filtered_tax_ids"],
-                                 mfa_file=output_paths["filtered_mfa"],
-                                 fa_file=output_paths["filtered_fasta"],
-                                 threads=num_threads)
+            graftm_utils.build_graftm_package(gpkg_path=tt_obj.refpkg_path,
+                                              tax_file=output_paths["filtered_tax_ids"],
+                                              mfa_file=output_paths["filtered_mfa"],
+                                              fa_file=output_paths["filtered_fasta"],
+                                              threads=num_threads)
         # Write the query sequences
         fasta.write_new_fasta(taxon_rep_seqs, tt_obj.test_query_fasta)
 
-        graftm_classify(tt_obj.test_query_fasta, tt_obj.refpkg_path, tt_obj.classifications_root,
-                        num_threads, graftm_classifier)
+        graftm_utils.run_graftm_graft(input_path=tt_obj.test_query_fasta, gpkg_path=tt_obj.refpkg_path,
+                                      output_dir=tt_obj.classifications_root,
+                                      num_threads=num_threads, classifier=graftm_classifier)
 
         if not os.path.isfile(tt_obj.classification_table):
             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
@@ -396,77 +397,5 @@ def run_clade_exclusion_graftm(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_pkg
     graftm_assignments = file_parsers.read_graftm_classifications(tt_obj.classification_table)
     tt_obj.assignments = {ref_pkg.prefix: graftm_assignments}
     tt_obj.filter_assignments(ref_pkg.prefix)
-
-    return
-
-
-def prep_graftm_ref_files(ref_pkg: refpkg.ReferencePackage, tmp_dir: str, target_clade: str, executables: dict) -> dict:
-    """
-    From the original TreeSAPP reference package files, the necessary GraftM create input files are generated
-    with all reference sequences related to the target_taxon removed from the multiple sequence alignment,
-    unaligned reference FASTA file and the tax_ids file.
-
-    :param tmp_dir:  Path to write the intermediate files with target references removed
-    :param target_clade: Taxonomic lineage of the clade that is being excluded from the reference package.
-    :param ref_pkg: A ReferencePackage instance for the reference package being tested
-    :param executables: Dictionary of paths to dependency executables indexed by their names. Must include:
-         'hmmbuild', 'FastTree' and 'raxml-ng'.
-    :return: A dictionary providing paths to output files
-    """
-    # GraftM refpkg input paths:
-    output_paths = {"filtered_tax_ids": os.path.join(tmp_dir, ref_pkg.prefix + "_lineage_ids.txt"),
-                    "filtered_mfa": os.path.join(tmp_dir, ref_pkg.prefix + ".mfa"),
-                    "filtered_fasta": os.path.join(tmp_dir, ref_pkg.prefix + ".fa")}
-
-    ce_refpkg = ref_pkg.clone(clone_path=tmp_dir + ref_pkg.prefix + ref_pkg.refpkg_suffix)
-
-    ce_refpkg.exclude_clade_from_ref_files(tmp_dir=tmp_dir, executables=executables, target_clade=target_clade)
-
-    # Write the lineage_ids file
-    lineage_info = []
-    for ref_leaf in ce_refpkg.generate_tree_leaf_references_from_refpkg():
-        lineage_info.append("{}_{}\t{}".format(ref_leaf.number, ce_refpkg.prefix, ref_leaf.lineage))
-
-    with open(output_paths["filtered_tax_ids"], 'w') as taxa_handler:
-        taxa_handler.write("\n".join(lineage_info) + "\n")
-
-    # Create and write the unaligned fasta file
-    ce_fasta = ce_refpkg.get_fasta()  # type: fasta.FASTA
-    fasta.write_new_fasta(fasta_dict=ce_fasta.fasta_dict, fasta_name=output_paths["filtered_mfa"])
-    ce_fasta.unalign()
-    fasta.write_new_fasta(fasta_dict=ce_fasta.fasta_dict, fasta_name=output_paths["filtered_fasta"])
-    return output_paths
-
-
-def build_graftm_package(gpkg_path: str, tax_file: str, mfa_file: str, fa_file: str, threads: int):
-    create_command = ["graftM", "create"]
-    create_command += ["--threads", str(threads)]
-    create_command += ["--alignment", mfa_file]
-    create_command += ["--sequences", fa_file]
-    create_command += ["--taxonomy", tax_file]
-    create_command += ["--output", gpkg_path]
-    create_command.append("--force")
-
-    LOGGER.debug("Command used:\n" + ' '.join(create_command) + "\n")
-    launch_write_command(create_command, False)
-
-
-def graftm_classify(test_rep_taxa_fasta, gpkg_path, output_dir, threads, tool):
-    classify_command = ["graftM", "graft"]
-    classify_command += ["--forward", test_rep_taxa_fasta]
-    classify_command += ["--graftm_package", gpkg_path]
-    classify_command += ["--threads", str(threads)]
-    if tool == "graftm":
-        classify_command += ["--assignment_method", "pplacer"]
-        classify_command += ["--search_method", "hmmsearch"]
-    elif tool == "diamond":
-        classify_command += ["--assignment_method", "diamond"]
-        classify_command += ["--search_method", "diamond"]
-    classify_command += ["--output_directory", output_dir]
-    classify_command += ["--input_sequence_type", "aminoacid"]
-    classify_command.append("--force")
-
-    LOGGER.debug("Command used:\n" + ' '.join(classify_command) + "\n")
-    launch_write_command(classify_command, False)
 
     return

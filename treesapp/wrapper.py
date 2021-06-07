@@ -911,21 +911,3 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict,
                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
     return trimmed_output_files
 
-
-def run_graftm_graft(graftm_exe: str, input_path: str, output_dir: str, gpkg_path: str,
-                     classifier="graftm", seq_type="aminoacid", num_threads=4) -> None:
-    """Wrapper for GraftM"""
-    if not os.path.isdir(output_dir):
-        os.makedirs(output_dir)
-    classify_call = [graftm_exe, "graft",
-                     "--forward", input_path,
-                     "--graftm_package", gpkg_path,
-                     "--input_sequence_type", seq_type,
-                     "--threads", str(num_threads),
-                     "--output_directory", output_dir,
-                     "--force"]
-    if classifier == "diamond":
-        classify_call += ["--assignment_method", "diamond"]
-        classify_call += ["--search_method", "diamond"]
-    launch_write_command(classify_call, False)
-    return
