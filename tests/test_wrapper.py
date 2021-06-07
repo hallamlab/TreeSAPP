@@ -53,7 +53,7 @@ class ExecutableWrapperTester(unittest.TestCase):
         cluster_table = prefix + "_cluster.tsv"
         self.assertTrue(os.path.exists(cluster_table))
         return
-    #
+
     # def test_cluster_sequences(self):
     #     from treesapp.utilities import fetch_executable_path
     #     from treesapp.wrapper import cluster_sequences
@@ -66,44 +66,44 @@ class ExecutableWrapperTester(unittest.TestCase):
     #                       fasta_input=self.test_fasta, output_prefix=os.path.join(self.tmp_dir, "vsearch_test"))
     #     self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "vsearch_test.uc")))
     #     return
-    #
-    # def test_support_tree_raxml(self):
-    #     from treesapp.utilities import fetch_executable_path
-    #     from treesapp.wrapper import support_tree_raxml
-    #     from treesapp.entish import load_ete3_tree
-    #     tree = get_test_data("PuhA.raxml.bestTree")
-    #     msa = get_test_data("PuhA.phy")
-    #     f_support = support_tree_raxml(raxml_exe=fetch_executable_path(exe_name="raxml-ng", treesapp_dir=self.ts_dir),
-    #                                    ref_tree=tree, ref_msa=msa,
-    #                                    model="LG", tree_prefix=os.path.join(self.tmp_dir, "PuhA"),
-    #                                    metric="tbe",
-    #                                    n_bootstraps=4, num_threads=self.num_procs, mre=False)
-    #     self.assertTrue(os.path.isfile(f_support))
-    #     bs_tree = load_ete3_tree(f_support)
-    #     self.assertEqual(39, len(bs_tree))
-    #     return
-    #
-    # def test_construct_tree(self):
-    #     from treesapp.utilities import fetch_executable_path
-    #     from treesapp.wrapper import construct_tree
-    #     from treesapp.entish import load_ete3_tree
-    #     # Test with an absurd number of threads to ensure RAxML-NG's auto-scaling works
-    #     best_tree = construct_tree(tree_builder="RAxML-NG",
-    #                                executables={"raxml-ng": fetch_executable_path(exe_name="raxml-ng",
-    #                                                                               treesapp_dir=self.ts_dir)},
-    #                                evo_model="WAG+R2",
-    #                                multiple_alignment_file=get_test_data("PuhA.phy"),
-    #                                tree_output_dir=self.tmp_dir,
-    #                                tree_prefix="TMP",
-    #                                num_trees=1,
-    #                                num_threads=24,
-    #                                verbosity=0)
-    #     self.assertTrue(os.path.isfile(best_tree))
-    #     bs_tree = load_ete3_tree(best_tree)
-    #     self.assertEqual(39, len(bs_tree))
-    #     # self.assertEqual(logging.INFO,
-    #     #                  logging.getLogger().level)
-    #     return
+
+    def test_support_tree_raxml(self):
+        from treesapp.utilities import fetch_executable_path
+        from treesapp.wrapper import support_tree_raxml
+        from treesapp.entish import load_ete3_tree
+        tree = get_test_data("PuhA.raxml.bestTree")
+        msa = get_test_data("PuhA.phy")
+        f_support = support_tree_raxml(raxml_exe=fetch_executable_path(exe_name="raxml-ng", treesapp_dir=self.ts_dir),
+                                       ref_tree=tree, ref_msa=msa,
+                                       model="LG", tree_prefix=os.path.join(self.tmp_dir, "PuhA"),
+                                       metric="tbe",
+                                       n_bootstraps=4, num_threads=self.num_procs, mre=False)
+        self.assertTrue(os.path.isfile(f_support))
+        bs_tree = load_ete3_tree(f_support)
+        self.assertEqual(39, len(bs_tree))
+        return
+
+    def test_construct_tree(self):
+        from treesapp.utilities import fetch_executable_path
+        from treesapp.wrapper import construct_tree
+        from treesapp.entish import load_ete3_tree
+        # Test with an absurd number of threads to ensure RAxML-NG's auto-scaling works
+        best_tree = construct_tree(tree_builder="RAxML-NG",
+                                   executables={"raxml-ng": fetch_executable_path(exe_name="raxml-ng",
+                                                                                  treesapp_dir=self.ts_dir)},
+                                   evo_model="WAG+R2",
+                                   multiple_alignment_file=get_test_data("PuhA.phy"),
+                                   tree_output_dir=self.tmp_dir,
+                                   tree_prefix="TMP",
+                                   num_trees=1,
+                                   num_threads=24,
+                                   verbosity=0)
+        self.assertTrue(os.path.isfile(best_tree))
+        bs_tree = load_ete3_tree(best_tree)
+        self.assertEqual(39, len(bs_tree))
+        # self.assertEqual(logging.INFO,
+        #                  logging.getLogger().level)
+        return
 
     def test_build_hmm_profile(self):
         from treesapp.wrapper import build_hmm_profile
