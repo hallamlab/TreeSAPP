@@ -7,7 +7,8 @@ from shutil import rmtree, copyfile
 class TreesappTester(unittest.TestCase):
     def setUp(self) -> None:
         from .testing_utils import get_test_data
-        self.num_procs = 4
+        from treesapp import utilities
+        self.num_procs = max(int(utilities.available_cpu_count()/2), 2)
         # FASTA files
         self.aa_test_fa = get_test_data("marker_test_suite.faa")
         self.nt_test_fa = get_test_data("marker_test_suite.fna")

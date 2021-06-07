@@ -8,7 +8,8 @@ from .testing_utils import get_test_data, get_treesapp_root
 
 class ExecutableWrapperTester(unittest.TestCase):
     def setUp(self) -> None:
-        self.num_procs = 4
+        from treesapp import utilities
+        self.num_procs = max(int(utilities.available_cpu_count()/2), 2)
         self.ts_dir = get_treesapp_root()
         self.tmp_dir = os.path.join(os.getcwd(), "tests", "wrapper_test_dir") + os.sep
         if os.path.isdir(self.tmp_dir):
@@ -87,7 +88,6 @@ class ExecutableWrapperTester(unittest.TestCase):
         from treesapp import utilities
         from treesapp import wrapper
         from treesapp import entish
-        n_cpu = utilities.available_cpu_count()
         raxml_exe = utilities.fetch_executable_path(exe_name="raxml-ng", treesapp_dir=self.ts_dir)
         # Test with an absurd number of threads to ensure RAxML-NG's auto-scaling works
         best_tree = wrapper.construct_tree(tree_builder="RAxML-NG",
@@ -97,7 +97,7 @@ class ExecutableWrapperTester(unittest.TestCase):
                                            tree_output_dir=self.tmp_dir,
                                            tree_prefix="TMP",
                                            num_trees=1,
-                                           num_threads=n_cpu*2,
+                                           num_threads=self.num_procs*2,
                                            verbosity=0)
         self.assertTrue(os.path.isfile(best_tree))
         bs_tree = entish.load_ete3_tree(best_tree)
