@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-__author__ = 'Connor Morgan-Lang'
-
 import os
 import shutil
 import sys
@@ -12,10 +10,10 @@ from glob import glob
 from numpy import sqrt
 
 from treesapp import file_parsers
-from treesapp import wrapper
 from treesapp import utilities
 from treesapp import assign
 from treesapp import logger
+from treesapp import graftm_utils
 from treesapp.phylo_seq import assignments_to_pqueries
 from treesapp import refpkg as ts_ref_pkg
 from treesapp.fasta import get_headers, register_headers
@@ -24,7 +22,7 @@ from treesapp.entrez_utils import EntrezRecord, get_multiple_lineages
 from treesapp import lca_calculations as ts_lca
 from treesapp.treesapp_args import TreeSAPPArgumentParser
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
-from treesapp.training_utils import bin_headers, QuerySequence
+from treesapp import training_utils
 
 LOGGER = logging.getLogger(logger.logger_name())
 
@@ -157,7 +155,7 @@ class ConfusionTest:
         lineage_list = []
         info_string = "RefPkg\tName\tTaxDist\tClassified\tTrueLineage\tAssignedLineage\tOptimalLineage\n"
         for marker in self.tp:
-            for tp_inst in self.tp[marker]:  # type: QuerySequence
+            for tp_inst in self.tp[marker]:  # type: training_utils.QuerySequence
                 lineage_list.append(tp_inst.true_lineage)
                 info_string += "\t".join([marker, tp_inst.place_name, str(tp_inst.tax_dist), "True",
                                           tp_inst.true_lineage, tp_inst.assigned_lineage,
@@ -166,7 +164,7 @@ class ConfusionTest:
                 for pquery in self.unlabelled_tp_query_names[marker]:
                     info_string += "\t".join([marker, pquery.seq_name, "NA", "True", "NA", "NA", "NA"]) + "\n"
         for marker in self.fn:
-            for tp_inst in self.fn[marker]:  # type: QuerySequence
+            for tp_inst in self.fn[marker]:  # type: training_utils.QuerySequence
                 # TODO: Support headers from databases other than EggNOG
                 tax_id = tp_inst.ncbi_tax
                 try:
@@ -204,20 +202,21 @@ class ConfusionTest:
             if not refpkg.taxa_trie.rooted:
                 refpkg.taxa_trie.root_domains(root=refpkg.taxa_trie.find_root_taxon())
             self.dist_wise_tp[marker] = dict()
-            for tp_inst in self.tp[marker]:  # type: QuerySequence
+            for tp_inst in self.tp[marker]:  # type: training_utils.QuerySequence
                 # Find the optimal taxonomic assignment
                 tp_inst.true_lineage = refpkg.taxa_trie.clean_lineage_string(tp_inst.true_lineage)
                 optimal_taxon = ts_lca.optimal_taxonomic_assignment(refpkg.taxa_trie.trie, tp_inst.true_lineage)
                 if not optimal_taxon:
                     LOGGER.debug("Optimal taxonomic assignment '{}' for {}"
-                                  " not found in reference hierarchy.\n".format(tp_inst.true_lineage, tp_inst.place_name))
+                                 " not found in reference hierarchy.\n".format(tp_inst.true_lineage,
+                                                                               tp_inst.place_name))
                     continue
                 tp_inst.optimal_lineage = optimal_taxon
                 tp_inst.tax_dist, status = ts_lca.compute_taxonomic_distance(tp_inst.assigned_lineage, optimal_taxon)
                 if status > 0:
                     LOGGER.debug("Lineages didn't converge between:\n"
-                                  "'{}' and '{}' (taxid: {})\n".format(tp_inst.assigned_lineage,
-                                                                       optimal_taxon, tp_inst.ncbi_tax))
+                                 "'{}' and '{}' (taxid: {})\n".format(tp_inst.assigned_lineage,
+                                                                      optimal_taxon, tp_inst.ncbi_tax))
                 try:
                     self.dist_wise_tp[marker][tp_inst.tax_dist].append(tp_inst.place_name)
                 except KeyError:
@@ -318,7 +317,8 @@ class ConfusionTest:
 
     def bin_headers(self, assignments: dict, annot_map: dict) -> None:
         self.gather_unlabelled_queries(assignments, set(annot_map.keys()))
-        binned_tp, binned_fp, binned_fn = bin_headers(assignments, annot_map, self.entrez_query_dict, self.ref_packages)
+        binned_tp, binned_fp, binned_fn = training_utils.bin_headers(assignments, annot_map,
+                                                                     self.entrez_query_dict, self.ref_packages)
 
         self.tp.update(binned_tp)
         self.fp.update(binned_fp)
@@ -335,7 +335,7 @@ class ConfusionTest:
 
         for marker in self.fp:
             validated_fp = set()
-            for qseq in self.fp[marker]:  # type: QuerySequence
+            for qseq in self.fp[marker]:  # type: training_utils.QuerySequence
                 seq_name = qseq.place_name
                 if seq_name[0] == '>':
                     seq_name = seq_name[1:]
@@ -366,7 +366,7 @@ class ConfusionTest:
                         if homolgous_marker != marker:
                             homologous_tp_names.update(set(qs.place_name for qs in self.tp[homolgous_marker]))
 
-                for qseq in self.fn[marker]:  # type: QuerySequence
+                for qseq in self.fn[marker]:  # type: training_utils.QuerySequence
                     if qseq.place_name not in homologous_tp_names:
                         fn_names.add(qseq.place_name)
                 # Remove all sequences from this marker's false negatives that are found in a homologous TP set
@@ -437,7 +437,7 @@ class ConfusionTest:
             if len(self.fn[marker]) == 0:
                 continue
             summary_string += "Number of false negatives for '" + marker + "':\n"
-            for qseq in self.fn[marker]:  # type: QuerySequence
+            for qseq in self.fn[marker]:  # type: training_utils.QuerySequence
                 try:
                     lineage_list.append(qseq.true_lineage)
                 except KeyError:
@@ -501,7 +501,7 @@ class ConfusionTest:
 
 
 def map_lineages(qseq_collection: set, tax_lineage_map: dict) -> None:
-    for qseq in qseq_collection:  # type: QuerySequence
+    for qseq in qseq_collection:  # type: training_utils.QuerySequence
         try:
             qseq.true_lineage = tax_lineage_map[qseq.ncbi_tax]
         except KeyError:
@@ -524,7 +524,7 @@ def summarize_taxonomy(taxa_list, rank, rank_depth_map=None):
         depth = rank_depth_map[rank] + 1
     except KeyError:
         LOGGER.error("Rank '{}' not present in rank-depth map:\n"
-                      "{}\n".format(rank, rank_depth_map))
+                     "{}\n".format(rank, rank_depth_map))
         sys.exit(3)
 
     taxa_census = dict()
@@ -583,6 +583,8 @@ def get_arguments(sys_args):
     parser.optopt.add_argument("--tool", default="treesapp", required=False,
                                choices=["treesapp", "graftm", "diamond"],
                                help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
+    parser.optopt.add_argument("--gpkg_dir", default=None, required=False, dest="gpkg_path",
+                               help="Path to a directory containing GraftM reference packages")
 
     ts.add_argument("--svm", default=False, required=False, action="store_true",
                     help="Uses the support vector machine (SVM) classification filter. "
@@ -615,17 +617,22 @@ def validate_command(args, sys_args):
         LOGGER.error("Python version '" + str(sys.version_info) + "' not supported.\n")
         sys.exit(3)
 
-    if args.refpkg_dir and args.refpkg_dir[-1] != os.sep:
+    if not args.refpkg_dir:
+        args.refpkg_dir = args.treesapp + "data"
+    if args.refpkg_dir[-1] != os.sep:
         args.refpkg_dir += os.sep
     if args.tool in ["diamond", "graftm"]:
-        if not args.refpkg_dir:
+        if not args.gpkg_path:
             LOGGER.error(args.tool + " specified but a GraftM reference package directory was not provided.\n")
             sys.exit(17)
-        elif not os.path.isdir(args.refpkg_dir):
-            LOGGER.error(args.refpkg_dir + " GraftM reference package directory does not exist!\n")
+        if not os.path.isdir(args.gpkg_path):
+            LOGGER.error(args.gpkg_path + " GraftM reference package directory does not exist!\n")
             sys.exit(17)
-        elif len(glob(args.refpkg_dir + "*gpkg")) == 0:
-            LOGGER.error("No GraftM reference packages found in " + args.refpkg_dir + ".\n")
+
+        if args.gpkg_path[-1] != os.sep:
+            args.gpkg_path += os.sep
+        if len(glob(args.gpkg_path + "*gpkg")) == 0:
+            LOGGER.error("No GraftM reference packages found in " + args.gpkg_path + ".\n")
             sys.exit(17)
 
     if args.targets:
@@ -642,7 +649,7 @@ def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: in
     if numerator == 0 or denominator == 0:
         return 0.0
     else:
-        return round(numerator/sqrt(denominator), 3)
+        return round(numerator / sqrt(denominator), 3)
 
 
 def check_previous_output(output_dir: str, files: list, overwrite=False) -> None:
@@ -681,10 +688,10 @@ def filter_redundant_og(query_og_map: dict) -> set:
 
     if redundants:
         LOGGER.warning("{}/{} query sequences were annotated as multiple reference packages and have been removed.\n"
-                        "".format(len(redundants), len(query_og_map)))
+                       "".format(len(redundants), len(query_og_map)))
         for og in sorted(ortho_filters):
             LOGGER.info("{}% of annotated sequences were filtered for '{}'.\n"
-                         "".format(round((ortho_filters[og]*100)/ortho_counts[og], 1), og))
+                        "".format(round((ortho_filters[og] * 100) / ortho_counts[og], 1), og))
 
     for query_name in redundants:
         query_og_map.pop(query_name)
@@ -751,9 +758,9 @@ def match_queries_to_refpkgs(query_name_map: dict, refpkg_dict: dict) -> (dict, 
 
     if missing_matches:
         LOGGER.info("{} unique reference packages ({} total) referred to in the annotation file were not found"
-                     " in the reference package list.\n".format(len(set(missing_matches)), len(missing_matches)))
+                    " in the reference package list.\n".format(len(set(missing_matches)), len(missing_matches)))
         LOGGER.debug("Unique annotation names that couldn't be mapped to reference packages:\n{}\n"
-                      "".format(set(missing_matches)))
+                     "".format(set(missing_matches)))
 
     return query_to_prefix, query_to_code
 
@@ -805,22 +812,18 @@ def mcc_calculator(sys_args):
     ##
     # Load the taxonomic trie for each reference package
     ##
-    if args.tool == "treesapp":
-        test_obj.ref_packages = refpkg_dict
-    elif args.tool in ["graftm", "diamond"]:
+    test_obj.ref_packages = refpkg_dict
+    if args.tool in ["graftm", "diamond"]:
         graftm_exe = utilities.fetch_executable_path("graftM", test_obj.treesapp_dir)
-        for gpkg in glob(args.refpkg_dir + "*gpkg"):
+        for gpkg in glob(args.gpkg_path + "*gpkg"):
             gpkg_name = str(os.path.basename(gpkg).split('.')[0])
             if gpkg_name in test_obj.ref_packages:
                 try:
                     tax_ids_file = glob(os.path.join(gpkg, gpkg_name + ".gpkg.refpkg",
                                                      gpkg_name + "*taxonomy.csv")).pop()
-                    test_obj.ref_packages[gpkg_name].taxa_trie = file_parsers.grab_graftm_taxa(tax_ids_file)
+                    test_obj.ref_packages[gpkg_name].taxa_trie = graftm_utils.grab_graftm_taxa(tax_ids_file)
                 except IndexError:
                     LOGGER.warning("No GraftM taxonomy file found for {}. Is this gpkg complete?\n".format(gpkg_name))
-    else:
-        LOGGER.error("Unrecognized tool name '{}'\n".format(args.tool))
-        sys.exit(3)
 
     ##
     # Run the specified taxonomic analysis tool and collect the classifications
@@ -829,11 +832,10 @@ def mcc_calculator(sys_args):
     test_fa_prefix = '.'.join(os.path.basename(args.input).split('.')[:-1])
     classification_lines = []
     if args.tool == "treesapp":
-        ref_pkgs = ','.join(test_obj.ref_packages.keys())
         classification_table = os.path.join(args.output, "TreeSAPP_output", "final_outputs", "classifications.tsv")
         if not os.path.isfile(classification_table):
             classify_args = ["-i", args.input,
-                             "-t", ref_pkgs,
+                             "-t", ','.join(test_obj.ref_packages.keys()),
                              "-n", str(args.num_threads),
                              "-m", "prot",
                              "--output", test_obj.data_dir,
@@ -857,21 +859,19 @@ def mcc_calculator(sys_args):
     else:
         # Since you are only able to analyze a single reference package at a time with GraftM, this is ran iteratively
         for gpkg in glob(args.refpkg_dir + "*gpkg"):
-            pkg_name = str(os.path.basename(gpkg).split('.')[0])
-            if not pkg_name:
-                LOGGER.error("Unable to parse marker name from gpkg '{}'\n".format(gpkg))
-                sys.exit(5)
+            pkg_name = graftm_utils.get_graftm_pkg_name(gpkg)
             if pkg_name not in test_obj.ref_packages:
                 LOGGER.warning("'{}' not in {} and will be skipped...\n".format(pkg_name, args.annot_map))
                 continue
             output_dir = test_obj.data_dir + pkg_name + os.sep
             classification_table = output_dir + test_fa_prefix + os.sep + test_fa_prefix + "_read_tax.tsv"
             if not os.path.isfile(classification_table):
-                wrapper.run_graftm_graft(graftm_exe, args.input, output_dir,
-                                         gpkg_path=gpkg, classifier=args.tool, num_threads=args.num_threads)
+                graftm_utils.run_graftm_graft(args.input, output_dir,
+                                              graftm_exe=graftm_exe, gpkg_path=gpkg,
+                                              classifier=args.tool, num_threads=args.num_threads)
 
             # TODO: Figure out how to convert GraftM classifications into JPlace objects
-            assignments[pkg_name] = file_parsers.read_graftm_classifications(classification_table)
+            assignments[pkg_name] = graftm_utils.read_graftm_classifications(classification_table)
 
     if len(assignments) == 0:
         LOGGER.error("No sequences were classified by " + args.tool + ".\n")

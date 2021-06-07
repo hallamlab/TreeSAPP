@@ -170,10 +170,12 @@ def read_graftm_classifications(assignment_file) -> list:
                 else:
                     header = re.sub("_split_.*", '', header)
             classified = '; '.join([re.sub(r'e\d+$', '', taxon) for taxon in classified.split('; ')])
+            if classified.split("; ")[0] == "Root":
+                classified = "r__" + classified
             if header and classified:
                 pquery = phylo_seq.PQuery()
                 pquery.seq_name = header
-                pquery.lineage = classified
+                pquery.recommended_lineage = classified
                 assignments.append(pquery)
         except ValueError:
             LOGGER.error("Unable to parse line:" + str(line))

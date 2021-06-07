@@ -168,10 +168,10 @@ def summarize_query_classes(positives: set, query_seq_names: set) -> None:
             false_pos.add(seq_name)
 
     LOGGER.info("\tTrue positives:          {:>9}\n"
-                 "\tFalse positives:         {:>9}\n"
-                 "\tFalse negatives:         {:>9}\n"
-                 "\tSequence names provided: {:>9}\n"
-                 "\n".format(len(true_pos), len(false_pos), len(false_neg), len(total)))
+                "\tFalse positives:         {:>9}\n"
+                "\tFalse negatives:         {:>9}\n"
+                "\tSequence names provided: {:>9}\n"
+                "\n".format(len(true_pos), len(false_pos), len(false_neg), len(total)))
     return
 
 
@@ -213,7 +213,7 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
                 positives = positive_queries[refpkg.refpkg_code]
             else:
                 LOGGER.error("Unable to find '{}' in the set of positive queries:\n".format(refpkg_name) +
-                              ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
+                             ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
                 sys.exit(5)
         true_positives = set()
         tp[refpkg_name] = list()
@@ -258,9 +258,10 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
 
     if missing:
         LOGGER.warning("Unable to find {}/{} sequence accessions in the Entrez records.\n".format(len(missing),
-                                                                                                   len(entrez_query_dict)))
+                                                                                                  len(
+                                                                                                      entrez_query_dict)))
         LOGGER.debug("Unable to find the following sequence accessions in the Entrez records:\n"
-                      "{}\n".format(', '.join(missing)))
+                     "{}\n".format(', '.join(missing)))
 
     return tp, fp, fn
 
@@ -454,7 +455,7 @@ def pquery_to_vector(pquery: phylo_seq.PQuery, ref_pkg: ReferencePackage,
         tp = pquery.seq_name in positives[ref_pkg.prefix]
     pquery_vec = _named_vec(refpkg=ref_pkg.prefix, tp=tp,
                             tax_rank=pquery.rank, evalue=pquery.evalue,
-                            hmm_cov=round((int(pquery.seq_len)*100)/ref_pkg.profile_length, 1),
+                            hmm_cov=round((int(pquery.seq_len) * 100) / ref_pkg.profile_length, 1),
                             leaves=len(internal_nodes[int(pquery.consensus_placement.edge_num)]),
                             lwr=round(float(pquery.consensus_placement.like_weight_ratio), 3),
                             distal=pquery.consensus_placement.distal_length,
@@ -493,9 +494,9 @@ def load_training_data_frame(pqueries: dict, refpkg_map: dict, refpkg_positive_a
 
             if int(pquery.consensus_placement.edge_num) not in internal_nodes:
                 LOGGER.error("Unable to find internal node '{}' in the {} node-leaf map indicating a discrepancy "
-                              "between reference package versions used by treesapp assign and those used here.\n"
-                              "Was the correct output directory provided?"
-                              "".format(pquery.consensus_placement.edge_num, pquery.ref_name))
+                             "between reference package versions used by treesapp assign and those used here.\n"
+                             "Was the correct output directory provided?"
+                             "".format(pquery.consensus_placement.edge_num, pquery.ref_name))
                 sys.exit(5)
 
             classification_vec = pquery_to_vector(pquery, ref_pkg, refpkg_positive_annots, internal_nodes)
@@ -565,7 +566,7 @@ def vectorize_placement_data_by_rank(placement_training_df: pd.DataFrame) -> np.
         diff = limit - len(examples)
         for row in examples:
             if len(examples) < limit:
-                synthetic_samples = augment_training_set(row, n_reps=round(diff/len(rank_feature_vectors[rank])))
+                synthetic_samples = augment_training_set(row, n_reps=round(diff / len(rank_feature_vectors[rank])))
                 examples = np.append(examples, synthetic_samples, axis=0)
             else:
                 break
@@ -733,7 +734,7 @@ def summarize_pquery_ranks(pqueries: list) -> None:
             n_skipped += 1
 
     LOGGER.info("\n".join(["{}\t{}".format(rank, rank_counts[rank]) for
-                            rank in sorted(rank_counts, key=lambda x: rank_counts[x])]) + "\n")
+                           rank in sorted(rank_counts, key=lambda x: rank_counts[x])]) + "\n")
 
     LOGGER.debug("{} PQuery instances not included in rank summary.\n".format(n_skipped))
 
@@ -803,14 +804,14 @@ def generate_train_test_data(true_ps: np.array, false_ps: np.array, test_pr=0.4)
 
     if len(conditions) != len(classified_data):
         LOGGER.error("Inconsistent array lengths between data points (%d) and targets (%d).\n"
-                      % (len(classified_data), len(conditions)))
+                     % (len(classified_data), len(conditions)))
         sys.exit(5)
 
     # Split dataset into the two training and testing sets - 60% training and 40% testing
     x_train, x_test, y_train, y_test = model_selection.train_test_split(classified_data, conditions,
                                                                         test_size=test_pr, random_state=12345)
 
-    return classified_data.astype(np.float64), conditions.astype(np.float64),\
+    return classified_data.astype(np.float64), conditions.astype(np.float64), \
            x_train.astype(np.float64), x_test.astype(np.float64), y_train.astype(np.float64), y_test.astype(np.float64)
 
 

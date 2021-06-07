@@ -393,8 +393,8 @@ def run_clade_exclusion_graftm(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_pkg
             LOGGER.warning("GraftM did not generate output for " + tt_obj.lineage + ". Skipping.\n")
             shutil.rmtree(tt_obj.intermediates_dir)
 
-    tt_obj.taxonomic_tree = file_parsers.grab_graftm_taxa(gpkg_tax_ids_file)
-    graftm_assignments = file_parsers.read_graftm_classifications(tt_obj.classification_table)
+    tt_obj.taxonomic_tree = graftm_utils.grab_graftm_taxa(gpkg_tax_ids_file)
+    graftm_assignments = graftm_utils.read_graftm_classifications(tt_obj.classification_table)
     tt_obj.assignments = {ref_pkg.prefix: graftm_assignments}
     tt_obj.filter_assignments(ref_pkg.prefix)
 

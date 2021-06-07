@@ -3,18 +3,26 @@ import pytest
 import shutil
 import os
 
-from .testing_utils import get_test_data
+from .testing_utils import get_test_data, get_treesapp_root
 
 
 class MccTester(unittest.TestCase):
     def setUp(self) -> None:
+        from treesapp import utilities
         self.num_procs = 4
+        self.ts_dir = get_treesapp_root()
         self.refpkg_dir = get_test_data(os.path.join("refpkgs"))
         self.ts_test_dir = "./MCC_TreeSAPP"
         self.gm_test_dir = "./MCC_GraftM"
 
         if not os.path.isdir(self.gm_test_dir):
             os.mkdir(self.gm_test_dir)
+
+        try:
+            self.graftm = utilities.fetch_executable_path("graftM", self.ts_dir)
+        except SystemExit:
+            self.graftm = None
+
         return
 
     def tearDown(self) -> None:
@@ -88,6 +96,12 @@ class MccTester(unittest.TestCase):
                "--overwrite"]
         with pytest.raises(SystemExit):
             mcc_calculator.mcc_calculator(cmd)
+
+        if self.graftm:
+            cmd += ["--gpkg_dir", self.refpkg_dir,
+                    "--refpkg_dir", self.refpkg_dir]
+            mcc_calculator.mcc_calculator(cmd)
+
         return
 
 
