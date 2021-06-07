@@ -54,18 +54,18 @@ class ExecutableWrapperTester(unittest.TestCase):
         self.assertTrue(os.path.exists(cluster_table))
         return
 
-    # def test_cluster_sequences(self):
-    #     from treesapp.utilities import fetch_executable_path
-    #     from treesapp.wrapper import cluster_sequences
-    #     # VSEARCH isn't required anymore so test if its installed
-    #     try:
-    #         vsearch = fetch_executable_path("vsearch", self.ts_dir)
-    #     except SystemExit:
-    #         return
-    #     cluster_sequences(software_path=vsearch, similarity=0.90,
-    #                       fasta_input=self.test_fasta, output_prefix=os.path.join(self.tmp_dir, "vsearch_test"))
-    #     self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "vsearch_test.uc")))
-    #     return
+    def test_cluster_sequences(self):
+        from treesapp.utilities import fetch_executable_path
+        from treesapp.wrapper import cluster_sequences
+        # VSEARCH isn't required anymore so test if its installed
+        try:
+            vsearch = fetch_executable_path("vsearch", self.ts_dir)
+        except SystemExit:
+            return
+        cluster_sequences(software_path=vsearch, similarity=0.90,
+                          fasta_input=self.test_fasta, output_prefix=os.path.join(self.tmp_dir, "vsearch_test"))
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "vsearch_test.uc")))
+        return
 
     def test_support_tree_raxml(self):
         from treesapp.utilities import fetch_executable_path
@@ -83,27 +83,27 @@ class ExecutableWrapperTester(unittest.TestCase):
         self.assertEqual(39, len(bs_tree))
         return
 
-    def test_construct_tree(self):
-        from treesapp.utilities import fetch_executable_path
-        from treesapp.wrapper import construct_tree
-        from treesapp.entish import load_ete3_tree
-        # Test with an absurd number of threads to ensure RAxML-NG's auto-scaling works
-        best_tree = construct_tree(tree_builder="RAxML-NG",
-                                   executables={"raxml-ng": fetch_executable_path(exe_name="raxml-ng",
-                                                                                  treesapp_dir=self.ts_dir)},
-                                   evo_model="WAG+R2",
-                                   multiple_alignment_file=get_test_data("PuhA.phy"),
-                                   tree_output_dir=self.tmp_dir,
-                                   tree_prefix="TMP",
-                                   num_trees=1,
-                                   num_threads=24,
-                                   verbosity=0)
-        self.assertTrue(os.path.isfile(best_tree))
-        bs_tree = load_ete3_tree(best_tree)
-        self.assertEqual(39, len(bs_tree))
-        # self.assertEqual(logging.INFO,
-        #                  logging.getLogger().level)
-        return
+    # def test_construct_tree(self):
+    #     from treesapp.utilities import fetch_executable_path
+    #     from treesapp.wrapper import construct_tree
+    #     from treesapp.entish import load_ete3_tree
+    #     # Test with an absurd number of threads to ensure RAxML-NG's auto-scaling works
+    #     best_tree = construct_tree(tree_builder="RAxML-NG",
+    #                                executables={"raxml-ng": fetch_executable_path(exe_name="raxml-ng",
+    #                                                                               treesapp_dir=self.ts_dir)},
+    #                                evo_model="WAG+R2",
+    #                                multiple_alignment_file=get_test_data("PuhA.phy"),
+    #                                tree_output_dir=self.tmp_dir,
+    #                                tree_prefix="TMP",
+    #                                num_trees=1,
+    #                                num_threads=24,
+    #                                verbosity=0)
+    #     self.assertTrue(os.path.isfile(best_tree))
+    #     bs_tree = load_ete3_tree(best_tree)
+    #     self.assertEqual(39, len(bs_tree))
+    #     # self.assertEqual(logging.INFO,
+    #     #                  logging.getLogger().level)
+    #     return
 
     def test_build_hmm_profile(self):
         from treesapp.wrapper import build_hmm_profile
