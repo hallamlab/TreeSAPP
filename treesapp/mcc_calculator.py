@@ -816,7 +816,7 @@ def mcc_calculator(sys_args):
     if args.tool in ["graftm", "diamond"]:
         graftm_exe = utilities.fetch_executable_path("graftM", test_obj.treesapp_dir)
         for gpkg in glob(args.gpkg_path + "*gpkg"):
-            gpkg_name = str(os.path.basename(gpkg).split('.')[0])
+            gpkg_name = graftm_utils.get_graftm_pkg_name(gpkg)
             if gpkg_name in test_obj.ref_packages:
                 try:
                     tax_ids_file = glob(os.path.join(gpkg, gpkg_name + ".gpkg.refpkg",
@@ -858,7 +858,7 @@ def mcc_calculator(sys_args):
         assignments = assignments_to_pqueries(classification_lines)
     else:
         # Since you are only able to analyze a single reference package at a time with GraftM, this is ran iteratively
-        for gpkg in glob(args.refpkg_dir + "*gpkg"):
+        for gpkg in glob(args.gpkg_path + "*gpkg"):
             pkg_name = graftm_utils.get_graftm_pkg_name(gpkg)
             if pkg_name not in test_obj.ref_packages:
                 LOGGER.warning("'{}' not in {} and will be skipped...\n".format(pkg_name, args.annot_map))
