@@ -2,6 +2,7 @@ import os
 import logging
 import sys
 import time
+import re
 import itertools
 from glob import glob
 
@@ -20,7 +21,7 @@ from treesapp import fasta
 from treesapp import classy
 from treesapp import phylo_seq
 from treesapp import logger
-from treesapp.external_command_interface import launch_write_command, create_dir_from_taxon_name
+from treesapp import external_command_interface as eci
 from treesapp.jplace_utils import jplace_parser, demultiplex_pqueries, calc_pquery_mean_tip_distances
 from treesapp.entish import map_internal_nodes_leaves
 from treesapp.refpkg import ReferencePackage
@@ -289,6 +290,23 @@ def rarefy_rank_distances(rank_distances: dict) -> dict:
     return rarefied_dists
 
 
+def create_dir_from_taxon_name(taxon_lineage: str, output_dir: str):
+    """
+    This function is to ensure that the taxon name being used to create a new directory doesn't contain any special
+    characters that may mess up external dependencies (e.g. hmmbuild, EPA-NG).
+
+    :param taxon_lineage: Name of a taxon
+    :param output_dir: Path to a directory to create the new directory (based on taxon) under
+    :return: Full path to the new directory
+    """
+    taxon = taxon_lineage.split("; ")[-1]
+    query_name = re.sub(r"([ /])", '_', re.sub("'", '', taxon))
+    dir_path = output_dir + query_name + os.sep
+    if not os.path.isdir(dir_path):
+        os.mkdir(dir_path)
+    return dir_path
+
+
 def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
                                      test_fasta: fasta.FASTA, training_seqs: list, rank: str,
                                      executables: dict, output_dir: str, pbar: tqdm, num_threads=2) -> list:
@@ -356,7 +374,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     LOGGER.debug(str(aln_stdout) + "\n")
 
     trim_command, combined_msa = wrapper.get_msa_trim_command(executables, all_msa, ce_refpkg.molecule)
-    launch_write_command(trim_command)
+    eci.launch_write_command(trim_command)
     intermediate_files += glob(combined_msa + "*")
 
     # Ensure reference sequences haven't been removed during MSA trimming

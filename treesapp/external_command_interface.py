@@ -1,7 +1,4 @@
-__author__ = 'Connor Morgan-Lang'
-
 import os
-import re
 import sys
 import logging
 import subprocess
@@ -40,7 +37,7 @@ def launch_write_command(cmd_list, collect_all=True):
     # Ensure the command completed successfully
     if proc.returncode != 0:
         LOGGER.error(cmd_list[0] + " did not complete successfully! Command used:\n" +
-                      ' '.join(cmd_list) + "\nOutput:\n" + stdout)
+                     ' '.join(cmd_list) + "\nOutput:\n" + stdout)
         sys.exit(19)
 
     return stdout, proc.returncode
@@ -112,34 +109,19 @@ class CommandLineFarmer:
         return
 
 
-def create_dir_from_taxon_name(taxon_lineage: str, output_dir: str):
-    """
-    This function is to ensure that the taxon name being used to create a new directory doesn't contain any special
-    characters that may mess up external dependencies (e.g. hmmbuild, EPA-NG).
-
-    :param taxon_lineage: Name of a taxon
-    :param output_dir: Path to a directory to create the new directory (based on taxon) under
-    :return: Full path to the new directory
-    """
-    taxon = taxon_lineage.split("; ")[-1]
-    query_name = re.sub(r"([ /])", '_', re.sub("'", '', taxon))
-    dir_path = output_dir + query_name + os.sep
-    os.mkdir(dir_path)
-    return dir_path
-
-
 def run_apply_async_multiprocessing(func, arguments_list: list, num_processes: int, pbar_desc: str) -> list:
     pool = multiprocessing.Pool(processes=num_processes)
+
+    jobs = []
+    result_list_tqdm = []
+    pbar = tqdm(jobs, total=len(arguments_list), desc=pbar_desc, ncols=100)
 
     def update(*a):
         pbar.update()
 
-    jobs = []
     for args in arguments_list:
         jobs.append(pool.apply_async(func=func, args=(*args,), callback=update))
     pool.close()
-    result_list_tqdm = []
-    pbar = tqdm(jobs, desc=pbar_desc, ncols=100)
 
     for job in pbar:
         result_list_tqdm.append(job.get())
