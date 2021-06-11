@@ -28,6 +28,9 @@ class Taxon:
         self.taxid = ""
         self.coverage = 1
 
+    def __str__(self):
+        return "Taxon object '{}' at {}".format(self.prefix_taxon(), id(self))
+
     def prefix_taxon(self, taxon_sep="__"):
         if not self.prefix:
             if not self.rank:
