@@ -192,8 +192,8 @@ def fq2fa(fastx: str, outdir: str, file_num=1, max_seq_count=0) -> list:
     fh = None  # File handler
     file_num = 0  # The current file number
 
-    for read_name, seq, qual in fq:  # type: (str, str)
-        buff_size += str(read_name + seq + qual).__sizeof__()
+    for read_name, seq, qual in fq:  # type: (str, str, str)
+        buff_size += str(read_name + seq + qual).__sizeof__()  # This needs to reflect the amount parsed, not written
         fasta_string += ">%s\n%s\n" % (read_name, seq)
         seq_write += 1
         # Batch write
@@ -220,7 +220,7 @@ def fq2fa(fastx: str, outdir: str, file_num=1, max_seq_count=0) -> list:
             fh.close()
     end = time()
 
-    LOGGER.debug("{} completed fq2fa in {}s.\n".format(fastx, end-start))
+    LOGGER.debug("{} completed fq2fa in {}s.\n".format(fastx, end - start))
 
     return outputs
 
@@ -235,7 +235,7 @@ def read_fastq_to_dict(fastq_file: str, num_records=0) -> dict:
         LOGGER.debug(str(error) + "\n")
         return fasta_dict
 
-    for name, seq, qual in py_fa:  # type: (str, str)
+    for name, seq, _qual in py_fa:  # type: (str, str)
         fasta_dict[name] = seq.upper()
         num_parsed += 1
         if 0 < num_records <= num_parsed:
@@ -262,7 +262,7 @@ def read_fasta_to_dict(fasta_file: str, num_records=0) -> dict:
     try:
         py_fa = Fasta(fasta_file, build_index=False, full_name=True)
     except RuntimeError as error:
-        LOGGER.debug(str(error)+"\n")
+        LOGGER.debug(str(error) + "\n")
         return fasta_dict
 
     for name, seq in py_fa:  # type: (str, str)
@@ -351,9 +351,9 @@ def register_headers(header_list: list, drop=True) -> dict:
 
     if len(dups) > 0:
         LOGGER.warning("{} duplicate sequence headers found:\n{}"
-                        "\n".format(len(dups), ", ".join(dups)) +
-                        "TreeSAPP will proceed as if these duplicate sequences were never seen in 5 seconds or"
-                        " you can stop it here with Ctrl-c... the choice is yours.\n")
+                       "\n".format(len(dups), ", ".join(dups)) +
+                       "TreeSAPP will proceed as if these duplicate sequences were never seen in 5 seconds or"
+                       " you can stop it here with Ctrl-c... the choice is yours.\n")
         sleep(5)
 
     return header_registry
@@ -409,11 +409,11 @@ class FASTA:
 
     def mapping_error(self, bad_headers):
         self.fa_logger.error("No classified sequences were mapped to '{}' FASTA dictionary.\n"
-                      "Here are some example names from the mapping list:\n\t{}\n"
-                      "And example names from FASTA dict:\n\t{}\n".format(self.file,
-                                                                          "\n\t".join(sorted(bad_headers)[0:6]),
-                                                                          "\n\t".join(list(sorted(
-                                                                              self.fasta_dict.keys()))[0:6])))
+                             "Here are some example names from the mapping list:\n\t{}\n"
+                             "And example names from FASTA dict:\n\t{}\n".format(self.file,
+                                                                                 "\n\t".join(sorted(bad_headers)[0:6]),
+                                                                                 "\n\t".join(list(sorted(
+                                                                                     self.fasta_dict.keys()))[0:6])))
         raise AssertionError
 
     def n_seqs(self):
@@ -446,7 +446,7 @@ class FASTA:
             except TypeError:
                 if not header.version:
                     self.fa_logger.error("Attempting to create an accession:header dictionary but"
-                                  " accession could not be set for header '{}'.\n".format(header.original))
+                                         " accession could not be set for header '{}'.\n".format(header.original))
                     sys.exit(17)
                 else:
                     raise TypeError
@@ -461,7 +461,7 @@ class FASTA:
             return [index for index in sorted(self.header_registry, key=int)]
         else:
             self.fa_logger.error("Unrecognized Header format '" + name_format + "'." +
-                          " Options are 'original', 'first_split' and 'num'.\n")
+                                 " Options are 'original', 'first_split' and 'num'.\n")
             sys.exit(5)
 
     def keep_only(self, header_subset: list, superset=False) -> None:
@@ -494,7 +494,8 @@ class FASTA:
 
         if unmapped:
             self.fa_logger.warning("{} sequences were not mapped to FASTA dictionary.\n".format(str(len(unmapped))))
-            self.fa_logger.debug("Headers that were not mapped to FASTA dictionary:\n\t{}\n".format("\n\t".join(unmapped)))
+            self.fa_logger.debug(
+                "Headers that were not mapped to FASTA dictionary:\n\t{}\n".format("\n\t".join(unmapped)))
 
         self.fasta_dict = pruned_fasta_dict
         self.synchronize_seqs_n_headers()
@@ -505,7 +506,8 @@ class FASTA:
         if molecule == "prot":
             invalid = {'U', 'O'}
         else:
-            self.fa_logger.debug("FASTA.replace_ambiguity_chars is not equipped to handle molecule type '%s'.\n" % molecule)
+            self.fa_logger.debug(
+                "FASTA.replace_ambiguity_chars is not equipped to handle molecule type '%s'.\n" % molecule)
             return
         invalid_re = re.compile('|'.join(invalid))
         bad_seqs = 0
@@ -517,7 +519,7 @@ class FASTA:
         self.fa_logger.debug("Identified and replaced invalid ambiguity characters in %d sequences.\n" % bad_seqs)
 
         return
-    
+
     def trim_to_length(self, seq_length: int):
         self.remove_shorter_than(seq_length)
         for seq_id in self.fasta_dict:
@@ -537,11 +539,12 @@ class FASTA:
                 dropped += 1
         if dropped == self.n_seqs():
             self.fa_logger.debug("All {} sequences were shorter than the minimum sequence length threshold ({}).\n"
-                          "".format(dropped, min_len))
+                                 "".format(dropped, min_len))
             self.clear()
             return 1
         elif dropped >= 1:
-            self.fa_logger.debug("{} sequences were found to be shorter than {} and removed.\n".format(dropped, min_len))
+            self.fa_logger.debug(
+                "{} sequences were found to be shorter than {} and removed.\n".format(dropped, min_len))
         self.keep_only(long_seqs)
         return 0
 
@@ -593,7 +596,8 @@ class FASTA:
                 pass
 
         if not repl_fasta_dict:
-            self.fa_logger.error("Unable to change dictionary keys as no headers in '" + self.file + "' were found in dict.\n")
+            self.fa_logger.error(
+                "Unable to change dictionary keys as no headers in '" + self.file + "' were found in dict.\n")
             sys.exit(3)
         self.fasta_dict = repl_fasta_dict
         self.index_form = index_replace
@@ -628,10 +632,12 @@ class FASTA:
 
         # Writing the individual headers leads to massive log files...
         if len(excluded_headers) >= 1:
-            self.fa_logger.debug("{} sequences were excluded after synchronizing FASTA.\n".format(len(excluded_headers)))
+            self.fa_logger.debug(
+                "{} sequences were excluded after synchronizing FASTA.\n".format(len(excluded_headers)))
 
         if len(self.header_registry) == 0:
-            self.fa_logger.error("All sequences were discarded during header_registry and fasta_dict synchronization.\n")
+            self.fa_logger.error(
+                "All sequences were discarded during header_registry and fasta_dict synchronization.\n")
             sys.exit(-1)
         if len(self.fasta_dict) == 0:
             self.fa_logger.error("No fasta sequence names were mapped to the header registry!\n")
@@ -669,7 +675,7 @@ class FASTA:
         self.swap_headers(swap_header_map)
         if skipped:
             self.fa_logger.warning("Skipped converting sequence names to custom lineage format for the following:\n" +
-                            ", ".join(skipped) + "\n")
+                                   ", ".join(skipped) + "\n")
         return
 
     def summarize_fasta_sequences(self):
@@ -746,7 +752,7 @@ class FASTA:
             dedup_header_dict[rep_acc] = self.header_registry[rep_acc]
         if duplicates:
             self.fa_logger.debug("Removed {} sequences with duplicate accessions:\n"
-                          "\t{}\n".format(len(duplicates), "\n\t".join(duplicates)))
+                                 "\t{}\n".format(len(duplicates), "\n\t".join(duplicates)))
         self.header_registry = dedup_header_dict
         self.synchronize_seqs_n_headers()
         return
@@ -916,7 +922,7 @@ def guess_sequence_type(max_eval=100, req_perc=0.95, **kwargs) -> str:
             break
 
     majority = max(seq_counts, key=seq_counts.get)
-    if seq_counts[majority] > 0.95*seqs_read:
+    if seq_counts[majority] > 0.95 * seqs_read:
         LOGGER.debug("Sequences appear to be '{}'.\n".format(majority))
         return majority
     else:
@@ -989,17 +995,17 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str,
     fa_out_handle.write(fasta_string)
 
     end = time()
-    LOGGER.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, round(end-start, 2)))
+    LOGGER.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, round(end - start, 2)))
 
     if len(headers) == 0:
         LOGGER.error("No sequences in FASTA {0} were saved.\n"
-                      "Either the molecule type specified ({1}) or minimum sequence length ({2}) may be unsuitable.\n"
-                      "Consider changing these before rerunning.\n".format(fasta_input, molecule, min_seq_length))
+                     "Either the molecule type specified ({1}) or minimum sequence length ({2}) may be unsuitable.\n"
+                     "Consider changing these before rerunning.\n".format(fasta_input, molecule, min_seq_length))
         sys.exit(13)
 
     if len(bad_seqs) > 0:
         LOGGER.debug("The following sequences were removed due to bad characters:\n" +
-                      "\n".join(bad_seqs) + "\n")
+                     "\n".join(bad_seqs) + "\n")
 
     header_registry = register_headers(headers, True)
 
@@ -1034,7 +1040,7 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
     try:
         py_fa = Fasta(fasta_input, build_index=False, full_name=full_name)
     except RuntimeError as error:
-        LOGGER.debug(str(error)+"\n")
+        LOGGER.debug(str(error) + "\n")
         return formatted_fasta_dict
 
     for name, seq in py_fa:  # type: (str, str)
@@ -1049,17 +1055,17 @@ def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_leng
                 continue
             formatted_fasta_dict[name.rstrip()] = seq
     end = time()
-    LOGGER.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, end-start))
+    LOGGER.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, end - start))
 
     if len(formatted_fasta_dict) == 0:
         LOGGER.error("No sequences in FASTA {0} were saved.\n"
-                      "Either the molecule type specified ({1}) or minimum sequence length ({2}) may be unsuitable.\n"
-                      "Consider changing these before rerunning.\n".format(fasta_input, molecule, min_seq_length))
+                     "Either the molecule type specified ({1}) or minimum sequence length ({2}) may be unsuitable.\n"
+                     "Consider changing these before rerunning.\n".format(fasta_input, molecule, min_seq_length))
         sys.exit(13)
 
     if len(bad_seqs) > 0:
         LOGGER.debug("The following sequences were removed due to bad characters:\n" +
-                      "\n".join(bad_seqs) + "\n")
+                     "\n".join(bad_seqs) + "\n")
 
     return formatted_fasta_dict
 
@@ -1080,7 +1086,7 @@ def get_headers(fasta_file: str) -> list:
         fa = Fasta(file_name=fasta_file, build_index=False, full_name=True)
     except RuntimeError:
         LOGGER.warning("Pyfastx is unable to open '{}' to read headers. "
-                        "There is a chance this is an empty file and will be skipped.\n".format(fasta_file))
+                       "There is a chance this is an empty file and will be skipped.\n".format(fasta_file))
         return original_headers
 
     for name, seq in fa:  # type: (str, str)
@@ -1307,7 +1313,7 @@ def sequence_info_groups(regex_match_groups, header_db: str, header: str, header
 
     if not (accession or organism or lineage or taxid):
         LOGGER.error("Insufficient information was loaded for header:\n" +
-                      header + "\n" + "regex_match: " + header_db + '\n')
+                     header + "\n" + "regex_match: " + header_db + '\n')
         sys.exit(13)
 
     if not version:
@@ -1328,7 +1334,7 @@ def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, st
     """
     if re.match(r"^>?[0-9]+\s+coded_by=.+,organism=.+,definition=.+$", header):
         LOGGER.warning(header + " uses GI numbers which are now unsupported by the NCBI! " +
-                        "Consider switching to Accession.Version identifiers instead.\n")
+                       "Consider switching to Accession.Version identifiers instead.\n")
 
     # Gather all possible matches
     format_matches = dict()
@@ -1353,8 +1359,8 @@ def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, st
             format_matches = {"ts_assign": format_matches["ts_assign"]}  # ts_assign over-rules all others
         else:
             LOGGER.error("Header '{}' matches multiple potential formats:\n\t{}\n"
-                          "TreeSAPP is unable to parse necessary information.\n".format(header,
-                                                                                        ", ".join(format_matches)))
+                         "TreeSAPP is unable to parse necessary information.\n".format(header,
+                                                                                       ", ".join(format_matches)))
             sys.exit(5)
 
     header_db, info = format_matches.popitem()
@@ -1406,7 +1412,7 @@ def summarize_fasta_sequences(fasta_file):
     stats_string = "\tNumber of sequences: " + str(num_headers) + "\n"
     stats_string += "\tLongest sequence length: " + str(longest) + "\n"
     stats_string += "\tShortest sequence length: " + str(shortest) + "\n"
-    stats_string += "\tMean sequence length: " + str(round(sum(sequence_lengths)/num_headers, 1)) + "\n"
+    stats_string += "\tMean sequence length: " + str(round(sum(sequence_lengths) / num_headers, 1)) + "\n"
     stats_string += "\tMedian sequence length: " + str(median(sequence_lengths)) + "\n"
 
     LOGGER.info(stats_string)
