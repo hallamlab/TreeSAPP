@@ -322,17 +322,14 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
                        "--refpkg_dir", os.path.dirname(ce_refpkg.f__pkl),
                        "-m", molecule_type, "-n", str(num_threads),
                        "--min_seq_length", str(min_seq_length),
-                       "--overwrite", "--delete"]
+                       "--overwrite", "--delete", "--silent"]
         if trim_align:
             assign_args.append("--trim_align")
 
-        # TODO: Pause LOGGER just to console and continue writing to log file
-        LOGGER.disabled = True
         try:
             assign.assign(assign_args)
         except:  # Just in case treesapp assign fails, just continue
             pass
-        LOGGER.disabled = False
         if not os.path.isfile(tt_obj.classification_table):
             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
             LOGGER.warning("TreeSAPP did not generate output for '{}'. Skipping.\n".format(tt_obj.lineage))

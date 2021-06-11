@@ -220,7 +220,7 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
 
 def launch_evolutionary_placement_queries(executables: dict, split_msa_files: dict,
                                           refpkg_dict: dict, output_dir: str,
-                                          num_threads: int) -> None:
+                                          num_threads: int, silent=False) -> None:
     """
     Run EPA-ng using FASTA files containing the reference and query sequences, and the reference trees
 
@@ -233,13 +233,10 @@ def launch_evolutionary_placement_queries(executables: dict, split_msa_files: di
     :param num_threads: Number of threads to use during placement
     :return: None
     """
-    LOGGER.info("Running EPA... ")
-
-    start_time = time.time()
-
-    epa_calls = 0
+    p_bar = tqdm(total=sum([len(v) for v in split_msa_files.values()]), ncols=120, disable=silent)
     # Maximum-likelihood sequence placement analyses
-    for refpkg_name in sorted(split_msa_files.keys()):
+    for refpkg_name, refpkg_alns in sorted(split_msa_files.items()):
+        p_bar.set_description(desc="{} phylogenetic placement".format(refpkg_name))
         if not isinstance(refpkg_name, str):
             LOGGER.error("RefPkg name key '{}' is not string but {}\n.".format(refpkg_name, type(refpkg_name)))
             raise AssertionError
@@ -250,17 +247,8 @@ def launch_evolutionary_placement_queries(executables: dict, split_msa_files: di
             # Find the query names
             raxml_evolutionary_placement(executables["epa-ng"], ref_pkg.f__tree, split_msa.ref, ref_pkg.f__model_info,
                                          split_msa.query, query_name, output_dir, num_threads)
-            epa_calls += 1
-
-    end_time = time.time()
-    hours, remainder = divmod(end_time - start_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    LOGGER.info("done.\n")
-
-    LOGGER.debug("\tEPA-ng time required: " +
-                 ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    LOGGER.debug("\tEPA-ng was called " + str(epa_calls) + " times.\n")
-
+            p_bar.update()
+    p_bar.close()
     return
 
 
@@ -868,7 +856,7 @@ def get_msa_trim_command(executables, mfa_file, molecule, tool="BMGE"):
     return trim_command, trimmed_msa_file
 
 
-def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict, n_proc=1, tool="BMGE"):
+def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict, n_proc=1, tool="BMGE", silent=False):
     """
     Runs BMGE using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
 
@@ -896,7 +884,8 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict,
     eci.run_apply_async_multiprocessing(func=eci.launch_write_command,
                                         arguments_list=task_list,
                                         num_processes=n_proc,
-                                        pbar_desc="Multiple alignment trimming")
+                                        pbar_desc="Multiple alignment trimming",
+                                        disable=silent)
 
     end_time = time.time()
     hours, remainder = divmod(end_time - start_time, 3600)

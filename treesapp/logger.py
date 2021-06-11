@@ -75,6 +75,16 @@ def logger_name() -> str:
     return __name__.split('.')[0]
 
 
+def reactivate_log() -> None:
+    ts_logger = logging.getLogger(logger_name())
+    for h in ts_logger.handlers:
+        if h.__class__.__name__ == "StreamHandler":
+            h.propagate = True
+    ts_logger.disabled = False
+    ts_logger.is_silent = False
+    return
+
+
 def prep_logging(log_file=None, verbosity=False, silent=False, stream=sys.stderr) -> None:
     """
     Allows for multiple file handlers to be added to the root logger, but only a single stream handler.
@@ -93,6 +103,8 @@ def prep_logging(log_file=None, verbosity=False, silent=False, stream=sys.stderr
 
     # Detect whether handlers are already present and return if true
     ts_logger = logging.getLogger(logger_name())
+    if silent:
+        ts_logger.disabled = True
     ts_logger.setLevel(logging.DEBUG)
     if len(ts_logger.handlers):
         return
@@ -108,6 +120,7 @@ def prep_logging(log_file=None, verbosity=False, silent=False, stream=sys.stderr
     if silent:
         ts_logger.is_silent = True
         ts_stream_logger.setLevel(logging.ERROR)
+        ts_logger.disabled = True
 
     if log_file:
         if not os.path.isabs(log_file):

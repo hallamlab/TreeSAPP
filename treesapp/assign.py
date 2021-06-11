@@ -18,7 +18,7 @@ from treesapp import logger
 from treesapp import phylo_seq
 from treesapp import refpkg
 from treesapp import treesapp_args
-from treesapp.entish import index_tree_edges, map_internal_nodes_leaves
+from treesapp import entish
 from treesapp import lca_calculations as ts_lca
 from treesapp import jplace_utils
 from treesapp import file_parsers
@@ -39,6 +39,7 @@ class Assigner(classy.TreeSAPP):
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
         self.svc_filter = False
+        self.silent = False
         self.fasta_full_name = True
         self.aa_orfs_file = ""
         self.nuc_orfs_file = ""
@@ -70,6 +71,7 @@ class Assigner(classy.TreeSAPP):
             self.ts_logger.error("FASTX input file '{}' doesn't exist.\n".format(self.input_sequences))
             sys.exit(5)
 
+        self.silent = args.silent
         self.find_sequence_molecule_type()
         self.classification_table = self.final_output_dir + os.sep + self.classification_tbl_name
         self.itol_out = self.output_dir + 'iTOL_output' + os.sep
@@ -245,7 +247,8 @@ class Assigner(classy.TreeSAPP):
         eci.run_apply_async_multiprocessing(func=eci.launch_write_command,
                                             arguments_list=task_list,
                                             num_processes=num_threads,
-                                            pbar_desc="Prodigal")
+                                            pbar_desc="Prodigal",
+                                            disable=self.silent)
 
         tmp_prodigal_aa_orfs = glob.glob(self.stage_output_dir + self.sample_prefix + "*_ORFs.faa")
         tmp_prodigal_nuc_orfs = glob.glob(self.stage_output_dir + self.sample_prefix + "*_ORFs.fna")
@@ -617,7 +620,7 @@ def get_alignment_dims(refpkg_dict: dict):
 
 
 def multiple_alignments(executables: dict, single_query_sequence_files: list, refpkg_dict: dict,
-                        tool="hmmalign", output_dir="", num_proc=4) -> dict:
+                        tool="hmmalign", output_dir="", num_proc=4, silent=False) -> dict:
     """
     Wrapper function for the multiple alignment functions - only purpose is to make an easy decision at this point...
 
@@ -631,7 +634,7 @@ def multiple_alignments(executables: dict, single_query_sequence_files: list, re
     """
     if tool == "hmmalign":
         concatenated_msa_files = prepare_and_run_hmmalign(executables, single_query_sequence_files, refpkg_dict,
-                                                          output_dir, num_proc)
+                                                          output_dir, num_proc, silent)
     else:
         LOGGER.error("Unrecognized tool '" + str(tool) + "' for multiple sequence alignment.\n")
         sys.exit(3)
@@ -667,7 +670,7 @@ def create_ref_phy_files(refpkgs: dict, output_dir: str, query_fasta_files: list
 
 
 def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg_dict: dict,
-                             output_dir="", n_proc=2) -> dict:
+                             output_dir="", n_proc=2, silent=False) -> dict:
     """
     Runs `hmmalign` to add the query sequences into the reference FASTA multiple alignments
 
@@ -713,7 +716,8 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
     eci.run_apply_async_multiprocessing(func=eci.launch_write_command,
                                         arguments_list=task_list,
                                         num_processes=n_proc,
-                                        pbar_desc="hmmalign")
+                                        pbar_desc="hmmalign",
+                                        disable=silent)
 
     for prefix in mfa_out_dict:
         for query_mfa_out in mfa_out_dict[prefix]:
@@ -1071,8 +1075,8 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
         for filename in jplace_list:
             # Load the JSON placement (jplace) file containing >= 1 pquery into JPlace object
             jplace_data = jplace_utils.jplace_parser(filename)
-            edge_dist_index = index_tree_edges(jplace_data.tree)
-            internal_node_leaf_map = map_internal_nodes_leaves(jplace_data.tree)
+            edge_dist_index = entish.index_tree_edges(jplace_data.tree)
+            internal_node_leaf_map = entish.map_internal_nodes_leaves(jplace_data.tree)
             # Demultiplex all pqueries in jplace_data into individual PQuery objects
             jplace_data.pqueries = jplace_utils.demultiplex_pqueries(jplace_data, pquery_map)
             jplace_utils.calc_pquery_mean_tip_distances(jplace_data, internal_node_leaf_map)
@@ -1305,7 +1309,7 @@ def assign(sys_args):
     ts_assign.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
-    logger.prep_logging(log_file_name, args.verbose)
+    logger.prep_logging(log_file_name, args.verbose, args.silent)
     ts_assign.ts_logger.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
 
     treesapp_args.check_parser_arguments(args, sys_args)
@@ -1377,7 +1381,8 @@ def assign(sys_args):
                              homolog_seq_files, ref_alignment_dimensions)
         concatenated_msa_files = multiple_alignments(ts_assign.executables, homolog_seq_files,
                                                      refpkg_dict, "hmmalign",
-                                                     ts_assign.stage_output_dir, num_proc=n_proc)
+                                                     ts_assign.stage_output_dir,
+                                                     num_proc=n_proc, silent=ts_assign.silent)
         file_type = utilities.find_msa_type(concatenated_msa_files)
         alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
                                                     args.verbose, file_type)
@@ -1385,7 +1390,7 @@ def assign(sys_args):
         if args.trim_align:
             tool = "BMGE"
             trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
-                                                                   refpkg_dict, n_proc, tool)
+                                                                   refpkg_dict, n_proc, tool, ts_assign.silent)
             qc_ma_dict = check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files,
                                                      refpkg_dict, args.min_seq_length)
             evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
@@ -1414,7 +1419,7 @@ def assign(sys_args):
     ##
     if ts_assign.stage_status("place"):
         wrapper.launch_evolutionary_placement_queries(ts_assign.executables, split_msa_files, refpkg_dict,
-                                                      ts_assign.stage_output_dir, n_proc)
+                                                      ts_assign.stage_output_dir, n_proc, ts_assign.silent)
         jplace_utils.sub_indices_for_seq_names_jplace(ts_assign.stage_output_dir, numeric_contig_index, refpkg_dict)
         delete_files(args.delete, ts_assign.stage_lookup("align").dir_path, 3)
 
@@ -1455,5 +1460,5 @@ def assign(sys_args):
 
     # Clear out the rest of the intermediates
     delete_files(args.delete, ts_assign.var_output_dir, 5)
-
+    logger.reactivate_log()
     return

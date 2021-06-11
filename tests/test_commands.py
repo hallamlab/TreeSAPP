@@ -110,7 +110,7 @@ class TreesappTester(unittest.TestCase):
                                 "--num_procs", str(self.num_procs),
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "strict",
-                                "--trim_align", "--overwrite", "--delete"]
+                                "--trim_align", "--overwrite", "--delete", "--silent"]
         assign.assign(assign_commands_list)
 
         assign_commands_list += ["--rel_abund",

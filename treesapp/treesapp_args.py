@@ -349,6 +349,8 @@ def add_classify_arguments(assign_parser: TreeSAPPArgumentParser) -> None:
     assign_parser.miscellany.add_argument('-R', '--reftree', required=False, default="", type=str,
                                           help="[IN PROGRESS] Reference package that all queries should be immediately"
                                                " and directly classified as (i.e. homology search step is skipped).")
+    assign_parser.miscellany.add_argument("--silent", action="store_true", default=False,
+                                          help="treesapp assign will not log anything to the console if used.")
     return
 
 

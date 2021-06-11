@@ -43,14 +43,15 @@ def launch_write_command(cmd_list, collect_all=True):
     return stdout, proc.returncode
 
 
-def run_apply_async_multiprocessing(func, arguments_list: list, num_processes: int, pbar_desc: str) -> list:
+def run_apply_async_multiprocessing(func, arguments_list: list, num_processes: int, pbar_desc: str,
+                                    disable=False) -> list:
     if len(arguments_list) == 0:
         return []
     pool = multiprocessing.Pool(processes=num_processes)
 
     jobs = []
     result_list_tqdm = []
-    pbar = tqdm(jobs, total=len(arguments_list), desc=pbar_desc, ncols=100)
+    pbar = tqdm(jobs, total=len(arguments_list), desc=pbar_desc, ncols=120, disable=disable)
 
     def update(*a):
         pbar.update()
