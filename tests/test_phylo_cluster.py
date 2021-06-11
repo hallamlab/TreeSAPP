@@ -53,12 +53,17 @@ class PhyloClusterTester(unittest.TestCase):
                          p_clust.stage_output_dir)
         self.assertTrue(os.path.isdir(p_clust.stage_output_dir))
         self.assertTrue("mmseqs" in p_clust.executables)
+        return
 
+    def test_load_sample_placement_files(self):
+        from treesapp import phylo_cluster
+        p_clust = phylo_cluster.PhyloClust()
         # Simulate failure by de novo clustering with JPlace file
         with pytest.raises(SystemExit):
             p_clust.load_args(p_clust.arg_parser.parse_args(["--refpkg_path", self.refpkg.f__pkl,
                                                              "--mode", "de_novo",
                                                              "--jplace", get_test_data("epa_result.jplace")]))
+            p_clust.load_sample_placement_files()
         return
 
     def test_partition_nodes(self):
@@ -238,6 +243,7 @@ class PhyloClusterTester(unittest.TestCase):
                                                  "--assign_output", get_test_data("test_output_TarA"),
                                                  "--output", self.tmp_dir,
                                                  "--alpha", str(0.4)]))
+        p_clust.load_sample_placement_files()
         # Test with placement space clustering
         taxa_tree = p_clust.ref_pkg.taxonomically_label_tree()
         red_tree = rel_evo_dist.RedTree()
@@ -326,6 +332,9 @@ class PhyloClusterTester(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_taxa.tsv")))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_matrix.tsv")))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, "final_outputs", "phylotu_pquery_assignments.tsv")))
+        with open(os.path.join(self.tmp_dir, "final_outputs", "phylotu_pquery_assignments.tsv")) as asns:
+            lines = asns.readlines()
+        self.assertEqual(13, len(lines))
         return
 
 

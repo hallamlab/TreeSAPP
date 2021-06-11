@@ -57,6 +57,8 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.normalize = False
         self.jplace_files = {}
         self.assign_output_dirs = {}
+        self.source_paths = []
+        self.source_type = ""
         self.output_dir = ""
         self.sample_re = None
         self.num_processes = 1
@@ -99,25 +101,12 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.alpha = args.alpha
         self.tax_rank = args.tax_rank
         self.sample_re = re.compile(args.sample_regex)
-
-        # Format the JPlace files dictionary, mapping sample names to file paths
         if args.jplace:
-            if self.clustering_mode == "de_novo":
-                self.ts_logger.error("TreeSAPP assign output directories must be provided for 'de_novo' clustering.\n")
-                sys.exit(5)
-            self.jplace_files = {os.path.basename(f_path).replace('.jplace', ''): f_path for f_path in args.jplace}
+            self.source_type = "jplace"
+            self.source_paths = args.jplace
         elif args.ts_out:
-            for dirname in args.ts_out:  # type: str
-                sample_id = os.path.basename(dirname.strip(os.sep))
-                jplace_file = os.path.join(dirname, "iTOL_output", self.ref_pkg.prefix,
-                                           self.ref_pkg.prefix + "_complete_profile.jplace")
-                if not os.path.isfile(jplace_file):
-                    self.ts_logger.warning("JPlace file was not found for {} in treesapp assign output path '{}'.\n"
-                                           "".format(self.ref_pkg.prefix, dirname))
-                    continue
-                self.jplace_files[sample_id] = jplace_file
-                self.assign_output_dirs[sample_id] = dirname
-
+            self.source_type = "assign_dir"
+            self.source_paths = args.ts_out
         self.executables = self.find_executables(args)
         self.num_processes = args.num_threads
 
@@ -201,6 +190,28 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.ts_logger.info(banner)
         self.ts_logger.debug("Arguments used:\n" + ' '.join(sys.argv[1:]) + "\n" +
                              run_params + "\n")
+        return
+
+    def load_sample_placement_files(self) -> None:
+        # Format the JPlace files dictionary, mapping sample names to file paths
+        if self.source_type == "jplace":
+            if self.clustering_mode == "de_novo":
+                self.ts_logger.error("TreeSAPP assign output directories must be provided for 'de_novo' clustering.\n")
+                sys.exit(5)
+            self.jplace_files = {os.path.basename(f_path).replace('.jplace', ''): f_path
+                                 for f_path in self.source_paths}
+        elif self.source_type == "assign_dir":
+            for dirname in self.source_paths:  # type: str
+                sample_id = os.path.basename(dirname.strip(os.sep))
+                jplace_file = os.path.join(dirname, "iTOL_output", self.ref_pkg.prefix,
+                                           self.ref_pkg.prefix + "_complete_profile.jplace")
+                if not os.path.isfile(jplace_file):
+                    self.ts_logger.warning("JPlace file was not found for {} in treesapp assign output path '{}'.\n"
+                                           "".format(self.ref_pkg.prefix, dirname))
+                    continue
+                self.jplace_files[sample_id] = jplace_file
+                self.assign_output_dirs[sample_id] = dirname
+        self.source_paths.clear()
         return
 
     def clean_intermediate_files(self):
@@ -609,9 +620,9 @@ class PhyloClust(ts_classy.TreeSAPP):
         for _, p_otu in self.cluster_index.items():
             if p_otu.cardinality >= 1:
                 occupancy += 1
-        self.ts_logger.info("{} classified sequences occupy {}/{} '{}' pOTUs in sample '{}'.\n"
-                            "".format(n_pqueries, occupancy, len(self.cluster_index),
-                                      self.ref_pkg.prefix, sample_name))
+        self.ts_logger.debug("{} classified sequences occupy {}/{} '{}' pOTUs in sample '{}'.\n"
+                             "".format(n_pqueries, occupancy, len(self.cluster_index),
+                                       self.ref_pkg.prefix, sample_name))
 
         return
 
@@ -882,8 +893,10 @@ def reference_placement_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_t
     # Find the edges belonging to each cluster and invert the dictionary to create the _edges_to_cluster_index
     phylo_clust.match_edges_to_clusters(tree=phylo_clust.ref_pkg.taxonomically_label_tree())
 
-    LOGGER.info("Assigning query sequences to clusters...\n")
+    LOGGER.info("Assigning query sequences to clusters:\n")
+    p_bar = tqdm(total=len(phylo_clust.jplace_files), ncols=100)
     for sample_id, jplace_file in phylo_clust.jplace_files.items():
+        p_bar.set_description(desc="'{}'".format(sample_id), refresh=True)
         # Load the JPlace file
         jplace_dat = jplace_utils.jplace_parser(jplace_file)
 
@@ -898,6 +911,8 @@ def reference_placement_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_t
 
         # Report the number of clusters occupied
         phylo_clust.report_cluster_occupancy(sample_name=sample_id, n_pqueries=len(pqueries))
+        p_bar.update()
+    p_bar.close()
     return
 
 
@@ -905,6 +920,7 @@ def cluster_phylogeny(sys_args: list) -> None:
     p_clust = PhyloClust()
     p_clust.load_args(p_clust.get_arguments(sys_args))
     p_clust.announce_launch()
+    p_clust.load_sample_placement_files()
     if len(p_clust.jplace_files) == 0 and len(p_clust.assign_output_dirs) == 0:
         return
 
