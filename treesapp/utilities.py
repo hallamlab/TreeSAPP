@@ -1,5 +1,3 @@
-__author__ = 'Connor Morgan-Lang'
-
 import os
 import re
 import sys
@@ -11,7 +9,7 @@ from csv import Sniffer
 from pygtrie import StringTrie
 import multiprocessing
 
-from treesapp.external_command_interface import launch_write_command
+from treesapp import external_command_interface as eci
 from treesapp import logger
 
 LOGGER = logging.getLogger(logger.logger_name())
@@ -57,7 +55,7 @@ def rekey_dict(og_dict: dict, key_map: dict) -> dict:
 
     if len(og_dict) != len(key_map):
         LOGGER.error("Key map (" + str(len(key_map)) + ") and original dictionary (" + str(len(og_dict)) +
-                      ") are different sizes. Unable to re-key.\n")
+                     ") are different sizes. Unable to re-key.\n")
         sys.exit(5)
 
     og_keys = sorted(list(og_dict.keys()))
@@ -182,20 +180,20 @@ def executable_dependency_versions(exe_dict: dict) -> str:
         ##
         versions_dict[exe] = ""
         if exe in simple_v:
-            stdout, returncode = launch_write_command([exe_dict[exe], "-v"])
+            stdout, returncode = eci.launch_write_command([exe_dict[exe], "-v"])
         elif exe in version_param:
-            stdout, returncode = launch_write_command([exe_dict[exe], "--version"])
+            stdout, returncode = eci.launch_write_command([exe_dict[exe], "--version"])
         elif exe in help_param:
-            stdout, returncode = launch_write_command([exe_dict[exe], "-h"])
+            stdout, returncode = eci.launch_write_command([exe_dict[exe], "-h"])
         elif exe in no_params:
-            stdout, returncode = launch_write_command([exe_dict[exe]])
+            stdout, returncode = eci.launch_write_command([exe_dict[exe]])
         elif exe == "mmseqs":
-            stdout, returncode = launch_write_command([exe_dict[exe], "version"])
+            stdout, returncode = eci.launch_write_command([exe_dict[exe], "version"])
             versions_dict[exe] = stdout.strip()
         elif exe == "FastTree":
-            stdout, returncode = launch_write_command([exe_dict[exe], "-expert"])
+            stdout, returncode = eci.launch_write_command([exe_dict[exe], "-expert"])
         elif exe == "BMGE.jar":
-            stdout, returncode = launch_write_command(["java", "-Xmx10m", "-jar", exe_dict[exe], "-?"])
+            stdout, returncode = eci.launch_write_command(["java", "-Xmx10m", "-jar", exe_dict[exe], "-?"])
         else:
             LOGGER.warning("Unknown version command for " + exe + ".\n")
             continue

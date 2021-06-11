@@ -10,7 +10,7 @@ from pyfastx import Fasta, Fastq
 from pyfastxcli import fastx_format_check
 from collections import namedtuple
 
-from treesapp.utilities import median, rekey_dict
+from treesapp import utilities
 from treesapp import logger
 
 LOGGER = logging.getLogger(logger.logger_name())
@@ -646,7 +646,7 @@ class FASTA:
         return
 
     def swap_headers(self, header_map):
-        self.fasta_dict = rekey_dict(self.fasta_dict, header_map)
+        self.fasta_dict = utilities.rekey_dict(self.fasta_dict, header_map)
         self.header_registry = register_headers(list(self.fasta_dict.keys()), True)
         return
 
@@ -702,7 +702,7 @@ class FASTA:
         stats_string += "\tLongest sequence length: " + str(longest) + "\n"
         stats_string += "\tShortest sequence length: " + str(shortest) + "\n"
         stats_string += "\tMean sequence length: " + str(round(sum(sequence_lengths) / num_headers, 1)) + "\n"
-        stats_string += "\tMedian sequence length: " + str(median(sequence_lengths)) + "\n"
+        stats_string += "\tMedian sequence length: " + str(utilities.median(sequence_lengths)) + "\n"
 
         return stats_string
 
@@ -939,7 +939,7 @@ def merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index):
 
 
 def format_fasta(fasta_input: str, molecule: str, output_fasta: str,
-                 min_seq_length=10, true_name=False, full_name=True) -> dict:
+                 min_seq_length=10, true_name=False, full_name=True, collect=True) -> list:
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid, and writes the valid sequence to a new FASTA.
     Only headers are read into memory and the formatted FASTA is saved to a buffer before written to a file and cleared.
@@ -950,7 +950,8 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str,
     :param min_seq_length: All sequences shorter than this will not be included in the returned list.
     :param true_name: Whether to use a number (default) or the original sequence name for each header
     :param full_name: Controls whether the formatted FASTA file has the full name (True) or first name (False)
-    :return: A dictionary of Header instances indexed by a numerical identifier
+    :param collect: Flag controlling whether the headers are read and returned (True) or just the file is reformatted.
+    :return: A list of sequence names (headers)
     """
     start = time()
 
@@ -980,7 +981,8 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str,
             continue
 
         seq_acc += 1
-        headers.append(name)
+        if collect:
+            headers.append(name)
         if true_name:
             fasta_string += ">{}\n{}\n".format(name, seq)
         else:
@@ -997,7 +999,7 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str,
     end = time()
     LOGGER.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, round(end - start, 2)))
 
-    if len(headers) == 0:
+    if len(headers) == 0 and collect:
         LOGGER.error("No sequences in FASTA {0} were saved.\n"
                      "Either the molecule type specified ({1}) or minimum sequence length ({2}) may be unsuitable.\n"
                      "Consider changing these before rerunning.\n".format(fasta_input, molecule, min_seq_length))
@@ -1007,12 +1009,10 @@ def format_fasta(fasta_input: str, molecule: str, output_fasta: str,
         LOGGER.debug("The following sequences were removed due to bad characters:\n" +
                      "\n".join(bad_seqs) + "\n")
 
-    header_registry = register_headers(headers, True)
-
-    return header_registry
+    return headers
 
 
-def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_length=10, full_name=True):
+def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_length=10, full_name=True) -> dict:
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid.
 
@@ -1413,7 +1413,7 @@ def summarize_fasta_sequences(fasta_file):
     stats_string += "\tLongest sequence length: " + str(longest) + "\n"
     stats_string += "\tShortest sequence length: " + str(shortest) + "\n"
     stats_string += "\tMean sequence length: " + str(round(sum(sequence_lengths) / num_headers, 1)) + "\n"
-    stats_string += "\tMedian sequence length: " + str(median(sequence_lengths)) + "\n"
+    stats_string += "\tMedian sequence length: " + str(utilities.median(sequence_lengths)) + "\n"
 
     LOGGER.info(stats_string)
     return

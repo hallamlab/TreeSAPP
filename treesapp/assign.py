@@ -27,6 +27,7 @@ from treesapp import utilities
 from treesapp import wrapper
 from treesapp import fasta
 from treesapp import training_utils
+from treesapp import external_command_interface as eci
 from treesapp.hmmer_tbl_parser import HmmMatch
 
 LOGGER = logging.getLogger(logger.logger_name())
@@ -223,9 +224,6 @@ class Assigner(classy.TreeSAPP):
         :param num_threads: The number of CPU threads to use
         :return: None
         """
-
-        self.ts_logger.info("Predicting open-reading frames using Prodigal... ")
-
         start_time = time.time()
 
         if num_threads > 1 and composition == "meta":
@@ -242,15 +240,12 @@ class Assigner(classy.TreeSAPP):
             prodigal_command += ["-p", composition]
             prodigal_command += ["-a", chunk_prefix + "_ORFs.faa"]
             prodigal_command += ["-d", chunk_prefix + "_ORFs.fna"]
-            task_list.append(prodigal_command)
+            task_list.append([prodigal_command])
 
-        num_tasks = len(task_list)
-        if num_tasks > 0:
-            cl_farmer = wrapper.CommandLineFarmer("Prodigal -p " + composition, num_threads)
-            cl_farmer.add_tasks_to_queue(task_list)
-
-            cl_farmer.task_queue.close()
-            cl_farmer.task_queue.join()
+        eci.run_apply_async_multiprocessing(func=eci.launch_write_command,
+                                            arguments_list=task_list,
+                                            num_processes=num_threads,
+                                            pbar_desc="Prodigal")
 
         tmp_prodigal_aa_orfs = glob.glob(self.stage_output_dir + self.sample_prefix + "*_ORFs.faa")
         tmp_prodigal_nuc_orfs = glob.glob(self.stage_output_dir + self.sample_prefix + "*_ORFs.fna")
@@ -260,7 +255,7 @@ class Assigner(classy.TreeSAPP):
                                  "Nucleotide ORFs: " + ", ".join(tmp_prodigal_nuc_orfs) + "\n")
             sys.exit(5)
 
-        # Concatenate outputs
+        self.ts_logger.info("Concatenating and formatting coding sequences... ")
         if not os.path.isfile(self.aa_orfs_file) and not os.path.isfile(self.nuc_orfs_file):
             aa_cat_tmp = self.aa_orfs_file + ".tmp"
             nuc_cat_tmp = self.nuc_orfs_file + ".tmp"
@@ -270,9 +265,9 @@ class Assigner(classy.TreeSAPP):
 
             # Remove Prodigal header tags from the ORF FASTA files
             fasta.format_fasta(fasta_input=aa_cat_tmp, output_fasta=self.aa_orfs_file,
-                               molecule="prot", true_name=True, full_name=self.fasta_full_name)
+                               molecule="prot", true_name=True, full_name=self.fasta_full_name, collect=False)
             fasta.format_fasta(fasta_input=nuc_cat_tmp, output_fasta=self.nuc_orfs_file,
-                               molecule="dna", true_name=True, full_name=self.fasta_full_name)
+                               molecule="dna", true_name=True, full_name=self.fasta_full_name, collect=False)
 
             # Remove intermediate files
             intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files + tmp_cat_files)
@@ -712,21 +707,13 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
             mfa_out_dict[ref_pkg.prefix] = [query_mfa_out]
 
         # Get the paths to either the HMM or CM profile files
-        if ref_pkg.kind == "phylogenetic_rRNA":
-            task_list.append(wrapper.hmmalign_command(execs["cmalign"], ref_pkg.f__msa, ref_pkg.f__profile,
-                                                      query_fa_in, query_mfa_out))
-        else:
-            task_list.append(wrapper.hmmalign_command(execs["hmmalign"], ref_pkg.f__msa, ref_pkg.f__profile,
-                                                      query_fa_in, query_mfa_out))
+        task_list.append([wrapper.hmmalign_command(execs["hmmalign"],
+                                                   ref_pkg.f__msa, ref_pkg.f__profile, query_fa_in, query_mfa_out)])
 
-    if len(task_list) > 0:
-        cl_farmer = wrapper.CommandLineFarmer("cmalign/hmmalign --mapali", n_proc)
-        cl_farmer.add_tasks_to_queue(task_list)
-
-        cl_farmer.task_queue.close()
-        cl_farmer.task_queue.join()
-
-    LOGGER.info("done.\n")
+    eci.run_apply_async_multiprocessing(func=eci.launch_write_command,
+                                        arguments_list=task_list,
+                                        num_processes=n_proc,
+                                        pbar_desc="hmmalign")
 
     for prefix in mfa_out_dict:
         for query_mfa_out in mfa_out_dict[prefix]:
@@ -1344,9 +1331,10 @@ def assign(sys_args):
     # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
     if ts_assign.stage_status("clean"):
         LOGGER.info("Reading and formatting {}... ".format(ts_assign.query_sequences))
-        query_seqs.header_registry = fasta.format_fasta(fasta_input=ts_assign.query_sequences, molecule="prot",
-                                                        output_fasta=ts_assign.formatted_input,
-                                                        full_name=ts_assign.fasta_full_name)
+        query_seqs.header_registry = fasta.register_headers(fasta.format_fasta(fasta_input=ts_assign.query_sequences,
+                                                                               molecule="prot",
+                                                                               output_fasta=ts_assign.formatted_input,
+                                                                               full_name=ts_assign.fasta_full_name))
         LOGGER.info("done.\n")
     else:
         query_seqs.file = ts_assign.formatted_input

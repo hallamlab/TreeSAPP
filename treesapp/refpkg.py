@@ -14,7 +14,7 @@ import joblib
 
 from treesapp.phylo_seq import TreeLeafReference
 from treesapp import entish
-from treesapp.external_command_interface import launch_write_command
+from treesapp import external_command_interface as eci
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy, Taxon
 from treesapp.utilities import base_file_prefix, load_taxonomic_trie, match_file, get_hmm_value
@@ -937,7 +937,7 @@ class ReferencePackage:
             tree_build_cmd += ["-out", self.f__tree]
             tree_build_cmd.append(self.f__msa)
             LOGGER.info("Building Approximately-Maximum-Likelihood tree with FastTree... ")
-            stdout, returncode = launch_write_command(tree_build_cmd, True)
+            stdout, returncode = eci.launch_write_command(tree_build_cmd, True)
             with open(tmp_dir + os.sep + "FastTree_info." + self.prefix, 'w') as fast_info:
                 fast_info.write(stdout + "\n")
             LOGGER.info("done.\n")

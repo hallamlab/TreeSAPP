@@ -10,7 +10,7 @@ from tqdm import tqdm
 import subprocess
 
 from treesapp import logger
-from treesapp.external_command_interface import launch_write_command, CommandLineFarmer
+from treesapp import external_command_interface as eci
 from treesapp import utilities
 
 LOGGER = logging.getLogger(logger.logger_name())
@@ -44,7 +44,7 @@ def estimate_ml_model(modeltest_exe: str, msa: str, output_prefix: str, molecule
     model_find_cmd += ["--frequencies", "f"]
     model_find_cmd += ["--models", model_candidates]
 
-    stdout, returncode = launch_write_command(model_find_cmd)
+    stdout, returncode = eci.launch_write_command(model_find_cmd)
     if returncode != 0:
         LOGGER.error("{} could not determine a substitution model for your sequences in '{}'.\n".format(modeltest_exe,
                                                                                                         molecule))
@@ -86,7 +86,7 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
         model_eval_cmd.append("--redo")
 
     LOGGER.debug("Evaluating phylogenetic tree with RAxML-NG... ")
-    stdout, returncode = launch_write_command(model_eval_cmd)
+    stdout, returncode = eci.launch_write_command(model_eval_cmd)
     LOGGER.debug("done.\n")
 
     # Overwrite the original tree with the RAxML-NG evaluated tree
@@ -119,7 +119,7 @@ def bootstrap_tree_raxml(raxml_exe: str, multiple_alignment: str, model: str, tr
     bootstrap_cmd += ["--threads", "auto{{{}}}".format(num_threads)]
 
     LOGGER.info("Bootstrapping reference tree with RAxML-NG... ")
-    launch_write_command(bootstrap_cmd)
+    eci.launch_write_command(bootstrap_cmd)
     LOGGER.info("done.\n")
 
     bootstraps_file = tree_prefix + ".raxml.bootstraps"
@@ -142,7 +142,7 @@ def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, 
     support_cmd += ["--threads", str(num_threads)]
 
     LOGGER.info("Calculating bootstrap support for nodes in reference tree with RAxML-NG... ")
-    launch_write_command(support_cmd)
+    eci.launch_write_command(support_cmd)
     LOGGER.info("done.\n")
 
     support_file = tree_prefix + ".raxml.support"
@@ -185,7 +185,7 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
         tree_build_cmd += ["-out", best_tree]
         tree_build_cmd.append(multiple_alignment_file)
 
-        stdout, returncode = launch_write_command(tree_build_cmd)
+        stdout, returncode = eci.launch_write_command(tree_build_cmd)
         with open(tree_output_dir + tree_prefix + ".FastTree.log", 'w') as fast_info:
             fast_info.write(stdout + "\n")
     elif tree_builder == "RAxML-NG":
@@ -197,7 +197,7 @@ def construct_tree(tree_builder: str, executables: dict, evo_model: str, multipl
         tree_build_cmd += ["--threads", "auto{{{}}}".format(num_threads)]
         tree_build_cmd += ["--tree", "rand{{{0}}},pars{{{0}}}".format(num_trees)]
 
-        stdout, returncode = launch_write_command(tree_build_cmd)
+        stdout, returncode = eci.launch_write_command(tree_build_cmd)
         # Rename the file using the standardised naming scheme
         os.rename(tree_output_dir + tree_prefix + ".raxml.bestTree", best_tree)
     else:
@@ -334,7 +334,7 @@ def raxml_evolutionary_placement(epa_exe: str, refpkg_tree: str, refpkg_msa: str
                    "--outdir", output_dir,
                    '-T', str(num_threads),
                    '>', epa_files["stdout"]]
-    launch_write_command(epa_command)
+    eci.launch_write_command(epa_command)
 
     # Rename the RAxML output files
     if os.path.exists(epa_info):
@@ -399,7 +399,7 @@ def profile_aligner(executables, ref_aln, ref_profile, input_fasta, output_sto, 
     else:
         malign_command = hmmalign_command(executables["hmmalign"], ref_aln, ref_profile, input_fasta, output_sto)
 
-    stdout, returncode = launch_write_command(malign_command)
+    stdout, returncode = eci.launch_write_command(malign_command)
     if returncode != 0:
         LOGGER.error("Multiple alignment failed for " + input_fasta + ". Command used:\n" +
                      ' '.join(malign_command) + " output:\n" + stdout + "\n")
@@ -420,10 +420,10 @@ def generate_mmseqs_cluster_alignments(mmseqs_exe: str, db_name: str,
     :return: None
     """
     # Align the member sequences to each representative for a cluster
-    launch_write_command([mmseqs_exe, "align", "--alignment-mode", str(3), db_name, db_name, clusters_file, align_db])
+    eci.launch_write_command([mmseqs_exe, "align", "--alignment-mode", str(3), db_name, db_name, clusters_file, align_db])
 
     # Convert the MMSeqs alignments to a twelve-column BLAST-like table
-    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "convertalis",
+    stdout, mmseqs_retcode = eci.launch_write_command([mmseqs_exe, "convertalis",
                                                    db_name, db_name, align_db, align_tab])
     if mmseqs_retcode != 0:
         LOGGER.error("{} sequence cluster alignments failed. MMSeqs output:\n"
@@ -445,10 +445,10 @@ def generate_mmseqs_cluster_fasta(mmseqs_exe: str, db_name: str,
     :return: None
     """
     # Subset the database to just include the sequence for representatives
-    launch_write_command([mmseqs_exe, "createsubdb", clusters_file, db_name, reps])
+    eci.launch_write_command([mmseqs_exe, "createsubdb", clusters_file, db_name, reps])
 
     # Convert the subsetted database to a FASTA file
-    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "convert2fasta", reps, reps_fasta])
+    stdout, mmseqs_retcode = eci.launch_write_command([mmseqs_exe, "convert2fasta", reps, reps_fasta])
     if mmseqs_retcode != 0:
         LOGGER.error("{} failed to generate a cluster fasta file. MMSeqs output:\n"
                      "{}\n".format(mmseqs_exe, stdout))
@@ -457,7 +457,7 @@ def generate_mmseqs_cluster_fasta(mmseqs_exe: str, db_name: str,
 
 
 def generate_mmseqs_cluster_table(mmseqs_exe, db_name, int_clusters, cluster_tbl):
-    stdout, mmseqs_retcode = launch_write_command([mmseqs_exe, "createtsv",
+    stdout, mmseqs_retcode = eci.launch_write_command([mmseqs_exe, "createtsv",
                                                    db_name, db_name,
                                                    int_clusters, cluster_tbl])
     if mmseqs_retcode != 0:
@@ -514,7 +514,7 @@ def run_linclust(mmseqs_exe: str, fa_in: list, output_prefix: str, prop_sim: flo
                      "--dbtype", str(db_type),
                      ' '.join(fa_in), db_name]
 
-    stdout, mmseqs_retcode = launch_write_command(mmseqs_db_cmd)
+    stdout, mmseqs_retcode = eci.launch_write_command(mmseqs_db_cmd)
     if mmseqs_retcode != 0:
         LOGGER.error("MMSeqs database creation with {} failed. Command used:\n"
                      "{}\n"
@@ -530,7 +530,7 @@ def run_linclust(mmseqs_exe: str, fa_in: list, output_prefix: str, prop_sim: flo
                           "--cov-mode", str(1),
                           db_name, clusters_file, tmp_dir]
 
-    stdout, mmseqs_retcode = launch_write_command(mmseqs_cluster_cmd)
+    stdout, mmseqs_retcode = eci.launch_write_command(mmseqs_cluster_cmd)
     if mmseqs_retcode != 0:
         LOGGER.error("Linclust sequence clustering with {} failed."
                      " Command used:\n{}\n".format(mmseqs_exe, ' '.join(mmseqs_cluster_cmd)))
@@ -568,7 +568,7 @@ def run_vsearch_clustering(uclust_exe, fasta_input, uclust_prefix, similarity=0.
     uclust_cmd += ["--centroids", uclust_prefix + ".fa"]
     uclust_cmd += ["--uc", uclust_prefix + ".uc"]
 
-    stdout, returncode = launch_write_command(uclust_cmd)
+    stdout, returncode = eci.launch_write_command(uclust_cmd)
 
     if returncode != 0:
         LOGGER.error("VSEARCH did not complete successfully! Command used:\n" +
@@ -622,7 +622,7 @@ def build_hmm_profile(hmmbuild_exe: str, msa_in: str, output_hmm: str, name=None
     if name:
         hmm_build_command += ["-n", str(name)]
     hmm_build_command += ["'" + output_hmm + "'", "'" + msa_in + "'"]
-    stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
+    stdout, hmmbuild_pro_returncode = eci.launch_write_command(hmm_build_command)
     LOGGER.debug("done.\n")
 
     if hmmbuild_pro_returncode != 0 and not graceful:
@@ -657,7 +657,7 @@ def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output
     # Customize the command for this input and HMM
     final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", "'" + domtbl + "'"]
     final_hmmsearch_command += ["'" + hmm_profile + "'", "'" + query_fasta + "'"]
-    stdout, ret_code = launch_write_command(final_hmmsearch_command)
+    stdout, ret_code = eci.launch_write_command(final_hmmsearch_command)
 
     # Check to ensure the job finished properly
     if ret_code != 0:
@@ -748,7 +748,7 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
     index_command += ["-p", index_path]
     index_command += ["1>", "/dev/null", "2>", aln_output_dir + "treesapp_bwa_index.stderr"]
 
-    launch_write_command(index_command)
+    eci.launch_write_command(index_command)
 
     bwa_command = [bwa_exe, "mem"]
     bwa_command += ["-t", str(num_threads)]
@@ -793,7 +793,7 @@ def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads: int) -
     mafft_align_command += [fasta_in, '1>' + fasta_out]
     mafft_align_command += ["2>", "/dev/null"]
 
-    stdout, mafft_proc_returncode = launch_write_command(mafft_align_command, False)
+    stdout, mafft_proc_returncode = eci.launch_write_command(mafft_align_command, False)
 
     if mafft_proc_returncode != 0:
         LOGGER.error("Multiple sequence alignment using " + mafft_exe +
@@ -831,7 +831,7 @@ def run_odseq(odseq_exe: str, fasta_in: str, outliers_fa: str, num_threads: int)
     odseq_command += ["--score", str(5)]
     odseq_command.append("--full")
 
-    stdout, odseq_proc_returncode = launch_write_command(odseq_command)
+    stdout, odseq_proc_returncode = eci.launch_write_command(odseq_command)
 
     if odseq_proc_returncode != 0:
         LOGGER.error("Outlier detection using " + odseq_exe +
@@ -879,8 +879,6 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict,
     :param tool: The software to use for alignment trimming
     :return: A list of files resulting from BMGE multiple sequence alignment masking.
     """
-    LOGGER.info("Running " + tool + "... ")
-
     start_time = time.time()
     task_list = list()
     trimmed_output_files = {}
@@ -893,16 +891,12 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict,
             trim_command, trimmed_msa_file = get_msa_trim_command(executables, concatenated_mfa_file,
                                                                   refpkg_dict[refpkg_code].molecule, tool)
             trimmed_output_files[refpkg_code].append(trimmed_msa_file)
-            task_list.append(trim_command)
+            task_list.append([trim_command])
 
-    if len(task_list) > 0:
-        cl_farmer = CommandLineFarmer("Multiple alignment trimming with " + tool, n_proc)
-        cl_farmer.add_tasks_to_queue(task_list)
-
-        cl_farmer.task_queue.close()
-        cl_farmer.task_queue.join()
-
-    LOGGER.info("done.\n")
+    eci.run_apply_async_multiprocessing(func=eci.launch_write_command,
+                                        arguments_list=task_list,
+                                        num_processes=n_proc,
+                                        pbar_desc="Multiple alignment trimming")
 
     end_time = time.time()
     hours, remainder = divmod(end_time - start_time, 3600)

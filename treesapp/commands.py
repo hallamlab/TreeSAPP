@@ -191,8 +191,9 @@ def train(sys_args):
     ##
     if ts_trainer.stage_status("clean"):
         LOGGER.info("Reading and formatting {}... ".format(ts_trainer.input_sequences))
-        train_seqs.header_registry = fasta.format_fasta(fasta_input=ts_trainer.input_sequences, molecule="prot",
-                                                        output_fasta=ts_trainer.formatted_input)
+        train_seqs.header_registry = fasta.register_headers(fasta.format_fasta(fasta_input=ts_trainer.input_sequences,
+                                                                               molecule="prot",
+                                                                               output_fasta=ts_trainer.formatted_input))
         LOGGER.info("done.\n")
         ts_trainer.increment_stage_dir()
     else:

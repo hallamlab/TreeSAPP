@@ -43,73 +43,9 @@ def launch_write_command(cmd_list, collect_all=True):
     return stdout, proc.returncode
 
 
-class CommandLineWorker(multiprocessing.Process):
-    def __init__(self, task_queue, commander):
-        multiprocessing.Process.__init__(self)
-        self.task_queue = task_queue
-        self.master = commander
-
-    def run(self):
-        while True:
-            next_task = self.task_queue.get()
-            if next_task is None:
-                # Poison pill means shutdown
-                self.task_queue.task_done()
-                break
-            LOGGER.debug("STAGE: " + self.master + "\n" +
-                          "\tCOMMAND:\n" + " ".join(next_task) + "\n")
-            launch_write_command(next_task)
-            self.task_queue.task_done()
-        return
-
-
-class CommandLineFarmer:
-    """
-    A worker that will launch command-line jobs using multiple processes in its queue
-    """
-
-    def __init__(self, command, num_threads):
-        """
-        Instantiate a CommandLineFarmer object to oversee multiprocessing of command-line jobs
-        :param command:
-        :param num_threads:
-        """
-        self.max_size = 32767  # The actual size limit of a JoinableQueue
-        self.task_queue = multiprocessing.JoinableQueue(self.max_size)
-        self.num_threads = int(num_threads)
-
-        process_queues = [CommandLineWorker(self.task_queue, command) for i in range(int(self.num_threads))]
-        for process in process_queues:
-            process.start()
-
-    def add_tasks_to_queue(self, task_list):
-        """
-        Function for adding commands from task_list to task_queue while ensuring space in the JoinableQueue
-        :param task_list: List of commands
-        :return: Nothing
-        """
-        num_tasks = len(task_list)
-
-        task = task_list.pop()
-        while task:
-            if not self.task_queue.full():
-                self.task_queue.put(task)
-                if num_tasks > 1:
-                    task = task_list.pop()
-                    num_tasks -= 1
-                else:
-                    task = None
-
-        i = self.num_threads
-        while i:
-            if not self.task_queue.full():
-                self.task_queue.put(None)
-                i -= 1
-
-        return
-
-
 def run_apply_async_multiprocessing(func, arguments_list: list, num_processes: int, pbar_desc: str) -> list:
+    if len(arguments_list) == 0:
+        return []
     pool = multiprocessing.Pool(processes=num_processes)
 
     jobs = []
