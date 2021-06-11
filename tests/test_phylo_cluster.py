@@ -129,11 +129,27 @@ class PhyloClusterTester(unittest.TestCase):
         return
 
     def test_calculate_distance_threshold(self):
-        from treesapp.phylo_cluster import PhyloClust
-        p_clust = PhyloClust()
+        from treesapp import phylo_cluster
+        p_clust = phylo_cluster.PhyloClust()
         alpha = p_clust.calculate_distance_threshold(taxa_tree=self.taxa_tree,
                                                      taxonomy=self.refpkg.taxa_trie)
         self.assertTrue(0.04 < round(alpha, 3) <= 0.08)
+
+        # Define a subtree for a group of related taxa
+        def clade_member(node: TreeNode) -> bool:
+            t = getattr(node, "taxon")
+            if "g__Methanosphaera" in [r.prefix_taxon() for r in t.lineage()]:
+                return True
+            return False
+
+        subtree_leaves = self.taxa_tree.get_leaves(is_leaf_fn=clade_member)
+        small_tree = subtree_leaves[0].get_common_ancestor(subtree_leaves)
+        self.assertEqual(4, len(small_tree))
+
+        self.assertEqual(-1, p_clust.calculate_distance_threshold(small_tree,
+                                                                  self.refpkg.taxa_trie,
+                                                                  override_rank="class"))
+        p_clust.calculate_distance_threshold(small_tree, self.refpkg.taxa_trie, override_rank="species")
         return
 
     def test_match_edges_to_clusters(self):

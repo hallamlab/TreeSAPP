@@ -7,7 +7,7 @@ import glob
 import logging
 
 import numpy as np
-import scipy as sp
+from scipy import stats
 from ete3 import Tree, TreeNode
 from tqdm import tqdm
 
@@ -318,31 +318,43 @@ class PhyloClust(ts_classy.TreeSAPP):
             self.stash("tax_rank")
             self.tax_rank = override_rank
 
-        self.ts_logger.info("Alpha threshold not provided. Estimating for '{}'... ".format(self.tax_rank))
+        self.ts_logger.info("Estimating alpha threshold for '{}' phylogeny at rank '{}'... "
+                            "".format(self.ref_pkg.prefix, self.tax_rank))
 
         dists = np.array([])
         min_obs = 3
         # Find the 95% confidence interval for RED values between leaves of the same genus
         grouped_rel_dists = self.group_rel_dists(taxa_tree, taxonomy)
-        # Improve evenness across different taxa by augmenting branch length distances
-        richest = max(len(x) for x in grouped_rel_dists.values())
-        for _taxon, obs in grouped_rel_dists.items():
-            if min_obs <= len(obs) < richest:
-                reps = int(richest / len(obs))
-                synth_obs = training_utils.augment_training_set(obs,
-                                                                n_reps=reps,
-                                                                feature_scale=np.std(obs)).reshape(len(obs) * reps, 1)
-                obs = np.append(obs, synth_obs)
-            dists = np.append(dists, obs)
-        self.withdraw_stash()
+        if grouped_rel_dists:
+            # Improve evenness across different taxa by augmenting branch length distances
+            richest = max(len(x) for x in grouped_rel_dists.values())
+            for _taxon, obs in grouped_rel_dists.items():
+                if min_obs <= len(obs) < richest:
+                    reps = int(richest / len(obs))
+                    synth_obs = training_utils.augment_training_set(obs,
+                                                                    n_reps=reps,
+                                                                    feature_scale=np.std(obs)).reshape(len(obs) * reps,
+                                                                                                       1)
+                    obs = np.append(obs, synth_obs)
+                dists = np.append(dists, obs)
 
-        if distribution == "ci":
-            alpha = confidence_interval(dists, self.percentile)
+        self.withdraw_stash()
+        if len(dists) > min_obs:
+            if distribution == "ci":
+                alpha = confidence_interval(dists, self.percentile)
+            else:
+                alpha = np.percentile(dists, 100 * self.percentile)
         else:
-            alpha = np.percentile(dists, 100 * self.percentile)
+            alpha = -1
 
         self.ts_logger.info("done.\n")
-        self.ts_logger.debug("Alpha estimated to be {}.\n".format(alpha))
+
+        if alpha > 1:
+            self.ts_logger.debug("Alpha estimated to be {}.\n".format(alpha))
+        else:
+            self.ts_logger.error("Unable to estimate alpha threshold for {}. "
+                                 "Reference package size ({}) may be insufficient.\n"
+                                 "".format(self.ref_pkg.prefix, self.ref_pkg.num_seqs))
         return alpha
 
     @staticmethod
@@ -645,11 +657,11 @@ class PhyloClust(ts_classy.TreeSAPP):
 
 def confidence_interval(data, confidence=0.95) -> float:
     a = 1.0 * np.array(data)
-    mu, se = np.mean(a), sp.stats.sem(a)
-    _h_b, h_u = sp.stats.t.interval(confidence,
-                                    len(a) - 1,
-                                    loc=mu,
-                                    scale=se)
+    mu, se = np.mean(a), stats.sem(a)
+    _h_b, h_u = stats.t.interval(confidence,
+                                 len(a) - 1,
+                                 loc=mu,
+                                 scale=se)
     return h_u
 
 
@@ -812,7 +824,6 @@ def format_precluster_map(cluster_method: str, precluster_map: dict) -> dict:
 
 def de_novo_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree,
                            cluster_method=None, phylo_group="partition", psc_cluster_size=10, drep_id=1.0) -> None:
-
     # Gather all classified sequences for a reference package from the treesapp assign outputs
     classified_pqueries = {}
     for sample_id, ts_out in phylo_clust.assign_output_dirs.items():
@@ -931,6 +942,8 @@ def cluster_phylogeny(sys_args: list) -> None:
 
     if not p_clust.alpha:
         p_clust.alpha = p_clust.calculate_distance_threshold(taxa_tree, p_clust.ref_pkg.taxa_trie)
+        if p_clust.alpha < 0:
+            return
 
     if p_clust.clustering_mode == "ref_guided":
         reference_placement_phylo_clusters(phylo_clust=p_clust,
