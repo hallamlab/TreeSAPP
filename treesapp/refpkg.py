@@ -34,6 +34,7 @@ class ReferencePackage:
     The ReferencePackage class is a collection of all attributes required by a TreeSAPP reference package as well as
     the suite of functions for building, manipulating, and accessing different attributes.
     """
+
     def __init__(self, refpkg_name=""):
         self.prefix = refpkg_name
         self.date = dt.now().strftime("%Y-%m-%d")  # Date the reference package was created
@@ -199,7 +200,7 @@ class ReferencePackage:
             file_h.close()
         except IOError:
             LOGGER.warning("Unable to write reference package component to '{}' for '{}'.\n".format(file_name,
-                                                                                                     self.prefix))
+                                                                                                    self.prefix))
         return
 
     def change_file_paths(self, new_dir: str, move=False) -> None:
@@ -243,7 +244,7 @@ class ReferencePackage:
                 os.mkdir(output_dir)
         except (FileNotFoundError, IOError):
             LOGGER.error("Unable to create directory '{0}' for ReferencePackage '{1}'.\n"
-                          "TreeSAPP will only create a single directory at a time.\n".format(output_dir, self.prefix))
+                         "TreeSAPP will only create a single directory at a time.\n".format(output_dir, self.prefix))
             sys.exit(3)
 
         output_prefix = os.path.join(output_dir, self.refpkg_code) + os.sep
@@ -301,7 +302,7 @@ class ReferencePackage:
                 self.tree = self.tree[0]
             else:
                 LOGGER.error("Unable to load the phylogenetic tree for reference package '{}' ({})\n."
-                              "".format(self.prefix, self.f__pkl))
+                             "".format(self.prefix, self.f__pkl))
                 return
 
         self.load_taxonomic_hierarchy()
@@ -503,7 +504,7 @@ class ReferencePackage:
         if len(same) > 0:
             LOGGER.info("{} reference sequence lineages were not updated. More info in log.\n".format(len(same)))
             LOGGER.debug("Reference sequences that remain unchanged:\n\t{}\n"
-                          "".format("\n\t".join(name + "\t" + self.lineage_ids[name] for name in same)))
+                         "".format("\n\t".join(name + "\t" + self.lineage_ids[name] for name in same)))
         return
 
     def load_taxonomic_hierarchy(self) -> None:
@@ -617,7 +618,7 @@ class ReferencePackage:
 
         if len(mia_leaves) > 0:
             LOGGER.warning("Unable to find all leaves '{}' in {} reference package leaves.\n"
-                            "".format(", ".join(mia_leaves), self.prefix))
+                           "".format(", ".join(mia_leaves), self.prefix))
         return taxon_leaf_map
 
     def get_leaf_nodes_by_name(self, leaf_names) -> dict:
@@ -640,7 +641,7 @@ class ReferencePackage:
             taxon_name, leaf_node_names = self.map_taxa_to_leaf_nodes([taxon_name]).popitem()
         except KeyError:
             LOGGER.warning("Unable to match taxon '{}' to internal nodes as taxon isn't in reference package.\n"
-                            "".format(taxon_name))
+                           "".format(taxon_name))
             return internal_nodes
 
         leaf_node_names = set(leaf_node_names)
@@ -722,10 +723,10 @@ class ReferencePackage:
                     n_match += 1
 
         LOGGER.debug("Reference sequence filtering stats for taxon '{}'\n".format(s_target[-1]) +
-                      "\n".join(["Match taxon\t" + str(n_match),
-                                 "Unclassified\t" + str(n_unclassified),
-                                 "Too shallow\t" + str(n_shallow),
-                                 "Remaining\t" + str(len(off_target_ref_leaves))]) + "\n")
+                     "\n".join(["Match taxon\t" + str(n_match),
+                                "Unclassified\t" + str(n_unclassified),
+                                "Too shallow\t" + str(n_shallow),
+                                "Remaining\t" + str(len(off_target_ref_leaves))]) + "\n")
         return off_target_ref_leaves
 
     def get_monophyletic_clades(self, taxon_name: str, leaf_nodes=None) -> list:
@@ -762,7 +763,7 @@ class ReferencePackage:
 
         if leaf_nodes:
             LOGGER.error("Unable to find an internal node containing the leaf nodes {} in reference package '{}'.\n"
-                          "".format(', '.join(leaf_nodes), self.prefix))
+                         "".format(', '.join(leaf_nodes), self.prefix))
             sys.exit(13)
 
         return taxa_internal_node_map
@@ -896,7 +897,7 @@ class ReferencePackage:
         base_taxon = self.taxa_trie.get_taxon(split_lineage[0])
         if not base_taxon:
             LOGGER.error("Unable to find taxon '{}' in taxonomic hierarchy."
-                          " Unable to exclude from reference package '{}'.\n".format(split_lineage[0], self.prefix))
+                         " Unable to exclude from reference package '{}'.\n".format(split_lineage[0], self.prefix))
             sys.exit(11)
 
         # tax_ids
@@ -906,7 +907,7 @@ class ReferencePackage:
         ref_fasta_dict = read_fasta_to_dict(self.f__msa)
         if len(ref_fasta_dict) == 0:
             LOGGER.error("No sequences were read from Reference Package {}'s FASTA '{}'.\n"
-                          "".format(self.prefix, self.f__msa))
+                         "".format(self.prefix, self.f__msa))
             sys.exit(13)
         off_target_ref_headers = [ref_num + '_' + self.prefix for ref_num in self.lineage_ids]
         if len(off_target_ref_headers) == 0:
@@ -1030,7 +1031,7 @@ class ReferencePackage:
         LOGGER.debug("done.\n")
 
         LOGGER.debug("%i %s-dereplicated sequences retained for building HMM profile.\n" %
-                      (len(lineage_reps), dereplication_rank))
+                     (len(lineage_reps), dereplication_rank))
         return
 
     def enumerate_taxonomic_lineages(self) -> dict:
@@ -1096,8 +1097,7 @@ class ReferencePackage:
     def taxonomically_label_tree(self) -> Tree:
         """
         When deciding what the taxonomic label should be assigned to a query sequence, algorithms may require a tree
-        (ete3.Tree instance) for which each node contains a 'taxon' instance, itself being a taxonomic_hierarchy.Taxon
-        instance.
+        (ete3.Tree instance) for which each node contains a 'taxon' attribute, a taxonomic_hierarchy.Taxon instance.
         This function assures that the phylogeny is strictly bifurcating, by using ete3's resolve_polytomy() function.
         To label the nodes of a phylogeny,
         """
@@ -1154,7 +1154,7 @@ class ReferencePackage:
 
         if unmapped:
             LOGGER.debug("Unable to find the following feature indices in taxa, leaves or internal nodes:\n\t" +
-                          "\n\t".join(unmapped) + "\n")
+                         "\n\t".join(unmapped) + "\n")
 
         return internal_node_feature_map
 
@@ -1225,8 +1225,8 @@ class ReferencePackage:
         unique_descs = sorted([ref_leaf.description for ref_leaf in missing_ref_leaves])
         LOGGER.info("{} references were not annotated. More info can be found in log.\n".format(len(all_leaves)))
         LOGGER.debug("Unique lineages remaining unannotated:\n\t{}\n"
-                      "Descriptions of unannotated reference leaves:\n\t{}\n".format("\n\t".join(unique_lineages),
-                                                                                     "\n\t".join(unique_descs)))
+                     "Descriptions of unannotated reference leaves:\n\t{}\n".format("\n\t".join(unique_lineages),
+                                                                                    "\n\t".join(unique_descs)))
 
         self.deduplicate_annotation_members()
         return
@@ -1240,8 +1240,8 @@ class ReferencePackage:
         rankings = {anno_name: self.fetch_clade_annotation(anno_name, feature).members[leaf] for anno_name in annots}
         best = max(rankings, key=rankings.get)
         LOGGER.debug("Leaf node '{}' was retained by '{}' out of {}".format(self._ref_leaves[leaf].description,
-                                                                             best,
-                                                                             annots))
+                                                                            best,
+                                                                            annots))
         for anno_name in annots:
             if anno_name != best:
                 self.fetch_clade_annotation(anno_name, feature).members.pop(leaf)
@@ -1258,7 +1258,7 @@ class ReferencePackage:
 
         if len(dups) > 1:
             LOGGER.warning("{} leaves had multiple annotations. The most resolved was selected for each.\n"
-                            "Refer to the log file for more details.\n".format(len(dups)))
+                           "Refer to the log file for more details.\n".format(len(dups)))
 
         return
 
@@ -1325,7 +1325,7 @@ def edit(ref_pkg: ReferencePackage, attributes: list, output_dir: str, **kwargs)
         k_content = re.sub(r"^f__", '', k)
         if not os.path.isfile(v):
             LOGGER.error("Unable to find path to new file '{}'. "
-                          "Exiting and the reference package '{}' will remain unchanged.\n".format(v, ref_pkg.f__pkl))
+                         "Exiting and the reference package '{}' will remain unchanged.\n".format(v, ref_pkg.f__pkl))
             sys.exit(5)
         with open(v) as content_handler:
             v_content = content_handler.readlines()
@@ -1456,7 +1456,7 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
 
     if len(refpkg_dict) == 0:
         LOGGER.error("No reference package data was found.\n" +
-                      "Are there reference packages in '{}'?\n".format(refpkg_data_dir))
+                     "Are there reference packages in '{}'?\n".format(refpkg_data_dir))
         sys.exit(3)
 
     return refpkg_dict
