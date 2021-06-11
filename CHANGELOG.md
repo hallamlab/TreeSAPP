@@ -9,6 +9,8 @@
   and recall in conjunction with '--hmm_coverage'. Both are set to 80% by default.
 - '--delete' flag added to `treesapp phylotu` to optionally remove all intermediate files and directories.
   Useful for de novo methods when multiple phylogenies are inferred.
+- Silent mode in `treesapp assign` can be activated by the '--silent' flag.
+  No logging to console but log file is still populated.
 
 ### Fixed
 - `treesapp package edit` assigns a leaf node only to the most resolved feature annotation
