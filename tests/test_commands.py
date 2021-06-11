@@ -238,7 +238,7 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_evaluate(self):
-        from treesapp.commands import evaluate
+        from treesapp import commands
         from .testing_utils import get_test_data
         evaluate_command_list = ["--fastx_input", get_test_data("McrA_eval.faa"),
                                  "--refpkg_path", self.mcra_pkl,
@@ -248,10 +248,10 @@ class TreesappTester(unittest.TestCase):
                                  "--taxonomic_ranks", "class", "order",
                                  "-n", str(self.num_procs),
                                  "--trim_align"]
-        evaluate(evaluate_command_list)
+        commands.evaluate(evaluate_command_list)
 
         # Test rerunning of already processed data
-        evaluate(evaluate_command_list)
+        commands.evaluate(evaluate_command_list)
         self.assertTrue(True)
         return
 

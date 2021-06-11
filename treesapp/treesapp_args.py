@@ -581,6 +581,7 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args) -> None:
     for rank in args.taxon_rank:
         evaluator_instance.ranks.append(rank)
 
+    evaluator_instance.find_sequence_molecule_type()
     evaluator_instance.ref_pkg.f__pkl = args.pkg_path
     evaluator_instance.ref_pkg.slurp()
 

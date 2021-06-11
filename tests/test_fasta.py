@@ -254,29 +254,29 @@ class FastaUtilitiesTester(unittest.TestCase):
         return
 
     def test_guess_sequence_type(self):
-        from treesapp.fasta import guess_sequence_type, read_fasta_to_dict
+        from treesapp import fasta
         # Test bad keyword argument
         with pytest.raises(ValueError):
-            guess_sequence_type(fasta=self.test_aa_fa)
+            fasta.guess_sequence_type(fasta=self.test_aa_fa)
 
         with pytest.raises(SystemExit):
-            guess_sequence_type(fastx_file="tests/not_testing.fasta")
+            fasta.guess_sequence_type(fastx_file="tests/not_testing.fasta")
 
         # Test with fasta file for amino acid sequences
-        seq_type = guess_sequence_type(fastx_file=self.test_aa_fa)
+        seq_type = fasta.guess_sequence_type(fastx_file=self.test_aa_fa)
         self.assertEqual("prot", seq_type)
 
         # Test with fasta file and nucleotide sequences
-        seq_type = guess_sequence_type(fastx_file=self.test_nuc_fa)
+        seq_type = fasta.guess_sequence_type(fastx_file=self.test_nuc_fa)
         self.assertEqual("dna", seq_type)
 
         # Test with dictionary and a lot of ambiguity characters
-        fa_dict = read_fasta_to_dict(self.troublesome_fa)
-        seq_type = guess_sequence_type(fasta_dict=fa_dict)
+        fa_dict = fasta.read_fasta_to_dict(self.troublesome_fa)
+        seq_type = fasta.guess_sequence_type(fasta_dict=fa_dict)
         self.assertEqual('', seq_type)
 
         # Test with multiple sequence types
-        seq_type = guess_sequence_type(fasta_dict={"s1": "AAAACGGGATCGAGCTACG",
+        seq_type = fasta.guess_sequence_type(fasta_dict={"s1": "AAAACGGGATCGAGCTACG",
                                                    "s2": "GORVVVLMMMNOPLC"})
         self.assertEqual('', seq_type)
         return

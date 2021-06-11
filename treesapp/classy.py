@@ -100,7 +100,7 @@ def dedup_records(ref_seqs: fasta.FASTA, ref_seq_records: dict) -> dict:
 
     if len(all_accessions) != ref_seqs.n_seqs():
         LOGGER.debug("{}/{} unique versioned accessions were loaded for deduplication.\n"
-                      "".format(len(all_accessions), ref_seqs.n_seqs()))
+                     "".format(len(all_accessions), ref_seqs.n_seqs()))
 
     # If the sequences are identical across the records -> take record with greater bitflag
     # If the sequences are different -> keep
@@ -142,7 +142,7 @@ def dedup_records(ref_seqs: fasta.FASTA, ref_seq_records: dict) -> dict:
             deduped_accessions.append(ref_seqs.header_registry[ts_id].original)
 
         LOGGER.warning("The following sequences were removed during deduplication of Entrez records:\n\t" +
-                        "\n\t".join(deduped_accessions) + "\n")
+                       "\n\t".join(deduped_accessions) + "\n")
 
     return ref_seq_records
 
@@ -151,6 +151,7 @@ class TreeSAPP:
     """
     Abstract class for each of the different analysis types - create, evaluate, assign, update and train
     """
+
     def __init__(self, cmd):
         # Static values
         self.command = cmd
@@ -228,7 +229,7 @@ class TreeSAPP:
                 else:
                     if len(args.input) > 1:
                         self.ts_logger.error("treesapp {} is unable to handle more than one fastx-input file.\n"
-                                      "".format(self.command))
+                                             "".format(self.command))
                         sys.exit(7)
                     self.input_sequences = args.input.pop(0)
 
@@ -238,7 +239,7 @@ class TreeSAPP:
         if self.command != "colour" and "pkg_path" in vars(args):
             if len(args.pkg_path) > 1:
                 self.ts_logger.warning("Multiple reference packages cannot be used by treesapp {}.\n"
-                                "Only the first one ({}) will be used.\n".format(self.command, args.pkg_path))
+                                       "Only the first one ({}) will be used.\n".format(self.command, args.pkg_path))
             args.pkg_path = args.pkg_path.pop(0)
 
         self.executables = self.find_executables(args)
@@ -247,7 +248,8 @@ class TreeSAPP:
     def validate_refpkg_dir(self, refpkg_dir: str):
         if refpkg_dir:
             if not os.path.isdir(refpkg_dir):
-                self.ts_logger.error("Directory containing reference packages ({}) does not exist.\n".format(refpkg_dir))
+                self.ts_logger.error(
+                    "Directory containing reference packages ({}) does not exist.\n".format(refpkg_dir))
                 sys.exit(5)
             self.refpkg_dir = refpkg_dir
         return
@@ -321,7 +323,7 @@ class TreeSAPP:
             sys.exit(3)
         else:
             self.ts_logger.warning("Unable to find '{}' stage. Returning a new one instead.\n".format(name))
-            return ModuleFunction(name=name, order=stage_order+1)
+            return ModuleFunction(name=name, order=stage_order + 1)
 
     def first_stage(self):
         for x in sorted(self.stages, key=int):  # type: int
@@ -359,7 +361,7 @@ class TreeSAPP:
         # Find the next stage
         curr_order = self.current_stage.order
         while curr_order < max(self.stages.keys()):
-            next_stage = self.stages[curr_order+1]  # type: ModuleFunction
+            next_stage = self.stages[curr_order + 1]  # type: ModuleFunction
             if next_stage.run:
                 self.current_stage = next_stage
                 break
@@ -423,11 +425,11 @@ class TreeSAPP:
         desired_stage = self.stage_lookup(args.stage).order
         if desired_stage > last_valid_stage:
             self.ts_logger.warning("Unable to run '{}' as it is ahead of the last completed stage.\n"
-                            "Continuing with stage '{}'\n".format(args.stage, self.current_stage.name))
+                                   "Continuing with stage '{}'\n".format(args.stage, self.current_stage.name))
             self.edit_stages(last_valid_stage, desired_stage)
         elif desired_stage < last_valid_stage:
             self.ts_logger.info("Wow - its your lucky day:\n"
-                         "All stages up to and including '{}' have already been completed!\n".format(args.stage))
+                                "All stages up to and including '{}' have already been completed!\n".format(args.stage))
             self.edit_stages(desired_stage, desired_stage)
         else:
             # Proceed with running the desired stage
@@ -441,7 +443,7 @@ class TreeSAPP:
             self.molecule_type = fasta.guess_sequence_type(fastx_file=self.input_sequences)
             if not self.molecule_type:
                 self.ts_logger.error("Unable to automatically detect the molecule type of '{}'.\n"
-                              "Please rerun with the argument '--molecule'.\n".format(self.input_sequences))
+                                     "Please rerun with the argument '--molecule'.\n".format(self.input_sequences))
                 sys.exit(7)
         return
 
@@ -473,7 +475,8 @@ class TreeSAPP:
 
         return exec_paths
 
-    def fetch_entrez_lineages(self, ref_seqs: fasta.FASTA, molecule: str, acc_to_taxid=None, seqs_to_lineage=None) -> dict:
+    def fetch_entrez_lineages(self, ref_seqs: fasta.FASTA, molecule: str, acc_to_taxid=None,
+                              seqs_to_lineage=None) -> dict:
         """
         The root function orchestrating download of taxonomic lineage information using BioPython's Entrez API.
         In addition to this, the function supports a couple different tables containing taxonomic lineage information
@@ -618,8 +621,8 @@ class Updater(TreeSAPP):
         self.ts_logger.info("Summary of the updated reference package:\n" + self.updated_refpkg.get_info() + "\n")
 
         self.ts_logger.debug("\tNew sequences  = " + str(self.updated_refpkg.num_seqs - self.ref_pkg.num_seqs) + "\n" +
-                      "\tOld HMM length = " + str(self.ref_pkg.hmm_length()) + "\n" +
-                      "\tNew HMM length = " + str(self.updated_refpkg.hmm_length()) + "\n")
+                             "\tOld HMM length = " + str(self.ref_pkg.hmm_length()) + "\n" +
+                             "\tNew HMM length = " + str(self.updated_refpkg.hmm_length()) + "\n")
 
         return
 
@@ -725,7 +728,7 @@ class Creator(TreeSAPP):
                 sys.exit(3)
             if ref_pkg.sub_model:
                 self.ts_logger.warning("Model provided '{}' will be ignored when FastTree is used to infer phylogeny.\n"
-                                "".format(ref_pkg.sub_model))
+                                       "".format(ref_pkg.sub_model))
         elif ref_pkg.tree_tool == "RAxML-NG":
             if estimate:
                 evo_model = estimate_ml_model(modeltest_exe=self.executables["ModelTest-NG"],
@@ -746,19 +749,20 @@ class Creator(TreeSAPP):
         return
 
     def print_terminal_commands(self):
-        self.ts_logger.info("\nTo integrate this package for use in TreeSAPP you must copy {0} to a directory containing other"
-                     " reference packages you want to analyse. This may be in {1}/data/ or elsewhere\n"
-                     "".format(self.ref_pkg.f__pkl, self.treesapp_dir))
+        self.ts_logger.info(
+            "\nTo integrate this package for use in TreeSAPP you must copy {0} to a directory containing other"
+            " reference packages you want to analyse. This may be in {1}/data/ or elsewhere\n"
+            "".format(self.ref_pkg.f__pkl, self.treesapp_dir))
         return
 
     def overcluster_warning(self, pre_count: int, post_count: int) -> None:
         low_count = 100
         proportion = 0.5
-        if pre_count > low_count > post_count and post_count/pre_count < proportion:
+        if pre_count > low_count > post_count and post_count / pre_count < proportion:
             self.ts_logger.warning("Clustering at {} similarity removed >{}% of input sequences -"
-                            " consider increasing this threshold.\n"
-                            "You have five seconds to cancel and restart.\n".format(self.ref_pkg.pid,
-                                                                                    100*(1-proportion)))
+                                   " consider increasing this threshold.\n"
+                                   "You have five seconds to cancel and restart.\n".format(self.ref_pkg.pid,
+                                                                                           100 * (1 - proportion)))
             time.sleep(5)
         return
 
@@ -824,10 +828,10 @@ class Purity(TreeSAPP):
                     unique_orthologs[bits_pieces[0]].append('_'.join(bits_pieces[1:]))
 
         # Summarize the counts in the log file
-        summary_str = "Ortholog\tHits\tLeaves\tTree-coverage\tDescription\n" + '-'*80 + "\n"
+        summary_str = "Ortholog\tHits\tLeaves\tTree-coverage\tDescription\n" + '-' * 80 + "\n"
         for og_name in sorted(ortholog_map, key=lambda x: len(ortholog_map[x])):
             n_leaves = len(set(ortholog_map[og_name]))
-            perc_coverage = round(float((n_leaves*100)/len(tree_leaves)), 1)
+            perc_coverage = round(float((n_leaves * 100) / len(tree_leaves)), 1)
             try:
                 desc = metadata[og_name].de
             except (TypeError, KeyError):
@@ -854,9 +858,10 @@ class Purity(TreeSAPP):
             try:
                 db_id, accession, desc = line.strip().split("\t")
             except ValueError:
-                self.ts_logger.error("Bad format for '" + self.metadata_file + "'. Three tab-separated fields expected.\n" +
-                              "Example line:\n" +
-                              str(line) + "\n")
+                self.ts_logger.error(
+                    "Bad format for '" + self.metadata_file + "'. Three tab-separated fields expected.\n" +
+                    "Example line:\n" +
+                    str(line) + "\n")
                 sys.exit(7)
             metadat_dict[accession] = xtra_dat(db_id, accession, desc)
         metadata_handler.close()
@@ -951,10 +956,10 @@ class TaxonTest:
         if off_targets:
             for marker in off_targets:
                 self.logger.warning(str(len(off_targets[marker])) + '/' + str(num_classified) +
-                                " sequences were classified as " + marker + ":\n" +
-                                "\t\n".join(off_targets[marker]) + "\n")
+                                    " sequences were classified as " + marker + ":\n" +
+                                    "\t\n".join(off_targets[marker]) + "\n")
         return
-    
+
     def clade_exclusion_outputs(self, ref_pkg: refpkg.ReferencePackage, output_dir: str, tool: str) -> None:
         """
         Creates a TaxonTest instance that stores file paths and settings relevant to a clade exclusion analysis
@@ -981,7 +986,7 @@ class TaxonTest:
             self.classification_table = self.classifications_root + "final_outputs" + os.sep + "classifications.tsv"
             self.refpkg_path = os.path.join(self.intermediates_dir, ref_pkg.prefix + ref_pkg.refpkg_suffix)
 
-        return 
+        return
 
 
 class Evaluator(TreeSAPP):
@@ -1028,7 +1033,7 @@ class Evaluator(TreeSAPP):
                 sys.exit(3)
         elif os.path.isfile(self.acc_to_lin):
             self.ts_logger.info("An accession-lineage mapping file from a previous run ('{}') was found"
-                         " and will attempt to be used.\n".format(self.acc_to_lin))
+                                " and will attempt to be used.\n".format(self.acc_to_lin))
             self.change_stage_status("lineages", False)
         self.validate_continue(args)
         return
@@ -1062,7 +1067,7 @@ class Evaluator(TreeSAPP):
         self.taxa_tests[rank].append(taxa_test_inst)
 
         taxa_test_inst.clade_exclusion_outputs(output_dir=self.var_output_dir, ref_pkg=self.ref_pkg, tool=tool)
-        
+
         return taxa_test_inst
 
     def delete_test(self, rank, lineage):
@@ -1081,7 +1086,7 @@ class Evaluator(TreeSAPP):
             for tt in self.taxa_tests[rank]:  # type: TaxonTest
                 total_queries += len(tt.queries)
                 total_classified += len(tt.classifieds)
-            return total_queries, total_classified, float(total_classified/total_queries)
+            return total_queries, total_classified, float(total_classified / total_queries)
         else:
             return 0, 0, 0.0
 
@@ -1169,17 +1174,18 @@ class Evaluator(TreeSAPP):
                 continue
             lineage = tt.lineage.split("; ")
             x = 0
-            while x < len(lineage)-1:
+            while x < len(lineage) - 1:
                 if lineage[x] not in observed:
-                    tree_summary_str += "\t"*x + lineage[x] + " = NA\n"
+                    tree_summary_str += "\t" * x + lineage[x] + " = NA\n"
                     observed.add(lineage[x])
                 x += 1
-            tree_summary_str += "\t"*x
-            tree_summary_str += "%s = %.1f\n" % (lineage[-1], float(100*len(tt.classifieds)/len(tt.queries)))
+            tree_summary_str += "\t" * x
+            tree_summary_str += "%s = %.1f\n" % (lineage[-1], float(100 * len(tt.classifieds) / len(tt.queries)))
             observed.add(lineage[-1])
 
         self.ts_logger.debug(tree_summary_str + "\n")
-        self.ts_logger.info("An alphabetically-sorted tree displaying recall of all taxa evaluated is in the log file.\n")
+        self.ts_logger.info(
+            "An alphabetically-sorted tree displaying recall of all taxa evaluated is in the log file.\n")
         return
 
     def taxonomic_recall_table(self):
@@ -1194,7 +1200,7 @@ class Evaluator(TreeSAPP):
                 if len(tt.queries) == 0:
                     continue
                 taxa_recall_str += "\t".join([rank, tt.taxon,
-                                              str(round(float(100*len(tt.classifieds))/len(tt.queries), 2))]) + "\n"
+                                              str(round(float(100 * len(tt.classifieds)) / len(tt.queries), 2))]) + "\n"
         with open(self.recall_table, 'w') as recall_tbl_handler:
             recall_tbl_handler.write(taxa_recall_str)
 
@@ -1238,10 +1244,11 @@ class Evaluator(TreeSAPP):
                             offset = lca_calculations.determine_offset(classified, optimal)
                         if offset > 7:
                             # This shouldn't be possible since there are no more than 7 taxonomic ranks
-                            self.ts_logger.error("Offset found to be greater than what is possible (" + str(offset) + ").\n" +
-                                          "Classified: " + classified + "\n" +
-                                          "Optimal: " + optimal + "\n" +
-                                          "Query: " + query + "\n")
+                            self.ts_logger.error(
+                                "Offset found to be greater than what is possible (" + str(offset) + ").\n" +
+                                "Classified: " + classified + "\n" +
+                                "Optimal: " + optimal + "\n" +
+                                "Query: " + query + "\n")
                             continue
                         for dist in taxonomic_distance:
                             eval_stats = taxonomic_distance[dist]  # type: EvaluateStats
@@ -1263,8 +1270,8 @@ class Evaluator(TreeSAPP):
                     if eval_stats.correct > 0:
                         if n_classified == 0:
                             self.ts_logger.error("No sequences were classified at rank '" + rank +
-                                          "' but optimal placements were pointed here. " +
-                                          "This is a bug - please alert the developers!\n")
+                                                 "' but optimal placements were pointed here. " +
+                                                 "This is a bug - please alert the developers!\n")
                             sys.exit(21)
                         else:
                             eval_stats.proportion = float(eval_stats.correct / n_classified)
@@ -1272,18 +1279,19 @@ class Evaluator(TreeSAPP):
                         eval_stats.proportion = 0.0
                     clade_exclusion_strings.append(eval_stats.linear_stats())
                 if classified_acc != n_classified:
-                    self.ts_logger.error("Discrepancy between classified sequences at each distance (" + str(classified_acc) +
-                                  ") and total (" + str(n_classified) + ").\n")
+                    self.ts_logger.error(
+                        "Discrepancy between classified sequences at each distance (" + str(classified_acc) +
+                        ") and total (" + str(n_classified) + ").\n")
                     sys.exit(15)
 
-                std_out_report_string += '\t'.join([str(round(val.proportion*100, 1)) for val in
+                std_out_report_string += '\t'.join([str(round(val.proportion * 100, 1)) for val in
                                                     taxonomic_distance.values()]) + "\n"
-                if (classified_acc*100)/n_queries > 101.0:
+                if (classified_acc * 100) / n_queries > 101.0:
                     self.ts_logger.error("Sum of proportional assignments at all distances is greater than 100.\n" +
-                                  "\n".join(["Rank = " + rank,
-                                             "Queries = " + str(n_queries),
-                                             "Classified = " + str(n_classified),
-                                             "Classifications = " + str(len(rank_assigned_dict[rank]))]) + "\n")
+                                         "\n".join(["Rank = " + rank,
+                                                    "Queries = " + str(n_queries),
+                                                    "Classified = " + str(n_classified),
+                                                    "Classifications = " + str(len(rank_assigned_dict[rank]))]) + "\n")
                     sys.exit(21)
 
         sys.stdout.write(std_out_report_string)
@@ -1350,7 +1358,8 @@ class Abundance(TreeSAPP):
         # Define locations of files TreeSAPP outputs
         ##
         if len(glob(self.final_output_dir + "*_classified.fna")) < 1:
-            self.ts_logger.error("Unable to find classified ORF nucleotide sequences in '{}'.\n".format(self.final_output_dir))
+            self.ts_logger.error(
+                "Unable to find classified ORF nucleotide sequences in '{}'.\n".format(self.final_output_dir))
             sys.exit(5)
         self.ref_nuc_seqs = ts_utils.match_file(os.path.join(self.var_output_dir, "orf-call", "*_ORFs.fna"))
 
@@ -1365,7 +1374,8 @@ class Abundance(TreeSAPP):
 
         # Remove the directory containing SAM and BWA index files
         if os.path.isdir(self.stage_lookup("align_map").dir_path) and args.overwrite:
-            self.ts_logger.debug("Removing directory with BWA outputs '{}'.\n".format(self.stage_lookup("align_map").dir_path))
+            self.ts_logger.debug(
+                "Removing directory with BWA outputs '{}'.\n".format(self.stage_lookup("align_map").dir_path))
             rmtree(self.stage_lookup("align_map").dir_path)
 
         self.aln_file = self.stage_lookup("align_map").dir_path + \
@@ -1380,7 +1390,7 @@ class Abundance(TreeSAPP):
         if len(args.reverse) > 0:
             if len(args.reads) != len(args.reverse):
                 self.ts_logger.error("Number of fastq files differs between reads ({}) and reverse ({}) arguments!.\n"
-                              "".format(len(args.reads), len(args.reverse)))
+                                     "".format(len(args.reads), len(args.reverse)))
                 sys.exit(3)
             # Ensure all the FASTQ file paths are valid for the reverse reads
             for reads_file in args.reverse:
@@ -1482,7 +1492,7 @@ class EvaluateStats:
         return "\t".join([str(val) for val in stat_fields])
 
     def recall(self):
-        return self.correct/self.n_qs
+        return self.correct / self.n_qs
 
     def precision(self):
-        return self.correct/sum([self.correct, self.over_p, self.under_p])
+        return self.correct / sum([self.correct, self.over_p, self.under_p])
