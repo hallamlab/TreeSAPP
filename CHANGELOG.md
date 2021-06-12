@@ -1,4 +1,4 @@
-## [0.11.2] - 2021-06
+## [0.11.2] - 2021-06-12
 ### Added
 - Option '--unknown_colour' for `treesapp colour` where a colour for "Unknown" features or taxa are included in the iTOL files.
 - New options for pre-clustering the classified sequences using either Barberra et al.'s placement-space method or 
