@@ -73,7 +73,7 @@ class MccTester(unittest.TestCase):
             mcc_classified.readline()
             line = mcc_classified.readline()
             while line:
-                if line.split()[3] == "True":
+                if line.split()[4] == "True":
                     tp += 1
                 else:
                     fn += 1

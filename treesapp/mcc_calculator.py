@@ -153,16 +153,18 @@ class ConfusionTest:
 
     def summarise_reference_taxa(self, taxa_file: str, classification_file: str, rank="Phylum"):
         lineage_list = []
-        info_string = "RefPkg\tName\tTaxDist\tClassified\tTrueLineage\tAssignedLineage\tOptimalLineage\n"
+        info_string = "RefPkg\tName\tTaxDist\tEvoDist\tClassified\tTrueLineage\tAssignedLineage\tOptimalLineage\n"
         for marker in self.tp:
             for tp_inst in self.tp[marker]:  # type: training_utils.QuerySequence
                 lineage_list.append(tp_inst.true_lineage)
-                info_string += "\t".join([marker, tp_inst.place_name, str(tp_inst.tax_dist), "True",
-                                          tp_inst.true_lineage, tp_inst.assigned_lineage,
-                                          tp_inst.optimal_lineage]) + "\n"
+                info_string += "\t".join([marker, tp_inst.place_name,
+                                          str(tp_inst.tax_dist), str(tp_inst.avg_evo_dist), "True",
+                                          tp_inst.true_lineage, tp_inst.assigned_lineage, tp_inst.optimal_lineage]) + "\n"
             if marker in self.unlabelled_tp_query_names:
                 for pquery in self.unlabelled_tp_query_names[marker]:
-                    info_string += "\t".join([marker, pquery.seq_name, "NA", "True", "NA", "NA", "NA"]) + "\n"
+                    info_string += "\t".join([marker, pquery.seq_name,
+                                              "NA", str(pquery.avg_evo_dist),
+                                              "True", "NA", "NA", "NA"]) + "\n"
         for marker in self.fn:
             for tp_inst in self.fn[marker]:  # type: training_utils.QuerySequence
                 # TODO: Support headers from databases other than EggNOG
