@@ -225,6 +225,7 @@ def bin_headers(assignments: dict, annot_map: dict, entrez_query_dict: dict, ref
             tp_inst.ref = refpkg_name
             tp_inst.assigned_lineage = pquery.recommended_lineage
             tp_inst.rank = pquery.rank
+            tp_inst.avg_evo_dist = pquery.avg_evo_dist
             # Bin it if the mapping_dict is present, otherwise classify it as a TP
             if tp_inst.place_name in positives:
                 try:

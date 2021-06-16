@@ -174,7 +174,8 @@ class ConfusionTest:
                 except KeyError:
                     continue
                 lineage_list.append(true_lineage)
-                info_string += "\t".join([marker, tp_inst.place_name, "NA", "False", true_lineage, "NA", "NA"]) + "\n"
+                info_string += "\t".join([marker, tp_inst.place_name,
+                                          "NA", "NA", "False", true_lineage, "NA", "NA"]) + "\n"
 
         with open(classification_file, 'w') as info_handler:
             info_handler.write(info_string)
