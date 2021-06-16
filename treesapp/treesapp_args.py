@@ -159,7 +159,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
 
     def add_pplace_params(self):
         self.add_pplace_filter_params()
-        self.pplace_args.add_argument("--placement_summary", default="max_lwr", choices=["aelw", "max_lwr"],
+        self.pplace_args.add_argument("--placement_summary", default="max_lwr", choices=["aelw", "max_lwr", "lca"],
                                       dest="p_sum",
                                       help="Controls the algorithm for consolidating multiple phylogenetic placements. "
                                            "Max LWR will take use the phylogenetic placement with greatest LWR. "
@@ -458,6 +458,7 @@ def add_evaluate_arguments(eval_parser: TreeSAPPArgumentParser) -> None:
     eval_parser.add_refpkg_file_param()
     eval_parser.add_accession_params()
     eval_parser.add_compute_miscellany()
+    eval_parser.add_pplace_params()
     eval_parser.add_taxa_ranks_param()
 
     eval_parser.optopt.add_argument("--fresh", default=False, required=False, action="store_true",

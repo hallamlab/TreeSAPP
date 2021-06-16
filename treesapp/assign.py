@@ -913,7 +913,7 @@ def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
 
 
 def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
-                      min_lwr: float, max_pendant=None, max_bl_dist=None) -> None:
+                      min_lwr: float, max_pendant=None, max_bl_dist=None, min_bl_dist=1.0) -> None:
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
@@ -942,7 +942,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
         unclassified_seqs[ref_pkg.prefix]["big_branch"] = list()
         unclassified_seqs[ref_pkg.prefix]["svm"] = list()
         svc_attempt = False
-        edge_maxes = ref_pkg.get_edge_tip_dist_map(min_dist=0.1)
+        edge_maxes = ref_pkg.get_edge_tip_dist_map(min_dist=0.2)
         error = np.std(list(edge_maxes.values()))  # Empirically determined that one standard-deviation is best here
         LOGGER.debug("Maximum distance threshold for '{}' set to {}.\n"
                      "".format(ref_pkg.prefix, max(edge_maxes.values())))
@@ -958,7 +958,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svc: bool,
             tree_sap.avg_evo_dist = tree_sap.consensus_placement.total_distance()
             tree_sap.string_distances()
 
-            if tree_sap.avg_evo_dist > edge_maxes[tree_sap.consensus_placement.edge_num] + error:
+            if tree_sap.avg_evo_dist > max(edge_maxes[tree_sap.consensus_placement.edge_num] + error, min_bl_dist):
                 unclassified_seqs[ref_pkg.prefix]["distant"].append(tree_sap)
                 tree_sap.classified = False
             elif max_pendant and tree_sap.consensus_placement.pendant_length > max_pendant:
@@ -1017,6 +1017,8 @@ def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"
                 pquery.process_max_weight_placement(taxa_tree)
             elif mode == "aelw":
                 pquery.calculate_consensus_placement(taxa_tree)
+            elif mode == "lca":
+                pquery.process_max_weight_placement(taxa_tree)
             else:
                 LOGGER.error("Unknown PQuery consensus algorithm provided: '{}'.\n".format(mode))
                 raise ValueError
