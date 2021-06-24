@@ -981,6 +981,7 @@ def colour(sys_args):
             ts_painter.find_rank_depth(ref_pkg, ref_pkg.taxa_trie.accepted_ranks_depths[ts_painter.rank])
 
             taxon_leaf_map, unique_taxa = ref_pkg.map_rank_representatives_to_leaves(rank_name=ts_painter.rank)
+            LOGGER.info("{}: {} unique taxa.\n".format(ref_pkg.prefix, len(taxon_leaf_map)))
             internal_node_map = ref_pkg.get_internal_node_leaf_map()
             ts_painter.num_taxa = len(taxon_leaf_map)
             ts_painter.num_seqs = len(unique_taxa)

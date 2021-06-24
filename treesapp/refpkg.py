@@ -681,8 +681,6 @@ class ReferencePackage:
             for leaf in taxon_leaf_nodes:  # type: TreeLeafReference
                 unique_taxa[leaf.number] = self.taxa_trie.hierarchy[taxon_name]
 
-        LOGGER.info("{}: {} unique taxa.\n".format(self.prefix, len(taxon_leaf_map)))
-
         return taxon_leaf_map, unique_taxa
 
     @staticmethod
