@@ -592,7 +592,7 @@ class PhyloClust(ts_classy.TreeSAPP):
     def assign_pqueries_to_alignment_clusters(self, pqueries: dict, cluster_map: dict) -> None:
         pquery_cluster_map = {}
         for num, cluster in cluster_map.items():  # type: (str, seq_clustering.Cluster)
-            pquery_cluster_map.update({pq.place_name: int(num) for pq in cluster.members})
+            pquery_cluster_map.update({place_name: int(num) for place_name, _id in cluster.members})
             self.cluster_index[int(num)] = PhylOTU(name=int(num))
 
         for sample_id in pqueries:
@@ -971,9 +971,6 @@ def cluster_by_local_alignment(phylo_clust: PhyloClust, proportional_identity=0.
                                                            prop_similarity=proportional_identity,
                                                            mmseqs_exe=phylo_clust.executables["mmseqs"],
                                                            tmp_dir=phylo_clust.stage_output_dir)
-    for num, cluster in cluster_map.items():  # type: (str, seq_clustering.Cluster)
-        member_names = [x[0] for x in cluster.members]
-        cluster.members = [pq for pq in phylo_clust.clustered_pqueries if pq.place_name in member_names]
 
     phylo_clust.summarise_cluster_sizes(cluster_map)
     phylo_clust.increment_stage_dir()
