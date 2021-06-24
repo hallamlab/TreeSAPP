@@ -1,3 +1,12 @@
+## [0.] - 2021-
+### Added
+- Option to use pairwise local-alignment clustering (with MMSeqs2) in `treesapp phylotu`
+
+### Fixed
+- Bad error statement when estimating _alpha_ in `treesapp phylotu`
+
+### Changed
+
 ## [0.11.2] - 2021-06-12
 ### Added
 - Option '--unknown_colour' for `treesapp colour` where a colour for "Unknown" features or taxa are included in the iTOL files.
