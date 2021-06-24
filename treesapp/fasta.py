@@ -816,7 +816,7 @@ class FASTA:
         """
         for header, seq in self.fasta_dict.items():
             if seq.find('-') >= 0:
-                self.fasta_dict[header] = re.sub("[-.]", '', seq)
+                self.fasta_dict[header] = re.sub("[-.*]", '', seq)
             else:
                 self.fasta_dict[header] = seq
         return
