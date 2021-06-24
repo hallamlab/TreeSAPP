@@ -131,6 +131,7 @@ class PhyloClusterTester(unittest.TestCase):
     def test_calculate_distance_threshold(self):
         from treesapp import phylo_cluster
         p_clust = phylo_cluster.PhyloClust()
+        p_clust.clustering_mode = "de_novo"
         alpha = p_clust.calculate_distance_threshold(taxa_tree=self.taxa_tree,
                                                      taxonomy=self.refpkg.taxa_trie)
         self.assertTrue(0.04 < round(alpha, 3) <= 0.08)
@@ -150,6 +151,11 @@ class PhyloClusterTester(unittest.TestCase):
                                                                   self.refpkg.taxa_trie,
                                                                   override_rank="class"))
         p_clust.calculate_distance_threshold(small_tree, self.refpkg.taxa_trie, override_rank="species")
+
+        p_clust.ref_pkg = self.refpkg
+        p_clust.clustering_mode = "local"
+        alpha = p_clust.calculate_distance_threshold(small_tree, self.refpkg.taxa_trie)
+        self.assertTrue(0.90 < alpha < 1.0)
         return
 
     def test_match_edges_to_clusters(self):

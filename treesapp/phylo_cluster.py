@@ -6,6 +6,7 @@ import re
 import glob
 import logging
 
+from Bio import Align
 import numpy as np
 from scipy import stats
 from ete3 import Tree, TreeNode
@@ -313,17 +314,9 @@ class PhyloClust(ts_classy.TreeSAPP):
             rel_dists[target_group] = [round(x, 4) for x in pair_dists.values()]
         return rel_dists
 
-    def calculate_distance_threshold(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy,
-                                     distribution="ci", override_rank=None) -> float:
-        if override_rank is not None:
-            self.stash("tax_rank")
-            self.tax_rank = override_rank
-
-        self.ts_logger.info("Estimating alpha threshold for '{}' phylogeny at rank '{}'... "
-                            "".format(self.ref_pkg.prefix, self.tax_rank))
-
+    def get_phylogenetic_distances_for_rank(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy,
+                                            min_obs=3) -> np.array:
         dists = np.array([])
-        min_obs = 3
         # Find the 95% confidence interval for RED values between leaves of the same genus
         grouped_rel_dists = self.group_rel_dists(taxa_tree, taxonomy)
         if grouped_rel_dists:
@@ -338,6 +331,41 @@ class PhyloClust(ts_classy.TreeSAPP):
                                                                                                        1)
                     obs = np.append(obs, synth_obs)
                 dists = np.append(dists, obs)
+        return dists
+
+    def get_pairwise_distances_for_rank(self) -> np.array:
+        dists = np.array([])
+        taxon_leaf_map, _unique_taxa = self.ref_pkg.map_rank_representatives_to_leaves(self.tax_rank)
+        ref_seqs = self.ref_pkg.get_fasta()  # type: fasta.FASTA
+        ref_seqs.unalign()
+        aligner = Align.PairwiseAligner()
+        aligner.mode = "global"
+        for taxon, seq_names in taxon_leaf_map.items():
+            r = seq_names.pop()  # type: str
+            while seq_names:
+                for q in seq_names:
+                    alignments = aligner.align(ref_seqs.fasta_dict[r], ref_seqs.fasta_dict[q])
+                    optimal = next(alignments)
+                    dists = np.append(dists, [optimal.score/len(optimal.target)])
+                r = seq_names.pop()
+        return dists
+
+    def calculate_distance_threshold(self, taxa_tree: Tree, taxonomy: ts_taxonomy.TaxonomicHierarchy,
+                                     distribution="ci", override_rank=None) -> float:
+        if override_rank is not None:
+            self.stash("tax_rank")
+            self.tax_rank = override_rank
+
+        self.ts_logger.info("Estimating alpha threshold for '{}' phylogeny at rank '{}'... "
+                            "".format(self.ref_pkg.prefix, self.tax_rank))
+
+        min_obs = 3
+        if self.clustering_mode in ["ref_guided", "de_novo"]:
+            dists = self.get_phylogenetic_distances_for_rank(taxa_tree, taxonomy, min_obs)
+        elif self.clustering_mode in ["local"]:
+            dists = self.get_pairwise_distances_for_rank()
+        else:
+            dists = np.array([])
 
         self.withdraw_stash()
         if len(dists) > min_obs:
@@ -350,7 +378,7 @@ class PhyloClust(ts_classy.TreeSAPP):
 
         self.ts_logger.info("done.\n")
 
-        if alpha > 1:
+        if alpha > 0:
             self.ts_logger.debug("Alpha estimated to be {}.\n".format(alpha))
         else:
             self.ts_logger.error("Unable to estimate alpha threshold for {}. "
@@ -666,7 +694,9 @@ class PhyloClust(ts_classy.TreeSAPP):
         for _num, cluster in clusters.items():  # type: (int, seq_clustering.Cluster)
             membership_sizes.append(len(cluster.members))
 
-        if self.current_stage.name == "phylogeny":
+        if self.clustering_mode == "local":
+            cluster_state = "cluster"
+        elif self.current_stage.name == "phylogeny":
             cluster_state = "pre-cluster"
         else:
             cluster_state = "cluster"
@@ -1017,7 +1047,7 @@ def cluster_phylogeny(sys_args: list) -> None:
                                cluster_method=p_clust.pre_mode,
                                taxon_labelled_tree=taxa_tree)
     elif p_clust.clustering_mode == "local":
-        cluster_by_local_alignment(phylo_clust=p_clust)
+        cluster_by_local_alignment(phylo_clust=p_clust, proportional_identity=p_clust.alpha)
     else:
         LOGGER.error("Unknown clustering mode specified: '{}'.\n".format(p_clust.clustering_mode))
         sys.exit(5)
