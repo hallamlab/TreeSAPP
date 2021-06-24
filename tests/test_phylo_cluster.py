@@ -280,6 +280,20 @@ class PhyloClusterTester(unittest.TestCase):
 
         return
 
+    def test_cluster_by_local_alignment(self):
+        from treesapp import phylo_cluster
+        p_clust = phylo_cluster.PhyloClust()
+        p_clust.load_args(p_clust.get_arguments(["--refpkg_path", self.refpkg.f__pkl,
+                                                 "--assign_output", get_test_data("test_output_TarA"),
+                                                 "--output", self.tmp_dir]))
+        p_clust.load_sample_placement_files()
+        phylo_cluster.cluster_by_local_alignment(phylo_clust=p_clust)
+        self.assertEqual(11, len(p_clust.clustered_pqueries))
+        self.assertEqual(10, len(p_clust.cluster_index))
+        self.assertEqual(10, len(p_clust.sample_mat["test_output_TarA"]))
+
+        return
+
     def test_subtree_finder(self):
         from treesapp import phylo_cluster
         target_leaves = {'9_McrA', '6_McrA', '7_McrA',
@@ -331,6 +345,12 @@ class PhyloClusterTester(unittest.TestCase):
                                self.refpkg.f__pkl, get_test_data(os.path.join("refpkgs", "McrB_build.pkl")),
                                "--jplace", get_test_data("epa_result.jplace")])
 
+        # TODO: Remove once PSC with ref-guided is implemented
+        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
+                           "--jplace", get_test_data("epa_result.jplace"),
+                           "--output", self.tmp_dir,
+                           "--mode", "ref_guided"])
+
         # Test input is a treesapp assign output directory
         cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
                            "--assign_output", get_test_data("test_output_TarA"),
@@ -351,6 +371,13 @@ class PhyloClusterTester(unittest.TestCase):
         with open(os.path.join(self.tmp_dir, "final_outputs", "phylotu_pquery_assignments.tsv")) as asns:
             lines = asns.readlines()
         self.assertEqual(13, len(lines))
+
+        # Test local alignment clustering
+        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
+                           "--assign_output", get_test_data("test_output_TarA"),
+                           "--output", self.tmp_dir,
+                           "--mode", "local",
+                           "--delete"])
         return
 
 

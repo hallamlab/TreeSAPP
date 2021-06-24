@@ -142,7 +142,8 @@ class PhyloClust(ts_classy.TreeSAPP):
                                help="Path to one or more output directories of treesapp assign.")
 
         self.arg_parser.optopt.add_argument("-m", "--mode", dest="clustering_mode",
-                                            choices=["de_novo", "ref_guided"], default="ref_guided", required=False,
+                                            choices=["de_novo", "ref_guided", "local"],
+                                            default="ref_guided", required=False,
                                             help="The phylogentic clustering mode to use. [ DEFAULT = ref_guided ].")
         self.arg_parser.optopt.add_argument("-p", "--pre_cluster", dest="pre_mode",
                                             choices=["psc", "align"], default="psc", required=False,
@@ -449,7 +450,10 @@ class PhyloClust(ts_classy.TreeSAPP):
             delattr(self, "_stash")
         return
 
-    def define_tree_clusters(self, tree: Tree, internal=True, override_alpha=None) -> None:
+    def define_tree_clusters(self, tree: Tree, internal=True, override_alpha=None, verbose=False) -> None:
+        if verbose:
+            LOGGER.info("Defining phylogenetic clusters... ")
+
         if override_alpha is not None:
             self.stash("alpha")
             self.alpha = override_alpha
@@ -470,6 +474,8 @@ class PhyloClust(ts_classy.TreeSAPP):
 
         self.withdraw_stash()
 
+        if verbose:
+            LOGGER.info("done.\n")
         return
 
     def match_edges_to_clusters(self, tree: Tree, override_alpha=None) -> None:
@@ -499,6 +505,16 @@ class PhyloClust(ts_classy.TreeSAPP):
                                               pquery_precluster_map[centroid_pqueries[pquery.place_name]]})
         return phylo_groups
 
+    def add_pquery_count_to_sample_potu_mat(self, pquery: phylo_seq.PQuery) -> None:
+        otu_id = getattr(pquery, "p_otu")
+        if getattr(pquery, "sample_name") not in self.sample_mat:
+            self.sample_mat[getattr(pquery, "sample_name")] = {n: 0 for n in self.cluster_index}
+        try:
+            self.sample_mat[getattr(pquery, "sample_name")][otu_id] += 1
+        except KeyError:
+            self.sample_mat[getattr(pquery, "sample_name")][otu_id] = 1
+        return
+
     def assign_pqueries_to_leaf_clusters(self, pqueries: list, cluster_map: dict) -> None:
         # Build a map between the leaf node names and cluster numbers
         LOGGER.info("Indexing cluster members... ")
@@ -519,12 +535,7 @@ class PhyloClust(ts_classy.TreeSAPP):
                 pquery.p_otu = leaf_cluster_map[pquery.place_name]
             except KeyError:
                 pquery.p_otu = leaf_cluster_map[member_cluster_map[pquery.place_name]]
-            if getattr(pquery, "sample_name") not in self.sample_mat:
-                self.sample_mat[getattr(pquery, "sample_name")] = {n: 0 for n in self.cluster_index}
-            try:
-                self.sample_mat[getattr(pquery, "sample_name")][pquery.p_otu] += 1
-            except KeyError:
-                self.sample_mat[getattr(pquery, "sample_name")][pquery.p_otu] = 1
+            self.add_pquery_count_to_sample_potu_mat(pquery)
             self.cluster_index[pquery.p_otu].cardinality += 1
             p_bar.update()
         p_bar.close()
@@ -546,13 +557,23 @@ class PhyloClust(ts_classy.TreeSAPP):
         for pquery in pqueries:  # type: phylo_seq.PQuery
             cluster = self._edges_to_cluster_index[pquery.consensus_placement.edge_num]
             pquery.p_otu = cluster
-            if getattr(pquery, "sample_name") not in self.sample_mat:
-                self.sample_mat[getattr(pquery, "sample_name")] = {n: 0 for n in self.cluster_index}
-            try:
-                self.sample_mat[getattr(pquery, "sample_name")][cluster] += 1
-            except KeyError:
-                self.sample_mat[getattr(pquery, "sample_name")][cluster] = 1
+            self.add_pquery_count_to_sample_potu_mat(pquery)
             self.cluster_index[cluster].cardinality += 1
+        return
+
+    def assign_pqueries_to_alignment_clusters(self, pqueries: dict, cluster_map: dict) -> None:
+        pquery_cluster_map = {}
+        for num, cluster in cluster_map.items():  # type: (str, seq_clustering.Cluster)
+            pquery_cluster_map.update({pq.place_name: int(num) for pq in cluster.members})
+            self.cluster_index[int(num)] = PhylOTU(name=int(num))
+
+        for sample_id in pqueries:
+            if self.ref_pkg.prefix not in pqueries[sample_id]:
+                continue
+            for pquery in pqueries[sample_id][self.ref_pkg.prefix]:  # type: phylo_seq.PQuery
+                pquery.p_otu = pquery_cluster_map[pquery.place_name]
+                self.add_pquery_count_to_sample_potu_mat(pquery)
+                self.cluster_index[pquery.p_otu].cardinality += 1
         return
 
     def set_pquery_sample_name(self, pquery: phylo_seq.PQuery, default_sample: str) -> None:
@@ -579,6 +600,8 @@ class PhyloClust(ts_classy.TreeSAPP):
 
     def write_cluster_taxon_labels(self) -> None:
         """Writes a two-column table mapping each cluster to its respective taxonomic lineage."""
+        if self.clustering_mode == "local":
+            return
         tbl_string = ""
         for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
             lineage = "; ".join([t.prefix_taxon() for t in p_otu.taxon.lineage()])
@@ -653,6 +676,18 @@ class PhyloClust(ts_classy.TreeSAPP):
                                       cluster_state,
                                       round(sum(membership_sizes) / len(membership_sizes), 1)))
         return
+    
+    def gather_classified_pqueries(self) -> dict:
+        classified_pqueries = {}
+        for sample_id, ts_out in self.assign_output_dirs.items():
+            assigner_instance = ts_classy.TreeSAPP("phylotu")
+            classified_pqueries[sample_id] = file_parsers.load_classified_sequences_from_assign_output(ts_out,
+                                                                                                       assigner_instance,
+                                                                                                       self.ref_pkg.prefix)
+            for pquery in classified_pqueries[sample_id][self.ref_pkg.prefix]:
+                self.set_pquery_sample_name(pquery, sample_id)
+                self.clustered_pqueries.append(pquery)
+        return classified_pqueries
 
 
 def confidence_interval(data, confidence=0.95) -> float:
@@ -825,15 +860,7 @@ def format_precluster_map(cluster_method: str, precluster_map: dict) -> dict:
 def de_novo_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree,
                            cluster_method=None, phylo_group="partition", psc_cluster_size=10, drep_id=1.0) -> None:
     # Gather all classified sequences for a reference package from the treesapp assign outputs
-    classified_pqueries = {}
-    for sample_id, ts_out in phylo_clust.assign_output_dirs.items():
-        assigner_instance = ts_classy.TreeSAPP("phylotu")
-        classified_pqueries[sample_id] = file_parsers.load_classified_sequences_from_assign_output(ts_out,
-                                                                                                   assigner_instance,
-                                                                                                   phylo_clust.ref_pkg.prefix)
-        for pquery in classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]:
-            phylo_clust.set_pquery_sample_name(pquery, sample_id)
-            phylo_clust.clustered_pqueries.append(pquery)
+    classified_pqueries = phylo_clust.gather_classified_pqueries()
     if len(classified_pqueries) == 0:
         return
 
@@ -895,14 +922,51 @@ def de_novo_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree,
     return
 
 
-def reference_placement_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree) -> None:
+def cluster_by_local_alignment(phylo_clust: PhyloClust, proportional_identity=0.0) -> None:
+    if proportional_identity == 0.0:
+        proportional_identity = phylo_clust.ref_pkg.pid
+
+    # Gather all classified sequences for a reference package from the treesapp assign outputs
+    classified_pqueries = phylo_clust.gather_classified_pqueries()
+    if len(classified_pqueries) == 0:
+        return
+    # Load the classified PQuery sequences into a FASTA instance
+    pqueries_fasta = pqueries_to_fasta(classified_pqueries,
+                                       fa_name=os.path.join(phylo_clust.stage_output_dir, "classified_pqueries.fasta"))
+    pqueries_fasta.summarize_fasta_sequences()
+    phylo_clust.increment_stage_dir()
+
+    # Dereplicate classified sequences into Clusters
+    cluster_map = seq_clustering.dereplicate_by_clustering(fasta_inst=pqueries_fasta,
+                                                           prop_similarity=proportional_identity,
+                                                           mmseqs_exe=phylo_clust.executables["mmseqs"],
+                                                           tmp_dir=phylo_clust.stage_output_dir)
+    for num, cluster in cluster_map.items():  # type: (str, seq_clustering.Cluster)
+        member_names = [x[0] for x in cluster.members]
+        cluster.members = [pq for pq in phylo_clust.clustered_pqueries if pq.place_name in member_names]
+
+    phylo_clust.summarise_cluster_sizes(cluster_map)
+    phylo_clust.increment_stage_dir()
+    phylo_clust.assign_pqueries_to_alignment_clusters(classified_pqueries, cluster_map)
+
+    for sample_id in classified_pqueries:
+        phylo_clust.report_cluster_occupancy(sample_name=sample_id,
+                                             n_pqueries=len(classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]))
+    return
+
+
+def reference_placement_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_tree: Tree,
+                                       psc=False, psc_cluster_size=10) -> None:
     # Perform maximum, mean, or median distance min-cut partitioning
-    LOGGER.info("Defining phylogenetic clusters... ")
-    phylo_clust.define_tree_clusters(phylo_clust.ref_pkg.taxonomically_label_tree())
-    LOGGER.info("done.\n")
+    phylo_clust.define_tree_clusters(phylo_clust.ref_pkg.taxonomically_label_tree(), verbose=True)
 
     # Find the edges belonging to each cluster and invert the dictionary to create the _edges_to_cluster_index
     phylo_clust.match_edges_to_clusters(tree=phylo_clust.ref_pkg.taxonomically_label_tree())
+
+    if psc:
+        phylo_clust.cluster_index = phylo_seq.cluster_pquery_placement_space_distances(
+            pqueries=phylo_clust.clustered_pqueries,
+            min_cluster_size=psc_cluster_size)
 
     LOGGER.info("Assigning query sequences to clusters:\n")
     p_bar = tqdm(total=len(phylo_clust.jplace_files), ncols=100)
@@ -952,6 +1016,8 @@ def cluster_phylogeny(sys_args: list) -> None:
         de_novo_phylo_clusters(phylo_clust=p_clust,
                                cluster_method=p_clust.pre_mode,
                                taxon_labelled_tree=taxa_tree)
+    elif p_clust.clustering_mode == "local":
+        cluster_by_local_alignment(phylo_clust=p_clust)
     else:
         LOGGER.error("Unknown clustering mode specified: '{}'.\n".format(p_clust.clustering_mode))
         sys.exit(5)

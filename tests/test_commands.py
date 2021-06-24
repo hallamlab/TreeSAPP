@@ -424,13 +424,10 @@ class TreesappTester(unittest.TestCase):
         return
 
     # def test_tmp(self):
-    #     from treesapp import phylo_cluster
-    #     base_dir = "/media/connor/Rufus/Gene_Centric_Guide/clustering_experiments"
-    #     cmd = "--refpkg_path {0}/clustering_refpkgs/RecA_build.pkl" \
-    #           " --assign_out {0}/length_100/proteome_classified/" \
-    #           " -o {0}/length_100/phylotu_outputs/RecA_phylotus_dn_psc_species/" \
-    #           " --mode de_novo --pre_cluster psc".format(base_dir)
-    #     phylo_cluster.cluster_phylogeny(cmd.split())
+    #     from treesapp import assign
+    #     base_dir = ""
+    #     cmd = "".format(base_dir)
+    #     assign.assign(cmd.split())
     #     return
 
 
