@@ -309,8 +309,8 @@ def map_seqs_to_lineages(accession_lineage_map, deduplicated_fasta_dict):
     return seq_taxa_map
 
 
-def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_pkg, num_threads, executables,
-                                 trim_align=False, fresh=False, molecule_type="prot", min_seq_length=30) -> None:
+def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs: dict, ref_pkg: refpkg.ReferencePackage,
+                                 cl_assign_args, executables, fresh=False, min_seq_length=30) -> None:
     if not os.path.isfile(tt_obj.classification_table):
         # Copy reference files, then exclude all clades belonging to the taxon being tested
         ce_refpkg = ref_pkg.clone(tt_obj.refpkg_path)
@@ -320,11 +320,18 @@ def run_clade_exclusion_treesapp(tt_obj: classy.TaxonTest, taxon_rep_seqs, ref_p
         fasta.write_new_fasta(taxon_rep_seqs, tt_obj.test_query_fasta)
         assign_args = ["-i", tt_obj.test_query_fasta, "-o", tt_obj.classifications_root,
                        "--refpkg_dir", os.path.dirname(ce_refpkg.f__pkl),
-                       "-m", molecule_type, "-n", str(num_threads),
+                       "-n", str(cl_assign_args.num_threads),
                        "--min_seq_length", str(min_seq_length),
+                       "--placement_summary", cl_assign_args.p_sum,
                        "--overwrite", "--delete", "--silent"]
-        if trim_align:
+        if cl_assign_args.trim_align:
             assign_args.append("--trim_align")
+        if cl_assign_args.max_evo:
+            assign_args += ["--max_evol_distance", cl_assign_args.max_evo]
+        if cl_assign_args.max_pd:
+            assign_args += ["--max_pendant_length", cl_assign_args.max_pd]
+        if cl_assign_args.min_lwr:
+            assign_args += ["--min_like_weight_ratio", str(cl_assign_args.min_lwr)]
 
         try:
             assign.assign(assign_args)

@@ -1305,11 +1305,9 @@ def evaluate(sys_args):
                                                            executables=ts_evaluate.executables)
                 else:
                     ts_clade_ex.run_clade_exclusion_treesapp(tt_obj, taxon_rep_seqs, ts_evaluate.ref_pkg,
-                                                             num_threads=args.num_threads,
                                                              executables=ts_evaluate.executables,
-                                                             trim_align=args.trim_align,
                                                              fresh=args.fresh,
-                                                             molecule_type=ts_evaluate.molecule_type,
+                                                             cl_assign_args=args,
                                                              min_seq_length=ts_evaluate.min_seq_length)
                 p_bar.update()
             p_bar.close()
