@@ -404,7 +404,7 @@ def prep_args_for_parsing(args) -> namedtuple:
     :param args: An object created by Argparse.parse_args()
     :return: A namedtuple with max_e, max_ie, min_acc, min_score and perc_aligned attributes
     """
-    thresholds = namedtuple("thresholds", "max_e max_ie min_acc min_score perc_aligned")
+    thresholds = namedtuple("thresholds", "max_e max_ie min_acc min_score perc_aligned profile_match")
     if not hasattr(args, "max_e"):
         args.max_e = 1E-5
     thresholds.max_e = args.max_e
@@ -423,6 +423,7 @@ def prep_args_for_parsing(args) -> namedtuple:
     if not hasattr(args, "query_aligned"):
         args.query_aligned = args.perc_aligned
     thresholds.query_aligned = args.query_aligned
+    thresholds.profile_match = True
 
     # Print some stuff to inform the user what they're running and what thresholds are being used.
     info_string = "Filtering HMM alignments using the following thresholds:\n"
@@ -625,7 +626,7 @@ def filter_incomplete_hits(thresholds: namedtuple, purified_matches: dict, searc
             ali_len = hmm_match.pend - hmm_match.pstart  # length of alignment on profile
             query_aligned = (hmm_match.end-hmm_match.start)*100/hmm_match.seq_len  # query seq % aligned to profile
             perc_aligned = (float((int(ali_len)*100)/int(hmm_match.hmm_len)))  # % of profile covered by alignment
-            if query_aligned >= thresholds.query_aligned:
+            if query_aligned >= thresholds.query_aligned and thresholds.profile_match is False:
                 complete_gene_hits.append(hmm_match)
             elif perc_aligned >= thresholds.perc_aligned:
                 complete_gene_hits.append(hmm_match)

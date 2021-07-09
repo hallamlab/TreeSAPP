@@ -148,7 +148,8 @@ class Assigner(classy.TreeSAPP):
 
     def define_hmm_domtbl_thresholds(self, stringency: str, hmm_cov: int, query_cov: int) -> namedtuple:
         thresholds_nt = namedtuple("thresholds", ["perc_aligned", "query_aligned",
-                                                  "min_acc", "max_e", "max_ie", "min_score"])
+                                                  "min_acc", "max_e", "max_ie", "min_score",
+                                                  "profile_match"])
 
         for opt, value in {"hmm_coverage": hmm_cov, "query_coverage": query_cov}.items():
             if not 1 <= value <= 100:
@@ -159,10 +160,10 @@ class Assigner(classy.TreeSAPP):
         # Parameterizing the hmmsearch output parsing:
         if stringency == "relaxed":
             domtbl_thresholds = thresholds_nt(perc_aligned=hmm_cov, query_aligned=query_cov,
-                                              min_acc=0.7, max_e=1E-3, max_ie=1E-1, min_score=15)
+                                              min_acc=0.7, max_e=1E-3, max_ie=1E-1, min_score=15, profile_match=False)
         elif stringency == "strict":
             domtbl_thresholds = thresholds_nt(perc_aligned=hmm_cov, query_aligned=query_cov,
-                                              min_acc=0.7, max_e=1E-5, max_ie=1E-3, min_score=30)
+                                              min_acc=0.7, max_e=1E-5, max_ie=1E-3, min_score=30, profile_match=False)
         else:
             self.ts_logger.error("Unknown HMM-parsing stringency option '{}'.\n".format(stringency))
             sys.exit(3)
