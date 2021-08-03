@@ -80,7 +80,7 @@ class PhyPainter(TreeSAPP):
             self.unknown_col = mpl_colours.get_named_colors_mapping()[requested_colour]
         except KeyError:
             self.ts_logger.error("Colour '{}' is not available in matplotlib.colors.get_named_colors_mapping().\n"
-                          "Unable to find hexcode for requested unknown colour.\n")
+                                 "Unable to find hexcode for requested unknown colour.\n")
             sys.exit(11)
         return
 
@@ -232,7 +232,10 @@ class PhyPainter(TreeSAPP):
         if self.unknown_col:
             present = set(sum(feature_leaf_map.values(), []))
             absent = set(ref_pkg.ref_names()).difference(present)
-            feature_leaf_map[self.unknown_label] = list(absent)
+            try:
+                feature_leaf_map[self.unknown_label] += list(absent)
+            except KeyError:
+                feature_leaf_map[self.unknown_label] = list(absent)
         return
 
     @staticmethod
@@ -276,13 +279,17 @@ class PhyPainter(TreeSAPP):
         n_clade = len(self.taxa_to_colour)
         if n_clade <= 1 and self.rank:
             self.ts_logger.warning("{} unique clade(s) identified at rank '{}'."
-                            " Consider using a more resolved rank or adjusting other filtering parameters.\n"
-                            "".format(n_clade, self.feature_name))
+                                   " Consider using a more resolved rank or adjusting other filtering parameters.\n"
+                                   "".format(n_clade, self.feature_name))
         else:
             self.ts_logger.debug("Identified {} unique clades for '{}'.\n".format(n_clade, self.feature_name))
 
         try:
-            colours = seaborn.color_palette(self.palette, n_clade).as_hex()
+            if self.unknown_label in self.taxa_to_colour:
+                colours = seaborn.color_palette(self.palette, n_clade-1).as_hex()
+                colours.append(self.unknown_col)
+            else:
+                colours = seaborn.color_palette(self.palette, n_clade).as_hex()
             self.ts_logger.info("Using palette '{}' for styling.\n".format(self.palette))
         except ValueError as e:
             self.ts_logger.error(str(e) + "\n")

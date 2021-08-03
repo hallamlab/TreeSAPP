@@ -4,6 +4,7 @@
 
 ### Fixed
 - Bad error statement when estimating _alpha_ in `treesapp phylotu`
+- Can append unannotated features to "Unknown" label if already present in taxa_map.
 
 ### Changed
 
