@@ -149,7 +149,7 @@ class PhyloSeqTests(unittest.TestCase):
 
         # Test with multiple placements and the LCA is none of the placements
         self.pquery_test_5.placements = split_placements(self.pquery_test_5.placements)
-        self.pquery_test_5.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
+        self.pquery_test_5.calculate_consensus_placement(self.refpkg.taxonomically_label_tree(), min_aelw=0.7)
         self.assertEqual(397, self.pquery_test_5.consensus_placement.edge_num)
 
         # Ensure none of the likelihood weight ratios exceed 1
