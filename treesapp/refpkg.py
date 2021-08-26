@@ -528,6 +528,18 @@ class ReferencePackage:
             leaf_node.name = ref_leaf_index[leaf_node.name].description
         return ete_tree.get_tree_root().write(features="name")
 
+    def create_viewable_fasta(self) -> str:
+        """
+        Takes the reference package's multiple sequence alignment (FASTA) and
+        replaces numeric identifiers with accession and organism labels.
+        """
+        msa_str = ""
+        ref_msa = self.get_fasta()
+        for k, v in ref_msa.fasta_dict.items():
+            leaf = self._ref_leaves[k]
+            msa_str += ">{}\n{}\n".format(leaf.description, v)
+        return msa_str
+
     def create_itol_labels(self, output_dir) -> None:
         """
         Create the marker_labels.txt file for each marker gene that was used for classification
@@ -1285,6 +1297,8 @@ def view(refpkg: ReferencePackage, attributes: list) -> None:
         if k == "tree":
             v = refpkg.create_viewable_newick()
         if isinstance(v, list) and k not in ["pfit"]:  # various file contents
+            if k == "msa":
+                v = refpkg.create_viewable_fasta()
             v = ''.join(v)
         if isinstance(v, dict):  # feature_annotations, lineage_ids
             buffer = "\n"

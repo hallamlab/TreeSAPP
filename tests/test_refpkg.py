@@ -276,10 +276,12 @@ class RefPkgTester(unittest.TestCase):
         return
 
     def test_view(self):
-        from treesapp.refpkg import view
+        from treesapp import refpkg
+        refpkg.view(self.db, attributes=["msa"])
         with pytest.raises(SystemExit):
-            view(self.db, ["boot_tree", "f__boot_tree", "annotations"])
-        view(self.db, attributes=["num_seqs"])
+            refpkg.view(self.db, ["boot_tree", "f__boot_tree", "annotations"])
+        refpkg.view(self.db, attributes=["num_seqs"])
+
         return
 
     def test_write_edited_pkl(self):
