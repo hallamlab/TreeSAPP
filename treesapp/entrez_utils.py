@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import re
@@ -1118,7 +1119,6 @@ class Lineage:
         self.verify_rank_occupancy()
 
         if not self.Lineage:
-            LOGGER.warning("Taxonomic lineage information was found in neither lineage nor taxonomic rank fields.\n")
             return ""
 
         if add_organism and self.Organism:
@@ -1302,6 +1302,12 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
     # Swap the sequence name for its associated taxonomic lineage
     for query_name, match_name in classified_seq_lineage_map.items():
         classified_seq_lineage_map[query_name] = seq_lineage_map[match_name].build_lineage(add_organism=True)
+    missing = [query_name for query_name in classified_seq_lineage_map if not classified_seq_lineage_map[query_name]]
+    if missing:
+        LOGGER.warning("Taxonomic lineage information was not found in {} for {} sequence names.\n"
+                       "".format(os.path.basename(seq_lineage_tbl), len(missing)))
+        LOGGER.debug("Taxonomic lineage information was not found in {} for the following sequence names:\n{}\n"
+                     "".format(seq_lineage_tbl, "\n".join(missing)))
 
     if treesapp_nums:
         LOGGER.debug("Unable to find parent sequence for {} ORFs in {} map:\n{}\n".format(

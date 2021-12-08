@@ -664,12 +664,12 @@ class FASTA:
         """
         swap_header_map = dict()
         skipped = []
-        header_re = re.compile(r"^>?([A-Za-z0-9.\-_]+\.?[0-9]?)\s+(\[.*\])$")
+        header_re = re.compile(r"^>?([A-Za-z0-9.\-_|]+\.?[0-9]?)\s+(\[.*\])$")
         for seq_name in header_lineage_map:
             try:
                 accession, organism = header_re.match(seq_name).groups()
                 swap_header_map[seq_name] = accession + " lineage=" + header_lineage_map[seq_name] + ' ' + organism
-            except TypeError:
+            except (AttributeError, TypeError):
                 skipped.append(seq_name)
                 swap_header_map[seq_name] = seq_name
         self.swap_headers(swap_header_map)
@@ -1352,11 +1352,14 @@ def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, st
         sys.exit(5)
 
     # Sort through the matches to find the most specific
+    veto_formats = ["ts_assign", "custom"]
     if len(format_matches) == 2 and "unformatted" in format_matches:
         format_matches.pop("unformatted")
     if len(format_matches) > 1:
-        if "ts_assign" in format_matches:
-            format_matches = {"ts_assign": format_matches["ts_assign"]}  # ts_assign over-rules all others
+        if set(veto_formats).intersection(format_matches):
+            for veto in veto_formats:
+                if veto in format_matches:
+                    format_matches = {veto: format_matches[veto]}
         else:
             LOGGER.error("Header '{}' matches multiple potential formats:\n\t{}\n"
                          "TreeSAPP is unable to parse necessary information.\n".format(header,

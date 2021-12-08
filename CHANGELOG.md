@@ -1,10 +1,11 @@
-## [0.] - 2021-
+## [0.11.3] - 2021-12-08
 ### Added
 - Option to use pairwise local-alignment clustering (with MMSeqs2) in `treesapp phylotu`
 
 ### Fixed
 - Bad error statement when estimating _alpha_ in `treesapp phylotu`
 - Can append unannotated features to "Unknown" label if already present in taxa_map.
+- Problem updating a reference package with sequences from UniProt (>sp|... header).
 
 ### Changed
 

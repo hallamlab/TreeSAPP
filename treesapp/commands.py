@@ -822,8 +822,8 @@ def update(sys_args):
         classified_fasta.change_dict_keys("original")
     elif diff < 0:
         LOGGER.error("Something's not adding up between the reference (%d), candidate (%d) and complete (%d) "
-                      "sequence collections. Reference and candidate should sum to equal complete.\n" %
-                      (num_ref_seqs, num_assigned_candidates, len(classified_seq_lineage_map)))
+                     "sequence collections. Reference and candidate should sum to equal complete.\n" %
+                     (num_ref_seqs, num_assigned_candidates, len(classified_seq_lineage_map)))
         sys.exit(13)
 
     ts_update_mod.validate_mixed_lineages(classified_seq_lineage_map)
@@ -973,7 +973,7 @@ def colour(sys_args):
                 clade_annots = ref_pkg.feature_annotations[ts_painter.feature_name]
             except KeyError:
                 LOGGER.warning("Reference package '{}' doesn't have the '{}' feature annotated. "
-                                "It is being skipped\n".format(refpkg_name, ts_painter.feature_name))
+                               "It is being skipped\n".format(refpkg_name, ts_painter.feature_name))
                 continue
             for ca in clade_annots:
                 taxon_leaf_map.update({ca.name: list(ca.members)})
@@ -1004,7 +1004,7 @@ def colour(sys_args):
 
     if len(ts_painter.refpkg_leaf_nodes_to_colour.keys()) == 0:
         LOGGER.error("Unable to colour phylogenies by '{}' - attributes were not found in reference packages.\n"
-                      "".format(args.attribute))
+                     "".format(args.attribute))
         raise AssertionError
 
     # Sort the nodes by their internal node order
