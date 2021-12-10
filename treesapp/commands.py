@@ -206,13 +206,14 @@ def train(sys_args):
     ##
     if ts_trainer.stage_status("search"):
         LOGGER.info("Searching for homologous sequences with hmmsearch... ")
-        hmm_domtbl_files = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"],
-                                                 ts_trainer.ref_pkg.f__search_profile,
-                                                 ts_trainer.formatted_input,
-                                                 ts_trainer.stage_output_dir)
+        hmm_domtbl_file = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"],
+                                                ts_trainer.ref_pkg.f__search_profile,
+                                                ts_trainer.formatted_input,
+                                                ts_trainer.stage_output_dir)
         LOGGER.info("done.\n")
         thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
-        hmm_matches = file_parsers.parse_domain_tables(thresholds, hmm_domtbl_files)
+        hmm_matches = file_parsers.parse_domain_tables(thresholds, {(ts_trainer.ref_pkg.prefix, "ORFs"):
+                                                                        hmm_domtbl_file})
         ts_assign_mod.load_homologs(hmm_matches, ts_trainer.formatted_input, train_seqs)
 
         LOGGER.info(train_seqs.summarize_fasta_sequences())
@@ -430,11 +431,12 @@ def create(sys_args):
         LOGGER.debug("Raw, unfiltered sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
         LOGGER.info("Searching for domain sequences... ")
-        hmm_domtbl_files = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], ts_create.hmm_profile,
-                                                 ts_create.input_sequences, ts_create.var_output_dir, args.num_threads)
+        hmm_domtbl_file = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], ts_create.hmm_profile,
+                                                ts_create.input_sequences, ts_create.var_output_dir, args.num_threads)
         LOGGER.info("done.\n")
         thresholds = hmmer_tbl_parser.prep_args_for_parsing(args)
-        hmm_matches = file_parsers.parse_domain_tables(thresholds, hmm_domtbl_files)
+        hmm_matches = file_parsers.parse_domain_tables(thresholds, {(ts_create.ref_pkg.prefix, "ORFs"):
+                                                                        hmm_domtbl_file})
         for k, v in utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry).items():
             profile_match_dict.update(v)
         fasta.write_new_fasta(profile_match_dict, ts_create.hmm_purified_seqs)

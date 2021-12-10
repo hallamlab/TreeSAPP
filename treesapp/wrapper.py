@@ -621,7 +621,7 @@ def build_hmm_profile(hmmbuild_exe: str, msa_in: str, output_hmm: str, name=None
 
 
 def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output_dir: str,
-                  num_threads=2, e_value=1) -> list:
+                  num_threads=2, e_value=1) -> str:
     """
     Function for searching a fasta file with a profile HMM
 
@@ -631,7 +631,7 @@ def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output
     :param output_dir: Path to the directory for writing the outputs
     :param num_threads: Number of threads to be used by hmmsearch
     :param e_value: report sequences <= this E-value threshold in output
-    :return: A list of domain tables created
+    :return: Path to the domain table created
     """
     # Find the name of the HMM. Use it to name the output file
     rp_marker = re.sub(r".hmm", '', os.path.basename(hmm_profile), flags=re.IGNORECASE)
@@ -653,48 +653,7 @@ def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output
                      "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
         sys.exit(13)
 
-    return [domtbl]
-
-
-def hmmsearch_orfs(hmmsearch_exe: str, refpkg_dict: dict, fasta_file: str, output_dir: str,
-                   num_threads=2, e_value=1) -> list:
-    hmm_domtbl_files = list()
-    nucl_target_hmm_files = list()
-    prot_target_hmm_files = list()
-
-    # Filter the HMM files to only the target markers
-    for refpkg_name in refpkg_dict:
-        refpkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
-        if not os.path.exists(refpkg.f__search_profile):
-            LOGGER.error("Unable to locate HMM-profile for '{}'.\n".format(refpkg.prefix))
-            sys.exit(3)
-        else:
-            if refpkg.molecule == "prot":
-                prot_target_hmm_files.append(refpkg.f__search_profile)
-            else:
-                nucl_target_hmm_files.append(refpkg.f__search_profile)
-
-    LOGGER.info("Searching for marker proteins in ORFs using hmmsearch.\n")
-    if LOGGER.disabled:
-        pbar = None
-    else:
-        pbar = tqdm(total=len(prot_target_hmm_files) + len(nucl_target_hmm_files), ncols=120)
-
-    # Create and launch the hmmsearch commands iteratively.
-    for hmm_file in prot_target_hmm_files:
-        if pbar:
-            pbar.set_description("Processing {}".format(os.path.basename(hmm_file)))
-
-        # TODO: Parallelize this by allocating no more than 2 threads per process
-        hmm_domtbl_files += run_hmmsearch(hmmsearch_exe, hmm_file, fasta_file, output_dir, num_threads, e_value)
-
-        if pbar:
-            pbar.update()
-
-    if pbar:
-        pbar.close()
-
-    return hmm_domtbl_files
+    return domtbl
 
 
 def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
