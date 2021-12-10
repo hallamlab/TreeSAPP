@@ -173,18 +173,26 @@ class AssignerTester(unittest.TestCase):
         for stage_order, stage in ts_assigner.stages.items():
             stage.dir_path = ts_assigner.var_output_dir + os.sep + stage.name + os.sep
 
+        # Function works regardless of workflow stage
         ts_assigner.current_stage = ts_assigner.stages[0]
-        ts_assigner.fetch_hmmsearch_outputs()
+        ts_assigner.target_refpkgs = ["McrA"]
+        self.assertEqual({('McrA', "ORFs"): os.path.join(ts_assigner.var_output_dir,
+                                                         'search',
+                                                         'McrA_search_to_ORFs_domtbl.txt')},
+                         ts_assigner.fetch_hmmsearch_outputs())
 
         ts_assigner.current_stage = ts_assigner.stage_lookup("search")
+        ts_assigner.target_refpkgs = []
         ts_assigner.stage_output_dir = ts_assigner.current_stage.dir_path
         # Reference package targets don't match
-        self.assertEqual([], ts_assigner.fetch_hmmsearch_outputs())
+        self.assertEqual({},
+                         ts_assigner.fetch_hmmsearch_outputs())
 
         # Intended functionality test
         ts_assigner.target_refpkgs = ["McrA", "McrB"]
         hmm_domtbls = ts_assigner.fetch_hmmsearch_outputs()
-        self.assertEqual(2, len(hmm_domtbls))
+        self.assertEqual(2,
+                         len(hmm_domtbls))
 
         return
 

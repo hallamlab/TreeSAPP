@@ -209,7 +209,7 @@ def organize_jplace_files(jplace_files: list) -> dict:
             refpkg_name = file_name_info.group(1)
         except AttributeError:
             LOGGER.error("Regex parsing marker information from jplace files was unsuccessful!\n"
-                          "The offending file name: " + filename + "\n")
+                         "The offending file name: " + filename + "\n")
             sys.exit(7)
 
         if refpkg_name not in jplace_collection:
@@ -234,7 +234,7 @@ def sub_indices_for_seq_names_jplace(jplace_dir, numeric_contig_index, refpkg_di
             refpkg = refpkg_dict[refpkg_name]
         except KeyError:
             LOGGER.warning("Intermediate files found from a previous run will be skipped:\n\t" +
-                            "\n\t".join(jplace_files) + "\n")
+                           "\n\t".join(jplace_files) + "\n")
             continue
         for jplace_path in jplace_files:
             jplace_data = jplace_parser(jplace_path)
@@ -263,7 +263,7 @@ def add_bipartitions(jplace_data: JPlace, bipartitions) -> None:
         bootstrap_tree = bipartitions.pop()
     else:
         LOGGER.error("Unrecognized bipartitions instance type '{}'. "
-                      "Unable to add bipartition support to JPlace.\n".format(type(bipartitions)))
+                     "Unable to add bipartition support to JPlace.\n".format(type(bipartitions)))
         raise TypeError(3)
 
     internal_node_bipart_map = dict()

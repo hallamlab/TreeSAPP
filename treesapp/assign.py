@@ -11,6 +11,7 @@ import pyfastx
 import pandas as pd
 import numpy as np
 from numpy import array as np_array
+from tqdm import tqdm
 
 from treesapp import abundance
 from treesapp import classy
@@ -178,11 +179,10 @@ class Assigner(classy.TreeSAPP):
 
         :return: None
         """
-        self.set_stage_dir()
         if self.stage_status("orf-call"):
             self.fasta_full_name = False
-            self.aa_orfs_file = self.stage_output_dir + self.sample_prefix + "_ORFs.faa"
-            self.nuc_orfs_file = self.stage_output_dir + self.sample_prefix + "_ORFs.fna"
+            self.aa_orfs_file = self.stage_lookup("orf-call").dir_path + self.sample_prefix + "_ORFs.faa"
+            self.nuc_orfs_file = self.stage_lookup("orf-call").dir_path + self.sample_prefix + "_ORFs.fna"
             if os.path.isfile(self.aa_orfs_file) and os.path.isfile(self.nuc_orfs_file):
                 self.change_stage_status("orf-call", False)
                 self.query_sequences = self.aa_orfs_file
@@ -208,6 +208,7 @@ class Assigner(classy.TreeSAPP):
             self.change_stage_status("abundance", True)
         else:
             self.change_stage_status("abundance", False)
+        self.set_stage_dir()
         return
 
     def get_info(self):
@@ -289,19 +290,135 @@ class Assigner(classy.TreeSAPP):
 
         self.query_sequences = self.aa_orfs_file
         # self.change_stage_status("clean", False)
-        self.increment_stage_dir()
+        self.increment_stage_dir(checkpoint="orf-call")
         return
 
-    def clean(self):
+    def clean(self, query_seqs: fasta.FASTA):
+        if self.stage_status("clean"):
+            LOGGER.info("Reading and formatting {}... ".format(self.query_sequences))
+            query_seqs.header_registry = fasta.register_headers(
+                fasta.format_fasta(fasta_input=self.query_sequences,
+                                   molecule="prot",
+                                   output_fasta=self.formatted_input,
+                                   full_name=self.fasta_full_name))
+            LOGGER.info("done.\n")
+            self.increment_stage_dir(checkpoint="clean")
+        else:
+            query_seqs.file = self.query_sequences
+            query_seqs.load_fasta(format_it=True)
+        LOGGER.info(
+            "\tTreeSAPP will analyze the " + str(len(query_seqs.header_registry)) + " sequences found in input.\n")
         return
 
-    def search(self):
-        return
+    def search(self, ref_pkg_dict: dict, hmm_parsing_thresholds, num_threads=2) -> dict:
+        nucl_target_hmm_files = dict()
+        prot_target_hmm_files = dict()
+        ref_str = "ORFs"
+        refpkg_hmmer_tables = self.fetch_hmmsearch_outputs()
 
-    def align(self):
-        return
+        # Ensure all of the domain tables are present compared to the reference packages
+        # Filter the HMM files to only the target markers
+        for ref_pkg_prefix in self.target_refpkgs:
+            if (ref_pkg_prefix, ref_str) in refpkg_hmmer_tables.keys():
+                continue
+            ref_pkg = ref_pkg_dict[ref_pkg_prefix]  # type: refpkg.ReferencePackage
+            if not os.path.exists(ref_pkg.f__search_profile):
+                LOGGER.error("Unable to locate HMM-profile for '{}'.\n".format(ref_pkg.prefix))
+                sys.exit(3)
+            else:
+                if ref_pkg.molecule == "prot":
+                    prot_target_hmm_files[ref_pkg.prefix] = ref_pkg.f__search_profile
+                else:
+                    nucl_target_hmm_files[ref_pkg.prefix] = ref_pkg.f__search_profile
 
-    def place(self):
+        LOGGER.info("Searching for marker proteins in {} using hmmsearch.\n".format(ref_str))
+        if LOGGER.disabled:
+            pbar = None
+        else:
+            pbar = tqdm(total=len(prot_target_hmm_files) + len(nucl_target_hmm_files), ncols=120)
+
+        # Create and launch the hmmsearch commands iteratively.
+        for refpkg_prefix, hmm_file in prot_target_hmm_files.items():
+            if pbar:
+                pbar.set_description("Processing {}".format(os.path.basename(hmm_file)))
+
+            # TODO: Parallelize this by allocating no more than 2 threads per process
+            refpkg_hmmer_tables.update({(refpkg_prefix, "ORFs"):
+                                        wrapper.run_hmmsearch(hmmsearch_exe=self.executables["hmmsearch"],
+                                                              hmm_profile=hmm_file,
+                                                              query_fasta=self.formatted_input,
+                                                              output_dir=self.stage_lookup(name="search").dir_path,
+                                                              num_threads=num_threads,
+                                                              e_value=hmm_parsing_thresholds.max_e)})
+
+            if pbar:
+                pbar.update()
+
+        if pbar:
+            pbar.close()
+
+        return file_parsers.parse_domain_tables(hmm_parsing_thresholds, refpkg_hmmer_tables)
+
+    def align(self, refpkg_dict: dict, homolog_seq_files: list, min_seq_length: int, n_proc: int,
+              trim_align=True, verbose=False) -> dict:
+        MSAs = namedtuple("MSAs", "ref query")
+        ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
+
+        split_msa_files = self.fetch_multiple_alignments()
+        target_refpkgs = {prefix: rp for prefix, rp in refpkg_dict.items() if prefix not in split_msa_files}
+        if self.stage_status("align") or target_refpkgs:
+            combined_msa_files = {}
+            # create_ref_phy_files(refpkg_dict, align_output_dir,
+            #                      homolog_seq_files, ref_alignment_dimensions)
+            concatenated_msa_files = multiple_alignments(self.executables, homolog_seq_files,
+                                                         target_refpkgs, "hmmalign",
+                                                         output_dir=self.stage_lookup(name="align").dir_path,
+                                                         num_proc=n_proc, silent=self.silent)
+            file_type = utilities.find_msa_type(concatenated_msa_files)
+            alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
+                                                        verbose, file_type)
+
+            if trim_align:
+                tool = "BMGE"
+                trimmed_mfa_files = wrapper.filter_multiple_alignments(self.executables, concatenated_msa_files,
+                                                                       target_refpkgs, n_proc, tool, self.silent)
+                qc_ma_dict = check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files,
+                                                         target_refpkgs, min_seq_length)
+                evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
+                combined_msa_files.update(qc_ma_dict)
+            else:
+                combined_msa_files.update(concatenated_msa_files)
+
+            # Subset the multiple alignment of reference sequences and queries to just contain query sequences
+            for refpkg_name in combined_msa_files:
+                split_msa_files[refpkg_name] = []
+                for combined_msa in combined_msa_files[refpkg_name]:
+                    split_msa = MSAs(os.path.dirname(combined_msa) + os.sep +
+                                     os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa",
+                                     os.path.dirname(combined_msa) + os.sep +
+                                     os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa")
+                    fasta.split_combined_ref_query_fasta(combined_msa, split_msa.query, split_msa.ref)
+                    split_msa_files[refpkg_name].append(split_msa)
+            combined_msa_files.clear()
+
+        return split_msa_files
+
+    def place(self, refpkg_dict: dict, query_index: dict, split_msa_files: dict, n_proc: int):
+        refpkg_jplace_files = self.fetch_epa_outputs()
+        place_msas = {prefix: msas for prefix, msas in split_msa_files.items() if prefix not in refpkg_jplace_files}
+        if self.stage_status("place") or len(place_msas) > 0:
+            wrapper.launch_evolutionary_placement_queries(executables=self.executables,
+                                                          split_msa_files=place_msas,
+                                                          refpkg_dict=refpkg_dict,
+                                                          output_dir=self.stage_lookup("place").dir_path,
+                                                          num_threads=n_proc,
+                                                          silent=self.silent)
+
+            jplace_utils.sub_indices_for_seq_names_jplace(jplace_dir=self.stage_lookup("place").dir_path,
+                                                          numeric_contig_index=query_index,
+                                                          refpkg_dict={prefix: rp for prefix, rp in refpkg_dict.items()
+                                                                       if prefix not in refpkg_jplace_files})
+            self.increment_stage_dir(checkpoint="place")
         return
 
     def classify(self):
@@ -334,11 +451,28 @@ class Assigner(classy.TreeSAPP):
                                        "Cannot create the nucleotide FASTA file of classified sequences!\n")
         return
 
-    def fetch_hmmsearch_outputs(self) -> list:
+    def fetch_hmmsearch_outputs(self) -> dict:
+        refpkg_hits = {}
         search_dir = self.stage_lookup(name="search").dir_path
+        domtbl_re = re.compile(r'(.*)_to_(.*)_domtbl.txt')
         # Collect all files from output directory
-        hmm_domtbl_files = glob.glob(search_dir + "*_search_to_ORFs_domtbl.txt")
-        return [f_path for f_path in hmm_domtbl_files if os.path.basename(f_path).split('_')[0] in self.target_refpkgs]
+        for f_path in glob.glob(search_dir + "*_search_to_ORFs_domtbl.txt"):
+            refpkg_prefix, queries = domtbl_re.match(os.path.basename(f_path)).groups()
+            refpkg_prefix = re.sub("_search", '', refpkg_prefix)
+            if refpkg_prefix in self.target_refpkgs:
+                refpkg_hits[(refpkg_prefix, queries)] = f_path
+        return refpkg_hits
+
+    def fetch_epa_outputs(self) -> dict:
+        place_dir = self.stage_lookup("place").dir_path
+        refpkg_jplace_files = {}
+        for prefix, jplace_files in jplace_utils.organize_jplace_files(glob.glob(place_dir + '*.jplace')).items():
+            if prefix in self.target_refpkgs:
+                refpkg_jplace_files[prefix] = jplace_files
+        return refpkg_jplace_files
+
+    def fetch_multiple_alignments(self) -> dict:
+        return gather_split_msa(self.target_refpkgs, self.stage_lookup("align").dir_path)
 
 
 def replace_contig_names(numeric_contig_index: dict, fasta_obj: fasta.FASTA):
@@ -610,13 +744,13 @@ def get_alignment_dims(refpkg_dict: dict):
     return alignment_dimensions_dict
 
 
-def multiple_alignments(executables: dict, single_query_sequence_files: list, refpkg_dict: dict,
+def multiple_alignments(executables: dict, query_sequence_files: list, refpkg_dict: dict,
                         tool="hmmalign", output_dir="", num_proc=4, silent=False) -> dict:
     """
     Wrapper function for the multiple alignment functions - only purpose is to make an easy decision at this point...
 
     :param executables: Dictionary mapping software names to their executables
-    :param single_query_sequence_files: List of unaligned query sequences in FASTA format
+    :param query_sequence_files: List of unaligned query sequences in FASTA format
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their respective prefix
     :param tool: Tool to use for aligning query sequences to a reference multiple alignment [hmmalign|papara]
     :param output_dir: Path to write the new MSA files
@@ -624,40 +758,12 @@ def multiple_alignments(executables: dict, single_query_sequence_files: list, re
     :return: Dictionary of multiple sequence alignment (FASTA) files indexed by denominator
     """
     if tool == "hmmalign":
-        concatenated_msa_files = prepare_and_run_hmmalign(executables, single_query_sequence_files, refpkg_dict,
+        concatenated_msa_files = prepare_and_run_hmmalign(executables, query_sequence_files, refpkg_dict,
                                                           output_dir, num_proc, silent)
     else:
         LOGGER.error("Unrecognized tool '" + str(tool) + "' for multiple sequence alignment.\n")
         sys.exit(3)
     return concatenated_msa_files
-
-
-def create_ref_phy_files(refpkgs: dict, output_dir: str, query_fasta_files: list, ref_aln_dimensions: dict) -> None:
-    """
-    Creates a phy file for every reference marker that was matched by a query sequence
-
-    :param refpkgs: A dictionary of ReferencePackage instances indexed by their prefix values
-    :param output_dir: Path to a directory for writing the Phylip files
-    :param query_fasta_files: A list containing paths to FASTA files that are to be converted to Phylip format
-    :param ref_aln_dimensions: A dictionary of ref_pkg.prefix keys mapping to a tuple of the nrow, ncol for a MSA
-    :return: None
-    """
-
-    # Convert the reference sequence alignments to .phy files for every marker identified
-    for query_fasta in query_fasta_files:
-        marker = re.match("(.*)_hmm_purified.*", os.path.basename(query_fasta)).group(1)
-        ref_pkg = refpkgs[marker]  # type: refpkg.ReferencePackage
-
-        ref_alignment_phy = output_dir + marker + ".phy"
-        if os.path.isfile(ref_alignment_phy):
-            continue
-
-        num_ref_seqs, ref_align_len = ref_aln_dimensions[ref_pkg.prefix]
-        aligned_fasta_dict = fasta.read_fasta_to_dict(ref_pkg.f__msa)
-        phy_dict = utilities.reformat_fasta_to_phy(aligned_fasta_dict)
-
-        utilities.write_phy_file(ref_alignment_phy, phy_dict, (num_ref_seqs, ref_align_len))
-    return
 
 
 def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg_dict: dict,
@@ -689,12 +795,16 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
             LOGGER.error("Unable to parse information from file name:" + "\n" + str(query_fa_in) + "\n")
             sys.exit(3)
 
-        query_mfa_out = os.path.join(output_dir,
-                                     re.sub('.' + re.escape(extension) + r"$", ".sto", os.path.basename(query_fa_in)))
+        try:
+            ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
+        except KeyError:
+            continue
 
-        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
         if ref_pkg.prefix not in hmmalign_singlehit_files:
             hmmalign_singlehit_files[ref_pkg.prefix] = []
+
+        query_mfa_out = os.path.join(output_dir,
+                                     re.sub('.' + re.escape(extension) + r"$", ".sto", os.path.basename(query_fa_in)))
         try:
             mfa_out_dict[ref_pkg.prefix].append(query_mfa_out)
         except KeyError:
@@ -1032,14 +1142,14 @@ def select_query_placements(pquery_dict: dict, refpkg_dict: dict, mode="max_lwr"
     return pquery_dict
 
 
-def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
+def parse_raxml_output(jplace_files: dict, refpkg_dict: dict, pqueries=None):
     """
     For every JPlace file found in the directory **epa_output_dir**, all placed query sequences in the JPlace
     are demultiplexed, each becoming a PQuery instance.
     The JPlace data are validated by ensuring the distal placement lengths reported by EPA are less than or equal to
     the corresponding edge length in the JPlace tree.
 
-    :param epa_output_dir: Directory where EPA wrote the JPlace files
+    :param jplace_files: A list of JPlace files to parse
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :param pqueries: A list of instantiated PQuery instances
     :return:
@@ -1052,7 +1162,6 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
 
     function_start_time = time.time()
 
-    jplace_files = glob.glob(epa_output_dir + '*.jplace')
     itol_data = dict()  # contains all pqueries, indexed by marker ref_name (e.g. McrA, nosZ, 16srRNA)
     tree_saps = dict()  # contains individual pquery information for each mapped protein (N==1), indexed by denominator
     # Use the jplace files to guide which markers iTOL outputs should be created for
@@ -1061,7 +1170,7 @@ def parse_raxml_output(epa_output_dir: str, refpkg_dict: dict, pqueries=None):
     else:
         pquery_map = None
 
-    for refpkg_name, jplace_list in jplace_utils.organize_jplace_files(jplace_files).items():
+    for refpkg_name, jplace_list in jplace_files.items():
         ref_pkg = refpkg_dict[refpkg_name]
         if ref_pkg.prefix not in tree_saps:
             tree_saps[ref_pkg.prefix] = list()
@@ -1314,8 +1423,9 @@ def assign(sys_args):
     n_proc = args.num_threads
 
     refpkg_dict = refpkg.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
+    if len(ts_assign.target_refpkgs) == 0 and args.targets == "":
+        ts_assign.target_refpkgs = list(refpkg_dict.keys())
     prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
-    ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
     ts_assign.load_refpkg_classifiers(refpkg_dict, kernel=args.kernel, threads=n_proc)
 
     ##
@@ -1326,107 +1436,52 @@ def assign(sys_args):
 
     query_seqs = fasta.FASTA(ts_assign.query_sequences)
     # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
-    if ts_assign.stage_status("clean"):
-        LOGGER.info("Reading and formatting {}... ".format(ts_assign.query_sequences))
-        query_seqs.header_registry = fasta.register_headers(fasta.format_fasta(fasta_input=ts_assign.query_sequences,
-                                                                               molecule="prot",
-                                                                               output_fasta=ts_assign.formatted_input,
-                                                                               full_name=ts_assign.fasta_full_name))
-        LOGGER.info("done.\n")
-    else:
-        query_seqs.file = ts_assign.formatted_input
-        query_seqs.header_registry = fasta.register_headers(fasta.get_headers(query_seqs.file))
-    LOGGER.info("\tTreeSAPP will analyze the " + str(len(query_seqs.header_registry)) + " sequences found in input.\n")
-    ts_assign.increment_stage_dir()
+    ts_assign.clean(query_seqs)
 
     ##
     # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
     ##
-    if ts_assign.stage_status("search"):
-        hmm_domtbl_files = wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"],
-                                                  refpkg_dict, ts_assign.formatted_input,
-                                                  ts_assign.stage_output_dir, n_proc, hmm_parsing_thresholds.max_e)
-    else:
-        hmm_domtbl_files = ts_assign.fetch_hmmsearch_outputs()
-        # Ensure all of the domain tables are present compared to the reference packages
-        searched = set([os.path.basename(f_path).split('_')[0] for f_path in hmm_domtbl_files])
-        if not searched or set(refpkg_dict.keys()).difference(searched):
-            target_refpkgs = {prefix: rp for prefix, rp in refpkg_dict.items() if prefix not in searched}
-            hmm_domtbl_files += wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"],
-                                                       target_refpkgs, ts_assign.formatted_input,
-                                                       ts_assign.stage_output_dir,
-                                                       n_proc, hmm_parsing_thresholds.max_e)
-
+    hmm_matches = ts_assign.search(refpkg_dict,
+                                   hmm_parsing_thresholds,
+                                   n_proc)
     # Load alignment information
-    hmm_matches = file_parsers.parse_domain_tables(hmm_parsing_thresholds, hmm_domtbl_files)
     load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
     pqueries = load_pqueries(hmm_matches, query_seqs)
     query_seqs.change_dict_keys("num")
     extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
     numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)
     homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
-                                             refpkg_dict, ts_assign.stage_output_dir)
+                                             refpkg_dict, ts_assign.stage_lookup("search").dir_path)
     # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
     extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
-    delete_files(args.delete, ts_assign.stage_output_dir, 1)
-    ts_assign.increment_stage_dir()
+    delete_files(args.delete, ts_assign.stage_lookup("search").dir_path, 1)
+    ts_assign.increment_stage_dir(checkpoint="search")
 
     ##
     # STAGE 4: Run hmmalign, and optionally BMGE, to produce the MSAs for phylogenetic placement
     ##
-    MSAs = namedtuple("MSAs", "ref query")
-    if ts_assign.stage_status("align"):
-        combined_msa_files = {}
-        split_msa_files = {}
-        create_ref_phy_files(refpkg_dict, ts_assign.stage_output_dir,
-                             homolog_seq_files, ref_alignment_dimensions)
-        concatenated_msa_files = multiple_alignments(ts_assign.executables, homolog_seq_files,
-                                                     refpkg_dict, "hmmalign",
-                                                     ts_assign.stage_output_dir,
-                                                     num_proc=n_proc, silent=ts_assign.silent)
-        file_type = utilities.find_msa_type(concatenated_msa_files)
-        alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
-                                                    args.verbose, file_type)
-
-        if args.trim_align:
-            tool = "BMGE"
-            trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
-                                                                   refpkg_dict, n_proc, tool, ts_assign.silent)
-            qc_ma_dict = check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files,
-                                                     refpkg_dict, args.min_seq_length)
-            evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
-            combined_msa_files.update(qc_ma_dict)
-        else:
-            combined_msa_files.update(concatenated_msa_files)
-
-        # Subset the multiple alignment of reference sequences and queries to just contain query sequences
-        for refpkg_name in combined_msa_files:
-            split_msa_files[refpkg_name] = []
-            for combined_msa in combined_msa_files[refpkg_name]:
-                split_msa = MSAs(os.path.dirname(combined_msa) + os.sep +
-                                 os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa",
-                                 os.path.dirname(combined_msa) + os.sep +
-                                 os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa")
-                fasta.split_combined_ref_query_fasta(combined_msa, split_msa.query, split_msa.ref)
-                split_msa_files[refpkg_name].append(split_msa)
-        combined_msa_files.clear()
-        delete_files(args.delete, ts_assign.stage_lookup("search").dir_path, 2)
-    else:
-        split_msa_files = gather_split_msa(list(refpkg_dict.keys()), ts_assign.stage_output_dir)
-    ts_assign.increment_stage_dir()
+    split_msa_files = ts_assign.align(refpkg_dict, homolog_seq_files,
+                                      n_proc=n_proc,
+                                      trim_align=args.trim_align,
+                                      min_seq_length=args.min_seq_length,
+                                      verbose=args.verbose)
+    delete_files(args.delete, ts_assign.stage_lookup("search").dir_path, 2)
+    ts_assign.increment_stage_dir(checkpoint="align")
 
     ##
-    # STAGE 5: Run EPA-ng to compute the ML estimations
+    # STAGE 5: Run EPA-NG to compute the ML estimations
     ##
-    if ts_assign.stage_status("place"):
-        wrapper.launch_evolutionary_placement_queries(ts_assign.executables, split_msa_files, refpkg_dict,
-                                                      ts_assign.stage_output_dir, n_proc, ts_assign.silent)
-        jplace_utils.sub_indices_for_seq_names_jplace(ts_assign.stage_output_dir, numeric_contig_index, refpkg_dict)
-        delete_files(args.delete, ts_assign.stage_lookup("align").dir_path, 3)
+    ts_assign.place(refpkg_dict, numeric_contig_index, split_msa_files, n_proc)
+    delete_files(args.delete, ts_assign.stage_lookup("align").dir_path, 3)
+
+    ##
+    # STAGE 6: Parse EPA placements and assign taxonomy to PQuery instances
+    ##
 
     if ts_assign.stage_status("classify"):
-        tree_saps, itol_data = parse_raxml_output(ts_assign.stage_output_dir, refpkg_dict, pqueries)
-        ts_assign.increment_stage_dir()
+        tree_saps, itol_data = parse_raxml_output(jplace_files=ts_assign.fetch_epa_outputs(),
+                                                  refpkg_dict=refpkg_dict,
+                                                  pqueries=pqueries)
         # Set PQuery.consensus_placement attributes
         select_query_placements(tree_saps, refpkg_dict, mode=args.p_sum)
         filter_placements(tree_saps, refpkg_dict, ts_assign.svc_filter, args.min_lwr, args.max_pd, args.max_evo)

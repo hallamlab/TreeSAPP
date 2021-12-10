@@ -33,6 +33,8 @@ class ModuleFunction:
         self.order = order
         self.name = name
         self.dir_path = ""
+        self.inputs = []
+        self.outputs = []
         self.function = func
         self.run = True
 
@@ -322,15 +324,7 @@ class TreeSAPP:
             self.ts_logger.warning("Unable to find '{}' stage. Returning a new one instead.\n".format(name))
             return ModuleFunction(name=name, order=stage_order + 1)
 
-    def first_stage(self) -> ModuleFunction:
-        for x in sorted(self.stages, key=int):  # type: int
-            stage = self.stages[x]  # type: ModuleFunction
-            if stage.run:
-                return stage
-        self.ts_logger.error("No stages are set to run!\n")
-        sys.exit(3)
-
-    def get_first_stage(self) -> ModuleFunction:
+    def get_first_stage(self, optional_start=False) -> ModuleFunction:
         """
         Selects the earliest checkpoint that the workflow can be started from.
         Stages (ModuleFunction instances) are skipped by setting their 'run' attribute to False.
@@ -341,7 +335,11 @@ class TreeSAPP:
         for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
             if module.run:
                 return module
-        return self.stages[0]
+        if optional_start:
+            return self.stages[0]
+        else:
+            self.ts_logger.error("No stages are set to run!\n")
+            sys.exit(3)
 
     def set_stage_dir(self) -> None:
         self.stage_output_dir = self.current_stage.dir_path
@@ -349,14 +347,22 @@ class TreeSAPP:
             os.mkdir(self.stage_output_dir)
         return
 
-    def increment_stage_dir(self) -> None:
+    def increment_stage_dir(self, checkpoint=None) -> None:
         """
         Updates self.stage_output_dir with the directory path of the next ModuleFunction.
 
+        :param checkpoint: A string representing a ModuleFunction name.
+        If provided, the 'current_stage' and 'stage_output_dir' are incremented if the order of the current_stage
+        is greater than the checkpoint. Prevents run-away increments.
         :return: None
         """
-        # Find the next stage
         curr_order = self.current_stage.order
+        if checkpoint:
+            chk_stage = self.stage_lookup(name=checkpoint)
+            if chk_stage.order > curr_order:
+                return
+
+        # Find the next stage
         while curr_order < max(self.stages.keys()):
             next_stage = self.stages[curr_order + 1]  # type: ModuleFunction
             if next_stage.run:
@@ -418,9 +424,9 @@ class TreeSAPP:
                     module.run = False
 
         if args.overwrite:
-            self.current_stage = self.first_stage()
+            self.current_stage = self.get_first_stage(optional_start=True)
         else:
-            self.current_stage = self.get_first_stage()
+            self.current_stage = self.get_first_stage(optional_start=False)
 
         self.set_stage_dir()
         if "stage" not in vars(args) or args.stage == "continue":
@@ -443,6 +449,7 @@ class TreeSAPP:
             self.ts_logger.debug("Proceeding with '{}'\n".format(args.stage))
             self.edit_stage_run_range(desired_stage.order, desired_stage.order)
 
+        self.current_stage = self.get_first_stage(optional_start=True)
         return
 
     def find_sequence_molecule_type(self):

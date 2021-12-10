@@ -15,9 +15,10 @@ class MyTestCase(unittest.TestCase):
         return
 
     def test_parse_domain_tables(self):
-        from treesapp.file_parsers import parse_domain_tables
-        hmm_matches = parse_domain_tables(thresholds=self.thresholds,
-                                          hmm_domtbl_files=[self.nxra_domtbl, self.norc_domtbl])
+        from treesapp import file_parsers
+        hmm_matches = file_parsers.parse_domain_tables(thresholds=self.thresholds,
+                                                       hmm_domtbl_files={("NxrA", "ORFs"): self.nxra_domtbl,
+                                                                         ("NorC", "ORFs"): self.norc_domtbl})
         self.assertTrue('NorC' in hmm_matches.keys())
         orf_names = {match.orf for match in hmm_matches["NxrA"]}
         self.assertEqual(5, len(hmm_matches["NorC"]))

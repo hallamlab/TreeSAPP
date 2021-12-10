@@ -1,4 +1,3 @@
-
 import logging
 import sys
 import re
@@ -76,7 +75,7 @@ def info(sys_args):
                "tqdm": tqdm.__version__}
 
     LOGGER.info("Python package dependency versions:\n\t" +
-                 "\n\t".join([k + ": " + v for k, v in py_deps.items()]) + "\n")
+                "\n\t".join([k + ": " + v for k, v in py_deps.items()]) + "\n")
 
     # Write the version of executable deps
     ts_info.furnish_with_arguments(args)
@@ -335,7 +334,7 @@ def train(sys_args):
         if args.classifier == "occ":
             # The individual instances are of PQuery type
             tp_names.update({ts_trainer.ref_pkg.prefix:
-                             [pquery.seq_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]})
+                                 [pquery.seq_name for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]]})
 
             for pquery in refpkg_pqueries[ts_trainer.ref_pkg.prefix]:
                 if not pquery.rank:
@@ -352,7 +351,7 @@ def train(sys_args):
         LOGGER.info("Extracting features from TreeSAPP classifications... ")
         training_df = training_utils.load_training_data_frame(pqueries=refpkg_pqueries,
                                                               refpkg_map={ts_trainer.ref_pkg.prefix:
-                                                                          ts_trainer.ref_pkg},
+                                                                              ts_trainer.ref_pkg},
                                                               refpkg_positive_annots=tp_names)
         LOGGER.info("done.\n")
         training_utils.train_classifier_from_dataframe(training_df, args.kernel,
@@ -366,7 +365,7 @@ def train(sys_args):
     if ts_trainer.stage_status("update"):
         if not ts_trainer.ref_pkg.pfit:
             LOGGER.warning("Linear regression parameters could not be estimated. " +
-                            "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
+                           "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
             ts_trainer.ref_pkg.pfit = [0.0, 7.0]
 
         ts_trainer.ref_pkg.training_df = training_df
@@ -585,7 +584,7 @@ def create(sys_args):
         postfilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
         filtered_ref_seqs = utilities.dict_diff(prefilter_ref_seqs, postfilter_ref_seqs)
         LOGGER.debug("{0} references before and {1} remaining after filtering.\n".format(len(prefilter_ref_seqs),
-                                                                                          len(postfilter_ref_seqs)))
+                                                                                         len(postfilter_ref_seqs)))
         ts_create.ref_pkg.taxa_trie.jetison_taxa_from_hierarchy(filtered_ref_seqs)
 
         taxonomic_summary = ts_create_mod.summarize_reference_taxa(fasta_replace_dict, ts_create.ref_pkg.taxa_trie,
@@ -639,9 +638,9 @@ def create(sys_args):
         if args.trim_align:
             trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_create.executables,
                                                                    {ts_create.ref_pkg.refpkg_code:
-                                                                    [ts_create.ref_pkg.f__msa]},
+                                                                        [ts_create.ref_pkg.f__msa]},
                                                                    {ts_create.ref_pkg.refpkg_code:
-                                                                    ts_create.ref_pkg})
+                                                                        ts_create.ref_pkg})
             trimmed_mfa_file = trimmed_mfa_files[ts_create.ref_pkg.refpkg_code]
             unique_ref_headers = set(ref_seqs.fasta_dict.keys())
             qc_ma_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming(trimmed_mfa_file,
@@ -650,11 +649,11 @@ def create(sys_args):
             if len(qc_ma_dict.keys()) == 0:
                 # At least one of the reference sequences were discarded and therefore this package is invalid.
                 LOGGER.error("Trimming removed reference sequences. This could indicate non-homologous sequences.\n" +
-                              "Please improve sequence quality-control and/or rerun without the '--trim_align' flag.\n")
+                             "Please improve sequence quality-control and/or rerun without the '--trim_align' flag.\n")
                 sys.exit(13)
             elif len(qc_ma_dict.keys()) > 1:
                 LOGGER.error("Multiple trimmed alignment files are found when only one is expected:\n" +
-                              "\n".join([str(k) + ": " + str(qc_ma_dict[k]) for k in qc_ma_dict]))
+                             "\n".join([str(k) + ": " + str(qc_ma_dict[k]) for k in qc_ma_dict]))
                 sys.exit(13)
             # NOTE: only a single trimmed-MSA file in the dictionary
             for trimmed_msa_file in qc_ma_dict:
@@ -805,9 +804,9 @@ def update(sys_args):
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
     ref_header_map = ts_update_mod.reformat_ref_seq_descriptions(ref_header_map)
     ref_name_lineage_map = {ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix]:
-                            leaf.lineage for leaf in ref_seq_lineage_info}
+                                leaf.lineage for leaf in ref_seq_lineage_info}
     ref_accession_lineage_map = {ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix].split(' ')[0]:
-                                 leaf.lineage for leaf in ref_seq_lineage_info}
+                                     leaf.lineage for leaf in ref_seq_lineage_info}
     num_assigned_candidates = len(classified_seq_lineage_map)
     num_ref_seqs = len(ref_name_lineage_map)
 
@@ -817,7 +816,7 @@ def update(sys_args):
     diff = num_ref_seqs + num_assigned_candidates - len(classified_seq_lineage_map)
     if diff > 0:
         LOGGER.warning("{} candidate sequences are already in the reference package."
-                        " These will be excluded from any further analysis.\n".format(diff))
+                       " These will be excluded from any further analysis.\n".format(diff))
         # Remove the classified sequences that are redundant with the reference set
         classified_fasta.change_dict_keys("accession")
         classified_fasta.keep_only(list(novel))
@@ -871,7 +870,8 @@ def update(sys_args):
 
         # Ensure centroids are the original reference sequences and skip clusters with identical lineages
         ts_update_mod.prefilter_clusters(cluster_dict,
-                                         lineage_lookup={er.rebuild_header(): er.lineage for (num_id, er) in entrez_records.items()},
+                                         lineage_lookup={er.rebuild_header(): er.lineage for (num_id, er) in
+                                                         entrez_records.items()},
                                          priority=list(ref_fasta.original_header_map().keys()))
 
         # Ensure the EntrezRecord with the most resolved lineage is the representative
@@ -907,9 +907,9 @@ def update(sys_args):
 
         if refs_resolved:
             LOGGER.info("{} reference sequences were resolved by updating sequences:\n\t"
-                         "{}\n".format(len(refs_resolved),
-                                       "\n\t".join([ref_seq.accession + ' ' + ref_seq.description
-                                                    for ref_seq in refs_resolved])))
+                        "{}\n".format(len(refs_resolved),
+                                      "\n\t".join([ref_seq.accession + ' ' + ref_seq.description
+                                                   for ref_seq in refs_resolved])))
 
     if classified_fasta.n_seqs() > 0:
         LOGGER.info("{} assigned sequence(s) will be used in the update.\n".format(classified_fasta.n_seqs()))
@@ -1115,7 +1115,8 @@ def layer(sys_args):
                 taxa_map = ref_pkg.generate_tree_leaf_references_from_refpkg()
 
                 annotated_edges, leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
-                                                                                             ref_pkg.feature_annotations[data_type])
+                                                                                             ref_pkg.feature_annotations[
+                                                                                                 data_type])
                 marker_tree_info[data_type][refpkg_name] = annotated_edges
 
                 diff = len(taxa_map) - len(leaves_in_clusters)
@@ -1126,9 +1127,9 @@ def layer(sys_args):
                             if leaf not in leaves_in_clusters:
                                 unannotated.add(str(leaf))
                     LOGGER.warning("{} leaf nodes were not mapped to annotation groups. "
-                                    "More information can be found in the log.\n".format(len(unannotated)))
+                                   "More information can be found in the log.\n".format(len(unannotated)))
                     LOGGER.debug("The following leaf nodes were not mapped to annotation groups:\n" +
-                                  "\t" + ', '.join(sorted(unannotated, key=lambda x: int(x.split('_')[0]))) + "\n")
+                                 "\t" + ', '.join(sorted(unannotated, key=lambda x: int(x.split('_')[0]))) + "\n")
             else:
                 pass
     marker_subgroups.clear()
@@ -1191,9 +1192,9 @@ def purity(sys_args):
             ts_purity.assignments = file_parsers.parse_assignments(assigned_lines)
         else:
             LOGGER.error("{} is missing from output directory '{}'\n"
-                          "Please remove this directory and re-run.\n"
-                          "".format(ts_purity.classification_tbl_name,
-                                    os.path.dirname(ts_purity.classifications)))
+                         "Please remove this directory and re-run.\n"
+                         "".format(ts_purity.classification_tbl_name,
+                                   os.path.dirname(ts_purity.classifications)))
             sys.exit(5)
 
         LOGGER.info("\nSummarizing assignments for reference package " + ts_purity.ref_pkg.prefix + "\n")
@@ -1227,7 +1228,8 @@ def evaluate(sys_args):
 
     :return:
     """
-    parser = treesapp_args.TreeSAPPArgumentParser(description='Evaluate classification performance using clade-exclusion analysis.')
+    parser = treesapp_args.TreeSAPPArgumentParser(
+        description='Evaluate classification performance using clade-exclusion analysis.')
     treesapp_args.add_evaluate_arguments(parser)
     args = parser.parse_args(sys_args)
 
@@ -1342,7 +1344,7 @@ def evaluate(sys_args):
                     for a_rank in rank_assignments:
                         if a_rank != rank and len(rank_assignments[a_rank]) > 0:
                             LOGGER.warning("{}-level clade excluded but optimal classification found to be {}-level.\n"
-                                            "Assignments were: {}\n".format(rank, a_rank, rank_assignments[a_rank]))
+                                           "Assignments were: {}\n".format(rank, a_rank, rank_assignments[a_rank]))
                             continue
                         if a_rank not in ts_evaluate.classifications:
                             ts_evaluate.classifications[a_rank] = list()
@@ -1354,14 +1356,14 @@ def evaluate(sys_args):
         ##
         if ts_evaluate.taxa_filter["Classified"] != ts_evaluate.taxa_filter["Unique_taxa"]:
             LOGGER.debug("\n\t" + str(ts_evaluate.taxa_filter["Classified"] -
-                                       ts_evaluate.taxa_filter["Unique_taxa"]) +
-                          " duplicate query taxonomies removed.\n")
+                                      ts_evaluate.taxa_filter["Unique_taxa"]) +
+                         " duplicate query taxonomies removed.\n")
 
         if ts_evaluate.taxa_filter["Unclassified"] > 0:
             LOGGER.debug("\t" + str(ts_evaluate.taxa_filter["Unclassified"]) +
-                          " query sequences with unclassified taxonomies were removed.\n" +
-                          "This is not a problem, its just they have 'unclassified' somewhere in their lineages\n" +
-                          "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
+                         " query sequences with unclassified taxonomies were removed.\n" +
+                         "This is not a problem, its just they have 'unclassified' somewhere in their lineages\n" +
+                         "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
 
         if ts_evaluate.ref_pkg.prefix not in ts_evaluate.markers:
             LOGGER.error("No sequences were classified as {}.\n".format(ts_evaluate.ref_pkg.prefix))

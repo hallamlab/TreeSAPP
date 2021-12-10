@@ -240,7 +240,7 @@ def best_discrete_matches(matches: list) -> list:
     return len_sorted_matches
 
 
-def parse_domain_tables(thresholds, hmm_domtbl_files: list) -> dict:
+def parse_domain_tables(thresholds, hmm_domtbl_files: dict) -> dict:
     """
     Parses HMMER domain tables using predetermined thresholds
 
@@ -257,8 +257,8 @@ def parse_domain_tables(thresholds, hmm_domtbl_files: list) -> dict:
     optional_matches = list()
 
     # TODO: Capture multimatches across multiple domain table files
-    for domtbl_file in hmm_domtbl_files:
-        prefix, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
+    for r_q, domtbl_file in hmm_domtbl_files.items():
+        _prefix, reference = r_q
         domain_table = hmmer_tbl_parser.DomainTableParser(domtbl_file)
         domain_table.read_domtbl_lines()
         distinct_hits = hmmer_tbl_parser.format_split_alignments(domain_table, search_stats)
