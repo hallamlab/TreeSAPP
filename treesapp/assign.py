@@ -187,6 +187,8 @@ class Assigner(classy.TreeSAPP):
                 self.change_stage_status("orf-call", False)
                 self.query_sequences = self.aa_orfs_file
 
+        self.validate_continue(args)
+
         if args.rel_abund and self.molecule_type == "dna":
             if not args.reads:
                 if args.reverse:
@@ -206,8 +208,6 @@ class Assigner(classy.TreeSAPP):
             self.change_stage_status("abundance", True)
         else:
             self.change_stage_status("abundance", False)
-
-        self.validate_continue(args)
         return
 
     def get_info(self):
@@ -334,21 +334,11 @@ class Assigner(classy.TreeSAPP):
                                        "Cannot create the nucleotide FASTA file of classified sequences!\n")
         return
 
-    def fetch_hmmsearch_outputs(self, target_refpkg_prefixes: set) -> list:
-        if self.current_stage.name != "search":
-            self.ts_logger.error("Unable to fetch hmmsearch outputs as the current stage ({}) is incorrect.\n"
-                                 "".format(self.current_stage.name))
-            sys.exit(3)
-
+    def fetch_hmmsearch_outputs(self) -> list:
+        search_dir = self.stage_lookup(name="search").dir_path
         # Collect all files from output directory
-        hmm_domtbls = glob.glob(self.stage_output_dir + "*_search_to_ORFs_domtbl.txt")
-
-        # Ensure all of the domain tables are present compared to the reference packages
-        searched = set([os.path.basename(f_path).split('_')[0] for f_path in hmm_domtbls])
-        if not searched or target_refpkg_prefixes.difference(searched):
-            return []
-        else:
-            return hmm_domtbls
+        hmm_domtbl_files = glob.glob(search_dir + "*_search_to_ORFs_domtbl.txt")
+        return [f_path for f_path in hmm_domtbl_files if os.path.basename(f_path).split('_')[0] in self.target_refpkgs]
 
 
 def replace_contig_names(numeric_contig_index: dict, fasta_obj: fasta.FASTA):
@@ -1357,7 +1347,15 @@ def assign(sys_args):
                                                   refpkg_dict, ts_assign.formatted_input,
                                                   ts_assign.stage_output_dir, n_proc, hmm_parsing_thresholds.max_e)
     else:
-        hmm_domtbl_files = ts_assign.fetch_hmmsearch_outputs(set(refpkg_dict.keys()))
+        hmm_domtbl_files = ts_assign.fetch_hmmsearch_outputs()
+        # Ensure all of the domain tables are present compared to the reference packages
+        searched = set([os.path.basename(f_path).split('_')[0] for f_path in hmm_domtbl_files])
+        if not searched or set(refpkg_dict.keys()).difference(searched):
+            target_refpkgs = {prefix: rp for prefix, rp in refpkg_dict.items() if prefix not in searched}
+            hmm_domtbl_files += wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"],
+                                                       target_refpkgs, ts_assign.formatted_input,
+                                                       ts_assign.stage_output_dir,
+                                                       n_proc, hmm_parsing_thresholds.max_e)
 
     # Load alignment information
     hmm_matches = file_parsers.parse_domain_tables(hmm_parsing_thresholds, hmm_domtbl_files)

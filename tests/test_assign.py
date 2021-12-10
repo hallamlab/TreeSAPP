@@ -83,6 +83,17 @@ class AssignerTester(unittest.TestCase):
         self.assertTrue(info_string)
         return
 
+    def test_stage_lookup(self):
+        from treesapp import assign
+        ts_assigner = assign.Assigner()
+        with pytest.raises(SystemExit):
+            ts_assigner.stage_lookup("continue")
+        stage = ts_assigner.stage_lookup("continue", tolerant=True)
+        self.assertEqual("continue", stage.name)
+        stage = ts_assigner.stage_lookup("search")
+        self.assertEqual("search", stage.name)
+        return
+
     def test_decide_stage(self):
         from treesapp import assign
         ts_assigner = assign.Assigner()
@@ -162,18 +173,17 @@ class AssignerTester(unittest.TestCase):
         for stage_order, stage in ts_assigner.stages.items():
             stage.dir_path = ts_assigner.var_output_dir + os.sep + stage.name + os.sep
 
-        # Fail due to wrong stage
         ts_assigner.current_stage = ts_assigner.stages[0]
-        with pytest.raises(SystemExit):
-            ts_assigner.fetch_hmmsearch_outputs({"McrA"})
+        ts_assigner.fetch_hmmsearch_outputs()
 
         ts_assigner.current_stage = ts_assigner.stage_lookup("search")
         ts_assigner.stage_output_dir = ts_assigner.current_stage.dir_path
         # Reference package targets don't match
-        self.assertEqual([], ts_assigner.fetch_hmmsearch_outputs({"DsrAB"}))
+        self.assertEqual([], ts_assigner.fetch_hmmsearch_outputs())
 
         # Intended functionality test
-        hmm_domtbls = ts_assigner.fetch_hmmsearch_outputs({"McrA", "McrB"})
+        ts_assigner.target_refpkgs = ["McrA", "McrB"]
+        hmm_domtbls = ts_assigner.fetch_hmmsearch_outputs()
         self.assertEqual(2, len(hmm_domtbls))
 
         return

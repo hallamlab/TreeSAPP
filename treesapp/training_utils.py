@@ -74,6 +74,7 @@ class PhyTrainer(classy.TreeSAPP):
                        5: classy.ModuleFunction("update", 5)}
 
     def decide_stage(self, args):
+        self.validate_continue(args)
         if not args.profile:
             self.change_stage_status("search", False)
 
@@ -88,7 +89,6 @@ class PhyTrainer(classy.TreeSAPP):
         if os.path.isfile(self.clade_ex_pquery_pkl) and os.path.isfile(self.plain_pquery_pkl):
             self.change_stage_status("place", False)
 
-        self.validate_continue(args)
         return
 
     def check_trainer_arguments(self, args):

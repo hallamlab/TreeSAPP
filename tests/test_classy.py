@@ -95,12 +95,31 @@ class TreeSAPPClassTester(unittest.TestCase):
             validate_new_dir(os.path.join(output_dir, "nope", "nope"))
         return
 
-    def test_find_stage_dirs(self):
+    def test_get_first_stage(self):
         ts_inst = self.db
-        self.assertEqual(0, ts_inst.find_stage_dirs())
+        self.assertEqual(0, ts_inst.get_first_stage().order)
         ts_inst.change_stage_status("orf-call", False)
         ts_inst.change_stage_status("clean", False)
-        self.assertEqual(2, ts_inst.find_stage_dirs())
+        self.assertEqual(2, ts_inst.get_first_stage().order)
+        return
+
+    def test_edit_stage_run_range(self):
+        from treesapp import assign
+        ts_assigner = assign.Assigner()
+        for _order, stage in ts_assigner.stages.items():
+            self.assertTrue(stage.run)
+        ts_assigner.edit_stage_run_range(2)
+        for order, stage in ts_assigner.stages.items():
+            if order >= 2:
+                self.assertTrue(stage.run)
+            else:
+                self.assertFalse(stage.run)
+        ts_assigner.edit_stage_run_range(3, 5)
+        for order, stage in ts_assigner.stages.items():
+            if 3 <= order <= 5:
+                self.assertTrue(stage.run)
+            else:
+                self.assertFalse(stage.run)
         return
 
     def test_dedup_records(self):

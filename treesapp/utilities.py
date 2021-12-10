@@ -361,7 +361,7 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict, header_registry: di
 
             if q_header.post_align in extracted_loci:
                 LOGGER.warning("Query '{}' being overwritten by an alternative alignment:\n"
-                                "{}\n".format(q_header.post_align, hmm_match.get_info()))
+                               "{}\n".format(q_header.post_align, hmm_match.get_info()))
             try:
                 extracted_loci[q_header.post_align] = fasta_dict[q_header.original][hmm_match.start-1:hmm_match.end]
             except KeyError:

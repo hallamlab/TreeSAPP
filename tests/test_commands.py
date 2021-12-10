@@ -82,33 +82,39 @@ class TreesappTester(unittest.TestCase):
         return
 
     def test_assign(self):
-        ref_pkgs = ["McrA", "McrB", "DsrAB"]
         from treesapp import assign
         from .testing_utils import get_test_data
         from treesapp.file_parsers import read_classification_table
         from treesapp.phylo_seq import assignments_to_pqueries
+        assign_output = "./TreeSAPP_assign/"
+        assignments_tbl = os.path.join(assign_output, "final_outputs", "classifications.tsv")
+        classified_seqs_faa = os.path.join(assign_output, "final_outputs", "marker_test_suite_classified.faa")
+        classified_seqs_fna = os.path.join(assign_output, "final_outputs", "marker_test_suite_classified.fna")
+        if os.path.isdir(assign_output):
+            rmtree(assign_output)
+        ref_pkgs = ["McrA", "McrB", "DsrAB"]
         assign_commands_list = ["--fastx_input", self.aa_test_fa,
                                 "--targets", ','.join(ref_pkgs),
                                 "--refpkg_dir", self.refpkg_dir,
                                 "--num_procs", str(self.num_procs),
                                 "--hmm_coverage", str(20),
-                                "--output", "./TreeSAPP_assign/",
+                                "--output", assign_output,
                                 "--stringency", "relaxed",
                                 "--hmm_coverage", str(80),
                                 "--query_coverage", str(80),
                                 "--placement_summary", "aelw",
-                                "--trim_align", "--overwrite", "--delete", "--svm"]
+                                "--trim_align", "--svm"]
         assign.assign(assign_commands_list)
-        lines = read_classification_table("./TreeSAPP_assign/final_outputs/classifications.tsv")
-        self.assertEqual(13, len(lines))
-        self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.faa"))
+        self.assertEqual(13, len(read_classification_table(assignments_tbl)))
+        self.assertTrue(os.path.isfile(classified_seqs_faa))
+        assign.assign(assign_commands_list + ["--targets", "McrA,McrB,XmoA"])
 
         # Test nucleotide sequence input
         ref_pkgs = ["McrA", "McrB"]
         assign_commands_list = ["--fastx_input", self.nt_test_fa,
                                 "--targets", ','.join(ref_pkgs),
                                 "--num_procs", str(self.num_procs),
-                                "--output", "./TreeSAPP_assign/",
+                                "--output", assign_output,
                                 "--stringency", "strict",
                                 "--trim_align", "--overwrite", "--delete", "--silent"]
         assign.assign(assign_commands_list)
@@ -117,7 +123,6 @@ class TreesappTester(unittest.TestCase):
                                  "--reads", get_test_data("SRR3669912_1.fastq"),
                                  "--reverse", get_test_data("SRR3669912_2.fastq")]
         assign.assign(assign_commands_list)
-        assignments_tbl = "./TreeSAPP_assign/final_outputs/classifications.tsv"
         lines = read_classification_table(assignments_tbl)
         self.assertEqual(6, len(lines))
         classified_seqs = set()
@@ -125,7 +130,7 @@ class TreesappTester(unittest.TestCase):
         for rp_pqs in pqueries.values():
             classified_seqs.update({pq.seq_name for pq in rp_pqs if pq.abundance >= 0.0})
         self.assertTrue("LYOS01000003.1:168824-170509_1" in classified_seqs)
-        self.assertTrue(os.path.isfile("./TreeSAPP_assign/final_outputs/marker_test_suite_classified.fna"))
+        self.assertTrue(os.path.isfile(classified_seqs_fna))
         return
 
     def test_colour(self):
@@ -425,8 +430,11 @@ class TreesappTester(unittest.TestCase):
 
     # def test_tmp(self):
     #     from treesapp import assign
-    #     base_dir = ""
-    #     cmd = "".format(base_dir)
+    #     os.chdir("/media/connor/Rufus/Koonkie/Mangrove")
+    #     cmd = "--fastx_input Metagenomes/final_contigs/SRR7543971_final.contigs.fa " \
+    #           "-o TreeSAPP_assign_output/SRR7543971_classifications/ " \
+    #           "--refpkg_dir RefPkgs/ --targets GH5,GH26,GH57,GT35,GH18,GH103,BetB " \
+    #           "--metric tpm --trim_align --num_procs 12 --stage continue --overwrite"
     #     assign.assign(cmd.split())
     #     return
 

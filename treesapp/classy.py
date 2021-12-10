@@ -36,11 +36,8 @@ class ModuleFunction:
         self.function = func
         self.run = True
 
-    def get_info(self):
-        info_string = "Information for '" + self.name + "':\n"
-        info_string += "\tOrder: " + str(self.order) + "\n"
-        info_string += "\tRun: " + str(self.run) + "\n"
-        return info_string
+    def __str__(self) -> str:
+        return "Stage '{}' is order number {} with run set to {}.".format(self.name, self.order, self.run)
 
 
 def get_header_info(header_registry: dict, code_name=''):
@@ -186,7 +183,7 @@ class TreeSAPP:
         info_string = "Executables:\n\t" + "\n\t".join([k + ": " + v for k, v in self.executables.items()]) + "\n"
 
         for module_step in self.stages:
-            info_string += self.stages[module_step].get_info()
+            info_string += str(self.stages[module_step])
         info_string += "\n\t".join(["TreeSAPP directory = " + self.treesapp_dir,
                                     "FASTA input sequences = " + self.input_sequences,
                                     "Formatted input = " + self.formatted_input,
@@ -325,15 +322,15 @@ class TreeSAPP:
             self.ts_logger.warning("Unable to find '{}' stage. Returning a new one instead.\n".format(name))
             return ModuleFunction(name=name, order=stage_order + 1)
 
-    def first_stage(self):
+    def first_stage(self) -> ModuleFunction:
         for x in sorted(self.stages, key=int):  # type: int
             stage = self.stages[x]  # type: ModuleFunction
             if stage.run:
-                return stage.order
+                return stage
         self.ts_logger.error("No stages are set to run!\n")
         sys.exit(3)
 
-    def find_stage_dirs(self) -> int:
+    def get_first_stage(self) -> ModuleFunction:
         """
         Selects the earliest checkpoint that the workflow can be started from.
         Stages (ModuleFunction instances) are skipped by setting their 'run' attribute to False.
@@ -343,8 +340,8 @@ class TreeSAPP:
         """
         for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
             if module.run:
-                return module.order
-        return 0
+                return module
+        return self.stages[0]
 
     def set_stage_dir(self) -> None:
         self.stage_output_dir = self.current_stage.dir_path
@@ -379,17 +376,27 @@ class TreeSAPP:
         stage.run = new_status
         return
 
-    def edit_stages(self, start, end=None):
+    def edit_stage_run_range(self, start: int, end=-1) -> None:
+        """
+        Alters ModuleFunction's run attribute within the self.stages dictionary.
+        All stages between start and end have their 'run' attribute set to True.
+
+        :param start: The order of the stage to start processing from
+        :param end: The order of the stage to end processing
+        :return: None
+        """
         for x in sorted(self.stages, key=int):  # type: int
             stage = self.stages[x]  # type: ModuleFunction
-            if end is not None:
+            if end >= 0:
                 if x < start or x > end:
                     stage.run = False
-            elif x < start:
-                stage.run = False
+                else:
+                    stage.run = True
             else:
-                # These stages need to be ran
-                pass
+                if x < start:
+                    stage.run = False
+                else:
+                    stage.run = True
 
         return
 
@@ -404,37 +411,37 @@ class TreeSAPP:
         :return: None
         """
         # TODO: Summarise the steps to be taken and write to log
+        # Set ModuleFunction run attribute according to the contents of the module's output directory
         for i, module in sorted(self.stages.items()):  # type: (int, ModuleFunction)
             if os.path.isdir(module.dir_path):
                 if len(os.listdir(module.dir_path)) > 0:
                     module.run = False
 
         if args.overwrite:
-            last_valid_stage = self.first_stage()
+            self.current_stage = self.first_stage()
         else:
-            last_valid_stage = self.find_stage_dirs()
+            self.current_stage = self.get_first_stage()
 
-        self.current_stage = self.stages[last_valid_stage]
         self.set_stage_dir()
         if "stage" not in vars(args) or args.stage == "continue":
             self.ts_logger.debug("Continuing with stage '{}'\n".format(self.current_stage.name))
-            self.edit_stages(last_valid_stage)
+            self.edit_stage_run_range(self.current_stage.order)
             return
 
         # Update the stage status
-        desired_stage = self.stage_lookup(args.stage).order
-        if desired_stage > last_valid_stage:
+        desired_stage = self.stage_lookup(args.stage)
+        desired_stage.run = True
+        if desired_stage.order > self.current_stage.order:
             self.ts_logger.warning("Unable to run '{}' as it is ahead of the last completed stage.\n"
                                    "Continuing with stage '{}'\n".format(args.stage, self.current_stage.name))
-            self.edit_stages(last_valid_stage, desired_stage)
-        elif desired_stage < last_valid_stage:
-            self.ts_logger.info("Wow - its your lucky day:\n"
-                                "All stages up to and including '{}' have already been completed!\n".format(args.stage))
-            self.edit_stages(desired_stage, desired_stage)
+            self.edit_stage_run_range(self.current_stage.order, desired_stage.order)
+        elif desired_stage.order < self.current_stage.order:
+            self.ts_logger.debug("Proceeding with '{}'\n".format(args.stage))
+            self.edit_stage_run_range(desired_stage.order)
         else:
             # Proceed with running the desired stage
             self.ts_logger.debug("Proceeding with '{}'\n".format(args.stage))
-            self.edit_stages(desired_stage, desired_stage)
+            self.edit_stage_run_range(desired_stage.order, desired_stage.order)
 
         return
 
@@ -580,12 +587,12 @@ class Updater(TreeSAPP):
 
         :return: None
         """
+        self.validate_continue(args)
         self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
 
         if not self.input_sequences:
             self.change_stage_status("train", False)
 
-        self.validate_continue(args)
         return
 
     def get_info(self):
@@ -665,13 +672,14 @@ class Creator(TreeSAPP):
 
         :return: None
         """
+        self.validate_continue(args)
         if not args.dedup:
             self.change_stage_status("deduplicate", False)
 
         if not args.profile:
             self.change_stage_status("search", False)
         if args.pc:
-            self.edit_stages(self.stage_lookup("update").order)
+            self.edit_stage_run_range(self.stage_lookup("update").order)
         # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
         if args.acc_to_lin:
             self.acc_to_lin = args.acc_to_lin
@@ -687,7 +695,6 @@ class Creator(TreeSAPP):
             self.change_stage_status("support", False)
         if not args.fast:
             self.change_stage_status("evaluate", False)
-        self.validate_continue(args)
         return
 
     def get_info(self):
