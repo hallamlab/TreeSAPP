@@ -746,8 +746,8 @@ def fetch_taxids_from_organisms(search_terms: dict) -> None:
             organism = parse_gbseq_info_from_esearch_record(record, 'TranslationStack')['Term']
         except (IndexError, KeyError, TypeError):
             LOGGER.debug("Value for 'TranslationStack' not found in Entrez record."
-                          " It is likely this organism name doesn't exist in Entrez's taxonomy database.\n" +
-                          "Unable to link taxonomy ID to organism.\nRecord:\n{}\n".format(record))
+                         " It is likely this organism name doesn't exist in Entrez's taxonomy database.\n" +
+                         "Unable to link taxonomy ID to organism.\nRecord:\n{}\n".format(record))
             continue
         tax_id = parse_gbseq_info_from_esearch_record(record)
         if not tax_id:

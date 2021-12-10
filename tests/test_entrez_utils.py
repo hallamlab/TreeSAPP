@@ -50,9 +50,17 @@ class EntrezUtilitiesTester(unittest.TestCase):
     def test_fetch_entrez_lineages(self):
         entrez_record_dict = self.create_inst.fetch_entrez_lineages(self.test_fa, 'prot')
         self.assertEqual(self.test_fa.n_seqs(), len(entrez_record_dict))
+        passed = 0
+        failed = 0
         for er in entrez_record_dict.values():
-            self.assertEqual(7, er.bitflag)
-            self.assertTrue(len(er.lineage) > 1)
+            if er.taxon_rank != "root":
+                self.assertEqual(7, er.bitflag)
+                passed += 1
+            else:
+                self.assertEqual(5, er.bitflag)
+                failed += 1
+        self.assertEqual(17, passed)
+        self.assertEqual(1, failed)
         return
 
     def test_prep_for_entrez_query(self):
