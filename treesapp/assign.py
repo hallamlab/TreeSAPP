@@ -311,6 +311,8 @@ class Assigner(classy.TreeSAPP):
         return
 
     def search(self, ref_pkg_dict: dict, hmm_parsing_thresholds, num_threads=2) -> dict:
+        if self.past_last_stage("search"):
+            return {}
         nucl_target_hmm_files = dict()
         prot_target_hmm_files = dict()
         ref_str = "ORFs"
@@ -331,79 +333,85 @@ class Assigner(classy.TreeSAPP):
                 else:
                     nucl_target_hmm_files[ref_pkg.prefix] = ref_pkg.f__search_profile
 
-        LOGGER.info("Searching for marker proteins in {} using hmmsearch.\n".format(ref_str))
-        if LOGGER.disabled:
-            pbar = None
-        else:
-            pbar = tqdm(total=len(prot_target_hmm_files) + len(nucl_target_hmm_files), ncols=120)
+        num_tasks = len(prot_target_hmm_files) + len(nucl_target_hmm_files)
+        if num_tasks > 0:
+            LOGGER.info("Searching for marker proteins in {} using hmmsearch.\n".format(ref_str))
+            if LOGGER.disabled:
+                pbar = None
+            else:
+                pbar = tqdm(total=len(prot_target_hmm_files) + len(nucl_target_hmm_files), ncols=120)
 
-        # Create and launch the hmmsearch commands iteratively.
-        for refpkg_prefix, hmm_file in prot_target_hmm_files.items():
+            # Create and launch the hmmsearch commands iteratively.
+            for refpkg_prefix, hmm_file in prot_target_hmm_files.items():
+                if pbar:
+                    pbar.set_description("Processing {}".format(os.path.basename(hmm_file)))
+
+                # TODO: Parallelize this by allocating no more than 2 threads per process
+                refpkg_hmmer_tables.update({(refpkg_prefix, "ORFs"):
+                                            wrapper.run_hmmsearch(hmmsearch_exe=self.executables["hmmsearch"],
+                                                                  hmm_profile=hmm_file,
+                                                                  query_fasta=self.formatted_input,
+                                                                  output_dir=self.stage_lookup(name="search").dir_path,
+                                                                  num_threads=num_threads,
+                                                                  e_value=hmm_parsing_thresholds.max_e)})
+
+                if pbar:
+                    pbar.update()
+
             if pbar:
-                pbar.set_description("Processing {}".format(os.path.basename(hmm_file)))
-
-            # TODO: Parallelize this by allocating no more than 2 threads per process
-            refpkg_hmmer_tables.update({(refpkg_prefix, "ORFs"):
-                                        wrapper.run_hmmsearch(hmmsearch_exe=self.executables["hmmsearch"],
-                                                              hmm_profile=hmm_file,
-                                                              query_fasta=self.formatted_input,
-                                                              output_dir=self.stage_lookup(name="search").dir_path,
-                                                              num_threads=num_threads,
-                                                              e_value=hmm_parsing_thresholds.max_e)})
-
-            if pbar:
-                pbar.update()
-
-        if pbar:
-            pbar.close()
+                pbar.close()
 
         return file_parsers.parse_domain_tables(hmm_parsing_thresholds, refpkg_hmmer_tables)
 
     def align(self, refpkg_dict: dict, homolog_seq_files: list, min_seq_length: int, n_proc: int,
               trim_align=True, verbose=False) -> dict:
+        if self.past_last_stage("align"):
+            return {}
         MSAs = namedtuple("MSAs", "ref query")
         ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
 
         split_msa_files = self.fetch_multiple_alignments()
         target_refpkgs = {prefix: rp for prefix, rp in refpkg_dict.items() if prefix not in split_msa_files}
         if self.stage_status("align") or target_refpkgs:
-            combined_msa_files = {}
             # create_ref_phy_files(refpkg_dict, align_output_dir,
             #                      homolog_seq_files, ref_alignment_dimensions)
             concatenated_msa_files = multiple_alignments(self.executables, homolog_seq_files,
                                                          target_refpkgs, "hmmalign",
                                                          output_dir=self.stage_lookup(name="align").dir_path,
                                                          num_proc=n_proc, silent=self.silent)
-            file_type = utilities.find_msa_type(concatenated_msa_files)
-            alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
-                                                        verbose, file_type)
+            if concatenated_msa_files:
+                combined_msa_files = {}
+                file_type = utilities.find_msa_type(concatenated_msa_files)
+                alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
+                                                            verbose, file_type)
+                if trim_align:
+                    tool = "BMGE"
+                    trimmed_mfa_files = wrapper.filter_multiple_alignments(self.executables, concatenated_msa_files,
+                                                                           target_refpkgs, n_proc, tool, self.silent)
+                    qc_ma_dict = check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files,
+                                                             target_refpkgs, min_seq_length)
+                    evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
+                    combined_msa_files.update(qc_ma_dict)
+                else:
+                    combined_msa_files.update(concatenated_msa_files)
 
-            if trim_align:
-                tool = "BMGE"
-                trimmed_mfa_files = wrapper.filter_multiple_alignments(self.executables, concatenated_msa_files,
-                                                                       target_refpkgs, n_proc, tool, self.silent)
-                qc_ma_dict = check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files,
-                                                         target_refpkgs, min_seq_length)
-                evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
-                combined_msa_files.update(qc_ma_dict)
-            else:
-                combined_msa_files.update(concatenated_msa_files)
-
-            # Subset the multiple alignment of reference sequences and queries to just contain query sequences
-            for refpkg_name in combined_msa_files:
-                split_msa_files[refpkg_name] = []
-                for combined_msa in combined_msa_files[refpkg_name]:
-                    split_msa = MSAs(os.path.dirname(combined_msa) + os.sep +
-                                     os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa",
-                                     os.path.dirname(combined_msa) + os.sep +
-                                     os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa")
-                    fasta.split_combined_ref_query_fasta(combined_msa, split_msa.query, split_msa.ref)
-                    split_msa_files[refpkg_name].append(split_msa)
-            combined_msa_files.clear()
+                # Subset the multiple alignment of reference sequences and queries to just contain query sequences
+                for refpkg_name in combined_msa_files:
+                    split_msa_files[refpkg_name] = []
+                    for combined_msa in combined_msa_files[refpkg_name]:
+                        split_msa = MSAs(os.path.dirname(combined_msa) + os.sep +
+                                         os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa",
+                                         os.path.dirname(combined_msa) + os.sep +
+                                         os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa")
+                        fasta.split_combined_ref_query_fasta(combined_msa, split_msa.query, split_msa.ref)
+                        split_msa_files[refpkg_name].append(split_msa)
+                combined_msa_files.clear()
 
         return split_msa_files
 
-    def place(self, refpkg_dict: dict, query_index: dict, split_msa_files: dict, n_proc: int):
+    def place(self, refpkg_dict: dict, query_index: dict, split_msa_files: dict, n_proc: int) -> None:
+        if self.past_last_stage("place"):
+            return
         refpkg_jplace_files = self.fetch_epa_outputs()
         place_msas = {prefix: msas for prefix, msas in split_msa_files.items() if prefix not in refpkg_jplace_files}
         if self.stage_status("place") or len(place_msas) > 0:
@@ -421,7 +429,7 @@ class Assigner(classy.TreeSAPP):
             self.increment_stage_dir(checkpoint="place")
         return
 
-    def classify(self):
+    def classify(self) -> None:
         return
 
     def write_classified_orfs(self, pqueries: dict, extracted_seqs: dict) -> None:
@@ -451,8 +459,10 @@ class Assigner(classy.TreeSAPP):
                                        "Cannot create the nucleotide FASTA file of classified sequences!\n")
         return
 
-    def fetch_hmmsearch_outputs(self) -> dict:
+    def fetch_hmmsearch_outputs(self, really=False) -> dict:
         refpkg_hits = {}
+        if self.stage_status("search") and not really:
+            return refpkg_hits
         search_dir = self.stage_lookup(name="search").dir_path
         domtbl_re = re.compile(r'(.*)_to_(.*)_domtbl.txt')
         # Collect all files from output directory
@@ -463,16 +473,21 @@ class Assigner(classy.TreeSAPP):
                 refpkg_hits[(refpkg_prefix, queries)] = f_path
         return refpkg_hits
 
-    def fetch_epa_outputs(self) -> dict:
-        place_dir = self.stage_lookup("place").dir_path
+    def fetch_epa_outputs(self, really=False) -> dict:
         refpkg_jplace_files = {}
+        if self.stage_status("place") and not really:
+            return refpkg_jplace_files
+        place_dir = self.stage_lookup("place").dir_path
         for prefix, jplace_files in jplace_utils.organize_jplace_files(glob.glob(place_dir + '*.jplace')).items():
             if prefix in self.target_refpkgs:
                 refpkg_jplace_files[prefix] = jplace_files
         return refpkg_jplace_files
 
-    def fetch_multiple_alignments(self) -> dict:
-        return gather_split_msa(self.target_refpkgs, self.stage_lookup("align").dir_path)
+    def fetch_multiple_alignments(self, really=False) -> dict:
+        if self.stage_status("align") and not really:
+            return {}
+        else:
+            return gather_split_msa(self.target_refpkgs, self.stage_lookup("align").dir_path)
 
 
 def replace_contig_names(numeric_contig_index: dict, fasta_obj: fasta.FASTA):
@@ -778,10 +793,8 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
     :param n_proc: The number of alignment jobs to run in parallel
     :return: Dictionary of multiple sequence alignment (FASTA) files generated by hmmalign indexed by denominator
     """
-
     hmmalign_singlehit_files = dict()
     mfa_out_dict = dict()
-    LOGGER.info("Running hmmalign... ")
 
     start_time = time.time()
     task_list = list()
@@ -817,7 +830,7 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
     eci.run_apply_async_multiprocessing(func=eci.launch_write_command,
                                         arguments_list=task_list,
                                         num_processes=n_proc,
-                                        pbar_desc="hmmalign",
+                                        pbar_desc="Profile alignment",
                                         disable=silent)
 
     for prefix in mfa_out_dict:
@@ -1479,7 +1492,7 @@ def assign(sys_args):
     ##
 
     if ts_assign.stage_status("classify"):
-        tree_saps, itol_data = parse_raxml_output(jplace_files=ts_assign.fetch_epa_outputs(),
+        tree_saps, itol_data = parse_raxml_output(jplace_files=ts_assign.fetch_epa_outputs(really=True),
                                                   refpkg_dict=refpkg_dict,
                                                   pqueries=pqueries)
         # Set PQuery.consensus_placement attributes

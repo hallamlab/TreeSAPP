@@ -341,6 +341,18 @@ class TreeSAPP:
             self.ts_logger.error("No stages are set to run!\n")
             sys.exit(3)
 
+    def past_last_stage(self, stage_name=None):
+        if stage_name:
+            x = self.stage_lookup(name=stage_name).order
+        else:
+            x = self.current_stage.order
+
+        while x < len(self.stages):
+            if self.stages[x].run is True:
+                return False
+            x += 1
+        return True
+
     def set_stage_dir(self) -> None:
         self.stage_output_dir = self.current_stage.dir_path
         if not os.path.isdir(self.stage_output_dir):

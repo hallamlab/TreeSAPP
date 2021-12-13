@@ -233,8 +233,6 @@ def sub_indices_for_seq_names_jplace(jplace_dir, numeric_contig_index, refpkg_di
         try:
             refpkg = refpkg_dict[refpkg_name]
         except KeyError:
-            LOGGER.warning("Intermediate files found from a previous run will be skipped:\n\t" +
-                           "\n\t".join(jplace_files) + "\n")
             continue
         for jplace_path in jplace_files:
             jplace_data = jplace_parser(jplace_path)

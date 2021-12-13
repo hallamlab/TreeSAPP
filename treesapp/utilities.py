@@ -465,7 +465,7 @@ def complement_nucs(nuc_str: str):
 
     if replacements:
         LOGGER.warning("{} ambiguity character(s) ({}) replaced by 'N' while complementing\n"
-                        "".format(len(replacements), ', '.join(sorted(set(replacements)))))
+                       "".format(len(replacements), ', '.join(sorted(set(replacements)))))
     return comp_str
 
 

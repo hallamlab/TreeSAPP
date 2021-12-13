@@ -1,4 +1,4 @@
-## [0.11.3] - 2021-12-08
+## [0.11.3] - 2021-12-15
 ### Added
 - Option to use pairwise local-alignment clustering (with MMSeqs2) in `treesapp phylotu`
 
@@ -8,6 +8,9 @@
 - Problem updating a reference package with sequences from UniProt (>sp|... header).
 
 ### Changed
+- Checkpointing is improved in `treesapp assign`.
+  It is able to pick up outputs at any stage and decide what needs to be ran for each reference package.
+  Reference package targets can be modified between reruns.
 
 ## [0.11.2] - 2021-06-12
 ### Added
