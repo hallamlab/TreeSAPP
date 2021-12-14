@@ -179,7 +179,7 @@ class AssignerTester(unittest.TestCase):
         self.assertEqual({('McrA', "ORFs"): os.path.join(ts_assigner.var_output_dir,
                                                          'search',
                                                          'McrA_search_to_ORFs_domtbl.txt')},
-                         ts_assigner.fetch_hmmsearch_outputs())
+                         ts_assigner.fetch_hmmsearch_outputs(really=True))
 
         ts_assigner.current_stage = ts_assigner.stage_lookup("search")
         ts_assigner.target_refpkgs = []
@@ -189,6 +189,7 @@ class AssignerTester(unittest.TestCase):
                          ts_assigner.fetch_hmmsearch_outputs())
 
         # Intended functionality test
+        ts_assigner.change_stage_status("search", False)
         ts_assigner.target_refpkgs = ["McrA", "McrB"]
         hmm_domtbls = ts_assigner.fetch_hmmsearch_outputs()
         self.assertEqual(2,
