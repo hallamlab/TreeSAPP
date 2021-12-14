@@ -38,11 +38,7 @@ SETUP_METADATA = \
                                   sources=["treesapp/extensions/tree_parsermodule.cpp"],
                                   language="c++")
                         ],
-        "install_requires": ["samsum", "pyfastx",
-                             "pygtrie", "six",
-                             "biopython", "ete3",
-                             "numpy", "scipy", "scikit-learn", "joblib",
-                             "seaborn", "matplotlib", "tqdm", "packaging"],
+        "install_requires": open("requirements.txt").read().splitlines(),
         "setup_requires": [
             "setuptools>=50.0.0"
         ],
