@@ -41,8 +41,12 @@ setLevel("INFO")
 get_args <- function() {
   option_list = list(make_option(c("-t", "--treesapp_table"), type="character", default=NULL,
                                  help="Path to the classification table made by TreeSAPP.", metavar="character"),
-                     make_option(c("-o", "--output_dir"), type="character", default="./",
-                                 help="Path to a directory where the figures and tables should be saved. [ DEFAULT = './' ]", metavar="character"))
+                     make_option(c("-o", "--output_dir"), type="character", default="./", metavar="character",
+                                 help="Path to a directory where the figures and tables should be saved.
+              [ DEFAULT = './' ]"),
+                     make_option(c("-s", "--sample_names"), type="character", default=NULL,
+                                 help="Path to a tab-separated table mapping true sample names to
+              those derived from files used by treesapp assign."))
   
   opt_parser = OptionParser(option_list=option_list);
   opt = parse_args(opt_parser);
@@ -75,7 +79,7 @@ resolved_rank <- function(lineage_str) {
   return(rank)
 }
 
-# Load and format the TreeSAPP classification table, marker_contig_map.tsv
+# Load and format the TreeSAPP classification table, classifications.tsv
 load_classification_table <- function(ts_tbl_path) {
   dat <- read.table(file=ts_tbl_path,
                     header=TRUE,
@@ -84,8 +88,16 @@ load_classification_table <- function(ts_tbl_path) {
     mutate(Taxonomy = as.character(Taxonomy)) %>% 
     mutate(Resolved = as.character(lapply(Taxonomy, resolved_rank))) %>% 
     separate(col = Taxonomy, into = c('r', 'k', 'p', 'c', 'o', 'f', 'g', 's'), sep = "; ", fill = "right", remove = T) %>% 
-    select(Sample, Marker, Length, EvoDist, Resolved, k, p, c, o, f, g)
+    select(Sample, Query, Marker, Abundance, Length, EvoDist, Resolved, k, p, c, o, f, g)
   return(dat)
+}
+
+replace_sample_names <- function(assign_df, names_map_table) {
+  names_df <- read.table(names_map_table, sep = "\t", header = F)
+  names(names_df) <- c("Sample", "New_name")
+  assign_df <- left_join(assign_df, names_df, by="Sample") %>% 
+    mutate(Sample = New_name)
+  return(assign_df)
 }
 
 # Function for plotting evolutionary distance
@@ -124,8 +136,8 @@ taxa_bubbles <- function(ts_tbl_df, output_dir, max_evodist=2, rank=c) {
     geom_point(aes(size=n), pch=21, colour="black") +
     facet_wrap(~Marker) +
     scale_fill_viridis_d() +
-    guides(fill=F,
-           size=guide_legend(title="Relative abundance")) +
+    guides(fill="none",
+           size=guide_legend(title="Count")) +
     ylab(rank_name) +
     treesapp_theme
   ggsave(plot=bub_plt,
@@ -174,23 +186,35 @@ taxa_bars <- function(ts_tbl_df, output_dir, rank=c) {
   # Prep the data frame by tallying the different groups
   census_dat <- ts_tbl_df %>%
     filter(!is.na(!! rank_var)) %>% 
-    group_by(Sample, Marker, !! rank_var) %>% 
-    dplyr::count() %>% 
+    group_by(Sample, Marker, !! rank_var) %>%
+    summarise_at(vars(Abundance), sum) %>% 
     ungroup()
   # Generate the plot
-  taxa_hist <- ggplot(census_dat, aes(x=Marker, y=n, fill=!! rank_var)) +
-    geom_bar(stat="identity") +
-    scale_fill_viridis_d() +
-    guides(fill=guide_legend(title=rank_name)) +
-    xlab("Protein family") +
-    ylab("Count") +
-    facet_wrap(~Sample) +
+  taxa_hist <- ggplot(census_dat, aes(x=!! rank_var, y=Abundance, fill=Sample)) +
+    geom_bar(stat="identity", colour="black",
+             position=position_dodge(preserve = "single")) +
+    xlab(rank_name) +
+    ylab("Relative Abundance (TPM)") +
+    facet_grid(rows = vars(Marker),
+               # rows = vars(Sample),
+               shrink = T) +
+    guides(fill=guide_legend(title="Sample")) +
+    scale_fill_brewer(palette = "Set3") +
     treesapp_theme +
-    theme(plot.margin = unit(c(1, 2, 1, 2), "cm"))
+    theme(plot.margin = unit(c(0.5, 0.5, 0.5, 2), "cm"),
+          strip.placement = "outside",
+          strip.text.x = element_text(size = 5, margin = margin(1,20,1,20)),
+          strip.text = element_text(size = 10, margin = margin()),
+          strip.background.y = element_blank(),
+          panel.spacing.x = unit(0.5, "lines"))
   # Save the output
   ggsave(plot=taxa_hist,
          filename=paste0(output_dir, "/Taxon_abundances.png"),
-         height=6,
+         height=8,
+         width=10)
+  ggsave(plot=taxa_hist,
+         filename=paste0(output_dir, "/Taxon_abundances.pdf"),
+         height=8,
          width=10)
 }
 
@@ -223,6 +247,10 @@ rank_palette <- scale_fill_manual(name="Resolved", drop=TRUE,
 ##
 # Set up the options parser
 opt <- get_args()
+opt <- c()
+opt$treesapp_table <- "/media/connor/Rufus/treesapp_protocols/bp3/combined_classifications.tsv"
+opt$output_dir <- "/media/connor/Rufus/treesapp_protocols/bp3/"
+opt$sample_names <- "/media/connor/Rufus/treesapp_protocols/BionfProtocols_package/sample_name_map.tsv"
 
 
 if (is.null(opt$treesapp_table)){
@@ -234,14 +262,18 @@ list_dep_versions(deps)
 # Load the classification table
 ts_dat <- load_classification_table(opt$treesapp_table)
 
+if (! is.null(opt$sample_names)) {
+  ts_dat <- replace_sample_names(ts_dat, opt$sample_names)
+}
+
 # Summarize taxonomic classification resolution
 taxa_res_bar(ts_dat, opt$output_dir)
 
 # Make a bubble plot of taxonomy by sample name
-taxa_bubbles(ts_dat, opt$output_dir)
+taxa_bubbles(ts_dat, opt$output_dir, rank = o)
 
 # Make a faceted bar plot of taxonomy by sample name
-taxa_bars(ts_dat, opt$output_dir, f)
+taxa_bars(ts_dat, opt$output_dir, rank = o)
 
 # Make a density plot of evolutionary distance faceted by RefPkg
 evodist_density(ts_dat, opt$output_dir)
