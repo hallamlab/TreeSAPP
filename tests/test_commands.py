@@ -431,11 +431,8 @@ class TreesappTester(unittest.TestCase):
 
     # def test_tmp(self):
     #     from treesapp import assign
-    #     os.chdir("/media/connor/Rufus/Koonkie/Mangrove")
-    #     cmd = "--fastx_input Metagenomes/final_contigs/SRR7543971_final.contigs.fa " \
-    #           "-o TreeSAPP_assign_output/SRR7543971_classifications/ " \
-    #           "--refpkg_dir RefPkgs/ --targets GH5,GH26,GH57,GT35,GH18,GH103,BetB " \
-    #           "--metric tpm --trim_align --num_procs 12 --stage continue --overwrite"
+    #     os.chdir("")
+    #     cmd = ""
     #     assign.assign(cmd.split())
     #     return
 
