@@ -15,6 +15,9 @@ LOGGER = logging.getLogger(logger.logger_name())
 
 
 class PhyloPlace:
+    """
+    A class for storing and using query sequence placement JPlace data.
+    """
     n_key = 'n'
     p_key = 'p'
 
@@ -167,7 +170,7 @@ class PQuery:
         self.placements = list()
         self.classified = True
         # Sourced from phylogenetic placement (JPlace file)
-        self.consensus_placement = None
+        self.consensus_placement = None  # type: PhyloPlace
         self.parent_node = ""
         self.avg_evo_dist = 0.0
         self.distances = ""
@@ -461,7 +464,7 @@ class PQuery:
         """
         Often times, a single PQuery (query sequence mapped onto a phylogeny) may be inserted into the phylogeny
         at multiple edges with similar likelihood. This function aims to select the single best placement based on
-        it's respective Likelihood Weight Ratio (LWR)/PQuery like_weight_ratio attribute.
+        its respective Likelihood Weight Ratio (LWR)/PQuery like_weight_ratio attribute.
 
         The following PQuery attributes are modified:
         1. 'consensus_placement' attribute is set to this placement with maximum LWR.
@@ -479,6 +482,9 @@ class PQuery:
                 if pplace.like_weight_ratio > max_lwr:
                     max_lwr = pplace.like_weight_ratio
                     self.consensus_placement = pplace
+                    if self.node_map and self.consensus_placement.mean_tip_length == 0.0:
+                        self.consensus_placement.calc_mean_tip_length(internal_leaf_node_map=self.node_map,
+                                                                      ref_tree=ref_tree)
             else:
                 LOGGER.error("Unexpected state of PhyloPlace instance!\n{}\n".format(pplace.summary()))
                 sys.exit(3)
@@ -496,6 +502,30 @@ class PQuery:
         self.lct = self.lineage
 
         return
+
+
+def distance_between_placements(pplace_a: PhyloPlace, pplace_b: PhyloPlace, ref_tree: Tree) -> float:
+    """
+    Finds the branch-length distance separating two placements on a reference tree.
+
+    :param pplace_a: PhyloPlace object representing a PQuery
+    :param pplace_b: PhyloPlace object representing a PQuery
+    :param ref_tree: An ETE3 Tree instance
+    :return: The branch-length distance separating two PhyloPlace instances on a reference tree
+    """
+    up_node_a, down_node_a = entish.get_ete_edge(ref_tree, pplace_a.edge_num)
+    up_node_b, down_node_b = entish.get_ete_edge(ref_tree, pplace_b.edge_num)
+    branch_dist = ref_tree.get_distance(up_node_a, up_node_b)
+    if pplace_a.edge_num == pplace_b.edge_num and branch_dist == 0.0:
+        dist_sum = abs(pplace_a.distal_length - pplace_b.distal_length)
+    elif down_node_a == up_node_b:
+        dist_sum = branch_dist - pplace_a.distal_length + pplace_b.distal_length
+    elif down_node_b == up_node_a:
+        dist_sum = branch_dist - pplace_b.distal_length + pplace_a.distal_length
+    else:
+        dist_sum = branch_dist + pplace_a.distal_length + pplace_b.distal_length
+
+    return round(dist_sum, 4)
 
 
 def assignments_to_pqueries(classified_lines: list) -> dict:
