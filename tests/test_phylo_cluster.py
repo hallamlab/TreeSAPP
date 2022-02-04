@@ -343,6 +343,29 @@ class PhyloClusterTester(unittest.TestCase):
         self.assertEqual('A', outgroup.name)
         return
 
+    def test_centroids(self):
+        from treesapp import phylo_cluster
+        from treesapp import fasta
+        p_clust = phylo_cluster.PhyloClust()
+        p_clust.clustering_mode = "ref_guided"
+        p_clust.clustered_pqueries = []
+        output_fa = os.path.join(self.tmp_dir, "final_outputs", "phylotu_centroids.fasta")
+
+        phylo_cluster.cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
+                                         "--jplace", get_test_data("epa_result.jplace"),
+                                         "--output", self.tmp_dir,
+                                         "--mode", "ref_guided"])
+
+        p_clust.centroids(ref_tree=self.taxa_tree, min_centroid_seq_length=300)
+        self.assertTrue(os.path.isfile(output_fa))
+        self.assertEqual(10, len(fasta.read_fasta_to_dict(output_fa)))
+        return
+
+    def test_cluster_error_stats(self):
+        cluster_stats_tbl = os.path.join(self.tmp_dir, "final_outputs", "phylotu_cluster_stats.tsv")
+        self.assertTrue(os.path.isfile(cluster_stats_tbl))
+        return
+
     def test_cluster_phylogeny(self):
         from treesapp.phylo_cluster import cluster_phylogeny
         # Should fail when multiple refpkgs provided
@@ -384,6 +407,29 @@ class PhyloClusterTester(unittest.TestCase):
                            "--output", self.tmp_dir,
                            "--mode", "local",
                            "--delete"])
+        return
+
+
+class PhylotuTester(unittest.TestCase):
+    def test_calculate_pairwise_placement_dists(self):
+        from treesapp import phylo_cluster
+        potu = phylo_cluster.PhylOTU('1')
+        potu.cardinality = 1
+        with pytest.raises(SystemExit):
+            potu.calculate_pairwise_placement_dists(ref_tree=Tree("(A:1,(B:0.1,(E:0.08,D:0.02):0.2):0.2);"))
+        return
+
+    def test_find_centroid(self):
+        from treesapp import phylo_seq
+        from treesapp import phylo_cluster
+        pq_1 = phylo_seq.PQuery()
+        pq_2 = phylo_seq.PQuery()
+        pq_3 = phylo_seq.PQuery()
+        potu = phylo_cluster.PhylOTU('2')
+        potu.pqueries = [pq_1, pq_2, pq_3]
+        potu.cardinality = len(potu.pqueries)
+        potu.find_centroid()
+        self.assertEqual(pq_1, potu.centroid)
         return
 
 
