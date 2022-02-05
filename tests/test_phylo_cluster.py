@@ -349,21 +349,31 @@ class PhyloClusterTester(unittest.TestCase):
         p_clust = phylo_cluster.PhyloClust()
         p_clust.clustering_mode = "ref_guided"
         p_clust.clustered_pqueries = []
+        p_clust.output_dir = self.tmp_dir
         output_fa = os.path.join(self.tmp_dir, "final_outputs", "phylotu_centroids.fasta")
 
         phylo_cluster.cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
-                                         "--jplace", get_test_data("epa_result.jplace"),
+                                         "--assign_output", get_test_data("marker_test_results"),
                                          "--output", self.tmp_dir,
                                          "--mode", "ref_guided"])
-
-        p_clust.centroids(ref_tree=self.taxa_tree, min_centroid_seq_length=300)
         self.assertTrue(os.path.isfile(output_fa))
         self.assertEqual(10, len(fasta.read_fasta_to_dict(output_fa)))
+        # TODO: Re-jig so cluster_phylogeny() doesn't need to be executed first
+        p_clust.centroids(ref_tree=self.taxa_tree,
+                          min_centroid_seq_length=300)
         return
 
-    def test_cluster_error_stats(self):
+    def test_report_cluster_stats(self):
+        from treesapp import phylo_cluster
+        p_clust = phylo_cluster.PhyloClust()
+        p_clust.output_dir = self.tmp_dir
+        os.mkdir(p_clust.final_dir_path())
         cluster_stats_tbl = os.path.join(self.tmp_dir, "final_outputs", "phylotu_cluster_stats.tsv")
+        p_clust.report_cluster_stats(sep=',')
         self.assertTrue(os.path.isfile(cluster_stats_tbl))
+        with open(cluster_stats_tbl) as tbl:
+            # Check the number of fields in the file header
+            self.assertEqual(6, len(tbl.readlines()[0].split(',')))
         return
 
     def test_cluster_phylogeny(self):
@@ -428,8 +438,20 @@ class PhylotuTester(unittest.TestCase):
         potu = phylo_cluster.PhylOTU('2')
         potu.pqueries = [pq_1, pq_2, pq_3]
         potu.cardinality = len(potu.pqueries)
-        potu.find_centroid()
+        potu.distances = {1: [0.66, 0.78],
+                          0: [0.66, 0.33],
+                          2: [0.99, 0.33]}
+        potu.find_centroid(min_seq_len=0.0)
         self.assertEqual(pq_1, potu.centroid)
+        return
+
+    def test_get_cluster_dist_stats(self):
+        from treesapp import phylo_cluster
+        potu = phylo_cluster.PhylOTU('2')
+        potu.distances = {1: [0.66, 0.78, 0.66, 0.33, 0.99, 0.33, 0.0]}
+        row = potu.get_cluster_dist_stats()
+        self.assertEqual(6, len(row))
+        self.assertEqual(potu.number, row[0])
         return
 
 

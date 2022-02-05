@@ -7,7 +7,7 @@ from json import load, dumps
 
 from ete3 import Tree
 
-from treesapp.phylo_seq import PQuery, PhyloPlace, split_placements
+from treesapp import phylo_seq
 from treesapp import entish
 from treesapp.phylo_dist import parent_to_tip_distances
 from treesapp import logger
@@ -51,8 +51,8 @@ class JPlace:
         elif self.pqueries[0] == '{}':
             summary_string += "\tNone.\n"
         else:
-            for placement in self.pqueries:  # type: PhyloPlace
-                if isinstance(placement, PhyloPlace):
+            for placement in self.pqueries:  # type: phylo_seq.PhyloPlace
+                if isinstance(placement, phylo_seq.PhyloPlace):
                     summary_string += placement.summary()
                 else:
                     summary_string += str(placement)
@@ -86,9 +86,9 @@ class JPlace:
         # Format the placements as JSON
         jplace_str += "\t\"placements\": [\n\t"
         new_placement_collection = []
-        for pquery in self.pqueries:  # type: PQuery
+        for pquery in self.pqueries:  # type: phylo_seq.PQuery
             if pquery.classified:
-                new_placement_collection.append(dumps(PhyloPlace.format_pplace_to_jplace(pquery.placements)))
+                new_placement_collection.append(dumps(phylo_seq.PhyloPlace.format_pplace_to_jplace(pquery.placements)))
         if len(new_placement_collection) == 0:
             return
         jplace_str += ",\n\t".join(new_placement_collection)
@@ -148,9 +148,9 @@ def demultiplex_pqueries(jplace_data: JPlace, pquery_map=None) -> list:
     """
     tree_placement_queries = list()
     for pquery in jplace_data.pqueries:
-        pquery_obj = PQuery()
+        pquery_obj = phylo_seq.PQuery()
         # Copy the essential information to the PQuery instance
-        pquery_obj.placements = split_placements(pquery)
+        pquery_obj.placements = phylo_seq.split_placements(pquery)
         pquery_obj.name_placed_sequence()
 
         if pquery_map:
@@ -177,8 +177,8 @@ def calc_pquery_mean_tip_distances(jplace_data: JPlace, internal_node_leaf_map: 
     jplace_tree = entish.load_ete3_tree(jplace_data.tree)
     parent_leaf_memoizer = dict()
 
-    for pquery in jplace_data.pqueries:  # type: PQuery
-        for pplace in pquery.placements:  # type: PhyloPlace
+    for pquery in jplace_data.pqueries:  # type: phylo_seq.PQuery
+        for pplace in pquery.placements:  # type: phylo_seq.PhyloPlace
             # Populate the memoization table to speed up length calculations for large JPlace files
             leaf_children = internal_node_leaf_map[pplace.edge_num]
             if len(leaf_children) > 1:
