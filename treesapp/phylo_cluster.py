@@ -40,7 +40,7 @@ class PhylOTU:
         self.cardinality = 0
         self.edges = []
         self.taxon = ts_taxonomy.Taxon('', '')
-        self.tree_node = []
+        self.tree_node = TreeNode()
         self.pqueries = []
         self.distances = {}
         self.centroid = phylo_seq.PQuery()
@@ -76,13 +76,27 @@ class PhylOTU:
             i += 1
         return
 
+    def calculate_pairwise_branch_dists(self) -> None:
+        """Calculates all pairwise distances for a PhylOTU's tree_node - representing the tree created for a cluster."""
+        query_leaf_nodes = [self.tree_node.get_leaves_by_name(pq.place_name)[0] for pq in self.pqueries]
+        i, j = 0, 0
+        while i < len(query_leaf_nodes):
+            self.distances[i] = []
+            while j < len(query_leaf_nodes):
+                if i != j:
+                    self.distances[i].append(query_leaf_nodes[i].get_distance(query_leaf_nodes[j]))
+                j += 1
+            j = 0
+            i += 1
+        return
+
     def find_centroid(self, min_seq_len=30.0) -> None:
         """Find the PQuery of minimal root-mean squared deviation."""
         min_idx = -1
         if self.cardinality == 0:
             return
         for i in self.distances:
-            if len(self.pqueries[i].seq) < min_seq_len:
+            if self.pqueries[i].seq_len < min_seq_len:
                 continue
             rmsd = sqrt(sum([x*x for x in self.distances[i]]))
             if rmsd < self.rmsd:
@@ -255,10 +269,10 @@ class PhyloClust(ts_classy.TreeSAPP):
                                             help="A regular expression for parsing the sample name from a query "
                                                  "sequence name. Example: '^(\d+)\.a:.*'. [ DEFAULT = None ].")
         self.arg_parser.optopt.add_argument("--centroid_proportion", dest="centroid_p_hmm",
-                                            default=0.8, required=False, type=float,
+                                            default=0.6, required=False, type=float,
                                             help="The proportion of the reference package profile HMM a candidate centroid must exceed."
                                                  "No sequence convering less than this proportion will be used as a centroid."
-                                                 "[ DEFAULT = 0.8 ]")
+                                                 "[ DEFAULT = 0.6 ]")
         self.arg_parser.add_compute_miscellany()
         self.arg_parser.add_delete()
         # TODO: Implement and validate these options
@@ -762,8 +776,7 @@ class PhyloClust(ts_classy.TreeSAPP):
             if self.clustering_mode == "ref_guided":
                 p_otu.calculate_pairwise_placement_dists(ref_tree=ref_tree)
             elif self.clustering_mode == "de_novo":
-                # TODO: Find the pairwise leaf distances
-                pass
+                p_otu.calculate_pairwise_branch_dists()
             elif self.clustering_mode == "local":
                 # The pairwise alignment distances have already been collected
                 pass
@@ -801,6 +814,8 @@ class PhyloClust(ts_classy.TreeSAPP):
 
         for p_otu in self.cluster_index.values():  # type: PhylOTU
             if not p_otu.cardinality:
+                continue
+            if not p_otu.centroid:
                 continue
             cluster_stats_tbl.write(sep.join([str(x) for x in p_otu.get_cluster_dist_stats()]) + "\n")
 
