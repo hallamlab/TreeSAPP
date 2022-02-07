@@ -355,12 +355,12 @@ class PhyloClusterTester(unittest.TestCase):
         phylo_cluster.cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
                                          "--assign_output", get_test_data("marker_test_results"),
                                          "--output", self.tmp_dir,
-                                         "--mode", "ref_guided"])
+                                         "--mode", "ref_guided",
+                                         "--centroid_proportion", "0.8"])
         self.assertTrue(os.path.isfile(output_fa))
-        self.assertEqual(10, len(fasta.read_fasta_to_dict(output_fa)))
+        self.assertEqual(9, len(fasta.read_fasta_to_dict(output_fa)))
         # TODO: Re-jig so cluster_phylogeny() doesn't need to be executed first
-        p_clust.centroids(ref_tree=self.taxa_tree,
-                          min_centroid_seq_length=300)
+        p_clust.centroids(ref_tree=self.taxa_tree)
         return
 
     def test_report_cluster_stats(self):
@@ -385,10 +385,11 @@ class PhyloClusterTester(unittest.TestCase):
                                "--jplace", get_test_data("epa_result.jplace")])
 
         # TODO: Remove once PSC with ref-guided is implemented
-        cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
-                           "--jplace", get_test_data("epa_result.jplace"),
-                           "--output", self.tmp_dir,
-                           "--mode", "ref_guided"])
+        # cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
+        #                    "--jplace", get_test_data("epa_result.jplace"),
+        #                    "--output", self.tmp_dir,
+        #                    "--mode", "ref_guided",
+        #                    "--centroid_proportion", "0.25"])
 
         # Test input is a treesapp assign output directory
         cluster_phylogeny(["--refpkg_path", self.refpkg.f__pkl,
@@ -396,6 +397,7 @@ class PhyloClusterTester(unittest.TestCase):
                            "--output", self.tmp_dir,
                            "--alpha", str(0.4),
                            "--mode", "de_novo",
+                           "--centroid_proportion", "0.25",
                            "--delete"])
         self.assertFalse(os.path.isdir(os.path.join(self.tmp_dir, "intermediates")))
 
@@ -416,6 +418,7 @@ class PhyloClusterTester(unittest.TestCase):
                            "--assign_output", get_test_data("test_output_TarA"),
                            "--output", self.tmp_dir,
                            "--mode", "local",
+                           "--centroid_proportion", "0.25",
                            "--delete"])
         return
 
@@ -427,6 +430,25 @@ class PhylotuTester(unittest.TestCase):
         potu.cardinality = 1
         with pytest.raises(SystemExit):
             potu.calculate_pairwise_placement_dists(ref_tree=Tree("(A:1,(B:0.1,(E:0.08,D:0.02):0.2):0.2);"))
+        return
+
+    def test_calculate_pairwise_branch_dists(self):
+        from treesapp import phylo_cluster
+        from treesapp import phylo_seq
+        potu = phylo_cluster.PhylOTU('1')
+        potu.cardinality = 1
+        potu.tree_node = Tree("(A:1,(B:0.1,(E:0.08,D:0.02):0.2):0.2);")
+        # Fail because no pqueries
+        with pytest.raises(SystemExit):
+            potu.calculate_pairwise_branch_dists()
+
+        # Add PQuery instances to PhylOTU.pqueries
+        potu.pqueries.append(phylo_seq.PQuery(name="A"))
+        potu.pqueries.append(phylo_seq.PQuery(name="E"))
+        potu.pqueries.append(phylo_seq.PQuery(name="D"))
+        potu.calculate_pairwise_branch_dists()
+        self.assertEqual(3, len(potu.distances))
+        self.assertEqual([1.48, 0.1], potu.distances[1])  # For leaf-node 'E'
         return
 
     def test_find_centroid(self):

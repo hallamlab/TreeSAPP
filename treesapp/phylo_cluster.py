@@ -78,6 +78,10 @@ class PhylOTU:
 
     def calculate_pairwise_branch_dists(self) -> None:
         """Calculates all pairwise distances for a PhylOTU's tree_node - representing the tree created for a cluster."""
+        if len(self.pqueries) == 0:
+            LOGGER.error("Unable to calculate pairwise distances between PQueries from empty list.\n")
+            sys.exit(1)
+
         query_leaf_nodes = [self.tree_node.get_leaves_by_name(pq.place_name)[0] for pq in self.pqueries]
         i, j = 0, 0
         while i < len(query_leaf_nodes):

@@ -82,7 +82,12 @@ class PhyloPlace:
     def calc_mean_tip_length(self, internal_leaf_node_map: dict, ref_tree, memoization_map=None) -> None:
         if isinstance(ref_tree, str):
             ref_tree = entish.load_ete3_tree(ref_tree)
-        leaf_children = internal_leaf_node_map[self.edge_num]
+        try:
+            leaf_children = internal_leaf_node_map[self.edge_num]
+        except KeyError:
+            LOGGER.error("Unable to find edge '{}' in reference tree ({} edges).\n".format(self.edge_num,
+                                                                                           len(ref_tree)))
+            sys.exit(1)
         if len(leaf_children) > 1:
             if memoization_map:
                 try:
@@ -151,9 +156,9 @@ class PQuery:
     A class for sequences that were properly mapped to its gene tree.
     While it mostly contains EPA outputs, functions are used to make 'biological' sense out of these outputs.
     """
-    def __init__(self, lineage_str="", rank_str=""):
+    def __init__(self, lineage_str="", rank_str="", name=""):
         self.seq_name = ""  # Full sequence name (from FASTA header)
-        self.place_name = ""  # A unique name for the query sequence placed (in case multiple subsequences are placed)
+        self.place_name = name  # A unique name for the query sequence placed (in case multiple subsequences are placed)
         self.ref_name = ""  # Code name of the tree it mapped to (e.g. McrA)
         self.abundance = None  # Either the number of occurrences, or the FPKM of that sequence
         self.node_map = dict()  # A dictionary mapping internal nodes (Jplace) to all leaf nodes
