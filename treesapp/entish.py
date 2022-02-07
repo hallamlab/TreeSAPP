@@ -99,21 +99,6 @@ def get_ete_edge(ete_tree: Tree, edge_name) -> (TreeNode, TreeNode):
     return
 
 
-def find_mean_pairwise_distances(children):
-    pairwise_dists = list()
-    for rleaf in children:
-        for qleaf in children:
-            if rleaf.name != qleaf.name:
-                pairwise_dists.append(rleaf.get_distance(qleaf))
-    return sum(pairwise_dists) / len(pairwise_dists)
-
-
-def get_tip_distances(parent_node):
-    children = parent_node.get_leaves()
-    distances = [parent_node.get_distance(child) for child in children]
-    return distances
-
-
 def load_ete3_tree(newick_tree) -> Tree:
     if isinstance(newick_tree, str):
         return Tree(re.sub(r"{\d+}", '', newick_tree))
@@ -232,21 +217,6 @@ def annotate_partition_tree(refpkg_name: str, leaf_nodes: list, bipart_tree: str
     annotated_tree.close()
 
     return
-
-
-def tree_leaf_distances(tree: Tree) -> (float, list):
-    """
-    Calculates the maximum branch length distance observed in the tree
-    Compiles a list of all distances from the root to the leaves
-
-    :param tree: An ete3 Tree instance
-    :return:
-    """
-    leaf_distances = []
-    for leaf in tree.get_leaves():
-        leaf_distances.append(tree.get_distance(leaf))
-    max_dist = max([n.dist for n in tree.traverse("postorder")])
-    return max_dist, leaf_distances
 
 
 def index_tree_edges(tree: str):

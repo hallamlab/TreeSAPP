@@ -1,3 +1,15 @@
+## [0.] - 2022-02
+### Added
+- Centroid inference for pOTUs based on the midpoint, or balance point, of all cluster members.
+- A table summarizing the intra-cluster evolutionary distances ('phylotu_cluster_stats.tsv').
+- 
+
+### Fixed
+- Estimation of local-alignment distances for a taxonomic rank - now only considers sequences from monophyletic taxa.
+
+### Changed
+- 
+
 ## [0.11.3] - 2021-12-15
 ### Added
 - Option to use pairwise local-alignment clustering (with MMSeqs2) in `treesapp phylotu`

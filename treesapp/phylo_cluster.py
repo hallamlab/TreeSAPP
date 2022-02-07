@@ -5,6 +5,7 @@ import sys
 import re
 import glob
 import logging
+from math import sqrt
 
 from Bio import Align
 import numpy as np
@@ -38,9 +39,108 @@ class PhylOTU:
         self.number = name
         self.cardinality = 0
         self.edges = []
-        self.taxon = None
-        self.tree_node = None
+        self.taxon = ts_taxonomy.Taxon('', '')
+        self.tree_node = TreeNode()
+        self.pqueries = []
+        self.distances = {}
+        self.centroid = phylo_seq.PQuery()
+        self.rmsd = 1E3  # Root mean-squared distance from the pOTU centroid
         return
+
+    def __str__(self):
+        return "PhylOTU_{} '{}'; cardinality={}; nodes={}; taxon='{}'".format(self.number,
+                                                                              self.centroid.place_name,
+                                                                              self.cardinality,
+                                                                              len(self.tree_node),
+                                                                              self.taxon.prefix_taxon())
+
+    def calculate_pairwise_placement_dists(self, ref_tree: Tree) -> None:
+        # TODO: Integrate pendant lengths in calculation
+        if self.cardinality == 0:
+            return
+        elif len(self.pqueries) == 0:
+            LOGGER.error("Unable to calculate pairwise distances between PQueries from empty list.\n")
+            sys.exit(1)
+        i, j = 0, 0
+        while i < len(self.pqueries):
+            self.distances[i] = []
+            while j < len(self.pqueries):
+                if i != j:
+                    self.distances[i].append(phylo_seq.distance_between_placements(
+                        self.pqueries[i].consensus_placement,
+                        self.pqueries[j].consensus_placement,
+                        ref_tree
+                    ))
+                j += 1
+            j = 0
+            i += 1
+        return
+
+    def calculate_pairwise_branch_dists(self) -> None:
+        """Calculates all pairwise distances for a PhylOTU's tree_node - representing the tree created for a cluster."""
+        if len(self.pqueries) == 0:
+            LOGGER.error("Unable to calculate pairwise distances between PQueries from empty list.\n")
+            sys.exit(1)
+
+        query_leaf_nodes = [self.tree_node.get_leaves_by_name(pq.place_name)[0] for pq in self.pqueries]
+        i, j = 0, 0
+        while i < len(query_leaf_nodes):
+            self.distances[i] = []
+            while j < len(query_leaf_nodes):
+                if i != j:
+                    self.distances[i].append(query_leaf_nodes[i].get_distance(query_leaf_nodes[j]))
+                j += 1
+            j = 0
+            i += 1
+        return
+
+    def find_centroid(self, min_seq_len=30.0) -> None:
+        """Find the PQuery of minimal root-mean squared deviation."""
+        min_idx = -1
+        if self.cardinality == 0:
+            return
+        for i in self.distances:
+            if self.pqueries[i].seq_len < min_seq_len:
+                continue
+            rmsd = sqrt(sum([x*x for x in self.distances[i]]))
+            if rmsd < self.rmsd:
+                self.rmsd = rmsd
+                min_idx = i
+
+        if min_idx >= 0:
+            self.centroid = self.pqueries[min_idx]
+        else:
+            self.centroid = None
+
+        # Remove distances for all PQueries other than the centroid - for stats reporting
+        for i in list(self.distances.keys()):
+            if i != min_idx:
+                self.distances.pop(i)
+
+        return
+
+    def centroid_format_fasta(self):
+        if not self.centroid.seq:
+            return ""
+        else:
+            return ">{}\n{}\n".format(self.__str__(), self.centroid.seq)
+
+    def get_cluster_dist_stats(self) -> list:
+        """
+        Returns a list with the following elements:
+            pOTU, Size, RMSD, Distance.Mean, Distance.Median, Distance.Max
+        """
+        if self.cardinality == 1:
+            return [self.number, 1, 0.0, 0.0, 0.0, 0.0]
+
+        row = [self.number]
+        row.append(len(self.pqueries))
+        row.append(self.rmsd)
+        _idx, centroid_dists = self.distances.popitem()
+        row.append(sum(centroid_dists) / len(centroid_dists))
+        row.append(sorted(centroid_dists)[round(len(centroid_dists) / 2)])
+        row.append(max(centroid_dists))
+        return row
 
 
 class PhyloClust(ts_classy.TreeSAPP):
@@ -54,6 +154,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.pre_mode = ""
         self.alpha = 0
         self.percentile = 0.99
+        self.min_centroid_length = 0.0
         self.tax_rank = "species"
         self.normalize = False
         self.jplace_files = {}
@@ -76,6 +177,12 @@ class PhyloClust(ts_classy.TreeSAPP):
                        2: ts_classy.ModuleFunction("cluster", 2)}
 
         return
+
+    def final_dir_path(self) -> str:
+        return self.output_dir + os.sep + "final_outputs" + os.sep
+
+    def var_dir_path(self) -> str:
+        return self.output_dir + os.sep + "intermediates" + os.sep
 
     def load_args(self, args) -> None:
         # Set and create the output directory
@@ -115,6 +222,8 @@ class PhyloClust(ts_classy.TreeSAPP):
             self.clean = True
         else:
             self.clean = False
+
+        self.min_centroid_length = round(args.centroid_p_hmm * self.ref_pkg.hmm_length())
         # Determine whether to normalise the evolutionary distances or not
         # if args.evo_dist == "red":
         #     self.normalize = True
@@ -163,6 +272,11 @@ class PhyloClust(ts_classy.TreeSAPP):
                                             default="", required=False, type=str,
                                             help="A regular expression for parsing the sample name from a query "
                                                  "sequence name. Example: '^(\d+)\.a:.*'. [ DEFAULT = None ].")
+        self.arg_parser.optopt.add_argument("--centroid_proportion", dest="centroid_p_hmm",
+                                            default=0.6, required=False, type=float,
+                                            help="The proportion of the reference package profile HMM a candidate centroid must exceed."
+                                                 "No sequence convering less than this proportion will be used as a centroid."
+                                                 "[ DEFAULT = 0.6 ]")
         self.arg_parser.add_compute_miscellany()
         self.arg_parser.add_delete()
         # TODO: Implement and validate these options
@@ -195,6 +309,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         return
 
     def load_sample_placement_files(self) -> None:
+        """Sets the paths to placement files (JPlace and assign output directory) in the PhyloClust instance."""
         # Format the JPlace files dictionary, mapping sample names to file paths
         if self.source_type == "jplace":
             if self.clustering_mode == "de_novo":
@@ -230,8 +345,8 @@ class PhyloClust(ts_classy.TreeSAPP):
                                 os.remove(f_path)
                     if len(os.listdir(stage.dir_path)) == 0:
                         os.rmdir(stage.dir_path)
-            if len(os.listdir(self.var_output_dir)) == 0:
-                os.rmdir(self.var_output_dir)
+            if len(os.listdir(self.var_dir_path())) == 0:
+                os.rmdir(self.var_dir_path())
         return
 
     @staticmethod
@@ -341,6 +456,10 @@ class PhyloClust(ts_classy.TreeSAPP):
         aligner = Align.PairwiseAligner()
         aligner.mode = "global"
         for taxon, seq_names in taxon_leaf_map.items():
+            seq_names = self.ref_pkg.get_monophyletic_clades(taxon_name=taxon,
+                                                             leaf_nodes=set(seq_names))[0]
+            if not seq_names:
+                continue
             r = seq_names.pop()  # type: str
             while seq_names:
                 for q in seq_names:
@@ -590,10 +709,16 @@ class PhyloClust(ts_classy.TreeSAPP):
         return
 
     def assign_pqueries_to_alignment_clusters(self, pqueries: dict, cluster_map: dict) -> None:
+        """Converts the Cluster to PhylOTU objects and populates PhyloClust.cluster_index."""
         pquery_cluster_map = {}
         for num, cluster in cluster_map.items():  # type: (str, seq_clustering.Cluster)
             pquery_cluster_map.update({place_name: int(num) for place_name, _id in cluster.members})
             self.cluster_index[int(num)] = PhylOTU(name=int(num))
+            self.cluster_index[int(num)].distances[0] = []
+            for seq in cluster.members:
+                name, aln_id = seq
+                if name != cluster.representative:
+                    self.cluster_index[int(num)].distances[0].append(float(aln_id))
 
         for sample_id in pqueries:
             if self.ref_pkg.prefix not in pqueries[sample_id]:
@@ -602,6 +727,7 @@ class PhyloClust(ts_classy.TreeSAPP):
                 pquery.p_otu = pquery_cluster_map[pquery.place_name]
                 self.add_pquery_count_to_sample_potu_mat(pquery)
                 self.cluster_index[pquery.p_otu].cardinality += 1
+
         return
 
     def set_pquery_sample_name(self, pquery: phylo_seq.PQuery, default_sample: str) -> None:
@@ -628,21 +754,82 @@ class PhyloClust(ts_classy.TreeSAPP):
 
     def write_cluster_taxon_labels(self) -> None:
         """Writes a two-column table mapping each cluster to its respective taxonomic lineage."""
-        if self.clustering_mode == "local":
-            return
         tbl_string = ""
         for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
             lineage = "; ".join([t.prefix_taxon() for t in p_otu.taxon.lineage()])
             tbl_string += "{}\t{}\n".format(cluster_num, lineage)
 
-        taxa_tbl = self.open_output_file(os.path.join(self.final_output_dir, "phylotu_taxa.tsv"))
+        taxa_tbl = self.open_output_file(os.path.join(self.final_dir_path(), "phylotu_taxa.tsv"))
         taxa_tbl.write(tbl_string)
         taxa_tbl.close()
         return
 
-    def write_otu_matrix(self, sep="\t") -> None:
+    def add_pqueries_to_clusters(self):
+        # Load the PQueries for each PhylOTU object
+        for pquery in self.clustered_pqueries:  # type: phylo_seq.PQuery
+            p_otu = self.cluster_index[pquery.p_otu]  # type: PhylOTU
+            p_otu.pqueries.append(pquery)
+        return
+
+    def centroids(self, ref_tree):
+        """Defines a centroid for each pOTU and writes them to a FASTA file."""
+        centroids_str = ""
+        for p_otu in self.cluster_index.values():  # type: PhylOTU
+            if not p_otu.cardinality:
+                continue
+            if self.clustering_mode == "ref_guided":
+                p_otu.calculate_pairwise_placement_dists(ref_tree=ref_tree)
+            elif self.clustering_mode == "de_novo":
+                p_otu.calculate_pairwise_branch_dists()
+            elif self.clustering_mode == "local":
+                # The pairwise alignment distances have already been collected
+                pass
+            else:
+                LOGGER.error("Unrecognized clustering mode '{}'.\n".format(self.clustering_mode))
+                sys.exit(1)
+
+            # Filter potential centroids by length - only use sequences exceeding `model_proportion` of the HMM length
+            p_otu.find_centroid(min_seq_len=self.min_centroid_length)
+            if p_otu.centroid is None:
+                LOGGER.debug("Unable to assign centroid for cluster {}.\n".format(p_otu.number))
+                continue
+
+            # Write the centroid sequences to a FASTA file
+            centroids_str += p_otu.centroid_format_fasta()
+
+        centroids_fa = self.open_output_file(os.path.join(self.final_dir_path(),
+                                                          "phylotu_centroids.fasta"))
+        centroids_fa.write(centroids_str)
+        centroids_fa.close()
+
+        return
+
+    def report_cluster_stats(self, sep="\t") -> None:
+        """
+        Reports the root-mean-squared distance of cluster members,
+        and summarizes the distances of the centroid placement to cluster members
+        :param sep: Separator to use for the table's fields
+        :return: None
+        """
+        fields = ["pOTU", "Size", "RMSD", "Distance.Mean", "Distance.Median", "Distance.Max"]
+
+        cluster_stats_tbl = self.open_output_file(os.path.join(self.final_dir_path(), "phylotu_cluster_stats.tsv"))
+        cluster_stats_tbl.write(sep.join(fields) + "\n")
+
+        for p_otu in self.cluster_index.values():  # type: PhylOTU
+            if not p_otu.cardinality:
+                continue
+            if not p_otu.centroid:
+                continue
+            cluster_stats_tbl.write(sep.join([str(x) for x in p_otu.get_cluster_dist_stats()]) + "\n")
+
+        cluster_stats_tbl.close()
+
+        return
+
+    def write_otu_matrix(self, sep="\t", model_proportion=0.5) -> None:
         """Writes a typical OTU matrix with OTU IDs for rows and samples for columns."""
-        otu_mat = self.open_output_file(os.path.join(self.final_output_dir, "phylotu_matrix.tsv"))
+        otu_mat = self.open_output_file(os.path.join(self.final_dir_path(), "phylotu_matrix.tsv"))
 
         # Write the header
         otu_mat.write(sep.join(["#OTU_ID"] + [sid for sid in sorted(self.sample_mat.keys())]) + "\n")
@@ -660,7 +847,7 @@ class PhyloClust(ts_classy.TreeSAPP):
 
     def write_pquery_otu_classifications(self, sep="\t") -> None:
         """Writes a tabular table mapping PQuery sequence names to their reference package phylogenetic OTUs."""
-        pquery_otu_tbl = self.open_output_file(os.path.join(self.final_output_dir, "phylotu_pquery_assignments.tsv"))
+        pquery_otu_tbl = self.open_output_file(os.path.join(self.final_dir_path(), "phylotu_pquery_assignments.tsv"))
         tbl_str = sep.join(
             ["PQuery", "RefPkg", "Resolution", "Mode", "pOTU", "d_Distal", "d_Pendant", "d_MeanTip"]) + "\n"
         for pquery in sorted(self.clustered_pqueries, key=lambda x: x.seq_name):  # type: phylo_seq.PQuery
@@ -714,10 +901,41 @@ class PhyloClust(ts_classy.TreeSAPP):
             classified_pqueries[sample_id] = file_parsers.load_classified_sequences_from_assign_output(ts_out,
                                                                                                        assigner_instance,
                                                                                                        self.ref_pkg.prefix)
+        for sample_id, jplace_file in self.jplace_files.items():
+            if sample_id in classified_pqueries:
+                continue
+            # Load the JPlace file
+            jplace_dat = jplace_utils.jplace_parser(jplace_file)
+            classified_pqueries[sample_id] = {self.ref_pkg.prefix: []}
+            classified_pqueries[sample_id][self.ref_pkg.prefix] = jplace_utils.demultiplex_pqueries(jplace_dat)
+
+        for sample_id in classified_pqueries:
             for pquery in classified_pqueries[sample_id][self.ref_pkg.prefix]:
                 self.set_pquery_sample_name(pquery, sample_id)
                 self.clustered_pqueries.append(pquery)
+
         return classified_pqueries
+
+    def load_cluster_taxonomy_from_pqueries(self) -> None:
+        """Uses the taxon strings from each PQuery to determine the taxonomy of each cluster via LCA."""
+        cluster_taxa = {}
+        # Load the taxonomy strings for all clusterd PQuery instances
+        for pquery in self.clustered_pqueries:  # type: phylo_seq.PQuery
+            try:
+                cluster_taxa[pquery.p_otu].append(pquery.recommended_lineage)
+            except KeyError:
+                cluster_taxa[pquery.p_otu] = [pquery.recommended_lineage]
+
+        taxa_hierarchy = self.ref_pkg.taxa_trie  # type: ts_taxonomy.TaxonomicHierarchy
+        # Find the LCA of all Taxon instances for cluster
+        for cluster_idx, taxa in cluster_taxa.items():  # type: (int, list)
+            p_otu = self.cluster_index[cluster_idx]
+            p_otu.taxon = taxa_hierarchy.get_taxon(taxa.pop().split(taxa_hierarchy.lin_sep)[-1])
+            while taxa:
+                taxon = taxa_hierarchy.get_taxon(taxa.pop().split(taxa_hierarchy.lin_sep)[-1])
+                p_otu.taxon = ts_taxonomy.Taxon.lca(p_otu.taxon, taxon)
+
+        return
 
 
 def confidence_interval(data, confidence=0.95) -> float:
@@ -979,6 +1197,8 @@ def cluster_by_local_alignment(phylo_clust: PhyloClust, proportional_identity=0.
     for sample_id in classified_pqueries:
         phylo_clust.report_cluster_occupancy(sample_name=sample_id,
                                              n_pqueries=len(classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]))
+
+    phylo_clust.load_cluster_taxonomy_from_pqueries()
     return
 
 
@@ -997,24 +1217,23 @@ def reference_placement_phylo_clusters(phylo_clust: PhyloClust, taxon_labelled_t
 
     LOGGER.info("Assigning query sequences to clusters:\n")
     p_bar = tqdm(total=len(phylo_clust.jplace_files), ncols=100)
-    for sample_id, jplace_file in phylo_clust.jplace_files.items():
+    for sample_id, refpkg_pqueries in phylo_clust.gather_classified_pqueries().items():
         p_bar.set_description(desc="'{}'".format(sample_id), refresh=True)
-        # Load the JPlace file
-        jplace_dat = jplace_utils.jplace_parser(jplace_file)
+        for ref_pkg, pqueries in refpkg_pqueries.items():
+            leaf_node_map = phylo_clust.ref_pkg.get_internal_node_leaf_map()
+            for pquery in pqueries:  # type: phylo_seq.PQuery
+                phylo_clust.set_pquery_sample_name(pquery, sample_id)
+                pquery.node_map = leaf_node_map
+                pquery.process_max_weight_placement(taxon_labelled_tree)
 
-        pqueries = jplace_utils.demultiplex_pqueries(jplace_dat)
-        for pquery in pqueries:  # type: phylo_seq.PQuery
-            phylo_clust.set_pquery_sample_name(pquery, sample_id)
-            pquery.process_max_weight_placement(taxon_labelled_tree)
-            phylo_clust.clustered_pqueries.append(pquery)
+            # Map the PQueries (max_lwr or aelw?) to clusters
+            phylo_clust.assign_pqueries_to_edge_clusters(pqueries)
 
-        # Map the PQueries (max_lwr or aelw?) to clusters
-        phylo_clust.assign_pqueries_to_edge_clusters(pqueries)
-
-        # Report the number of clusters occupied
-        phylo_clust.report_cluster_occupancy(sample_name=sample_id, n_pqueries=len(pqueries))
-        p_bar.update()
+            # Report the number of clusters occupied
+            phylo_clust.report_cluster_occupancy(sample_name=sample_id, n_pqueries=len(pqueries))
+            p_bar.update()
     p_bar.close()
+    # TODO: Test whether the number of PQuery instances in self.clustered_pqueries is good
     return
 
 
@@ -1044,7 +1263,8 @@ def cluster_phylogeny(sys_args: list) -> None:
                                cluster_method=p_clust.pre_mode,
                                taxon_labelled_tree=taxa_tree)
     elif p_clust.clustering_mode == "local":
-        cluster_by_local_alignment(phylo_clust=p_clust, proportional_identity=p_clust.alpha)
+        cluster_by_local_alignment(phylo_clust=p_clust,
+                                   proportional_identity=p_clust.alpha)
     else:
         LOGGER.error("Unknown clustering mode specified: '{}'.\n".format(p_clust.clustering_mode))
         sys.exit(5)
@@ -1055,7 +1275,14 @@ def cluster_phylogeny(sys_args: list) -> None:
                        "".format(p_clust.ref_pkg.prefix))
         return
 
-    # Write a OTU table with the abundance of each PhylOTU for each JPlace
+    # Infer and write the centroids to a FASTA
+    p_clust.add_pqueries_to_clusters()
+    p_clust.centroids(taxa_tree)
+
+    # Write the error stats for each centroid
+    p_clust.report_cluster_stats()
+
+    # Write an OTU table with the abundance of each PhylOTU for each JPlace
     p_clust.write_otu_matrix()
 
     # Write a table mapping each OTU identifier to its taxonomy
@@ -1066,7 +1293,6 @@ def cluster_phylogeny(sys_args: list) -> None:
 
     p_clust.clean_intermediate_files()
 
-    # TODO: Centroids? Options are discussed in TreeCluster
     return
 
 

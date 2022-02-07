@@ -125,12 +125,12 @@ class PhyloSeqTests(unittest.TestCase):
         return
 
     def test_calculate_consensus_placement(self):
-        from treesapp.phylo_seq import split_placements
+        from treesapp import phylo_seq
         # Exit if the placements dictionary of placement strings hasn't been converted to PhyloPlace instances
         with pytest.raises(AttributeError):
             self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
         # Now format and test for a proper PQuery with multiple placements near the root
-        self.pquery_test_1.placements = split_placements(self.placement_dict)
+        self.pquery_test_1.placements = phylo_seq.split_placements(self.placement_dict)
         self.pquery_test_1.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
         self.assertEqual("r__Root", self.pquery_test_1.lct)
         self.assertEqual(1, len(self.pquery_test_1.placements))
@@ -138,17 +138,17 @@ class PhyloSeqTests(unittest.TestCase):
         self.assertEqual(498, self.pquery_test_1.consensus_placement.edge_num)
 
         # Test for a PQuery with just a single placement
-        self.pquery_test_3.placements = split_placements(self.pquery_test_3.placements)
+        self.pquery_test_3.placements = phylo_seq.split_placements(self.pquery_test_3.placements)
         self.pquery_test_3.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
         self.assertEqual(245, self.pquery_test_3.consensus_placement.edge_num)
 
         # Test with multiple placements where the LCA is one of the placements
-        self.pquery_test_4.placements = split_placements(self.pquery_test_4.placements)
+        self.pquery_test_4.placements = phylo_seq.split_placements(self.pquery_test_4.placements)
         self.pquery_test_4.calculate_consensus_placement(self.refpkg.taxonomically_label_tree())
         self.assertEqual(454, self.pquery_test_4.consensus_placement.edge_num)
 
         # Test with multiple placements and the LCA is none of the placements
-        self.pquery_test_5.placements = split_placements(self.pquery_test_5.placements)
+        self.pquery_test_5.placements = phylo_seq.split_placements(self.pquery_test_5.placements)
         self.pquery_test_5.calculate_consensus_placement(self.refpkg.taxonomically_label_tree(), min_aelw=0.7)
         self.assertEqual(397, self.pquery_test_5.consensus_placement.edge_num)
 
@@ -157,11 +157,36 @@ class PhyloSeqTests(unittest.TestCase):
             self.assertTrue(pq.consensus_placement.like_weight_ratio <= 1.0)
         return
 
+    def test_distance_between_placements(self):
+        from treesapp import phylo_seq
+        from ete3 import Tree
+        # Create the test PhyloPlace instances
+        pp_1 = phylo_seq.PhyloPlace()
+        pp_1.edge_num, pp_1.distal_length = '2', 0.1
+        pp_2 = phylo_seq.PhyloPlace()
+        pp_2.edge_num, pp_2.distal_length, pp_2.pendant_length = '1', 0.01, 0.5
+        pp_3 = phylo_seq.PhyloPlace()
+        pp_3.edge_num, pp_3.distal_length, pp_3.pendant_length = '5', 0.05, 0.0
+        pp_4 = phylo_seq.PhyloPlace()
+        pp_4.edge_num, pp_4.distal_length, pp_4.pendant_length = '5', 0.01, 0.2
+        # Create a Tree instance
+        mock_tree = Tree("(A:1,(B:0.1,(E:0.08,D:0.02):0.2):0.2);")
+        # Test an unlabelled reference tree
+        self.assertEqual(0.0, phylo_seq.distance_between_placements(pplace_a=pp_1,
+                                                                    pplace_b=pp_1,
+                                                                    ref_tree=mock_tree))
+        self.assertEqual(0.0, phylo_seq.distance_between_placements(pp_1, pp_1, mock_tree))  # Same branch and distances
+        self.assertEqual(0.04, phylo_seq.distance_between_placements(pp_4, pp_3, mock_tree))  # Same branch
+        self.assertEqual(0.31, phylo_seq.distance_between_placements(pp_1, pp_2, mock_tree))  # Different branches
+        self.assertEqual(0.16, phylo_seq.distance_between_placements(pp_2, pp_3, mock_tree))  # Different branches
+        self.assertEqual(0.16, phylo_seq.distance_between_placements(pp_3, pp_2, mock_tree))  # Different branches
+        return
+
     def test_assignments_to_pqueries(self):
-        from treesapp.phylo_seq import assignments_to_pqueries
+        from treesapp import phylo_seq
         assignment_lines = [['test_TarA.1', 'scaffold_5431_c1_4', 'DsrAB', '79', '161', 'r__Root', '0.0', '282', '7.3e-10', '1.0', '3.085', '0.599,1.952,0.534'],
                             ['test_TarA.1', 'scaffold_59587_c1_1', 'DsrAB', '1', '182', 'r__Root; d__Bacteria; p__Proteobacteria; c__Deltaproteobacteria', '0.0', '979', '2.1e-63', '1.0', '0.143', '0.022,0.121,0.0']]
-        pqueries = assignments_to_pqueries(assignment_lines)
+        pqueries = phylo_seq.assignments_to_pqueries(assignment_lines)
         self.assertTrue("DsrAB" in pqueries)
         self.assertEqual(['scaffold_5431_c1_4|DsrAB|79_161', 'scaffold_59587_c1_1|DsrAB|1_182'],
                          [x.place_name for x in pqueries["DsrAB"]])
@@ -170,7 +195,7 @@ class PhyloSeqTests(unittest.TestCase):
 
         # Fail due to bad line format
         with pytest.raises(SystemExit):
-            assignments_to_pqueries(["Taxonomy\tAbundance\tiNode\tE-value\tLWR\tEvoDist\tDistances".split("\t")])
+            phylo_seq.assignments_to_pqueries(["Taxonomy\tAbundance\tiNode\tE-value\tLWR\tEvoDist\tDistances".split("\t")])
         return
 
     def test_phylo_place(self):
