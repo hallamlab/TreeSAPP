@@ -76,7 +76,7 @@ class PhylOTU:
             i += 1
         return
 
-    def find_centroid(self, min_seq_len=30) -> None:
+    def find_centroid(self, min_seq_len=30.0) -> None:
         """Find the PQuery of minimal root-mean squared deviation."""
         min_idx = -1
         if self.cardinality == 0:
@@ -91,6 +91,8 @@ class PhylOTU:
 
         if min_idx >= 0:
             self.centroid = self.pqueries[min_idx]
+        else:
+            self.centroid = None
 
         # Remove distances for all PQueries other than the centroid - for stats reporting
         for i in list(self.distances.keys()):
@@ -134,6 +136,7 @@ class PhyloClust(ts_classy.TreeSAPP):
         self.pre_mode = ""
         self.alpha = 0
         self.percentile = 0.99
+        self.min_centroid_length = 0.0
         self.tax_rank = "species"
         self.normalize = False
         self.jplace_files = {}
@@ -201,6 +204,8 @@ class PhyloClust(ts_classy.TreeSAPP):
             self.clean = True
         else:
             self.clean = False
+
+        self.min_centroid_length = round(args.centroid_p_hmm * self.ref_pkg.hmm_length())
         # Determine whether to normalise the evolutionary distances or not
         # if args.evo_dist == "red":
         #     self.normalize = True
@@ -249,6 +254,11 @@ class PhyloClust(ts_classy.TreeSAPP):
                                             default="", required=False, type=str,
                                             help="A regular expression for parsing the sample name from a query "
                                                  "sequence name. Example: '^(\d+)\.a:.*'. [ DEFAULT = None ].")
+        self.arg_parser.optopt.add_argument("--centroid_proportion", dest="centroid_p_hmm",
+                                            default=0.8, required=False, type=float,
+                                            help="The proportion of the reference package profile HMM a candidate centroid must exceed."
+                                                 "No sequence convering less than this proportion will be used as a centroid."
+                                                 "[ DEFAULT = 0.8 ]")
         self.arg_parser.add_compute_miscellany()
         self.arg_parser.add_delete()
         # TODO: Implement and validate these options
@@ -743,7 +753,7 @@ class PhyloClust(ts_classy.TreeSAPP):
             p_otu.pqueries.append(pquery)
         return
 
-    def centroids(self, ref_tree, min_centroid_seq_length=0):
+    def centroids(self, ref_tree):
         """Defines a centroid for each pOTU and writes them to a FASTA file."""
         centroids_str = ""
         for p_otu in self.cluster_index.values():  # type: PhylOTU
@@ -762,7 +772,10 @@ class PhyloClust(ts_classy.TreeSAPP):
                 sys.exit(1)
 
             # Filter potential centroids by length - only use sequences exceeding `model_proportion` of the HMM length
-            p_otu.find_centroid(min_centroid_seq_length)
+            p_otu.find_centroid(min_seq_len=self.min_centroid_length)
+            if p_otu.centroid is None:
+                LOGGER.debug("Unable to assign centroid for cluster {}.\n".format(p_otu.number))
+                continue
 
             # Write the centroid sequences to a FASTA file
             centroids_str += p_otu.centroid_format_fasta()
