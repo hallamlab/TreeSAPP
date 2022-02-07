@@ -39,8 +39,8 @@ class PhylOTU:
         self.number = name
         self.cardinality = 0
         self.edges = []
-        self.taxon = None
-        self.tree_node = None
+        self.taxon = ts_taxonomy.Taxon('', '')
+        self.tree_node = []
         self.pqueries = []
         self.distances = {}
         self.centroid = phylo_seq.PQuery()
@@ -317,8 +317,8 @@ class PhyloClust(ts_classy.TreeSAPP):
                                 os.remove(f_path)
                     if len(os.listdir(stage.dir_path)) == 0:
                         os.rmdir(stage.dir_path)
-            if len(os.listdir(self.var_output_dir())) == 0:
-                os.rmdir(self.var_output_dir())
+            if len(os.listdir(self.var_dir_path())) == 0:
+                os.rmdir(self.var_dir_path())
         return
 
     @staticmethod
@@ -428,6 +428,10 @@ class PhyloClust(ts_classy.TreeSAPP):
         aligner = Align.PairwiseAligner()
         aligner.mode = "global"
         for taxon, seq_names in taxon_leaf_map.items():
+            seq_names = self.ref_pkg.get_monophyletic_clades(taxon_name=taxon,
+                                                             leaf_nodes=set(seq_names))[0]
+            if not seq_names:
+                continue
             r = seq_names.pop()  # type: str
             while seq_names:
                 for q in seq_names:
@@ -677,10 +681,16 @@ class PhyloClust(ts_classy.TreeSAPP):
         return
 
     def assign_pqueries_to_alignment_clusters(self, pqueries: dict, cluster_map: dict) -> None:
+        """Converts the Cluster to PhylOTU objects and populates PhyloClust.cluster_index."""
         pquery_cluster_map = {}
         for num, cluster in cluster_map.items():  # type: (str, seq_clustering.Cluster)
             pquery_cluster_map.update({place_name: int(num) for place_name, _id in cluster.members})
             self.cluster_index[int(num)] = PhylOTU(name=int(num))
+            self.cluster_index[int(num)].distances[0] = []
+            for seq in cluster.members:
+                name, aln_id = seq
+                if name != cluster.representative:
+                    self.cluster_index[int(num)].distances[0].append(float(aln_id))
 
         for sample_id in pqueries:
             if self.ref_pkg.prefix not in pqueries[sample_id]:
@@ -689,6 +699,7 @@ class PhyloClust(ts_classy.TreeSAPP):
                 pquery.p_otu = pquery_cluster_map[pquery.place_name]
                 self.add_pquery_count_to_sample_potu_mat(pquery)
                 self.cluster_index[pquery.p_otu].cardinality += 1
+
         return
 
     def set_pquery_sample_name(self, pquery: phylo_seq.PQuery, default_sample: str) -> None:
@@ -715,8 +726,6 @@ class PhyloClust(ts_classy.TreeSAPP):
 
     def write_cluster_taxon_labels(self) -> None:
         """Writes a two-column table mapping each cluster to its respective taxonomic lineage."""
-        if self.clustering_mode == "local":
-            return
         tbl_string = ""
         for cluster_num, p_otu in self.cluster_index.items():  # type: (int, PhylOTU)
             lineage = "; ".join([t.prefix_taxon() for t in p_otu.taxon.lineage()])
@@ -727,13 +736,15 @@ class PhyloClust(ts_classy.TreeSAPP):
         taxa_tbl.close()
         return
 
-    def centroids(self, ref_tree, min_centroid_seq_length=0):
-        """Defines a centroid for each pOTU and writes them to a FASTA file."""
+    def add_pqueries_to_clusters(self):
         # Load the PQueries for each PhylOTU object
         for pquery in self.clustered_pqueries:  # type: phylo_seq.PQuery
             p_otu = self.cluster_index[pquery.p_otu]  # type: PhylOTU
             p_otu.pqueries.append(pquery)
+        return
 
+    def centroids(self, ref_tree, min_centroid_seq_length=0):
+        """Defines a centroid for each pOTU and writes them to a FASTA file."""
         centroids_str = ""
         for p_otu in self.cluster_index.values():  # type: PhylOTU
             if not p_otu.cardinality:
@@ -742,10 +753,13 @@ class PhyloClust(ts_classy.TreeSAPP):
                 p_otu.calculate_pairwise_placement_dists(ref_tree=ref_tree)
             elif self.clustering_mode == "de_novo":
                 # TODO: Find the pairwise leaf distances
-                return
+                pass
             elif self.clustering_mode == "local":
-                # TODO: Use the centroids inferred by MMSeqs
-                return
+                # The pairwise alignment distances have already been collected
+                pass
+            else:
+                LOGGER.error("Unrecognized clustering mode '{}'.\n".format(self.clustering_mode))
+                sys.exit(1)
 
             # Filter potential centroids by length - only use sequences exceeding `model_proportion` of the HMM length
             p_otu.find_centroid(min_centroid_seq_length)
@@ -869,6 +883,27 @@ class PhyloClust(ts_classy.TreeSAPP):
                 self.clustered_pqueries.append(pquery)
 
         return classified_pqueries
+
+    def load_cluster_taxonomy_from_pqueries(self) -> None:
+        """Uses the taxon strings from each PQuery to determine the taxonomy of each cluster via LCA."""
+        cluster_taxa = {}
+        # Load the taxonomy strings for all clusterd PQuery instances
+        for pquery in self.clustered_pqueries:  # type: phylo_seq.PQuery
+            try:
+                cluster_taxa[pquery.p_otu].append(pquery.recommended_lineage)
+            except KeyError:
+                cluster_taxa[pquery.p_otu] = [pquery.recommended_lineage]
+
+        taxa_hierarchy = self.ref_pkg.taxa_trie  # type: ts_taxonomy.TaxonomicHierarchy
+        # Find the LCA of all Taxon instances for cluster
+        for cluster_idx, taxa in cluster_taxa.items():  # type: (int, list)
+            p_otu = self.cluster_index[cluster_idx]
+            p_otu.taxon = taxa_hierarchy.get_taxon(taxa.pop().split(taxa_hierarchy.lin_sep)[-1])
+            while taxa:
+                taxon = taxa_hierarchy.get_taxon(taxa.pop().split(taxa_hierarchy.lin_sep)[-1])
+                p_otu.taxon = ts_taxonomy.Taxon.lca(p_otu.taxon, taxon)
+
+        return
 
 
 def confidence_interval(data, confidence=0.95) -> float:
@@ -1130,6 +1165,8 @@ def cluster_by_local_alignment(phylo_clust: PhyloClust, proportional_identity=0.
     for sample_id in classified_pqueries:
         phylo_clust.report_cluster_occupancy(sample_name=sample_id,
                                              n_pqueries=len(classified_pqueries[sample_id][phylo_clust.ref_pkg.prefix]))
+
+    phylo_clust.load_cluster_taxonomy_from_pqueries()
     return
 
 
@@ -1194,7 +1231,8 @@ def cluster_phylogeny(sys_args: list) -> None:
                                cluster_method=p_clust.pre_mode,
                                taxon_labelled_tree=taxa_tree)
     elif p_clust.clustering_mode == "local":
-        cluster_by_local_alignment(phylo_clust=p_clust, proportional_identity=p_clust.alpha)
+        cluster_by_local_alignment(phylo_clust=p_clust,
+                                   proportional_identity=p_clust.alpha)
     else:
         LOGGER.error("Unknown clustering mode specified: '{}'.\n".format(p_clust.clustering_mode))
         sys.exit(5)
@@ -1206,12 +1244,13 @@ def cluster_phylogeny(sys_args: list) -> None:
         return
 
     # Infer and write the centroids to a FASTA
+    p_clust.add_pqueries_to_clusters()
     p_clust.centroids(taxa_tree)
 
     # Write the error stats for each centroid
     p_clust.report_cluster_stats()
 
-    # Write a OTU table with the abundance of each PhylOTU for each JPlace
+    # Write an OTU table with the abundance of each PhylOTU for each JPlace
     p_clust.write_otu_matrix()
 
     # Write a table mapping each OTU identifier to its taxonomy
