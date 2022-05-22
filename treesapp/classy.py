@@ -617,8 +617,6 @@ class Creator(TreeSAPP):
 
         if not args.profile:
             self.change_stage_status("search", False)
-        if args.pc:
-            self.edit_stage_run_range(self.stage_lookup("update").order)
         # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
         if args.acc_to_lin:
             self.acc_to_lin = args.acc_to_lin

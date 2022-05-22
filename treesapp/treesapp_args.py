@@ -421,9 +421,6 @@ def add_create_arguments(crt_parser: TreeSAPPArgumentParser) -> None:
                                             "evaluate", "support", "train", "update"],
                                    help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
 
-    crt_parser.miscellany.add_argument('--pc', action='store_true', default=False,
-                                       help='Prints the final commands to complete\n'
-                                            'installation for a provided `code_name`')
     crt_parser.miscellany.add_argument("--headless", action="store_true", default=False,
                                        help="Do not require any user input during runtime.")
     return

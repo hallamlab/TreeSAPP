@@ -11,6 +11,7 @@
 ### Changed
 - The minimum sequence length of 30 (AA) has been removed be default, but can still be used as before with `--min_seq_length`.
 Results likely will not change as more stringent filtering thresholds were already applied in downstream steps.
+- `--pc` was removed from `treesapp create`'s argument list
 
 ## [0.11.3] - 2021-12-15
 ### Added
