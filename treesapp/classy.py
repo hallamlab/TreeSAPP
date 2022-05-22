@@ -3,7 +3,6 @@ import os
 import re
 import logging
 import time
-from datetime import datetime as dt
 from shutil import rmtree, copy
 from glob import glob
 from collections import namedtuple
@@ -572,85 +571,6 @@ class TreeSAPP:
 
         ref_seqs.change_dict_keys()
         return entrez_record_dict
-
-
-class Updater(TreeSAPP):
-    def __init__(self):
-        super(Updater, self).__init__("update")
-        self.seq_names_to_taxa = ""  # Optional user-provided file mapping query sequence contigs to lineages
-        self.lineage_map_file = ""  # File that is passed to create() containing lineage info for all sequences
-        self.treesapp_output = ""  # Path to the TreeSAPP output directory - modified by args
-        self.assignment_table = ""  # Path to the classifications.tsv file written by treesapp assign
-        self.combined_fasta = ""  # Holds the newly identified candidate reference sequences and the original ref seqs
-        self.old_ref_fasta = ""  # Contains only the original reference sequences
-        self.cluster_input = ""  # Used only if resolve is True
-        self.clusters_prefix = ""  # Used only if resolve is True
-        self.updated_refpkg_path = ""
-        self.training_dir = ""
-        # self.rank_depth_map = None
-        self.prop_sim = 1.0
-        self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the refpkg
-        self.updated_refpkg = refpkg.ReferencePackage()
-
-        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("lineages", 0),
-                       1: ModuleFunction("rebuild", 1),
-                       2: ModuleFunction("train", 2)}
-
-    def decide_stage(self, args):
-        """
-        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
-
-        This function ensures all the required inputs are present for beginning at the desired first stage,
-        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
-
-        :return: None
-        """
-        self.validate_continue(args)
-        self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-
-        if not self.input_sequences:
-            self.change_stage_status("train", False)
-
-        return
-
-    def get_info(self):
-        info_string = "Updater instance summary:\n"
-        info_string += super(Updater, self).get_info() + "\n\t"
-        info_string += "\n\t".join(["Target reference packages = " + str(self.ref_pkg.prefix),
-                                    "Taxonomy map: " + self.ref_pkg.lineage_ids,
-                                    "Reference tree: " + self.ref_pkg.tree,
-                                    "Reference FASTA: " + self.ref_pkg.msa,
-                                    "Lineage map: " + str(self.seq_names_to_taxa)]) + "\n"
-
-        return info_string
-
-    def update_refpkg_fields(self, output_dir=None) -> None:
-        """
-        Using the original ReferencePackage as a template modify the following updated ReferencePackage attributes:
-1. original creation date
-2. update date
-3. code name
-4. description
-        :return: None
-        """
-        if not output_dir:
-            output_dir = self.final_output_dir
-        # Change the creation and update dates, code name and description
-        self.updated_refpkg.change_file_paths(output_dir)
-        self.updated_refpkg.date = self.ref_pkg.date
-        self.updated_refpkg.update = dt.now().strftime("%Y-%m-%d")
-        self.updated_refpkg.refpkg_code = self.ref_pkg.refpkg_code
-        self.updated_refpkg.description = self.ref_pkg.description
-        self.updated_refpkg.pickle_package()
-
-        self.ts_logger.info("Summary of the updated reference package:\n" + self.updated_refpkg.get_info() + "\n")
-
-        self.ts_logger.debug("\tNew sequences  = " + str(self.updated_refpkg.num_seqs - self.ref_pkg.num_seqs) + "\n" +
-                             "\tOld HMM length = " + str(self.ref_pkg.hmm_length()) + "\n" +
-                             "\tNew HMM length = " + str(self.updated_refpkg.hmm_length()) + "\n")
-
-        return
 
 
 class Creator(TreeSAPP):

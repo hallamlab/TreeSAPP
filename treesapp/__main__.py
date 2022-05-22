@@ -26,7 +26,7 @@ train          Train a reference package's model used for correcting taxonomic r
 update         Update an existing reference package with sequences found in a `classify` run
 ** Other commands:
 info           Display TreeSAPP version and other information.
-Use '-h' to get subcommand-specific help, e.g.
+Use '-h' to get subcommand-specific help.
 """
 
 

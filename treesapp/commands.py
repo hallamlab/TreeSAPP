@@ -725,7 +725,7 @@ def update(sys_args):
     treesapp_args.add_update_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    ts_updater = classy.Updater()
+    ts_updater = ts_update_mod.Updater()
     ts_updater.furnish_with_arguments(args)
     ts_updater.check_previous_output(args.overwrite)
 

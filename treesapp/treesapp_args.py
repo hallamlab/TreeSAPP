@@ -5,7 +5,8 @@ import re
 import logging
 from glob import glob
 
-from treesapp.classy import Evaluator, Updater
+from treesapp.classy import Evaluator
+from treesapp.update_refpkg import Updater
 from treesapp.utilities import available_cpu_count
 from treesapp import logger
 
@@ -100,8 +101,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.optopt.add_argument("--trim_align", default=False, action="store_true",
                                  help="Flag to turn on position masking of the multiple sequence alignment"
                                       " [DEFAULT = False]")
-        self.optopt.add_argument('-w', '--min_seq_length', default=30, type=int,
-                                 help='minimal sequence length after alignment trimming [DEFAULT = 30]')
+        self.optopt.add_argument('-w', '--min_seq_length', default=0, type=int,
+                                 help='minimal sequence length after alignment trimming [DEFAULT = 0]')
         self.optopt.add_argument('-m', '--molecule', choices=['prot', 'dna', 'rrna'], required=False, default="",
                                  help="Type of input sequences (prot = protein; dna = nucleotide; rrna = rRNA). "
                                       "TreeSAPP will guess by default but this may be required if ambiguous.")

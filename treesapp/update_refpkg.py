@@ -1,10 +1,12 @@
+import os
 import re
 import logging
 
+from datetime import datetime as dt
 from pygtrie import StringTrie
 
 from treesapp.utilities import load_taxonomic_trie
-from treesapp.classy import Updater
+from treesapp.classy import TreeSAPP, ModuleFunction
 from treesapp.seq_clustering import Cluster
 from treesapp.entrez_utils import EntrezRecord
 from treesapp.fasta import FASTA
@@ -14,6 +16,85 @@ from treesapp import clade_annotation
 from treesapp import logger
 
 LOGGER = logging.getLogger(logger.logger_name())
+
+
+class Updater(TreeSAPP):
+    def __init__(self):
+        super(Updater, self).__init__("update")
+        self.seq_names_to_taxa = ""  # Optional user-provided file mapping query sequence contigs to lineages
+        self.lineage_map_file = ""  # File that is passed to create() containing lineage info for all sequences
+        self.treesapp_output = ""  # Path to the TreeSAPP output directory - modified by args
+        self.assignment_table = ""  # Path to the classifications.tsv file written by treesapp assign
+        self.combined_fasta = ""  # Holds the newly identified candidate reference sequences and the original ref seqs
+        self.old_ref_fasta = ""  # Contains only the original reference sequences
+        self.cluster_input = ""  # Used only if resolve is True
+        self.clusters_prefix = ""  # Used only if resolve is True
+        self.updated_refpkg_path = ""
+        self.training_dir = ""
+        # self.rank_depth_map = None
+        self.prop_sim = 1.0
+        self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the ref_pkg
+        self.updated_refpkg = ts_ref_pkg.ReferencePackage()
+
+        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
+        self.stages = {0: ModuleFunction("lineages", 0),
+                       1: ModuleFunction("rebuild", 1),
+                       2: ModuleFunction("train", 2)}
+
+    def decide_stage(self, args):
+        """
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        :return: None
+        """
+        self.validate_continue(args)
+        self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+
+        if not self.input_sequences:
+            self.change_stage_status("train", False)
+
+        return
+
+    def get_info(self):
+        info_string = "Updater instance summary:\n"
+        info_string += super(Updater, self).get_info() + "\n\t"
+        info_string += "\n\t".join(["Target reference packages = " + str(self.ref_pkg.prefix),
+                                    "Taxonomy map: " + self.ref_pkg.lineage_ids,
+                                    "Reference tree: " + self.ref_pkg.tree,
+                                    "Reference FASTA: " + self.ref_pkg.msa,
+                                    "Lineage map: " + str(self.seq_names_to_taxa)]) + "\n"
+
+        return info_string
+
+    def update_refpkg_fields(self, output_dir=None) -> None:
+        """
+        Using the original ReferencePackage as a template modify the following updated ReferencePackage attributes:
+1. original creation date
+2. update date
+3. code name
+4. description
+        :return: None
+        """
+        if not output_dir:
+            output_dir = self.final_output_dir
+        # Change the creation and update dates, code name and description
+        self.updated_refpkg.change_file_paths(output_dir)
+        self.updated_refpkg.date = self.ref_pkg.date
+        self.updated_refpkg.update = dt.now().strftime("%Y-%m-%d")
+        self.updated_refpkg.refpkg_code = self.ref_pkg.refpkg_code
+        self.updated_refpkg.description = self.ref_pkg.description
+        self.updated_refpkg.pickle_package()
+
+        self.ts_logger.info("Summary of the updated reference package:\n" + self.updated_refpkg.get_info() + "\n")
+
+        self.ts_logger.debug("\tNew sequences  = " + str(self.updated_refpkg.num_seqs - self.ref_pkg.num_seqs) + "\n" +
+                             "\tOld HMM length = " + str(self.ref_pkg.hmm_length()) + "\n" +
+                             "\tNew HMM length = " + str(self.updated_refpkg.hmm_length()) + "\n")
+
+        return
 
 
 def reformat_ref_seq_descriptions(original_header_map):
@@ -97,21 +178,26 @@ def filter_by_placement_thresholds(pqueries: dict, min_lwr: float, max_pendant=N
     return good_placements
 
 
-def decide_length_filter(refpkg: ts_ref_pkg.ReferencePackage, proposed_min_length=30, min_hmm_proportion=0.66) -> int:
+def decide_length_filter(ref_pkg: ts_ref_pkg.ReferencePackage, proposed_min_length=0, min_hmm_proportion=0.66) -> int:
     # Ensure the HMM fraction provided is a proportion
     if not 0 < min_hmm_proportion < 1:
         LOGGER.warning("Minimum HMM fraction provided ({}) isn't a proportion. Converting to {}.\n"
-                        "".format(min_hmm_proportion, min_hmm_proportion/100))
+                       "".format(min_hmm_proportion, min_hmm_proportion/100))
         min_hmm_proportion = min_hmm_proportion/100
 
-    hmm_length = refpkg.hmm_length()
-    # Use the smaller of the minimum sequence length or some proportion of the profile HMM to remove sequence fragments
-    if proposed_min_length < min_hmm_proportion*hmm_length:
-        min_length = int(round(min_hmm_proportion*hmm_length))
-        LOGGER.debug("New minimum sequence length threshold set to {}% of HMM length ({}) instead of {}\n"
-                      "".format(min_hmm_proportion*100, min_length, proposed_min_length))
-    else:
+    hmm_length = ref_pkg.hmm_length()
+    if proposed_min_length > 0:
         min_length = proposed_min_length
+        if min_length > hmm_length:
+            LOGGER.warning("Minimum sequence length () is greater than profile HMM length {}. "
+                           "This may cause an inordinate number of sequences to be filtered out."
+                           "\n".format(min_length, hmm_length))
+    # Use the smallest of the minimum sequence length or some proportion of the profile HMM to remove sequence fragments
+    else:
+        min_length = int(round(min_hmm_proportion*hmm_length))
+
+    LOGGER.debug("Minimum sequence length threshold set to {} ({}% of HMM length {}).\n"
+                 "".format(min_length, 100*min_length/hmm_length, hmm_length))
 
     return min_length
 

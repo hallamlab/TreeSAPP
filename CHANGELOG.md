@@ -1,4 +1,4 @@
-## [0.] - 2022-02
+## [0.11.4] - 2022-05-22
 ### Added
 - Centroid inference for pOTUs based on the midpoint, or balance point, of all cluster members.
 - A table summarizing the intra-cluster evolutionary distances ('phylotu_cluster_stats.tsv').
@@ -6,9 +6,11 @@
 
 ### Fixed
 - Estimation of local-alignment distances for a taxonomic rank - now only considers sequences from monophyletic taxa.
+- `--min_seq_length` always overrides the minimum profile HMM proportion threshold in `treesapp update`.
 
 ### Changed
-- 
+- The minimum sequence length of 30 (AA) has been removed be default, but can still be used as before with `--min_seq_length`.
+Results likely will not change as more stringent filtering thresholds were already applied in downstream steps.
 
 ## [0.11.3] - 2021-12-15
 ### Added

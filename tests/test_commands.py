@@ -400,6 +400,7 @@ class TreesappTester(unittest.TestCase):
                                "--treesapp_output", get_test_data("assign_SwissProt_PuhA/"),
                                "--output", "./TreeSAPP_update",
                                "--num_proc", str(self.num_procs),
+                               "--min_seq_length", str(100),
                                "--trim_align", "--cluster", "--fast", "--headless",
                                "--overwrite", "--delete", "--skip_assign", "--resolve"]
         update(update_command_list)
