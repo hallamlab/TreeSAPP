@@ -274,6 +274,8 @@ def train(sys_args):
                                                                   ts_trainer.stage_output_dir,
                                                                   max_examples=args.max_examples,
                                                                   num_threads=args.num_threads)
+            if not clade_ex_pqueries:
+                return
             jdump(value=clade_ex_pqueries, filename=os.path.join(ts_trainer.clade_ex_pquery_pkl))
 
         # Write the tab-delimited file with metadata included for each placement
@@ -700,15 +702,18 @@ def create(sys_args):
 
     if ts_create.stage_status("train"):
         train(trainer_cmd)
+        trained_refpkg = os.path.join(ts_create.var_output_dir, "placement_trainer", "final_outputs",
+                                      ts_create.ref_pkg.prefix + ts_create.ref_pkg.refpkg_suffix)
     else:
         LOGGER.info("Skipping training:\n$ treesapp train {}.\n".format(' '.join(trainer_cmd)))
+        trained_refpkg = ''
 
     ##
     # Finish validating the file and append the reference package build parameters to the master table
     ##
     if ts_create.stage_status("update"):
-        ts_create.ref_pkg.f__pkl = os.path.join(ts_create.var_output_dir, "placement_trainer", "final_outputs",
-                                                ts_create.ref_pkg.prefix + ts_create.ref_pkg.refpkg_suffix)
+        if os.path.isfile(trained_refpkg):
+            ts_create.ref_pkg.f__pkl = trained_refpkg
         ts_create.ref_pkg.slurp()
         ts_create.ref_pkg.validate()
         ts_create.ref_pkg.change_file_paths(ts_create.final_output_dir)

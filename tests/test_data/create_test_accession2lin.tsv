@@ -4,8 +4,8 @@ KRL58670	r__Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Lactobacillales; f_
 WP_075487081	r__Root; d__Bacteria; p__Cyanobacteria
 WP_078215245	r__Root; d__Bacteria; p__Proteobacteria; c__Epsilonproteobacteria; o__Campylobacterales; f__Helicobacteraceae; g__Helicobacter; s__Helicobacter pylori
 PPR58139	r__Root; d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria
-PIP16926	r__Root; d__Bacteria; p__Candidatus Portnoybacteria
-AGE95467	r__Root; d__Eukaryota; p__Microsporidia
+PIP16926	r__Root; d__Bacteria; p__Candidatus Portnoybacteria;
+AGE95467	r__Root; d__Eukaryota; p__Microsporidia;
 CUG90933	r__Root; d__Eukaryota; p__Euglenozoa; c__Kinetoplastea; o__Eubodonida; f__Bodonidae; g__Bodo; s__Bodo saltans
 WP_092562784	r__Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales; f__Actinomycetaceae; g__Bowdeniella; s__Bowdeniella nasicola
 PKM87889	r__Root; d__Bacteria; p__Candidatus Falkowbacteria

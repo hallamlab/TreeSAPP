@@ -145,7 +145,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
                           t_hierarchy: TaxonomicHierarchy, accession_lineage_map: dict, taxonomic_ranks=None) -> dict:
     """
     Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
-    linear model. Removes sequences that share an identical accession, are more than 97% similar and limits the
+    linear model. It removes sequences that share an identical accession, are more than 97% similar and limits the
     number of taxonomically-identical sequences to 30.
 
     :param test_seqs: A FASTA object. All headers in FASTA.header_registry must have their accession attribute filled
@@ -187,7 +187,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     test_seqs.dedup_by_accession()
     # Remove fasta records with duplicate sequences
     test_seqs.dedup_by_sequences()
-    test_seqs.change_dict_keys("accession")
+    test_seqs.change_dict_keys("first_split")
 
     # Remove sequences that are not related at the rank of Domain
     ref_domains = t_hierarchy.rank_representatives("domain", True)
@@ -201,10 +201,16 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
             related_queries.append(seq_name)
     if not related_queries:
         LOGGER.error("No sequences were retained after filtering reference sequences by domains '%s'\n" %
-                      str(', '.join(ref_domains)))
+                     str(', '.join(ref_domains)))
         sys.exit(5)
 
     related_queries_in_fasta = list(set(test_seqs.fasta_dict.keys()).intersection(set(related_queries)))
+    if not related_queries_in_fasta:
+        LOGGER.error("Unable to match names from '{}' (e.g., {}) to those in the accession-lineage map (e.g. {})."
+                     "\n".format(test_seqs.file,
+                                 ', '.join(test_seqs.fasta_dict.keys()[0:3]),
+                                 ', '.join(accession_lineage_map.keys()[0:3])))
+        sys.exit(1)
     test_seqs.keep_only(related_queries_in_fasta)
     test_seqs.change_dict_keys("accession")
     [accession_lineage_map.pop(seq_name) for seq_name in unrelated_queries]
@@ -484,7 +490,7 @@ def gen_cladex_data(fasta_input: str, executables: dict, ref_pkg: ReferencePacka
     :param executables: A dictionary containing executable names mapped to absolute paths of the executables
     :param ref_pkg: A ReferencePackage instance
     :param accession_lineage_map: Path to a file mapping query sequence accessions to their taxonomic lineage
-    :param output_dir: Path the a directory to write the temporary files
+    :param output_dir: Path to the directory to write the temporary files
     :param max_examples: The maximum number of examples to use for training the reference package's models
     :param num_threads: The number of threads to be used by the various dependencies during phylogenetic placement
     :return:

@@ -1028,7 +1028,7 @@ def load_ref_seqs(fasta_dict: dict, header_registry: dict, ref_seq_dict: dict):
             missing.append(str(header.original))
     if len(missing) > 0:
         LOGGER.debug("The following sequences have been removed from further analyses:\n\t" +
-                      "\n\t".join(missing) + "\n")
+                     "\n\t".join(missing) + "\n")
     return
 
 
@@ -1222,12 +1222,13 @@ def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
     field_positions = get_list_positions(fields, header_names)
     if not field_positions:
         LOGGER.error("Unable to read headers from sequence-taxa table file {}."
-                      " The table must have some combination of the following column names:\n{}\n"
-                      "".format(seq_names_to_taxa, ','.join(header_names)))
+                     " The table must have some combination of the following column names:\n{}\n"
+                     "".format(seq_names_to_taxa, ','.join(header_names)))
         sys.exit(3)
 
     try:
         for row in tbl_reader:
+            row = [col.rstrip('; ') for col in row]
             seq_name = row[0]
             if seq_name[0] == '>':
                 seq_name = seq_name[1:]
@@ -1263,7 +1264,7 @@ def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=No
     pbar = tqdm(total=len(seq_lineage_map), ncols=100)
 
     for seq_name in sorted(seq_lineage_map):  # type: str
-        # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
+        # It's slow to perform so many re.search's but without having a guaranteed ORF pattern
         # we can't use hash-based data structures to bring it to O(N)
         parent_re = re.compile(re.escape(seq_name))
         x = 0

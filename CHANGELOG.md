@@ -2,11 +2,12 @@
 ### Added
 - Centroid inference for pOTUs based on the midpoint, or balance point, of all cluster members.
 - A table summarizing the intra-cluster evolutionary distances ('phylotu_cluster_stats.tsv').
-- 
+- Automatically removes trailing semicolons from accession2lin and seq2lineage tables.
 
 ### Fixed
 - Estimation of local-alignment distances for a taxonomic rank - now only considers sequences from monophyletic taxa.
 - `--min_seq_length` always overrides the minimum profile HMM proportion threshold in `treesapp update`.
+- Fixed previously unhandled exceptions if reference package training failed during `treesapp create`
 
 ### Changed
 - The minimum sequence length of 30 (AA) has been removed be default, but can still be used as before with `--min_seq_length`.

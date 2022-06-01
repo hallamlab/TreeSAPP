@@ -29,7 +29,7 @@ class EntrezUtilitiesTester(unittest.TestCase):
 
         self.accession2taxid = utils.get_test_data("create_test.accession2taxid")
         self.test_entrez_records = []
-        test_accs = ["BAJ94456", "CUW39146.1", "NP_001076868", "WP_056230317.1", "XP_005707548.1"]
+        test_accs = ["BAJ94456", "CUW39146.1", "NP_001076868", "WP_056230317.1", "XP_005707548.1", "WP_000101794"]
         for acc in test_accs:
             self.test_entrez_records.append(EntrezRecord(acc=acc, ver=""))
         return
@@ -97,8 +97,8 @@ class EntrezUtilitiesTester(unittest.TestCase):
         # Test normal operating conditions
         e_utils.map_accessions_to_lineages(query_accession_list=self.test_entrez_records, t_hierarchy=taxa_hrcy,
                                            accession_to_taxid=self.accession2taxid, molecule="prot")
-        self.assertEqual(70, len(taxa_hrcy.hierarchy))
-        self.assertEqual(5, taxa_hrcy.lineages_fed)
+        self.assertEqual(75, len(taxa_hrcy.hierarchy))
+        self.assertEqual(6, taxa_hrcy.lineages_fed)
         self.assertTrue("d__Bacteria" in taxa_hrcy.hierarchy)
 
         # Clear for other tests
