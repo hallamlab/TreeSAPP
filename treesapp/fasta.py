@@ -295,7 +295,6 @@ def read_fastx_to_dict(fastx: str, num_records=0) -> dict:
 
 
 class Header:
-    formats = ["original", "num_id", "post_align", "first_split", "accession", "version"]
 
     def __init__(self, header):
         """Header class for storing typical features of biological sequence headers in FASTA files"""
@@ -763,18 +762,13 @@ class FASTA:
         Compares each string in seq_names against all attributes in each Header instance and returns those with a match.
         This ensures a list of sequence names can be used to match sequences in a FASTA object, regardless of the header format.
         """
-        match_formats = {fmt: 0 for fmt in Header.formats}
         name_matches = []
         name_set = set(seq_names)  # for faster querying
         for i, header in self.header_registry.items():  # type: (str, Header)
-            for fmt_name in match_formats:
-                if header.__dict__[fmt_name] in name_set:
-                    match_formats[fmt_name] += 1
+            for _fmt_key, fmt_value in header.__dict__.items():
+                if fmt_value in name_set:
                     name_matches.append(header.__dict__[self.index_form])
                     break
-                # Modify the order of formats that are searched against according to format with most matches
-                if int(i) % 100 == 0:
-                    match_formats = sorted(match_formats, key=lambda x: match_formats[x])
 
         if not name_matches:
             LOGGER.error("Unable to match names from '{}' (e.g., {}) to those in the accession-lineage map (e.g. {})."
