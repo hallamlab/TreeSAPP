@@ -513,7 +513,7 @@ def create(sys_args):
     if ts_create.stage_status("cluster"):
         # TODO: replace with fasta.dereplicate_by_clustering()
         pre_cluster = ref_seqs.n_seqs()
-        ref_seqs.change_dict_keys("num")
+        ref_seqs.change_dict_keys("num_id")
         # Write a FASTA for clustering containing the formatted headers since
         # not all clustering tools + versions keep whole header - spaces are replaced with underscores
         fasta.write_new_fasta(fasta_dict=ref_seqs.fasta_dict,
@@ -853,7 +853,7 @@ def update(sys_args):
         # The purpose of this block is to remove any former candidate reference sequences from the ref_fasta object
         # that have a more truncated lineage that the new candidate reference sequences in combined_fasta
         ##
-        combined_fasta.change_dict_keys("num")
+        combined_fasta.change_dict_keys("num_id")
         # Write a FASTA for clustering containing the formatted headers since
         # not all clustering tools + versions keep whole header - spaces are replaced with underscores
         fasta.write_new_fasta(fasta_dict=combined_fasta.fasta_dict,

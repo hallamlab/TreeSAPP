@@ -1058,7 +1058,7 @@ def generate_trees_for_preclusters(phylo_clust: PhyloClust, pre_clusters: dict, 
         ref_subtree_fasta.fasta_join(cluster_fasta)
 
         # Change header format to one without whitespace
-        ref_subtree_fasta.change_dict_keys("num")
+        ref_subtree_fasta.change_dict_keys("num_id")
         # Write a FASTA file for multiple sequence alignment and phylogenetic inference
         fa_input = os.path.join(phylo_clust.stage_output_dir, os.path.basename(ref_subtree_fasta.file))
         fasta.write_new_fasta(ref_subtree_fasta.fasta_dict,

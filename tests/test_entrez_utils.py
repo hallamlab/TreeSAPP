@@ -80,7 +80,7 @@ class EntrezUtilitiesTester(unittest.TestCase):
         # Test normal operating conditions
         er_acc_dict = e_utils.map_accession2taxid(query_accessions=self.test_entrez_records,
                                                   accession2taxid_list=self.accession2taxid)
-        self.assertEqual(5, len(er_acc_dict))
+        self.assertEqual(6, len(er_acc_dict))
         self.assertEqual('112509', er_acc_dict["BAJ94456"].pop().ncbi_tax)
         self.assertEqual('', er_acc_dict["XP_005707548.1"].pop().ncbi_tax)
 

@@ -76,7 +76,7 @@ def dereplicate_by_clustering(fasta_inst: fasta.FASTA, prop_similarity: float, m
     :return: A dictionary of cluster numerical identifiers indexing Cluster instances
     """
 
-    fasta_inst.change_dict_keys("num")
+    fasta_inst.change_dict_keys("num_id")
     cluster_input = os.path.join(tmp_dir, "cluster_in.fasta")
     clusters_prefix = os.path.join(tmp_dir, "linclust_out")
     clusters_table = clusters_prefix + "_cluster.tsv"
