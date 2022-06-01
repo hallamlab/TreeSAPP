@@ -430,12 +430,12 @@ class TreesappTester(unittest.TestCase):
         self.assertTrue(test_refpkg.svc is not None)
         return
 
-    def test_tmp(self):
-        from treesapp import commands
-        os.chdir("/home/connor/Desktop/NrfA")
-        cmd = "-i nrfA_refseq-protein-212.hits99.fasta -c nrfA --headless --fast -o nrfA_S1 --accession2lin nrfA_refseq-protein-212.hits99.acc_id_lin_map2.tsv --overwrite -n 8"
-        commands.create(cmd.split())
-        return
+    # def test_tmp(self):
+    #     from treesapp import commands
+    #     os.chdir("")
+    #     cmd = ""
+    #     commands.create(cmd.split())
+    #     return
 
 
 if __name__ == '__main__':

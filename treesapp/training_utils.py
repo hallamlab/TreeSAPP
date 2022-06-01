@@ -365,7 +365,7 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
     fasta.write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=query_fasta_file)
 
     ##
-    # Run hmmalign, BMGE and EPA-NG to map sequences from the taxonomic rank onto the tree
+    # Run hmmalign, ClipKit and EPA-NG to map sequences from the taxonomic rank onto the tree
     ##
     aln_stdout = wrapper.profile_aligner(executables, ce_refpkg.f__msa, ce_refpkg.f__profile,
                                          query_fasta_file, query_sto_file)

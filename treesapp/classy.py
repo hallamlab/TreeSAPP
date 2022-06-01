@@ -480,7 +480,7 @@ class TreeSAPP:
         :return: exec_paths beings the absolute path to each executable
         """
         exec_paths = dict()
-        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "epa-ng", "raxml-ng", "BMGE.jar"]
+        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "epa-ng", "raxml-ng"]
 
         # Extra executables necessary for certain modes of TreeSAPP
         if self.command == "abundance":

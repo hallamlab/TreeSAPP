@@ -815,7 +815,7 @@ def get_msa_trim_command(executables, mfa_file, molecule, tool="BMGE"):
     return trim_command, trimmed_msa_file
 
 
-def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict, n_proc=1, tool="BMGE", silent=False):
+def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict, n_proc=1, tool="ClipKit", silent=False):
     """
     Runs BMGE using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
 
@@ -824,7 +824,7 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict,
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their respective denominators
     :param n_proc: The number of parallel processes to be launched for alignment trimming
     :param tool: The software to use for alignment trimming
-    :return: A list of files resulting from BMGE multiple sequence alignment masking.
+    :return: A list of files resulting from multiple sequence alignment masking.
     """
     start_time = time.time()
     task_list = list()

@@ -1,4 +1,3 @@
-from setuptools import Extension
 from setuptools import setup, find_packages
 
 with open("README.md", "r") as readme:
@@ -34,10 +33,6 @@ SETUP_METADATA = \
         "include_package_data": True,
         "entry_points": {'console_scripts': ['treesapp = treesapp.__main__:main']},
         "classifiers": CLASSIFIERS,
-        "ext_modules": [Extension("_tree_parser",
-                                  sources=["treesapp/extensions/tree_parsermodule.cpp"],
-                                  language="c++")
-                        ],
         "install_requires": open("requirements.txt").read().splitlines(),
         "setup_requires": [
             "setuptools>=50.0.0"

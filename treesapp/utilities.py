@@ -192,8 +192,6 @@ def executable_dependency_versions(exe_dict: dict) -> str:
             versions_dict[exe] = stdout.strip()
         elif exe == "FastTree":
             stdout, returncode = eci.launch_write_command([exe_dict[exe], "-expert"])
-        elif exe == "BMGE.jar":
-            stdout, returncode = eci.launch_write_command(["java", "-Xmx10m", "-jar", exe_dict[exe], "-?"])
         else:
             LOGGER.warning("Unknown version command for " + exe + ".\n")
             continue

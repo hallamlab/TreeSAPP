@@ -47,6 +47,7 @@ def info(sys_args):
 
     import treesapp
     import Bio
+    from clipkit.version import __version__ as ck_version
     import numpy
     import packaging
     import pygtrie
@@ -62,6 +63,7 @@ def info(sys_args):
 
     # Write the version of all python deps
     py_deps = {"biopython": Bio.__version__,
+               "clipkit": ck_version,
                "ete3": ete3.__version__,
                "joblib": joblib.__version__,
                "numpy": numpy.__version__,
@@ -634,7 +636,7 @@ def create(sys_args):
                                           n_threads=args.num_threads, intermediates_dir=ts_create.var_output_dir)
 
         ##
-        # Optionally trim with BMGE and create the Phylip multiple alignment file
+        # Optionally trim the multiple sequence alignment create Phylip files
         ##
         dict_for_phy = dict()
         if args.trim_align:
