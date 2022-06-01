@@ -37,7 +37,7 @@ class UpdaterTester(unittest.TestCase):
         fa.header_registry = register_headers(list(fa.fasta_dict.keys()))
         lin_map = {"AB-750_E14_NODE_11_length_29119_cov_8.74474_ID_15_7": "d__Bacteria;p__Proteobacteria",
                    "2509738965_Desulfomonile_tiedjei_DCB|HgcB|1_200": "d__Bacteria; p__Proteobacteria; c__Deltaproteobacteria; o__Syntrophobacterales; f__Syntrophaceae"}
-        fa.change_dict_keys("num")
+        fa.change_dict_keys("num_id")
 
         # Test to ensure sequences with same prefix have different EntrezRecord instances
         entrez_records = simulate_entrez_records(fasta_records=fa, seq_lineage_map=lin_map)
