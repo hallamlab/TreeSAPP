@@ -274,8 +274,8 @@ def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict
             er.organism = er.lineage.split("; ")[-1]
             er.description = " ".join(header.original.split(" ")[1:])
             er.versioned = header.original.split(" ")[0]
-            er.sequence = fasta_records.fasta_dict[str(header.treesapp_num_id)]
-            entrez_records[str(header.treesapp_num_id)] = er
+            er.sequence = fasta_records.fasta_dict[str(header.num_id)]
+            entrez_records[str(header.num_id)] = er
     return entrez_records
 
 

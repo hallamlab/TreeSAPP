@@ -97,7 +97,7 @@ def read_placement_summary(placement_summary_file: str) -> dict:
                         dists = [float(dist) for dist in dist_strings]
                     except ValueError:
                         LOGGER.error("Looks like treesapp train did not complete successfully.\n"
-                                      "Please re-run with the flag '--overwrite'.\n")
+                                     "Please re-run with the flag '--overwrite'.\n")
                         sys.exit(5)
                     if len(dists) > 1:
                         taxonomic_placement_distances[rank] = dists
@@ -187,7 +187,6 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
     test_seqs.dedup_by_accession()
     # Remove fasta records with duplicate sequences
     test_seqs.dedup_by_sequences()
-    test_seqs.change_dict_keys("first_split")
 
     # Remove sequences that are not related at the rank of Domain
     ref_domains = t_hierarchy.rank_representatives("domain", True)
@@ -204,13 +203,7 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
                      str(', '.join(ref_domains)))
         sys.exit(5)
 
-    related_queries_in_fasta = list(set(test_seqs.fasta_dict.keys()).intersection(set(related_queries)))
-    if not related_queries_in_fasta:
-        LOGGER.error("Unable to match names from '{}' (e.g., {}) to those in the accession-lineage map (e.g. {})."
-                     "\n".format(test_seqs.file,
-                                 ', '.join(test_seqs.fasta_dict.keys()[0:3]),
-                                 ', '.join(accession_lineage_map.keys()[0:3])))
-        sys.exit(1)
+    related_queries_in_fasta = test_seqs.careful_header_intersection(related_queries)
     test_seqs.keep_only(related_queries_in_fasta)
     test_seqs.change_dict_keys("accession")
     [accession_lineage_map.pop(seq_name) for seq_name in unrelated_queries]
@@ -254,25 +247,25 @@ def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: 
 
         if taxonomic_coverage < warning_threshold:
             LOGGER.warning("Only {0}% of unique {1}-level taxa can be used represent"
-                            " {1} phylogenetic placements.\n".format(taxonomic_coverage, rank))
+                           " {1} phylogenetic placements.\n".format(taxonomic_coverage, rank))
 
         test_taxa_summary.append("%d/%d unique %s-level taxa have training sequences.\n" % (represented_taxa,
                                                                                             len(unique_ref_lineages),
                                                                                             rank))
         LOGGER.debug("%.1f%% of optimal %s lineages are present in the pruned trees.\n" %
-                      (round(float(optimal_lineages_present*100/len(unique_ref_lineages)), 1), rank))
+                     (round(float(optimal_lineages_present*100/len(unique_ref_lineages)), 1), rank))
         optimal_lineages_present = 0
         represented_taxa = 0
 
     LOGGER.debug("Optimal placement target was not found in the pruned tree for following taxa:\n\t" +
-                  "\n\t".join(optimal_assignment_missing) + "\n")
+                 "\n\t".join(optimal_assignment_missing) + "\n")
     
     LOGGER.debug("Unable to generate placement data for the following taxa since the refpkg would be too small:\n\t" +
-                  "\n\t".join(too_short) + "\n")
+                 "\n\t".join(too_short) + "\n")
 
     LOGGER.debug("\n".join(test_taxa_summary) + "\n")
 
-    test_seqs.change_dict_keys("num")
+    test_seqs.change_dict_keys("num_id")
     fasta.write_new_fasta(test_seqs.fasta_dict, clustering_input)
     wrapper.cluster_sequences(executables["mmseqs"], clustering_input, clustering_prefix, similarity)
     cluster_dict = seq_clustering.create_mmseqs_clusters(clusters_tbl=clustering_prefix + "_cluster.tsv",
@@ -415,10 +408,10 @@ def evo_dists_from_pqueries(pqueries: dict, training_ranks=None) -> dict:
         mean_dist = round(utilities.mean(taxonomic_placement_distances[rank]), 4)
 
         LOGGER.debug("RANK: {}\n"
-                      "\tSamples = {}\n"
-                      "\tMedian = {}\n"
-                      "\tMean = {}\n"
-                      "".format(rank, len(taxonomic_placement_distances[rank]), median_dist, mean_dist))
+                     "\tSamples = {}\n"
+                     "\tMedian = {}\n"
+                     "\tMean = {}\n"
+                     "".format(rank, len(taxonomic_placement_distances[rank]), median_dist, mean_dist))
     return taxonomic_placement_distances
 
 

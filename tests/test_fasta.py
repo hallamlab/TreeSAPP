@@ -172,6 +172,19 @@ class FastaTester(unittest.TestCase):
         self.assertEqual({}, test_fa.fasta_dict)
         return
 
+    def test_careful_header_intersection(self):
+        from treesapp.fasta import FASTA
+        test_fa = FASTA(self.test_fa)
+        test_fa.load_fasta()
+        test_fa.change_dict_keys("num_id")
+        names = ['KKH90701  coded_by=13826..15538,organism=Methanosarcina mazei,definition=methyl-coenzyme M reductase',
+                 'AGF96667',
+                 '3']
+
+        name_matches = test_fa.careful_header_intersection(seq_names=names)
+        self.assertEqual(['1', '2', '3'], name_matches)
+        return
+
 
 class HeaderTester(unittest.TestCase):
     def setUp(self) -> None:

@@ -509,7 +509,7 @@ def load_pqueries(hmm_matches: dict, query_seq_fasta: fasta.FASTA) -> list:
     LOGGER.debug("Instantiating the PQuery instances... ")
 
     pqueries = []
-    query_seq_fasta.change_dict_keys("num")
+    query_seq_fasta.change_dict_keys("num_id")
     for refpkg_name, refpkg_matches in hmm_matches.items():  # type: (str, list)
         for hmm_match in refpkg_matches:  # type: HmmMatch
             if hmm_match.desc != '-':
@@ -1460,7 +1460,7 @@ def assign(sys_args):
     # Load alignment information
     load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
     pqueries = load_pqueries(hmm_matches, query_seqs)
-    query_seqs.change_dict_keys("num")
+    query_seqs.change_dict_keys("num_id")
     extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
     numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)
     homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,

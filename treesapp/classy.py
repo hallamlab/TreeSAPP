@@ -88,7 +88,7 @@ def dedup_records(ref_seqs: fasta.FASTA, ref_seq_records: dict) -> dict:
     all_accessions = dict()
 
     if ref_seqs.index_form != "num":
-        ref_seqs.change_dict_keys("num")
+        ref_seqs.change_dict_keys("num_id")
 
     # Create a dictionary mapping versioned accessions to EntrezRecords for identifying duplicate accessions
     for treesapp_id, record in ref_seq_records.items():  # type: (str, entrez_utils.EntrezRecord)
