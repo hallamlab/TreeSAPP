@@ -43,7 +43,7 @@ def launch_write_command(cmd_list, collect_all=True):
     return stdout, proc.returncode
 
 
-def run_apply_async_multiprocessing(func, arguments_list: list, num_processes: int, pbar_desc: str,
+def run_apply_async_multiprocessing(func, arguments_list, num_processes: int, pbar_desc: str,
                                     disable=False) -> list:
     if len(arguments_list) == 0:
         return []
@@ -57,7 +57,10 @@ def run_apply_async_multiprocessing(func, arguments_list: list, num_processes: i
         pbar.update()
 
     for args in arguments_list:
-        jobs.append(pool.apply_async(func=func, args=(*args,), callback=update))
+        if isinstance(args, list):
+            jobs.append(pool.apply_async(func=func, args=(*args,), callback=update))
+        elif isinstance(args, dict):
+            jobs.append(pool.apply_async(func=func, kwds=args, callback=update))
     pool.close()
 
     for job in pbar:
