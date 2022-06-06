@@ -15,20 +15,21 @@ from tqdm import tqdm
 
 from treesapp import abundance
 from treesapp import classy
+from treesapp import entish
+from treesapp import external_command_interface as eci
+from treesapp import fasta
+from treesapp import file_parsers
+from treesapp import lca_calculations as ts_lca
 from treesapp import logger
+from treesapp import multiple_alignment
 from treesapp import phylo_seq
 from treesapp import refpkg
 from treesapp import treesapp_args
-from treesapp import entish
-from treesapp import lca_calculations as ts_lca
 from treesapp import jplace_utils
-from treesapp import file_parsers
 from treesapp import phylo_dist
 from treesapp import utilities
 from treesapp import wrapper
-from treesapp import fasta
 from treesapp import training_utils
-from treesapp import external_command_interface as eci
 from treesapp.hmmer_tbl_parser import HmmMatch
 
 LOGGER = logging.getLogger(logger.logger_name())
@@ -363,35 +364,27 @@ class Assigner(classy.TreeSAPP):
 
         return file_parsers.parse_domain_tables(hmm_parsing_thresholds, refpkg_hmmer_tables)
 
-    def align(self, refpkg_dict: dict, homolog_seq_files: list, min_seq_length: int, n_proc: int,
-              trim_align=True, verbose=False) -> dict:
+    def align(self, refpkg_dict: dict, homolog_seq_files: list, min_seq_length: int, n_proc: int, trim_align=True) -> dict:
         if self.past_last_stage("align"):
             return {}
         MSAs = namedtuple("MSAs", "ref query")
-        ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
 
         split_msa_files = self.fetch_multiple_alignments()
         target_refpkgs = {prefix: rp for prefix, rp in refpkg_dict.items() if prefix not in split_msa_files}
         if self.stage_status("align") or target_refpkgs:
-            # create_ref_phy_files(refpkg_dict, align_output_dir,
-            #                      homolog_seq_files, ref_alignment_dimensions)
             concatenated_msa_files = multiple_alignments(self.executables, homolog_seq_files,
                                                          target_refpkgs, "hmmalign",
                                                          output_dir=self.stage_lookup(name="align").dir_path,
                                                          num_proc=n_proc, silent=self.silent)
             if concatenated_msa_files:
                 combined_msa_files = {}
-                file_type = utilities.find_msa_type(concatenated_msa_files)
-                alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
-                                                            verbose, file_type)
                 if trim_align:
-                    tool = "BMGE"
-                    trimmed_mfa_files = wrapper.filter_multiple_alignments(self.executables, concatenated_msa_files,
-                                                                           target_refpkgs, n_proc, tool, self.silent)
-                    qc_ma_dict = check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files,
-                                                             target_refpkgs, min_seq_length)
-                    evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
-                    combined_msa_files.update(qc_ma_dict)
+                    trimmed_mfa_files = multiple_alignment.trim_multiple_alignment_farmer(concatenated_msa_files,
+                                                                                          min_seq_length=min_seq_length,
+                                                                                          ref_pkgs=refpkg_dict,
+                                                                                          n_proc=n_proc,
+                                                                                          silent=self.silent)
+                    combined_msa_files.update(trimmed_mfa_files)
                 else:
                     combined_msa_files.update(concatenated_msa_files)
 
@@ -870,132 +863,6 @@ def gather_split_msa(refpkg_names: list, align_dir: str) -> dict:
             split_msa = MSAs(ref_msa, query_msa)
             split_msa_map[refpkg_name].append(split_msa)
     return split_msa_map
-
-
-def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg_dict: dict, min_len=10):
-    """
-    Reads the multiple alignment files (either Phylip or FASTA formatted) and looks for both reference and query
-    sequences that have been removed. Multiple alignment files are removed from `mfa_files` if:
-        1. all query sequences were removed; a DEBUG message is issued
-        2. at least one reference sequence was removed
-    This quality-control function is necessary for placing short query sequences onto reference trees.
-
-    :param trimmed_msa_files:
-    :param msa_files: A dictionary containing the untrimmed MSA files indexed by reference package code (denominator)
-    :param refpkg_dict: A dictionary of ReferencePackage objects indexed by their ref_pkg names
-    :param min_len: The minimum allowable sequence length after trimming (not including gap characters)
-    :return: A dictionary of denominators, with multiple alignment dictionaries as values. Example:
-        {M0702: { "McrB_hmm_purified.phy-BMGE.fasta": {'1': seq1, '2': seq2}}}
-    """
-    qc_ma_dict = dict()
-    num_successful_alignments = 0
-    discarded_seqs_string = ""
-    trimmed_away_seqs = dict()
-    untrimmed_msa_failed = []
-    LOGGER.debug("Validating trimmed multiple sequence alignment files... ")
-
-    for refpkg_name in sorted(trimmed_msa_files.keys()):
-        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
-        trimmed_away_seqs[ref_pkg.prefix] = 0
-        # Create a set of the reference sequence names
-        ref_headers = fasta.get_headers(ref_pkg.f__msa)
-        unique_refs = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x)[1:] for x in ref_headers])
-        msa_passed, msa_failed, summary_str = file_parsers.validate_alignment_trimming(
-            trimmed_msa_files[ref_pkg.prefix],
-            unique_refs, True, min_len)
-
-        # Report the number of sequences that are removed by BMGE
-        for trimmed_msa_file in trimmed_msa_files[ref_pkg.prefix]:
-            try:
-                prefix = re.search('(' + re.escape(ref_pkg.prefix) + r"_.*_group\d+)-(BMGE|trimAl).fasta$",
-                                   os.path.basename(trimmed_msa_file)).group(1)
-            except TypeError:
-                LOGGER.error("Unexpected file name format for a trimmed MSA.\n")
-                sys.exit(3)
-            # Find the untrimmed query sequence MSA file - the trimmed MSA file's 'pair'
-            pair = ""
-            for msa_file in msa_files[ref_pkg.prefix]:
-                if re.search(re.escape(prefix) + r'\.', msa_file):
-                    pair = msa_file
-                    break
-            if pair:
-                if trimmed_msa_file in msa_failed:
-                    untrimmed_msa_failed.append(pair)
-                trimmed_away_seqs[ref_pkg.prefix] += len(
-                    set(fasta.get_headers(pair)).difference(set(fasta.get_headers(trimmed_msa_file))))
-            else:
-                LOGGER.error("Unable to map trimmed MSA file '" + trimmed_msa_file + "' to its original MSA.\n")
-                sys.exit(5)
-
-        if len(msa_failed) > 0:
-            if len(untrimmed_msa_failed) != len(msa_failed):
-                LOGGER.error("Not all of the failed ({}/{}),"
-                             " trimmed MSA files were mapped to their original MSAs."
-                             "\n".format(len(msa_failed), len(trimmed_msa_files[ref_pkg.prefix])))
-                sys.exit(3)
-            untrimmed_msa_passed, _, _ = file_parsers.validate_alignment_trimming(untrimmed_msa_failed, unique_refs,
-                                                                                  True, min_len)
-            msa_passed.update(untrimmed_msa_passed)
-        num_successful_alignments += len(msa_passed)
-        qc_ma_dict[ref_pkg.prefix] = msa_passed
-        discarded_seqs_string += summary_str
-        untrimmed_msa_failed.clear()
-
-    LOGGER.debug("done.\n")
-    LOGGER.debug("\tSequences removed during trimming:\n\t\t" +
-                 '\n\t\t'.join([k + ": " + str(trimmed_away_seqs[k]) for k in trimmed_away_seqs.keys()]) + "\n")
-
-    LOGGER.debug("\tSequences <" + str(min_len) + " characters removed after trimming:" +
-                 discarded_seqs_string + "\n")
-
-    if num_successful_alignments == 0:
-        LOGGER.error("No quality alignment files to analyze after trimming. Exiting now.\n")
-        sys.exit(0)  # Should be 3, but this allows Clade_exclusion_analyzer to continue after exit
-
-    return qc_ma_dict
-
-
-def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool):
-    """
-
-    :param qc_ma_dict: A dictionary mapping denominators to files to multiple alignment dictionaries
-    :param alignment_length_dict:
-    :param concatenated_msa_files: Dictionary with markers indexing original (untrimmed) multiple alignment files
-    :param tool: The name of the tool that was appended to the original, untrimmed or unmasked alignment files
-    :return: None
-    """
-    trimmed_length_dict = dict()
-    for denominator in sorted(qc_ma_dict.keys()):
-        if len(concatenated_msa_files[denominator]) >= 1:
-            of_ext = concatenated_msa_files[denominator][0].split('.')[-1]
-        else:
-            continue
-        if denominator not in trimmed_length_dict:
-            trimmed_length_dict[denominator] = list()
-        for multi_align_file in qc_ma_dict[denominator]:
-            file_type = multi_align_file.split('.')[-1]
-            multi_align = qc_ma_dict[denominator][multi_align_file]
-            num_seqs, trimmed_seq_length = fasta.multiple_alignment_dimensions(multi_align_file, multi_align)
-
-            original_multi_align = re.sub('-' + tool + '.' + file_type, '.' + of_ext, multi_align_file)
-            raw_align_len = alignment_length_dict[original_multi_align]
-            diff = raw_align_len - trimmed_seq_length
-            if diff < 0:
-                LOGGER.warning("MSA length increased after {} processing for {}\n".format(tool, multi_align_file))
-            else:
-                trimmed_length_dict[denominator].append(diff)
-
-    trimming_performance_string = "\tAverage columns removed:\n"
-    for denominator in trimmed_length_dict:
-        trimming_performance_string += "\t\t" + denominator + "\t"
-        n_trimmed_files = len(trimmed_length_dict[denominator])
-        if n_trimmed_files > 0:
-            trimming_performance_string += str(round(sum(trimmed_length_dict[denominator]) / n_trimmed_files, 1)) + "\n"
-        else:
-            trimming_performance_string += str(0.0) + "\n"
-
-    LOGGER.debug(trimming_performance_string + "\n")
-    return
 
 
 def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
