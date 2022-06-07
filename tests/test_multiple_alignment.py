@@ -9,7 +9,8 @@ class MyTestCase(unittest.TestCase):
         from treesapp import multiple_alignment
         from treesapp import refpkg
         test_fa = get_test_data('PuhA.mfa')
-        output_file = os.path.join("tests", "test_data", "PuhA.trim.mfa")
+        trim_file = os.path.join("tests", "test_data", "PuhA.trim.mfa")
+        qc_file = os.path.join("tests", "test_data", "PuhA.trim.qc.mfa")
         test_rp = refpkg.ReferencePackage(refpkg_name="PuhA")
         test_rp.f__pkl = get_test_data(filename=os.path.join("refpkgs", "PuhA_build.pkl"))
         test_rp.slurp()
@@ -18,14 +19,15 @@ class MyTestCase(unittest.TestCase):
                                                                    min_seq_length=10,
                                                                    n_proc=1,
                                                                    ref_pkgs={"PuhA": test_rp})
-        self.assertTrue(os.path.isfile(output_file))
+        self.assertTrue(os.path.isfile(trim_file))
         self.assertIsInstance(result, dict)
         self.assertTrue("PuhA" in result.keys())
-        self.assertEqual(os.path.basename(output_file),
+        self.assertEqual(os.path.basename(qc_file),
                          os.path.basename(result["PuhA"].pop()))
 
-        if os.path.isfile(output_file):
-            os.remove(output_file)
+        for f_path in [trim_file, qc_file]:
+            if os.path.isfile(f_path):
+                os.remove(f_path)
         return
 
 

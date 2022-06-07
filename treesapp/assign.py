@@ -440,7 +440,7 @@ class Assigner(classy.TreeSAPP):
                                                               molecule="dna",
                                                               subset=classified_seq_names,
                                                               full_name=self.fasta_full_name)
-                nuc_orfs.header_registry = fasta.register_headers(nuc_orfs.fasta_dict.keys())
+                nuc_orfs.header_registry = fasta.register_headers(header_list=list(nuc_orfs.fasta_dict.keys()))
                 nuc_orfs.change_dict_keys()
                 if not os.path.isfile(self.classified_nuc_seqs):
                     self.ts_logger.info("Creating nucleotide FASTA file of classified sequences '{}'... "
@@ -1338,13 +1338,13 @@ def assign(sys_args):
     ts_assign.increment_stage_dir(checkpoint="search")
 
     ##
-    # STAGE 4: Run hmmalign, and optionally BMGE, to produce the MSAs for phylogenetic placement
+    # STAGE 4: Run hmmalign, and optionally trim, to produce the MSAs for phylogenetic placement
     ##
-    split_msa_files = ts_assign.align(refpkg_dict, homolog_seq_files,
+    split_msa_files = ts_assign.align(refpkg_dict=refpkg_dict,
+                                      homolog_seq_files=homolog_seq_files,
                                       n_proc=n_proc,
                                       trim_align=args.trim_align,
-                                      min_seq_length=args.min_seq_length,
-                                      verbose=args.verbose)
+                                      min_seq_length=args.min_seq_length)
     delete_files(args.delete, ts_assign.stage_lookup("search").dir_path, 2)
     ts_assign.increment_stage_dir(checkpoint="align")
 

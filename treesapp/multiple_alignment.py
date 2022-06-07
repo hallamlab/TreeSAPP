@@ -1,3 +1,4 @@
+import sys
 import os.path
 import time
 import logging
@@ -7,11 +8,11 @@ from treesapp import refpkg
 from treesapp import external_command_interface as eci
 from treesapp import clipkit_helper as ckh
 
-
 LOGGER = logging.getLogger(logger.logger_name())
 
 
-def trim_multiple_alignment_clipkit(msa_file: str, ref_pkg: refpkg.ReferencePackage, min_seq_length: int) -> ckh.ClipKitHelper:
+def trim_multiple_alignment_clipkit(msa_file: str, ref_pkg: refpkg.ReferencePackage,
+                                    min_seq_length: int) -> ckh.ClipKitHelper:
     trimmer = ckh.ClipKitHelper(fasta_in=msa_file,
                                 output_dir=os.path.dirname(msa_file))
     trimmer.refpkg_name = ref_pkg.prefix
@@ -23,41 +24,42 @@ def trim_multiple_alignment_clipkit(msa_file: str, ref_pkg: refpkg.ReferencePack
 
 def summarise_trimming(msa_trimmers: list) -> None:
     """Summarises various outcomes of trimming MSAs."""
+    refpkg_trimming_stats = {trimmer.refpkg_name: {
+        "msa_files": 0,
+        "cols_removed": [],
+        "seqs_removed": [],
+        "successes": 0,
+    }
+        for trimmer in msa_trimmers}
     num_successful_alignments = 0
-    discarded_seqs_string = ""
-    trimmed_away_seqs = dict()
-    untrimmed_msa_failed = []
+
     LOGGER.debug("Validating trimmed multiple sequence alignment files... ")
     for trimmer in msa_trimmers:  # type: ckh.ClipKitHelper
-        # TODO: Gather all useful stats for each trimmer instance
+        # Gather all useful stats for each trimmer instance
+        refpkg_trimming_stats[trimmer.refpkg_name]["msa_files"] += 1
         if trimmer.success:
+            refpkg_trimming_stats[trimmer.refpkg_name]["successes"] += 1
             num_successful_alignments += 1
-
-    # TODO: Summarise trimming by reference package
-    trimming_performance_string = "\tAverage columns removed:\n"
-    for refpkg_name in trimmed_length_dict:
-        trimming_performance_string += "\t\t" + refpkg_name + "\t"
-        n_trimmed_files = len(trimmed_length_dict[denominator])
-        if n_trimmed_files > 0:
-            trimming_performance_string += str(
-                round(sum(trimmed_length_dict[denominator]) / n_trimmed_files, 1)) + "\n"
         else:
-            trimming_performance_string += str(0.0) + "\n"
+            continue
+        refpkg_trimming_stats[trimmer.refpkg_name]["cols_removed"].append(trimmer.num_msa_cols - trimmer.num_trim_cols)
+        refpkg_trimming_stats[trimmer.refpkg_name]["seqs_removed"].append(trimmer.num_msa_seqs - trimmer.num_trim_seqs)
 
-    LOGGER.debug(trimming_performance_string + "\n")
+    # Summarise trimming by reference package
+    for refpkg_name, stats in refpkg_trimming_stats.items():
+        trim_summary = "\t\t{} trimming stats:\n".format(refpkg_name)
+        if stats["msa_files"] == 0:
+            continue
+        trim_summary += "Multiple alignment files   = {}\n".format(stats["msa_files"])
+        trim_summary += "Files successfully trimmed = {}\n".format(stats["successes"])
+        trim_summary += "Average columns removed    = {}\n".format(round(sum(stats["cols_removed"]) /
+                                                                         len(stats["cols_removed"])))
+        trim_summary += "Average sequences removed  = {}\n".format(round(sum(stats["seqs_removed"]) /
+                                                                         len(stats["seqs_removed"])))
 
-    discarded_seqs_string += "\n\t\t" + self.mfa_out + " = " + str(len(discarded_seqs))
-    num_successful_alignments += len(msa_passed)
-    qc_ma_dict[ref_pkg.prefix] = msa_passed
-    discarded_seqs_string += summary_str
-    untrimmed_msa_failed.clear()
+        LOGGER.debug(trim_summary + "\n")
 
     LOGGER.debug("done.\n")
-    LOGGER.debug("\tSequences removed during trimming:\n\t\t" +
-                 '\n\t\t'.join([k + ": " + str(trimmed_away_seqs[k]) for k in trimmed_away_seqs.keys()]) + "\n")
-
-    LOGGER.debug("\tSequences <" + str(min_len) + " characters removed after trimming:" +
-                 discarded_seqs_string + "\n")
 
     if num_successful_alignments == 0:
         LOGGER.error("No quality alignment files to analyze after trimming. Exiting now.\n")

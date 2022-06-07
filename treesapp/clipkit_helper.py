@@ -1,4 +1,3 @@
-import re
 import sys
 import logging
 import os.path
@@ -34,7 +33,7 @@ class ClipKitHelper:
         self.min_unaligned_seq_length = 1
 
         # Attributes used in evaluating trimming performance
-        self.success = False
+        self.success = True
         self.num_msa_seqs = 0
         self.num_msa_cols = 0
         self.num_trim_seqs = 0
@@ -122,6 +121,8 @@ class ClipKitHelper:
             self.logger.error("Unsupported file format ('{}') of {}.\n".format(self.ff_out, self.mfa_out))
             sys.exit(1)
 
+        msa_records.header_registry = fasta.register_headers(list(msa_records.fasta_dict.keys()),
+                                                             drop=True)
         return msa_records
     
     def validate_alignment_trimming(self):
@@ -154,9 +155,7 @@ class ClipKitHelper:
 
         if ref_pkg is not None:  # type: refpkg.ReferencePackage
             # Create a set of the reference sequence names
-            unique_ref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x)[1:]
-                                      for x in
-                                      ref_pkg.msa])
+            unique_ref_headers = set(ref_pkg.get_fasta().get_seq_names())
             self.quantify_refs_and_pqueries(unique_ref_headers)
 
         return
