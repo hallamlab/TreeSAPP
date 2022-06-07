@@ -21,10 +21,10 @@ from treesapp import fasta
 from treesapp import classy
 from treesapp import phylo_seq
 from treesapp import logger
-from treesapp import external_command_interface as eci
 from treesapp.jplace_utils import jplace_parser, demultiplex_pqueries, calc_pquery_mean_tip_distances
 from treesapp.entish import map_internal_nodes_leaves
 from treesapp.refpkg import ReferencePackage
+from treesapp import multiple_alignment
 
 LOGGER = logging.getLogger(logger.logger_name())
 
@@ -375,27 +375,19 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
 
     LOGGER.debug(str(aln_stdout) + "\n")
 
-    trim_command, combined_msa = wrapper.get_msa_trim_command(executables, all_msa, ce_refpkg.molecule)
-    eci.launch_write_command(trim_command)
-    intermediate_files += glob(combined_msa + "*")
-
-    # Ensure reference sequences haven't been removed during MSA trimming
-    msa_dict, failed_msa_files, summary_str = file_parsers.validate_alignment_trimming([combined_msa],
-                                                                                       set(ce_fasta.fasta_dict),
-                                                                                       True)
-    nrow, ncolumn = fasta.multiple_alignment_dimensions(mfa_file=combined_msa,
-                                                        seq_dict=fasta.read_fasta_to_dict(combined_msa))
-    LOGGER.debug("Columns = " + str(ncolumn) + "\n")
-    if combined_msa not in msa_dict.keys():
+    trimmer = multiple_alignment.trim_multiple_alignment_clipkit(msa_file=all_msa,
+                                                                 ref_pkg=ref_pkg,
+                                                                 min_seq_length=int(0.1*ref_pkg.hmm_length()))
+    trimmer.summarise_trimming()
+    if not trimmer.success:
         LOGGER.debug("Placements for '{}' are being skipped after failing MSA validation.\n".format(taxon))
         for old_file in intermediate_files:
             os.remove(old_file)
-            intermediate_files.clear()
+        intermediate_files.clear()
         return pqueries
-    LOGGER.debug("Number of sequences discarded: " + summary_str + "\n")
 
     # Create the query-only FASTA file required by EPA-ng
-    fasta.split_combined_ref_query_fasta(combined_msa, query_msa, ref_msa)
+    fasta.split_combined_ref_query_fasta(trimmer.get_qc_output(), query_msa, ref_msa)
 
     raxml_files = wrapper.raxml_evolutionary_placement(epa_exe=executables["epa-ng"],
                                                        refpkg_tree=ce_refpkg.f__tree,

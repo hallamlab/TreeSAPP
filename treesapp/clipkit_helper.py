@@ -50,7 +50,6 @@ class ClipKitHelper:
         return
 
     def run(self):
-
         ck.execute(input_file=self.input,
                    input_file_format=self.ff_in,
                    output_file=self.mfa_out,
@@ -166,12 +165,16 @@ class ClipKitHelper:
         else:
             return self.input
 
-    def write_qc_trimmed_multiple_alignment(self) -> None:
+    def get_qc_trimmed_fasta(self) -> fasta.FASTA:
         if not self.success:
             return
 
         msa_fasta = self.read_trimmed_msa()
         msa_fasta.keep_only(header_subset=self.trim_qc_seqs)
+        return msa_fasta
+
+    def write_qc_trimmed_multiple_alignment(self) -> None:
+        msa_fasta = self.get_qc_trimmed_fasta()
         fasta.write_new_fasta(fasta_dict=msa_fasta.fasta_dict,
                               fasta_name=self.qc_mfa_out)
         return
