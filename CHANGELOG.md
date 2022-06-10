@@ -1,3 +1,9 @@
+## [0.11.5] - 2022-06
+### Added
+### Fixed
+### Changed
+- Switched BMGE for ClipKit (#67)
+
 ## [0.11.4] - 2022-05-22
 ### Added
 - Centroid inference for pOTUs based on the midpoint, or balance point, of all cluster members.

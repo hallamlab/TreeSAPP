@@ -6,9 +6,11 @@ import shutil
 from glob import glob
 from csv import Sniffer
 from io import StringIO
+from functools import partialmethod
 
 from pygtrie import StringTrie
 import multiprocessing
+from tqdm import tqdm
 
 from treesapp import external_command_interface as eci
 from treesapp import logger
@@ -18,6 +20,7 @@ LOGGER = logging.getLogger(logger.logger_name())
 
 class Capturing(list):
     def __enter__(self):
+        tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
         self._stdout = sys.stdout
         sys.stdout = self._stringio = StringIO()
         return self
@@ -26,6 +29,8 @@ class Capturing(list):
         self.extend(self._stringio.getvalue().splitlines())
         del self._stringio    # free up some memory
         sys.stdout = self._stdout
+        tqdm.__init__ = partialmethod(tqdm.__init__, disable=False)
+        return
 
 
 def base_file_prefix(file_path: str) -> str:

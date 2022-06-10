@@ -52,7 +52,7 @@ class ClipKitHelper:
         self.num_refs_retained = 0
         return
 
-    def run(self):
+    def run(self, verbose=False):
         start_time = time.time()
 
         # Capture all output from print statements within ClipKit
@@ -67,6 +67,9 @@ class ClipKitHelper:
                        use_log=False)
 
         self.exec_time = time.time() - start_time
+
+        if verbose:
+            self.logger.debug('\n'.join(output))
         return
 
     def summarise_trimming(self):
