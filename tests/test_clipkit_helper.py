@@ -20,14 +20,20 @@ class MyTestCase(unittest.TestCase):
                                           output_dir='./',
                                           mode="smart-gap")
         ck.run()
+        ck.compare_original_and_trimmed_multiple_alignments(min_len=200)
+        ck.summarise_trimming()
         self.assertTrue(os.path.isfile(self.output_fa))
 
         ck.mode = ck_modes.TrimmingMode("kpi-smart-gap")
         ck.run()
+        ck.compare_original_and_trimmed_multiple_alignments(min_len=200)
+        ck.summarise_trimming()
         self.assertTrue(os.path.isfile(self.output_fa))
 
-        ck.mode = ck_modes.TrimmingMode("kpi")
+        ck.mode = ck_modes.TrimmingMode("gappy")
         ck.run()
+        ck.compare_original_and_trimmed_multiple_alignments(min_len=200)
+        ck.summarise_trimming()
         self.assertTrue(os.path.isfile(self.output_fa))
         return
 

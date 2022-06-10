@@ -14,10 +14,14 @@ from treesapp import utilities
 
 
 class ClipKitHelper:
-    CLIPKIT_MODES = {"smart-gap"}
+    CLIPKIT_MODES = set([v.value for _k, v in ck_modes.TrimmingMode._member_map_.items()])
 
     def __init__(self, fasta_in: str, output_dir: str, mode="smart-gap", gap_prop=0.9):
+        self.logger = logging.getLogger(logger.logger_name())
         self.input = fasta_in
+        if mode not in self.CLIPKIT_MODES:
+            self.logger.error("'{}' is not a valid TrimmingMode.\n".format(mode))
+            sys.exit(1)
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
 
@@ -25,7 +29,6 @@ class ClipKitHelper:
         self.mfa_out = os.path.join(output_dir, prefix + ".trim" + ext)
         self.qc_mfa_out = os.path.join(output_dir, prefix + ".trim.qc" + ext)
 
-        self.logger = logging.getLogger(logger.logger_name())
         self.mode = ck_modes.TrimmingMode(mode)
         self.gap_prop = gap_prop
 
