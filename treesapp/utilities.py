@@ -5,6 +5,7 @@ import logging
 import shutil
 from glob import glob
 from csv import Sniffer
+from io import StringIO
 
 from pygtrie import StringTrie
 import multiprocessing
@@ -13,6 +14,18 @@ from treesapp import external_command_interface as eci
 from treesapp import logger
 
 LOGGER = logging.getLogger(logger.logger_name())
+
+
+class Capturing(list):
+    def __enter__(self):
+        self._stdout = sys.stdout
+        sys.stdout = self._stringio = StringIO()
+        return self
+
+    def __exit__(self, *args):
+        self.extend(self._stringio.getvalue().splitlines())
+        del self._stringio    # free up some memory
+        sys.stdout = self._stdout
 
 
 def base_file_prefix(file_path: str) -> str:

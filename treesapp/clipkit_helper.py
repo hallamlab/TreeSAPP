@@ -1,4 +1,5 @@
 import sys
+import time
 import logging
 import os.path
 
@@ -9,6 +10,7 @@ from treesapp import logger
 from treesapp import fasta
 from treesapp import refpkg
 from treesapp import file_parsers
+from treesapp import utilities
 
 
 class ClipKitHelper:
@@ -34,6 +36,7 @@ class ClipKitHelper:
 
         # Attributes used in evaluating trimming performance
         self.success = True
+        self.exec_time = 0
         self.num_msa_seqs = 0
         self.num_msa_cols = 0
         self.num_trim_seqs = 0
@@ -50,17 +53,26 @@ class ClipKitHelper:
         return
 
     def run(self):
-        ck.execute(input_file=self.input,
-                   input_file_format=self.ff_in,
-                   output_file=self.mfa_out,
-                   output_file_format=self.ff_out,
-                   gaps=self.gap_prop,
-                   complement=False,
-                   mode=self.mode,
-                   use_log=False)
+        start_time = time.time()
+
+        # Capture all output from print statements within ClipKit
+        with utilities.Capturing() as output:
+            ck.execute(input_file=self.input,
+                       input_file_format=self.ff_in,
+                       output_file=self.mfa_out,
+                       output_file_format=self.ff_out,
+                       gaps=self.gap_prop,
+                       complement=False,
+                       mode=self.mode,
+                       use_log=False)
+
+        self.exec_time = time.time() - start_time
         return
 
     def summarise_trimming(self):
+        self.logger.debug("Trimming required {}s".format(round(self.exec_time, 3)))
+        self.logger.debug("Percentage of alignment trimmed = {}%".format(round((100*self.num_trim_cols) /
+                                                                               self.num_msa_cols), 2))
         if self.num_trim_seqs == 0:
             self.logger.warning("No sequences were read from {}.\n".format(self.mfa_out))
 

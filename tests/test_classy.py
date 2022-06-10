@@ -69,11 +69,12 @@ class TreeSAPPClassTester(unittest.TestCase):
         args.input = [self.fasta]
         args.output = self.output_dir
         args.molecule = "prot"
-        args.executables = {'prodigal': '/home/connor/bin/prodigal', 'BMGE.jar': '/usr/local/bin/BMGE.jar',
+        args.executables = {'prodigal': '/home/connor/bin/prodigal',
                             'hmmbuild': '/usr/local/bin/hmmbuild',
                             'hmmalign': '/usr/local/bin/hmmalign',
                             'hmmsearch': '/usr/local/bin/hmmsearch',
-                            'epa-ng': '/usr/local/bin/epa-ng', 'raxml-ng': '/usr/local/bin/raxml-ng'}
+                            'epa-ng': '/usr/local/bin/epa-ng',
+                            'raxml-ng': '/usr/local/bin/raxml-ng'}
         self.db.furnish_with_arguments(args)
         self.assertEqual(len(args.executables), len(self.db.executables))
         self.assertEqual(self.fasta, self.db.input_sequences)

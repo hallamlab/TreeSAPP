@@ -27,7 +27,7 @@ class PlacementTrainerTestCase(unittest.TestCase):
         # Executables dictionary
         self.exes = {}
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-        for dep in ["hmmbuild", "hmmalign", "raxml-ng", "mafft", "BMGE.jar"]:
+        for dep in ["hmmbuild", "hmmalign", "raxml-ng", "mafft"]:
             self.exes[dep] = fetch_executable_path(dep, get_treesapp_root())
         return
 

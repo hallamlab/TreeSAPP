@@ -40,7 +40,7 @@ class RefPkgTester(unittest.TestCase):
         # Find the executables
         self.exe_map = {}
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-        for dep in ["hmmbuild", "hmmalign", "raxml-ng", "mafft", "BMGE.jar", "FastTree"]:
+        for dep in ["hmmbuild", "hmmalign", "raxml-ng", "mafft", "FastTree"]:
             self.exe_map[dep] = fetch_executable_path(dep, utils.get_treesapp_root())
         return
 

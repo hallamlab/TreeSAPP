@@ -71,7 +71,7 @@ class MyTestCase(unittest.TestCase):
         from treesapp import utilities
         # Find the executables
         exe_map = {}
-        for dep in ["hmmbuild", "hmmalign", "raxml-ng", "mafft", "BMGE.jar"]:
+        for dep in ["hmmbuild", "hmmalign", "raxml-ng", "mafft"]:
             exe_map[dep] = utilities.fetch_executable_path(dep, self.ts_dir)
 
         taxon_str = 'd__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhizobiales'

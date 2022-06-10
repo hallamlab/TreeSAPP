@@ -338,27 +338,6 @@ def raxml_evolutionary_placement(epa_exe: str, refpkg_tree: str, refpkg_msa: str
     return epa_files
 
 
-def trimal_command(executable, mfa_file, trimmed_msa_file):
-    trim_command = [executable,
-                    '-in', mfa_file,
-                    '-out', trimmed_msa_file,
-                    '-gt', str(0.02)]
-    return trim_command
-
-
-def bmge_command(executable, mfa_file, trimmed_msa_file, molecule):
-    if molecule == "prot":
-        bmge_settings = ["-t", "AA", "-m", "BLOSUM30"]
-    else:
-        bmge_settings = ["-t", "DNA", "-m", "DNAPAM100:2"]
-    trim_command = ["java", "-Xmx512m", "-jar", executable]
-    trim_command += bmge_settings
-    trim_command += ["-g", "0.99:0.33"]  # Specifying the gap rate per_sequence:per_character
-    trim_command += ['-i', mfa_file,
-                     '-of', trimmed_msa_file]
-    return trim_command
-
-
 def hmmalign_command(executable, ref_aln, ref_profile, input_fasta, output_multiple_alignment):
     malign_command = [executable,
                       '--mapali', ref_aln,
