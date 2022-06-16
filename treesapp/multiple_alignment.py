@@ -13,10 +13,11 @@ LOGGER = logging.getLogger(logger.logger_name())
 
 def trim_multiple_alignment_clipkit(msa_file: str, ref_pkg: refpkg.ReferencePackage,
                                     min_seq_length: int) -> ckh.ClipKitHelper:
-    # Modes can be one of 'smart-gap', 'kpi', 'kpic', 'gappy'
+    # Modes can be one of 'smart-gap', 'kpi', 'kpic', 'gappy', 'kpi-smart-gap', 'kpi-gappy'
     trimmer = ckh.ClipKitHelper(fasta_in=msa_file,
                                 output_dir=os.path.dirname(msa_file),
-                                mode="gappy")
+                                mode="gappy",
+                                gap_prop=0.25)
     trimmer.refpkg_name = ref_pkg.prefix
     trimmer.run()
     trimmer.compare_original_and_trimmed_multiple_alignments(min_seq_length, ref_pkg)

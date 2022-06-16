@@ -16,7 +16,7 @@ from treesapp import utilities
 class ClipKitHelper:
     CLIPKIT_MODES = set([v.value for _k, v in ck_modes.TrimmingMode._member_map_.items()])
 
-    def __init__(self, fasta_in: str, output_dir: str, mode="smart-gap", gap_prop=0.9):
+    def __init__(self, fasta_in: str, output_dir: str, mode="smart-gap", gap_prop=0.95):
         self.logger = logging.getLogger(logger.logger_name())
         self.input = fasta_in
         if mode not in self.CLIPKIT_MODES:
