@@ -106,7 +106,7 @@ class TreesappTester(unittest.TestCase):
                                 "--placement_summary", "aelw",
                                 "--trim_align", "--svm"]
         assign.assign(assign_commands_list)
-        self.assertEqual(13, len(read_classification_table(assignments_tbl)))
+        self.assertEqual(14, len(read_classification_table(assignments_tbl)))
         self.assertTrue(os.path.isfile(classified_seqs_faa))
         assign.assign(assign_commands_list + ["--targets", "McrA,McrB,XmoA"])
         self.assertEqual(18, len(read_classification_table(assignments_tbl)))

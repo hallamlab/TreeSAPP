@@ -38,6 +38,7 @@ nosetests.xml
 TreeSAPP.Rproj
 .Rhistory
 .RData
+.python-version*
 
 
 # Data

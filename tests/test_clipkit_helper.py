@@ -18,21 +18,22 @@ class MyTestCase(unittest.TestCase):
         from clipkit import modes as ck_modes
         ck = clipkit_helper.ClipKitHelper(fasta_in=self.test_fa,
                                           output_dir='./',
-                                          mode="smart-gap")
+                                          mode="smart-gap",
+                                          min_len=200)
         ck.run()
-        ck.compare_original_and_trimmed_multiple_alignments(min_len=200)
+        ck.compare_original_and_trimmed_multiple_alignments()
         ck.summarise_trimming()
         self.assertTrue(os.path.isfile(self.output_fa))
 
         ck.mode = ck_modes.TrimmingMode("kpi-smart-gap")
         ck.run()
-        ck.compare_original_and_trimmed_multiple_alignments(min_len=200)
+        ck.compare_original_and_trimmed_multiple_alignments()
         ck.summarise_trimming()
         self.assertTrue(os.path.isfile(self.output_fa))
 
         ck.mode = ck_modes.TrimmingMode("gappy")
         ck.run()
-        ck.compare_original_and_trimmed_multiple_alignments(min_len=200)
+        ck.compare_original_and_trimmed_multiple_alignments()
         ck.summarise_trimming()
         self.assertTrue(os.path.isfile(self.output_fa))
         return

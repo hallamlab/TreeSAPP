@@ -8,7 +8,6 @@ from clipkit import modes as ck_modes
 
 from treesapp import logger
 from treesapp import fasta
-from treesapp import refpkg
 from treesapp import file_parsers
 from treesapp import utilities
 
@@ -16,7 +15,8 @@ from treesapp import utilities
 class ClipKitHelper:
     CLIPKIT_MODES = set([v.value for _k, v in ck_modes.TrimmingMode._member_map_.items()])
 
-    def __init__(self, fasta_in: str, output_dir: str, mode="smart-gap", gap_prop=0.95):
+    def __init__(self, fasta_in: str, output_dir: str,
+                 mode="smart-gap", gap_prop=0.95, min_len=None, for_placement=False):
         self.logger = logging.getLogger(logger.logger_name())
         self.input = fasta_in
         if mode not in self.CLIPKIT_MODES:
@@ -35,7 +35,7 @@ class ClipKitHelper:
         self.ff_in = "fasta"
         self.ff_out = "fasta"
         self.refpkg_name = ''
-        self.min_unaligned_seq_length = 1
+        self.min_unaligned_seq_length = min_len
 
         # Attributes used in evaluating trimming performance
         self.success = True
@@ -44,9 +44,11 @@ class ClipKitHelper:
         self.num_msa_cols = 0
         self.num_trim_seqs = 0
         self.num_trim_cols = 0
+        self.num_qc_seqs = 0
         self.trim_qc_seqs = []  # These sequences passed the min_unaligned_seq_length filter
 
         # Specific to MSAs for phylogenetic placement
+        self.placement = for_placement  # Boolean indicating MSA contained ref and query sequences
         self.num_queries_failed_trimming = 0
         self.num_refs_failed_trimming = 0
         self.num_queries_failed_qc = 0
@@ -106,6 +108,20 @@ class ClipKitHelper:
             self.logger.debug("The untrimmed MSA will be used instead.\n")
         return
 
+    def read_trimmed_msa(self) -> fasta.FASTA:
+        msa_records = fasta.FASTA(file_name=self.mfa_out)
+        if self.ff_out == "phylip":
+            msa_records.fasta_dict = file_parsers.read_phylip_to_dict(self.mfa_out)
+        elif self.ff_out == "fasta":
+            msa_records.fasta_dict = fasta.read_fasta_to_dict(self.mfa_out)
+        else:
+            self.logger.error("Unsupported file format ('{}') of {}.\n".format(self.ff_out, self.mfa_out))
+            sys.exit(1)
+
+        msa_records.header_registry = fasta.register_headers(list(msa_records.fasta_dict.keys()),
+                                                             drop=True)
+        return msa_records
+
     def quantify_refs_and_pqueries(self, unique_ref_headers: set, msa_fasta: fasta.FASTA = None):
         if not unique_ref_headers:
             return
@@ -128,22 +144,7 @@ class ClipKitHelper:
                 raise RuntimeError("Unsure what to do with sequence '{}'.\n".format(seq_name))
         return
 
-    def read_trimmed_msa(self) -> fasta.FASTA:
-        msa_records = fasta.FASTA(file_name=self.mfa_out)
-        if self.ff_out == "phylip":
-            msa_records.fasta_dict = file_parsers.read_phylip_to_dict(self.mfa_out)
-        elif self.ff_out == "fasta":
-            msa_records.fasta_dict = fasta.read_fasta_to_dict(self.mfa_out)
-        else:
-            self.logger.error("Unsupported file format ('{}') of {}.\n".format(self.ff_out, self.mfa_out))
-            sys.exit(1)
-
-        msa_records.header_registry = fasta.register_headers(list(msa_records.fasta_dict.keys()),
-                                                             drop=True)
-        return msa_records
-    
     def validate_alignment_trimming(self):
-        msa_fasta = self.read_trimmed_msa()
         if self.num_trim_seqs == 0:
             self.success = False
 
@@ -154,30 +155,52 @@ class ClipKitHelper:
             self.logger.warning("MSA length increased after trimming {}\n".format(self.input))
             self.success = False
 
+        if self.placement:
+            self.validate_placement_trimming()
+        elif self.num_trim_seqs != self.num_msa_seqs:
+            self.success = False
+        elif self.num_qc_seqs != self.num_msa_seqs:
+            self.success = False
+        return
+
+    def validate_placement_trimming(self) -> None:
+        if self.num_queries_retained == 0:
+            self.success = False
+        if self.num_refs_failed_trimming > 0:
+            self.success = False
+        if self.num_refs_failed_qc > 0:
+            self.success = False
+        return
+
+    def quality_control_trimmed_seqs(self) -> None:
+        """
+        Quality control trimmed sequences according to their unaligned lengths.
+        Those passing this filter are appended to the list self.trim_qc_seqs.
+        """
+        msa_fasta = self.read_trimmed_msa()
         msa_fasta.unalign()
         for seq_name, seq in msa_fasta.fasta_dict.items():
             if len(seq) >= self.min_unaligned_seq_length:
                 self.trim_qc_seqs.append(seq_name)
-
+        self.num_qc_seqs = len(self.trim_qc_seqs)
         return
 
-    def compare_original_and_trimmed_multiple_alignments(self, min_len: int, ref_pkg=None):
+    def compare_original_and_trimmed_multiple_alignments(self, ref_pkg=None):
         """Summarises the number of character positions trimmed and new dimensions between the input and output MSA."""
 
         self.num_trim_seqs, self.num_trim_cols = fasta.multiple_alignment_dimensions(self.mfa_out)
         self.num_msa_seqs, self.num_msa_cols = fasta.multiple_alignment_dimensions(self.input)
 
-        self.min_unaligned_seq_length = min_len
-        self.validate_alignment_trimming()
+        self.quality_control_trimmed_seqs()
 
-        if ref_pkg is not None:  # type: refpkg.ReferencePackage
+        if self.placement:
             # Create a set of the reference sequence names
             unique_ref_headers = set(ref_pkg.get_fasta().get_seq_names())
             self.quantify_refs_and_pqueries(unique_ref_headers)
 
         return
 
-    def get_qc_output(self) -> str:
+    def get_qc_output_file(self) -> str:
         if self.success:
             return self.qc_mfa_out
         else:
@@ -193,6 +216,8 @@ class ClipKitHelper:
 
     def write_qc_trimmed_multiple_alignment(self) -> None:
         msa_fasta = self.get_qc_trimmed_fasta()
+        if not msa_fasta:
+            return
         fasta.write_new_fasta(fasta_dict=msa_fasta.fasta_dict,
                               fasta_name=self.qc_mfa_out)
         return

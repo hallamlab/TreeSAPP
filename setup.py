@@ -38,7 +38,7 @@ SETUP_METADATA = \
             "setuptools>=50.0.0"
         ],
         "extras_require": {
-            'test': ['pytest', 'pytest-cov'],
+            'tests': ['pytest', 'pytest-cov'],
         }
     }
 

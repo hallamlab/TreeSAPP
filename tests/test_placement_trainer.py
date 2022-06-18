@@ -27,7 +27,7 @@ class PlacementTrainerTestCase(unittest.TestCase):
         # Executables dictionary
         self.exes = {}
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-        for dep in ["hmmbuild", "hmmalign", "raxml-ng", "mafft"]:
+        for dep in ["hmmbuild", "hmmalign", "raxml-ng", "mafft", "epa-ng"]:
             self.exes[dep] = fetch_executable_path(dep, get_treesapp_root())
         return
 
@@ -80,6 +80,8 @@ class PlacementTrainerTestCase(unittest.TestCase):
                                                                                           '634498.mru_1924'],
                                 'd__Bacteria; p__Proteobacteria; c__Gammaproteobacteria': ['523846.Mfer_0784',
                                                                                            '79929.MTBMA_c15480']}}
+
+        # This will fail since query sequences (McrA) are unrelated to reference package (PuhA)
         pqueries = clade_exclusion_phylo_placement(rank_training_seqs=train_seqs,
                                                    test_fasta=self.bad_fasta, ref_pkg=self.test_refpkg,
                                                    executables=self.exes, min_seqs=3, output_dir=self.output_dir)

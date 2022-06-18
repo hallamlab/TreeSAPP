@@ -643,9 +643,10 @@ def create(sys_args):
         if args.trim_align:
             trimmer = multiple_alignment.trim_multiple_alignment_clipkit(msa_file=ts_create.ref_pkg.f__msa,
                                                                          ref_pkg=ts_create.ref_pkg,
-                                                                         min_seq_length=args.min_seq_length)
+                                                                         min_seq_length=args.min_seq_length,
+                                                                         for_placement=False)
             trimmer.summarise_trimming()
-            if trimmer.num_refs_retained != trimmer.num_msa_seqs:
+            if not trimmer.success:
                 # At least one of the reference sequences were discarded and therefore this package is invalid.
                 LOGGER.error("Trimming removed reference sequences. This could indicate non-homologous sequences.\n" +
                              "Please improve sequence quality-control and/or rerun without the '--trim_align' flag.\n")

@@ -377,17 +377,19 @@ def generate_pquery_data_for_trainer(ref_pkg: ReferencePackage, taxon: str,
 
     trimmer = multiple_alignment.trim_multiple_alignment_clipkit(msa_file=all_msa,
                                                                  ref_pkg=ref_pkg,
-                                                                 min_seq_length=int(0.1*ref_pkg.hmm_length()))
+                                                                 min_seq_length=int(0.1*ref_pkg.hmm_length()),
+                                                                 for_placement=True)
     trimmer.summarise_trimming()
     if not trimmer.success:
         LOGGER.debug("Placements for '{}' are being skipped after failing MSA validation.\n".format(taxon))
         for old_file in intermediate_files:
-            os.remove(old_file)
+            if os.path.isfile(old_file):
+                os.remove(old_file)
         intermediate_files.clear()
         return pqueries
 
     # Create the query-only FASTA file required by EPA-ng
-    fasta.split_combined_ref_query_fasta(trimmer.get_qc_output(), query_msa, ref_msa)
+    fasta.split_combined_ref_query_fasta(trimmer.get_qc_output_file(), query_msa, ref_msa)
 
     raxml_files = wrapper.raxml_evolutionary_placement(epa_exe=executables["epa-ng"],
                                                        refpkg_tree=ce_refpkg.f__tree,

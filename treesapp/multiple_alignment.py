@@ -12,15 +12,18 @@ LOGGER = logging.getLogger(logger.logger_name())
 
 
 def trim_multiple_alignment_clipkit(msa_file: str, ref_pkg: refpkg.ReferencePackage,
-                                    min_seq_length: int) -> ckh.ClipKitHelper:
+                                    min_seq_length: int, for_placement=False) -> ckh.ClipKitHelper:
     # Modes can be one of 'smart-gap', 'kpi', 'kpic', 'gappy', 'kpi-smart-gap', 'kpi-gappy'
     trimmer = ckh.ClipKitHelper(fasta_in=msa_file,
                                 output_dir=os.path.dirname(msa_file),
                                 mode="gappy",
-                                gap_prop=0.25)
+                                gap_prop=0.25,
+                                min_len=min_seq_length,
+                                for_placement=for_placement)
     trimmer.refpkg_name = ref_pkg.prefix
     trimmer.run()
-    trimmer.compare_original_and_trimmed_multiple_alignments(min_seq_length, ref_pkg)
+    trimmer.compare_original_and_trimmed_multiple_alignments(ref_pkg)
+    trimmer.validate_alignment_trimming()
     trimmer.write_qc_trimmed_multiple_alignment()
     return trimmer
 
@@ -53,12 +56,18 @@ def summarise_trimming(msa_trimmers: list) -> None:
         trim_summary = "\t\t{} trimming stats:\n".format(refpkg_name)
         if stats["msa_files"] == 0:
             continue
+        # To avoid ZeroDivisionError
+        if stats["successes"] > 0:
+            avg_cols_removed = round(sum(stats["cols_removed"]) / len(stats["cols_removed"]))
+            avg_seqs_removed = round(sum(stats["seqs_removed"]) / len(stats["seqs_removed"]))
+        else:
+            avg_cols_removed = 0
+            avg_seqs_removed = 0
+
         trim_summary += "Multiple alignment files   = {}\n".format(stats["msa_files"])
         trim_summary += "Files successfully trimmed = {}\n".format(stats["successes"])
-        trim_summary += "Average columns removed    = {}\n".format(round(sum(stats["cols_removed"]) /
-                                                                         len(stats["cols_removed"])))
-        trim_summary += "Average sequences removed  = {}\n".format(round(sum(stats["seqs_removed"]) /
-                                                                         len(stats["seqs_removed"])))
+        trim_summary += "Average columns removed    = {}\n".format(avg_cols_removed)
+        trim_summary += "Average sequences removed  = {}\n".format(avg_seqs_removed)
 
         LOGGER.debug(trim_summary + "\n")
 
@@ -66,7 +75,7 @@ def summarise_trimming(msa_trimmers: list) -> None:
 
     if num_successful_alignments == 0:
         LOGGER.error("No quality alignment files to analyze after trimming. Exiting now.\n")
-        sys.exit(0)  # Should be 3, but this allows Clade_exclusion_analyzer to continue after exit
+        sys.exit(0)  # This allows Clade_exclusion_analyzer to continue after exit
     return
 
 
@@ -78,9 +87,9 @@ def gather_multiple_alignments(msa_trimmers: list) -> dict:
     trimmed_output_files = {}
     for trimmer in msa_trimmers:  # type: ckh.ClipKitHelper
         try:
-            trimmed_output_files[trimmer.refpkg_name].append(trimmer.get_qc_output())
+            trimmed_output_files[trimmer.refpkg_name].append(trimmer.get_qc_output_file())
         except KeyError:
-            trimmed_output_files[trimmer.refpkg_name] = [trimmer.get_qc_output()]
+            trimmed_output_files[trimmer.refpkg_name] = [trimmer.get_qc_output_file()]
     return trimmed_output_files
 
 
@@ -103,7 +112,8 @@ def trim_multiple_alignment_farmer(concatenated_mfa_files: dict, min_seq_length:
         for msa in mfa_files:
             task_list.append({"msa_file": msa,
                               "ref_pkg": ref_pkgs[refpkg_code],
-                              "min_seq_length": min_seq_length})
+                              "min_seq_length": min_seq_length,
+                              "for_placement": True})
 
     msa_trimmers = eci.run_apply_async_multiprocessing(func=trim_multiple_alignment_clipkit,
                                                        arguments_list=task_list,
