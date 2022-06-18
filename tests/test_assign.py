@@ -243,6 +243,13 @@ class AssignerTester(unittest.TestCase):
 
         return
 
+    def test_bin_hmm_matches_by_region(self):
+
+        return
+
+    def test_bin_hmm_matches_by_identity(self):
+        return
+
 
 if __name__ == '__main__':
     unittest.main()

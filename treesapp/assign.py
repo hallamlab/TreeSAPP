@@ -561,7 +561,49 @@ def load_homologs(hmm_matches: dict, hmmsearch_query_fasta: str, query_seq_fasta
     return
 
 
-def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
+def bin_hmm_matches_by_region(ref_pkg_hmm_matches: list) -> dict:
+    """
+    Algorithm for binning sequences:
+        1. Sort HmmMatches by the proportion of the HMM profile they covered in increasing order (full-length last)
+        2. For HmmMatch in sorted matches, determine overlap between HmmMatch and each bin's representative HmmMatch
+        3. If overlap exceeds 80% of representative's aligned length add it to the bin, else continue
+        4. When bins are exhausted create new bin with HmmMatch
+    """
+    bins = dict()
+    for hmm_match in sorted(ref_pkg_hmm_matches, key=lambda x: x.end - x.start):  # type: HmmMatch
+        # Add the FASTA record of the trimmed sequence - this one moves on for placement
+        binned = False
+        for bin_num in sorted(bins):
+            bin_rep = bins[bin_num][0]
+            overlap = min(hmm_match.pend, bin_rep.pend) - max(hmm_match.pstart, bin_rep.pstart)
+            if (100 * overlap) / (bin_rep.pend - bin_rep.pstart) > 80:  # 80 refers to overlap proportion with seed
+                bins[bin_num].append(hmm_match)
+                binned = True
+                break
+
+        if not binned:
+            bin_num = len(bins)
+            bins[bin_num] = list()
+            bins[bin_num].append(hmm_match)
+
+    return bins
+
+
+def bin_hmm_matches_by_identity(ref_pkg_hmm_matches: list, fasta_dict: dict, ref_pkg: refpkg.ReferencePackage) -> dict:
+    bins = dict()
+    for hmm_match in sorted(ref_pkg_hmm_matches, key=lambda x: x.end - x.start):  # type: HmmMatch
+        match_sequence = fasta_dict[hmm_match.sequence_name()][hmm_match.start - 1:hmm_match.end]
+        _aln, _seq_id, g_seq_id = ref_pkg.blast(qseq=match_sequence)
+        hmm_match.aln_pident = round(g_seq_id, 2)
+        # Round using -1 to group into bins of width 10
+        try:
+            bins[round(g_seq_id, -1)].append(hmm_match)
+        except KeyError:
+            bins[round(g_seq_id, -1)] = [hmm_match]
+    return bins
+
+
+def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict, refpkg_dict: dict, method="region") -> (dict, dict):
     """
     Used for extracting query sequences that mapped to reference package HMM profiles. These are binned into groups
     based on the location on the HMM profile they mapped to such that MSAs downstream will have more conserved positions
@@ -574,57 +616,41 @@ def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
 
     :param hmm_matches: Contains lists of HmmMatch objects mapped to the marker they matched
     :param fasta_dict: Stores either the original or ORF-predicted input FASTA. Headers are keys, sequences are values
+    :param method: How should the sequences be binned? Options are 'region' or 'identity'.
     :return: List of files that go on to placement stage, dictionary mapping marker-specific numbers to contig names
     """
     LOGGER.info("Extracting and grouping the quality-controlled sequences... ")
     extracted_seq_dict = dict()  # Keys are markers -> bin_num -> negative integers -> extracted sequences
     numeric_contig_index = dict()  # Keys are markers -> negative integers -> headers
-    bins = dict()
 
     for marker in hmm_matches:
         if len(hmm_matches[marker]) == 0:
             continue
         if marker not in numeric_contig_index.keys():
             numeric_contig_index[marker] = dict()
-        numeric_decrementor = -1
         if marker not in extracted_seq_dict:
             extracted_seq_dict[marker] = dict()
 
-        # Algorithm for binning sequences:
-        # 1. Sort HmmMatches by the proportion of the HMM profile they covered in increasing order (full-length last)
-        # 2. For HmmMatch in sorted matches, determine overlap between HmmMatch and each bin's representative HmmMatch
-        # 3. If overlap exceeds 80% of representative's aligned length add it to the bin, else continue
-        # 4. When bins are exhausted create new bin with HmmMatch
-        for hmm_match in sorted(hmm_matches[marker], key=lambda x: x.end - x.start):  # type: HmmMatch
-            if hmm_match.desc != '-':
-                contig_name = hmm_match.orf + ' ' + hmm_match.desc
-            else:
-                contig_name = hmm_match.orf
-            # Add the query sequence to the index map
-            orf_coordinates = str(hmm_match.start) + '_' + str(hmm_match.end)
-            numeric_contig_index[marker][numeric_decrementor] = contig_name + '|' + marker + '|' + orf_coordinates
-            # Add the FASTA record of the trimmed sequence - this one moves on for placement
-            full_sequence = fasta_dict[contig_name]
-            binned = False
-            for bin_num in sorted(bins):
-                bin_rep = bins[bin_num][0]
-                overlap = min(hmm_match.pend, bin_rep.pend) - max(hmm_match.pstart, bin_rep.pstart)
-                if (100 * overlap) / (bin_rep.pend - bin_rep.pstart) > 80:  # 80 refers to overlap proportion with seed
-                    bins[bin_num].append(hmm_match)
-                    extracted_seq_dict[marker][bin_num][numeric_decrementor] = full_sequence[
-                                                                               hmm_match.start - 1:hmm_match.end]
-                    binned = True
-                    break
-            if not binned:
-                bin_num = len(bins)
-                bins[bin_num] = list()
-                extracted_seq_dict[marker][bin_num] = dict()
-                bins[bin_num].append(hmm_match)
-                extracted_seq_dict[marker][bin_num][numeric_decrementor] = full_sequence[
-                                                                           hmm_match.start - 1:hmm_match.end]
-            numeric_decrementor -= 1
+        if method == "region":
+            binned_matches = bin_hmm_matches_by_region(ref_pkg_hmm_matches=hmm_matches[marker])
+        else:
+            binned_matches = bin_hmm_matches_by_identity(ref_pkg_hmm_matches=hmm_matches[marker],
+                                                         fasta_dict=fasta_dict,
+                                                         ref_pkg=refpkg_dict[marker])
 
-        bins.clear()
+        numeric_decrementor = -1
+        for bin_num in binned_matches:
+            for hmm_match in binned_matches[bin_num]:
+                match_sequence = fasta_dict[hmm_match.sequence_name()][hmm_match.start - 1:hmm_match.end]
+                # Add the query sequence to the index map
+                numeric_contig_index[marker][
+                    numeric_decrementor] = hmm_match.sequence_name() + '|' + marker + '|' + hmm_match.coord_string()
+                try:
+                    extracted_seq_dict[marker][bin_num][numeric_decrementor] = match_sequence
+                except KeyError:
+                    extracted_seq_dict[marker][bin_num] = {numeric_decrementor: match_sequence}
+                numeric_decrementor -= 1
+
     LOGGER.info("done.\n")
 
     return extracted_seq_dict, numeric_contig_index
@@ -1328,7 +1354,10 @@ def assign(sys_args):
     load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
     pqueries = load_pqueries(hmm_matches, query_seqs)
     query_seqs.change_dict_keys("num_id")
-    extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
+    extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches,
+                                                               query_seqs.fasta_dict,
+                                                               refpkg_dict=refpkg_dict,
+                                                               method="identity")
     numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)
     homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
                                              refpkg_dict, ts_assign.stage_lookup("search").dir_path)
@@ -1344,7 +1373,8 @@ def assign(sys_args):
                                       homolog_seq_files=homolog_seq_files,
                                       n_proc=n_proc,
                                       trim_align=args.trim_align,
-                                      min_seq_length=args.min_seq_length)
+                                      min_seq_length=args.min_seq_length,
+                                      )
     delete_files(args.delete, ts_assign.stage_lookup("search").dir_path, 2)
     ts_assign.increment_stage_dir(checkpoint="align")
 

@@ -7,6 +7,9 @@ from glob import glob
 from shutil import copy
 from datetime import datetime as dt
 
+from Bio import Align
+from Bio.SubsMat import MatrixInfo as matlist
+from Bio import pairwise2
 from packaging import version
 from ete3 import Tree
 from pandas import DataFrame
@@ -1271,6 +1274,43 @@ class ReferencePackage:
                            "Refer to the log file for more details.\n".format(len(dups)))
 
         return
+
+    def blast(self, qseq: str, **kwargs) -> (Align.PairwiseAlignment, float, float):
+        """Find the percent pairwise identity between a query sequence and its closest match in a reference package."""
+        aligner = Align.PairwiseAligner(mode="global")
+        aligner.match_score = kwargs.get('match', 1)
+        aligner.mismatch_score = kwargs.get('mismatch', 0)
+        aligner.gap_score = kwargs.get('gap', -10)
+        aligner.extend_gap_score = kwargs.get('extend_gap', -1)
+
+        def _calculate_identity(sequenceA, sequenceB):
+            """
+            Returns the percentage of identical characters between two sequences.
+            Assumes the sequences are aligned.
+            """
+
+            sa, sb, sl = sequenceA, sequenceB, len(sequenceA)
+            matches = [sa[i] == sb[i] for i in range(sl)]
+            seq_id = (100 * sum(matches)) / sl
+
+            gapless_sl = sum([1 for i in range(sl) if (sa[i] != '-' and sb[i] != '-')])
+            gap_id = (100 * sum(matches)) / gapless_sl
+            return (seq_id, gap_id)
+
+        ref_seqs = self.get_fasta()
+        ref_seqs.unalign()
+        top_aln = None
+        for sname, sseq in ref_seqs.fasta_dict.items():
+            aln = aligner.align(sseq, qseq)[0]
+            if not top_aln:
+                top_aln = aln
+            elif aln.score > top_aln.score:
+                top_aln = aln
+
+        # Calculate sequence identity
+        aligned_A , _aln, aligned_B = top_aln.format().split("\n")[:3]
+        seq_id, g_seq_id = _calculate_identity(aligned_A, aligned_B)
+        return top_aln, seq_id, g_seq_id
 
 
 def write_edited_pkl(ref_pkg: ReferencePackage, output_dir: str, overwrite: bool) -> int:
