@@ -94,7 +94,7 @@ def gather_multiple_alignments(msa_trimmers: list) -> dict:
 
 
 def trim_multiple_alignment_farmer(concatenated_mfa_files: dict, min_seq_length: int, ref_pkgs: dict,
-                                   n_proc=1, silent=False) -> dict:
+                                   n_proc=1, for_placement=True, silent=False) -> dict:
     """
     Runs ClipKit using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
 
@@ -113,7 +113,7 @@ def trim_multiple_alignment_farmer(concatenated_mfa_files: dict, min_seq_length:
             task_list.append({"msa_file": msa,
                               "ref_pkg": ref_pkgs[refpkg_code],
                               "min_seq_length": min_seq_length,
-                              "for_placement": True})
+                              "for_placement": for_placement})
 
     msa_trimmers = eci.run_apply_async_multiprocessing(func=trim_multiple_alignment_clipkit,
                                                        arguments_list=task_list,

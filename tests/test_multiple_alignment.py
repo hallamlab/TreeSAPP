@@ -18,7 +18,8 @@ class MyTestCase(unittest.TestCase):
         result = multiple_alignment.trim_multiple_alignment_farmer({"PuhA": [test_fa]},
                                                                    min_seq_length=10,
                                                                    n_proc=1,
-                                                                   ref_pkgs={"PuhA": test_rp})
+                                                                   ref_pkgs={"PuhA": test_rp},
+                                                                   for_placement=False)
         self.assertTrue(os.path.isfile(trim_file))
         self.assertIsInstance(result, dict)
         self.assertTrue("PuhA" in result.keys())
