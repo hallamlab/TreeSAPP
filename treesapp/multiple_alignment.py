@@ -12,12 +12,12 @@ LOGGER = logging.getLogger(logger.logger_name())
 
 
 def trim_multiple_alignment_clipkit(msa_file: str, ref_pkg: refpkg.ReferencePackage,
-                                    min_seq_length: int, for_placement=False) -> ckh.ClipKitHelper:
+                                    min_seq_length: int, for_placement=False, gap_prop=0.8) -> ckh.ClipKitHelper:
     # Modes can be one of 'smart-gap', 'kpi', 'kpic', 'gappy', 'kpi-smart-gap', 'kpi-gappy'
     trimmer = ckh.ClipKitHelper(fasta_in=msa_file,
                                 output_dir=os.path.dirname(msa_file),
                                 mode="gappy",
-                                gap_prop=0.25,
+                                gap_prop=gap_prop,
                                 min_len=min_seq_length,
                                 for_placement=for_placement)
     trimmer.refpkg_name = ref_pkg.prefix
@@ -93,27 +93,35 @@ def gather_multiple_alignments(msa_trimmers: list) -> dict:
     return trimmed_output_files
 
 
-def trim_multiple_alignment_farmer(concatenated_mfa_files: dict, min_seq_length: int, ref_pkgs: dict,
+def trim_multiple_alignment_farmer(pquery_groups_manifest: list, min_seq_length: int, ref_pkgs: dict,
                                    n_proc=1, for_placement=True, silent=False) -> dict:
     """
     Runs ClipKit using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
 
-    :param concatenated_mfa_files: A dictionary containing f_contig keys mapping to a FASTA or Phylip sequential file
+    :param pquery_groups_manifest: A list of dictionaries with the keys '', ...
     :param min_seq_length: Minimum length for a sequence to be retained in the MSA
     :param ref_pkgs: A dictionary of reference package names mapped to ReferencePackage instances
     :param n_proc: The number of parallel processes to be launched for alignment trimming
+    :param for_placement: A flag indicating the MSA contains both reference and query sequences
     :param silent: A boolean indicating whether the
     :return: A list of files resulting from multiple sequence alignment masking.
     """
     start_time = time.time()
     task_list = list()
+    hmm_perc = 1.0
 
-    for refpkg_code, mfa_files in sorted(concatenated_mfa_files.items()):
-        for msa in mfa_files:
-            task_list.append({"msa_file": msa,
-                              "ref_pkg": ref_pkgs[refpkg_code],
-                              "min_seq_length": min_seq_length,
-                              "for_placement": for_placement})
+    for pquery_group in pquery_groups_manifest:
+        trim_args = {"msa_file": pquery_group["qry_ref_mfa"],
+                     "ref_pkg": ref_pkgs[pquery_group["refpkg_name"]],
+                     "min_seq_length": min_seq_length,
+                     "for_placement": for_placement}
+
+        if pquery_group["gap_tuned"]:
+            trim_args["gap_prop"] = pquery_group["avg_id"]/100
+        if trim_args["min_seq_length"] == 0:
+            trim_args["min_seq_length"] = int(ref_pkgs[pquery_group["refpkg_name"]].hmm_length() * (hmm_perc/100))
+
+        task_list.append(trim_args)
 
     msa_trimmers = eci.run_apply_async_multiprocessing(func=trim_multiple_alignment_clipkit,
                                                        arguments_list=task_list,

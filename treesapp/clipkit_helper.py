@@ -19,6 +19,10 @@ class ClipKitHelper:
                  mode="smart-gap", gap_prop=0.95, min_len=None, for_placement=False):
         self.logger = logging.getLogger(logger.logger_name())
         self.input = fasta_in
+        if not os.path.isfile(self.input):
+            self.logger.error("ClipKit input file '{}' doesn't exist.".format(self.input))
+            sys.exit(1)
+
         if mode not in self.CLIPKIT_MODES:
             self.logger.error("'{}' is not a valid TrimmingMode.\n".format(mode))
             sys.exit(1)
@@ -57,7 +61,9 @@ class ClipKitHelper:
         self.num_refs_retained = 0
         return
 
-    def run(self, verbose=False):
+    def run(self, verbose=False, force=False) -> None:
+        if os.path.isfile(self.ff_out) and not force:
+            return
         start_time = time.time()
 
         # Capture all output from print statements within ClipKit

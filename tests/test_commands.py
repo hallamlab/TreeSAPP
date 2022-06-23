@@ -106,11 +106,17 @@ class TreesappTester(unittest.TestCase):
                                 "--placement_summary", "aelw",
                                 "--trim_align", "--svm"]
         assign.assign(assign_commands_list)
-        self.assertEqual(14, len(read_classification_table(assignments_tbl)))
+        assigned_queries = 15
+        self.assertEqual(assigned_queries,
+                         len(read_classification_table(assignments_tbl)))
         self.assertTrue(os.path.isfile(classified_seqs_faa))
-        assign.assign(assign_commands_list + ["--targets", "McrA,McrB,XmoA"])
-        self.assertEqual(18, len(read_classification_table(assignments_tbl)))
-        self.assertEqual(18, len(fasta.get_headers(classified_seqs_faa)))
+        assign.assign(assign_commands_list + ["--targets", "McrA,McrB,XmoA",
+                                              "--min_seq_length", str(30)])
+        assigned_queries = 17
+        self.assertEqual(assigned_queries,
+                         len(read_classification_table(assignments_tbl)))
+        self.assertEqual(assigned_queries,
+                         len(fasta.get_headers(classified_seqs_faa)))
 
         # Test nucleotide sequence input WITHOUT targets listed
         assign_commands_list = ["--fastx_input", self.nt_test_fa,
@@ -124,8 +130,10 @@ class TreesappTester(unittest.TestCase):
                                  "--reads", get_test_data("SRR3669912_1.fastq"),
                                  "--reverse", get_test_data("SRR3669912_2.fastq")]
         assign.assign(assign_commands_list)
+        assigned_queries = 8
         lines = read_classification_table(assignments_tbl)
-        self.assertEqual(8, len(lines))
+        self.assertEqual(assigned_queries,
+                         len(lines))
         classified_seqs = set()
         pqueries = assignments_to_pqueries(lines)
         for rp_pqs in pqueries.values():

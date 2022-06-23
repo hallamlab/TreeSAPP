@@ -15,7 +15,10 @@ class MyTestCase(unittest.TestCase):
         test_rp.f__pkl = get_test_data(filename=os.path.join("refpkgs", "PuhA_build.pkl"))
         test_rp.slurp()
 
-        result = multiple_alignment.trim_multiple_alignment_farmer({"PuhA": [test_fa]},
+        result = multiple_alignment.trim_multiple_alignment_farmer([{"qry_ref_mfa": test_fa,
+                                                                     "refpkg_name": "PuhA",
+                                                                     "gap_tuned": True,
+                                                                     "avg_id": 88}],
                                                                    min_seq_length=10,
                                                                    n_proc=1,
                                                                    ref_pkgs={"PuhA": test_rp},
