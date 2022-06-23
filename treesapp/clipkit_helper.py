@@ -61,6 +61,16 @@ class ClipKitHelper:
         self.num_refs_retained = 0
         return
 
+    def __str__(self) -> str:
+        return "ClipKitHelper instance for MSA '{}':\n" \
+               "Mode           = {}\n" \
+               "Gap-proportion = {}\n" \
+               "Placement      = {}\n" \
+               "Execution time = {}s\n" \
+               "Success        = {}\n".format(os.path.basename(self.input), self.mode,
+                                              self.gap_prop, self.placement,
+                                              round(self.exec_time, 3), self.success)
+
     def run(self, verbose=False, force=False) -> None:
         if os.path.isfile(self.ff_out) and not force:
             return
