@@ -71,7 +71,7 @@ class RefPkgTester(unittest.TestCase):
                "EYGVDYIKKKHGGIAKAKSTQEVVSDIATEVNLYGMEQYESYPTALESHFGGSQRASVLA" \
                "AASGLTCSLATANSNAGLNGWYLSMLMHKEGWSRLGFFGYDLQDQCGSANSMSIRPDEGL" \
                "LGELRGPNYPNYAI"
-        aln, seq_id, g_seq_id = self.db.blast(qseq)  # type: Bio.Align.PairwiseAlignment
+        aln, seq_id, g_seq_id = self.db.blast(qseq, n_proc=1)  # type: Bio.Align.PairwiseAlignment
         self.assertEqual(100, aln.score)
         self.assertEqual(62, round(seq_id, 0))
         self.assertEqual(89, round(g_seq_id, 0))

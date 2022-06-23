@@ -7,9 +7,8 @@ from glob import glob
 from shutil import copy
 from datetime import datetime as dt
 
+import Bio.Align
 from Bio import Align
-from Bio.SubsMat import MatrixInfo as matlist
-from Bio import pairwise2
 from packaging import version
 from ete3 import Tree
 from pandas import DataFrame
@@ -1275,6 +1274,11 @@ class ReferencePackage:
 
         return
 
+    @staticmethod
+    def bio_aligner_helper(pw_aligner: Bio.Align.PairwiseAligner, seqA: str, seqB: str):
+        aln = pw_aligner.align(seqA, seqB)[0]
+        return aln
+
     def blast(self, qseq: str, **kwargs) -> (Align.PairwiseAlignment, float, float):
         """Find the percent pairwise identity between a query sequence and its closest match in a reference package."""
         aligner = Align.PairwiseAligner(mode="global")
@@ -1300,8 +1304,20 @@ class ReferencePackage:
         ref_seqs = self.get_fasta()
         ref_seqs.unalign()
         top_aln = None
+
+        task_list = []
         for sname, sseq in ref_seqs.fasta_dict.items():
-            aln = aligner.align(sseq, qseq)[0]
+            task_list.append({"seqA": sseq,
+                              "seqB": qseq,
+                              "pw_aligner": aligner})
+
+        results = eci.run_apply_async_multiprocessing(func=self.bio_aligner_helper,
+                                                      arguments_list=task_list,
+                                                      num_processes=kwargs.get('n_proc', 1),
+                                                      pbar_desc="BLAST-ing refpkg",
+                                                      disable=True)
+
+        for aln in results:
             if not top_aln:
                 top_aln = aln
             elif aln.score > top_aln.score:
