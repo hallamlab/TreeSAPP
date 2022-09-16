@@ -42,6 +42,7 @@ class RefPkgTester(unittest.TestCase):
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
         for dep in ["hmmbuild", "hmmalign", "raxml-ng", "mafft", "FastTree"]:
             self.exe_map[dep] = fetch_executable_path(dep, utils.get_treesapp_root())
+        self.n_cpu = utils.NUM_THREADS
         return
 
     def tearDown(self) -> None:
@@ -66,12 +67,24 @@ class RefPkgTester(unittest.TestCase):
 
     def test_blast(self):
         import Bio.Align
+        import timeit
+
         qseq = "AMQIGMSFISXYKVCAGEAAVADLAFAAKHAGVIQMADILPARRARGPNEPGGIKFGHFC" \
                "DMIQGDRKYPNDPVRANLEVVAAGAMLFDQIWLGSYMSGGVGFTQYATAAYTDNILDDYC" \
                "EYGVDYIKKKHGGIAKAKSTQEVVSDIATEVNLYGMEQYESYPTALESHFGGSQRASVLA" \
                "AASGLTCSLATANSNAGLNGWYLSMLMHKEGWSRLGFFGYDLQDQCGSANSMSIRPDEGL" \
                "LGELRGPNYPNYAI"
-        aln, seq_id, g_seq_id = self.db.blast(qseq, n_proc=1)  # type: Bio.Align.PairwiseAlignment
+        ref_pkg = self.db
+
+        exec_time = timeit.timeit(stmt="ref_pkg.blast(qseq=qseq, n_proc=n_proc)",
+                                  globals={'ref_pkg': ref_pkg,
+                                           'qseq': qseq,
+                                           'n_proc': self.n_cpu},
+                                  number=10)
+        self.assertTrue(0 < exec_time < 10)
+
+        aln, seq_id, g_seq_id = ref_pkg.blast(qseq,
+                                              n_proc=self.n_cpu)  # type: Bio.Align.PairwiseAlignment
         self.assertEqual(100, aln.score)
         self.assertEqual(62, round(seq_id, 0))
         self.assertEqual(89, round(g_seq_id, 0))
