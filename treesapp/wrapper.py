@@ -1,6 +1,5 @@
 import sys
 import os
-import time
 import re
 import glob
 import logging
@@ -314,8 +313,9 @@ def raxml_evolutionary_placement(epa_exe: str, refpkg_tree: str, refpkg_msa: str
                    '-t', refpkg_tree,
                    '-q', query_msa,
                    "--model", refpkg_model,
-                   "--no-pre-mask",
+                   # "--no-pre-mask",
                    "--dyn-heur", str(0.9),
+                   # "--baseball-heur", str(0.9),
                    # "--fix-heur", str(0.2),
                    "--preserve-rooting", "on",
                    "--filter-min-lwr", str(0.01),
@@ -337,27 +337,6 @@ def raxml_evolutionary_placement(epa_exe: str, refpkg_tree: str, refpkg_msa: str
         sys.exit(3)
 
     return epa_files
-
-
-def trimal_command(executable, mfa_file, trimmed_msa_file):
-    trim_command = [executable,
-                    '-in', mfa_file,
-                    '-out', trimmed_msa_file,
-                    '-gt', str(0.02)]
-    return trim_command
-
-
-def bmge_command(executable, mfa_file, trimmed_msa_file, molecule):
-    if molecule == "prot":
-        bmge_settings = ["-t", "AA", "-m", "BLOSUM30"]
-    else:
-        bmge_settings = ["-t", "DNA", "-m", "DNAPAM100:2"]
-    trim_command = ["java", "-Xmx512m", "-jar", executable]
-    trim_command += bmge_settings
-    trim_command += ["-g", "0.99:0.33"]  # Specifying the gap rate per_sequence:per_character
-    trim_command += ['-i', mfa_file,
-                     '-of', trimmed_msa_file]
-    return trim_command
 
 
 def hmmalign_command(executable, ref_aln, ref_profile, input_fasta, output_multiple_alignment):
@@ -786,70 +765,4 @@ def run_odseq(odseq_exe: str, fasta_in: str, outliers_fa: str, num_threads: int)
         sys.exit(7)
 
     return
-
-
-def get_msa_trim_command(executables, mfa_file, molecule, tool="BMGE"):
-    """
-    Trims/masks/filters the multiple sequence alignment using either BMGE or trimAl
-
-    :param executables: A dictionary mapping software to a path of their respective executable
-    :param mfa_file: Name of a MSA file
-    :param molecule: prot | dna
-    :param tool: Name of the software to use for trimming [BMGE|trimAl]
-    Returns file name of the trimmed multiple alignment file in FASTA format
-    """
-    f_ext = mfa_file.split('.')[-1]
-    if not re.match("mfa|fasta|phy|fa", f_ext):
-        LOGGER.error("Unsupported file format: '" + f_ext + "'\n")
-        sys.exit(5)
-
-    trimmed_msa_file = '.'.join(mfa_file.split('.')[:-1]) + '-' + re.escape(tool) + ".fasta"
-    if tool == "trimAl":
-        trim_command = trimal_command(executables["trimal"], mfa_file, trimmed_msa_file)
-    elif tool == "BMGE":
-        trim_command = bmge_command(executables["BMGE.jar"], mfa_file, trimmed_msa_file, molecule)
-    else:
-        LOGGER.error("Unsupported trimming software requested: '" + tool + "'")
-        sys.exit(5)
-
-    return trim_command, trimmed_msa_file
-
-
-def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict, n_proc=1, tool="BMGE", silent=False):
-    """
-    Runs BMGE using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
-
-    :param executables: A dictionary mapping software to a path of their respective executable
-    :param concatenated_mfa_files: A dictionary containing f_contig keys mapping to a FASTA or Phylip sequential file
-    :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their respective denominators
-    :param n_proc: The number of parallel processes to be launched for alignment trimming
-    :param tool: The software to use for alignment trimming
-    :return: A list of files resulting from BMGE multiple sequence alignment masking.
-    """
-    start_time = time.time()
-    task_list = list()
-    trimmed_output_files = {}
-
-    for refpkg_code in sorted(concatenated_mfa_files.keys()):
-        if refpkg_code not in trimmed_output_files:
-            trimmed_output_files[refpkg_code] = []
-        mfa_files = concatenated_mfa_files[refpkg_code]
-        for concatenated_mfa_file in mfa_files:
-            trim_command, trimmed_msa_file = get_msa_trim_command(executables, concatenated_mfa_file,
-                                                                  refpkg_dict[refpkg_code].molecule, tool)
-            trimmed_output_files[refpkg_code].append(trimmed_msa_file)
-            task_list.append([trim_command])
-
-    eci.run_apply_async_multiprocessing(func=eci.launch_write_command,
-                                        arguments_list=task_list,
-                                        num_processes=n_proc,
-                                        pbar_desc="Multiple alignment trimming",
-                                        disable=silent)
-
-    end_time = time.time()
-    hours, remainder = divmod(end_time - start_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    LOGGER.debug("\t" + tool + " time required: " +
-                 ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    return trimmed_output_files
 

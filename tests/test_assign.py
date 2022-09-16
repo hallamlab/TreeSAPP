@@ -243,6 +243,55 @@ class AssignerTester(unittest.TestCase):
 
         return
 
+    def test_bin_hmm_matches_by_region(self):
+
+        return
+
+    def test_bin_hmm_matches_by_identity(self):
+        return
+
+    def test_write_grouped_fastas(self):
+        from treesapp import assign
+        from treesapp import fasta
+        import random
+        from string import ascii_uppercase
+        seq_dict = {}
+        seq_name_idx = {}
+        rp_name = "PuhA"
+        scaler = 3
+        n_seqs = self.refpkg_dict[rp_name].num_seqs * scaler
+
+        # Test with empty inputs
+        fasta_file_group_map = assign.write_grouped_fastas(extracted_seq_dict=seq_dict,
+                                                           seq_name_index=seq_name_idx,
+                                                           refpkg_dict=self.refpkg_dict,
+                                                           output_dir=self.output_dir)
+        self.assertEqual({}, fasta_file_group_map)
+
+        # Test real condition
+        seq_dict.update({rp_name: {"99": {-1*n: ''.join(random.choice(ascii_uppercase) for _ in range(50))
+                                          for n in range(n_seqs)}}})
+        seq_name_idx.update({rp_name: {-1*x: "seq_{}".format(x) for x in range(n_seqs)}})
+        fasta_file_group_map = assign.write_grouped_fastas(extracted_seq_dict=seq_dict,
+                                                           seq_name_index=seq_name_idx,
+                                                           refpkg_dict=self.refpkg_dict,
+                                                           output_dir=self.output_dir)
+        fasta_files = list(fasta_file_group_map[rp_name])
+        self.assertEqual(scaler, len(fasta_files))
+        self.assertEqual([os.path.join(self.output_dir,
+                                       "{}_hmm_purified_group{}.faa".format(rp_name, n)) for n in range(scaler)],
+                         fasta_files)
+        # Ensure there are the right number of sequences in each file
+        for file_path in fasta_files:
+            self.assertEqual(self.refpkg_dict[rp_name].num_seqs,
+                             len(fasta.get_headers(file_path)))
+
+        return
+
+    def test_bin_hmm_matches(self):
+        self.assertTrue(False)
+        return
+
 
 if __name__ == '__main__':
     unittest.main()

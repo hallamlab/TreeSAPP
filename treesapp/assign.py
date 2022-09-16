@@ -15,20 +15,21 @@ from tqdm import tqdm
 
 from treesapp import abundance
 from treesapp import classy
+from treesapp import entish
+from treesapp import external_command_interface as eci
+from treesapp import fasta
+from treesapp import file_parsers
+from treesapp import lca_calculations as ts_lca
 from treesapp import logger
+from treesapp import multiple_alignment
 from treesapp import phylo_seq
 from treesapp import refpkg
 from treesapp import treesapp_args
-from treesapp import entish
-from treesapp import lca_calculations as ts_lca
 from treesapp import jplace_utils
-from treesapp import file_parsers
 from treesapp import phylo_dist
 from treesapp import utilities
 from treesapp import wrapper
-from treesapp import fasta
 from treesapp import training_utils
-from treesapp import external_command_interface as eci
 from treesapp.hmmer_tbl_parser import HmmMatch
 
 LOGGER = logging.getLogger(logger.logger_name())
@@ -363,37 +364,31 @@ class Assigner(classy.TreeSAPP):
 
         return file_parsers.parse_domain_tables(hmm_parsing_thresholds, refpkg_hmmer_tables)
 
-    def align(self, refpkg_dict: dict, homolog_seq_files: list, min_seq_length: int, n_proc: int,
-              trim_align=True, verbose=False) -> dict:
+    def align(self, refpkg_dict: dict, pquery_groups: list,
+              min_seq_length: int, n_proc: int,
+              trim_align=True) -> dict:
         if self.past_last_stage("align"):
             return {}
         MSAs = namedtuple("MSAs", "ref query")
-        ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
 
         split_msa_files = self.fetch_multiple_alignments()
         target_refpkgs = {prefix: rp for prefix, rp in refpkg_dict.items() if prefix not in split_msa_files}
         if self.stage_status("align") or target_refpkgs:
-            # create_ref_phy_files(refpkg_dict, align_output_dir,
-            #                      homolog_seq_files, ref_alignment_dimensions)
-            concatenated_msa_files = multiple_alignments(self.executables, homolog_seq_files,
-                                                         target_refpkgs, "hmmalign",
-                                                         output_dir=self.stage_lookup(name="align").dir_path,
-                                                         num_proc=n_proc, silent=self.silent)
-            if concatenated_msa_files:
+            msa_files = multiple_alignments(self.executables, pquery_groups,
+                                            target_refpkgs, "hmmalign",
+                                            output_dir=self.stage_lookup(name="align").dir_path,
+                                            num_proc=n_proc, silent=self.silent)
+            if msa_files:
                 combined_msa_files = {}
-                file_type = utilities.find_msa_type(concatenated_msa_files)
-                alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
-                                                            verbose, file_type)
                 if trim_align:
-                    tool = "BMGE"
-                    trimmed_mfa_files = wrapper.filter_multiple_alignments(self.executables, concatenated_msa_files,
-                                                                           target_refpkgs, n_proc, tool, self.silent)
-                    qc_ma_dict = check_for_removed_sequences(trimmed_mfa_files, concatenated_msa_files,
-                                                             target_refpkgs, min_seq_length)
-                    evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
-                    combined_msa_files.update(qc_ma_dict)
+                    trimmed_mfa_files = multiple_alignment.trim_multiple_alignment_farmer(pquery_groups,
+                                                                                          min_seq_length=min_seq_length,
+                                                                                          ref_pkgs=refpkg_dict,
+                                                                                          n_proc=n_proc,
+                                                                                          silent=self.silent)
+                    combined_msa_files.update(trimmed_mfa_files)
                 else:
-                    combined_msa_files.update(concatenated_msa_files)
+                    combined_msa_files.update(msa_files)
 
                 # Subset the multiple alignment of reference sequences and queries to just contain query sequences
                 for refpkg_name in combined_msa_files:
@@ -447,7 +442,7 @@ class Assigner(classy.TreeSAPP):
                                                               molecule="dna",
                                                               subset=classified_seq_names,
                                                               full_name=self.fasta_full_name)
-                nuc_orfs.header_registry = fasta.register_headers(nuc_orfs.fasta_dict.keys())
+                nuc_orfs.header_registry = fasta.register_headers(header_list=list(nuc_orfs.fasta_dict.keys()))
                 nuc_orfs.change_dict_keys()
                 if not os.path.isfile(self.classified_nuc_seqs):
                     self.ts_logger.info("Creating nucleotide FASTA file of classified sequences '{}'... "
@@ -568,7 +563,52 @@ def load_homologs(hmm_matches: dict, hmmsearch_query_fasta: str, query_seq_fasta
     return
 
 
-def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
+def bin_hmm_matches_by_region(ref_pkg_hmm_matches: list) -> dict:
+    """
+    Algorithm for binning sequences:
+        1. Sort HmmMatches by the proportion of the HMM profile they covered in increasing order (full-length last)
+        2. For HmmMatch in sorted matches, determine overlap between HmmMatch and each bin's representative HmmMatch
+        3. If overlap exceeds 80% of representative's aligned length add it to the bin, else continue
+        4. When bins are exhausted create new bin with HmmMatch
+    """
+    bins = dict()
+    for hmm_match in sorted(ref_pkg_hmm_matches, key=lambda x: x.end - x.start):  # type: HmmMatch
+        # Add the FASTA record of the trimmed sequence - this one moves on for placement
+        binned = False
+        for bin_num in sorted(bins):
+            bin_rep = bins[bin_num][0]
+            overlap = min(hmm_match.pend, bin_rep.pend) - max(hmm_match.pstart, bin_rep.pstart)
+            if (100 * overlap) / (bin_rep.pend - bin_rep.pstart) > 80:  # 80 refers to overlap proportion with seed
+                bins[bin_num].append(hmm_match)
+                binned = True
+                break
+
+        if not binned:
+            bin_num = len(bins)
+            bins[bin_num] = list()
+            bins[bin_num].append(hmm_match)
+
+    return bins
+
+
+def bin_hmm_matches_by_identity(ref_pkg_hmm_matches: list, fasta_dict: dict, ref_pkg: refpkg.ReferencePackage) -> dict:
+    """
+    Group query sequences based on their identity to the closest sequence in the reference package.
+    """
+    bins = dict()
+    for hmm_match in sorted(ref_pkg_hmm_matches, key=lambda x: x.end - x.start):  # type: HmmMatch
+        match_sequence = fasta_dict[hmm_match.sequence_name()][hmm_match.start - 1:hmm_match.end]
+        _aln, _seq_id, g_seq_id = ref_pkg.blast(qseq=match_sequence)
+        hmm_match.aln_pident = round(g_seq_id, 2)
+        # Round using -1 to group into bins of width 10
+        try:
+            bins[int(round(g_seq_id, -1))].append(hmm_match)
+        except KeyError:
+            bins[int(round(g_seq_id, -1))] = [hmm_match]
+    return bins
+
+
+def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict, refpkg_dict: dict, method="region") -> (dict, dict):
     """
     Used for extracting query sequences that mapped to reference package HMM profiles. These are binned into groups
     based on the location on the HMM profile they mapped to such that MSAs downstream will have more conserved positions
@@ -576,128 +616,111 @@ def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
     The first nested dictionary returned "extracted_seq_dict" contains marker (i.e. ref_pkg names) strings mapped
     to bin numbers mapped to query sequence negative integer code names mapped to their extracted, or sliced, sequence.
 
-    The second dictionary returned "numeric_contig_index" is used for mapping query sequence negative integer code names
+    The second dictionary returned "seq_name_index" is used for mapping query sequence negative integer code names
     mapped to their original header names with the alignment coordinates appended at the end for each marker.
 
     :param hmm_matches: Contains lists of HmmMatch objects mapped to the marker they matched
     :param fasta_dict: Stores either the original or ORF-predicted input FASTA. Headers are keys, sequences are values
+    :param refpkg_dict: Dictionary of reference packages indexed by their prefix attibutes.
+    :param method: How should the sequences be binned? Options are 'region' or 'identity'.
     :return: List of files that go on to placement stage, dictionary mapping marker-specific numbers to contig names
     """
     LOGGER.info("Extracting and grouping the quality-controlled sequences... ")
     extracted_seq_dict = dict()  # Keys are markers -> bin_num -> negative integers -> extracted sequences
     numeric_contig_index = dict()  # Keys are markers -> negative integers -> headers
-    bins = dict()
+    bin_identities = {}
 
     for marker in hmm_matches:
         if len(hmm_matches[marker]) == 0:
             continue
         if marker not in numeric_contig_index.keys():
             numeric_contig_index[marker] = dict()
-        numeric_decrementor = -1
         if marker not in extracted_seq_dict:
             extracted_seq_dict[marker] = dict()
 
-        # Algorithm for binning sequences:
-        # 1. Sort HmmMatches by the proportion of the HMM profile they covered in increasing order (full-length last)
-        # 2. For HmmMatch in sorted matches, determine overlap between HmmMatch and each bin's representative HmmMatch
-        # 3. If overlap exceeds 80% of representative's aligned length add it to the bin, else continue
-        # 4. When bins are exhausted create new bin with HmmMatch
-        for hmm_match in sorted(hmm_matches[marker], key=lambda x: x.end - x.start):  # type: HmmMatch
-            if hmm_match.desc != '-':
-                contig_name = hmm_match.orf + ' ' + hmm_match.desc
-            else:
-                contig_name = hmm_match.orf
-            # Add the query sequence to the index map
-            orf_coordinates = str(hmm_match.start) + '_' + str(hmm_match.end)
-            numeric_contig_index[marker][numeric_decrementor] = contig_name + '|' + marker + '|' + orf_coordinates
-            # Add the FASTA record of the trimmed sequence - this one moves on for placement
-            full_sequence = fasta_dict[contig_name]
-            binned = False
-            for bin_num in sorted(bins):
-                bin_rep = bins[bin_num][0]
-                overlap = min(hmm_match.pend, bin_rep.pend) - max(hmm_match.pstart, bin_rep.pstart)
-                if (100 * overlap) / (bin_rep.pend - bin_rep.pstart) > 80:  # 80 refers to overlap proportion with seed
-                    bins[bin_num].append(hmm_match)
-                    extracted_seq_dict[marker][bin_num][numeric_decrementor] = full_sequence[
-                                                                               hmm_match.start - 1:hmm_match.end]
-                    binned = True
-                    break
-            if not binned:
-                bin_num = len(bins)
-                bins[bin_num] = list()
-                extracted_seq_dict[marker][bin_num] = dict()
-                bins[bin_num].append(hmm_match)
-                extracted_seq_dict[marker][bin_num][numeric_decrementor] = full_sequence[
-                                                                           hmm_match.start - 1:hmm_match.end]
-            numeric_decrementor -= 1
+        if method == "region":
+            binned_matches = bin_hmm_matches_by_region(ref_pkg_hmm_matches=hmm_matches[marker])
+        else:
+            binned_matches = bin_hmm_matches_by_identity(ref_pkg_hmm_matches=hmm_matches[marker],
+                                                         fasta_dict=fasta_dict,
+                                                         ref_pkg=refpkg_dict[marker])
 
-        bins.clear()
+        numeric_decrementor = -1
+        for bin_num in binned_matches:
+            if marker not in bin_identities:
+                bin_identities[marker] = {}
+            bin_identities[marker][bin_num] = [hmm_match.aln_pident for hmm_match in binned_matches[bin_num]]
+            for hmm_match in binned_matches[bin_num]:
+                match_sequence = fasta_dict[hmm_match.sequence_name()][hmm_match.start - 1:hmm_match.end]
+                # Add the query sequence to the index map
+                numeric_contig_index[marker][
+                    numeric_decrementor] = hmm_match.sequence_name() + '|' + marker + '|' + hmm_match.coord_string()
+                try:
+                    extracted_seq_dict[marker][bin_num][numeric_decrementor] = match_sequence
+                except KeyError:
+                    extracted_seq_dict[marker][bin_num] = {numeric_decrementor: match_sequence}
+                numeric_decrementor -= 1
+
     LOGGER.info("done.\n")
 
-    return extracted_seq_dict, numeric_contig_index
+    return extracted_seq_dict, numeric_contig_index, bin_identities
 
 
-def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, refpkg_dict: dict, output_dir: str):
-    hmmalign_input_fastas = list()
-    bulk_marker_fasta = dict()
-    bin_fasta = dict()
-
+def summarise_hits_to_groups(extracted_seq_dict):
     group_size_string = "Number of query sequences in each marker's group:\n"
     for marker in extracted_seq_dict:
         for group in sorted(extracted_seq_dict[marker]):
             if extracted_seq_dict[marker][group]:
                 group_size_string += "\t".join([marker, str(group), str(len(extracted_seq_dict[marker][group]))]) + "\n"
     LOGGER.debug(group_size_string + "\n")
+    return
+
+
+def write_grouped_fastas(extracted_seq_dict: dict, seq_name_index: dict, refpkg_dict: dict, output_dir: str) -> dict:
+    hmmalign_input_fastas = dict()
+    bulk_marker_fasta = dict()
+    bin_fasta = dict()
+
+    summarise_hits_to_groups(extracted_seq_dict)
 
     LOGGER.info("Writing the grouped sequences to FASTA files... ")
 
     for marker in extracted_seq_dict:
         ref_pkg = refpkg_dict[marker]  # type: refpkg.ReferencePackage
         f_acc = 0  # For counting the number of files for a marker. Will exceed groups if len(queries) > len(references)
+        f_path = os.path.join(output_dir, "{}_hmm_purified_group{}.faa".format(marker, f_acc))
+        hmmalign_input_fastas[marker] = {}
         for group in sorted(extracted_seq_dict[marker]):
             if extracted_seq_dict[marker][group]:
                 group_sequences = extracted_seq_dict[marker][group]
                 for num in group_sequences:
                     # Add the query sequence to the master marker FASTA with the full sequence name
-                    bulk_marker_fasta[numeric_contig_index[marker][num]] = group_sequences[num]
+                    bulk_marker_fasta[seq_name_index[marker][num]] = group_sequences[num]
 
                     # Add the query sequence to this bin's FASTA file
                     bin_fasta[str(num)] = group_sequences[num]
                     # Ensuring the number of query sequences doesn't exceed the number of reference sequences
                     if len(bin_fasta) >= ref_pkg.num_seqs:
-                        fasta.write_new_fasta(bin_fasta,
-                                              output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
-                        hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+                        fasta.write_new_fasta(bin_fasta, f_path)
+                        hmmalign_input_fastas[marker][f_path] = group
                         f_acc += 1
+                        f_path = os.path.join(output_dir, "{}_hmm_purified_group{}.faa".format(marker, f_acc))
                         bin_fasta.clear()
                 if len(bin_fasta) >= 1:
-                    fasta.write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
-                    hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+                    fasta.write_new_fasta(bin_fasta, f_path)
+                    hmmalign_input_fastas[marker][f_path] = group
+                    f_acc += 1
+                    f_path = os.path.join(output_dir, "{}_hmm_purified_group{}.faa".format(marker, f_acc))
             f_acc += 1
             bin_fasta.clear()
 
         # Now write a single FASTA file with all identified markers
         if len(bulk_marker_fasta) >= 1:
-            trimmed_hits_fasta = output_dir + marker + "_hmm_purified.faa"
+            trimmed_hits_fasta = os.path.join(output_dir, marker + "_hmm_purified.faa")
             fasta.write_new_fasta(bulk_marker_fasta, trimmed_hits_fasta)
         bulk_marker_fasta.clear()
     LOGGER.info("done.\n")
     return hmmalign_input_fastas
-
-
-def subsequence(fasta_dictionary, contig_name, start, end):
-    """
-    Extracts a sub-sequence from `start` to `end` of `contig_name` in `fasta_dictionary`
-     with headers for keys and sequences as values. `contig_name` does not contain the '>' character
-
-    :param fasta_dictionary:
-    :param contig_name:
-    :param start:
-    :param end:
-    :return: A string representing the sub-sequence of interest
-    """
-    subseq = fasta_dictionary['>' + contig_name][start:end]
-    return subseq
 
 
 def get_sequence_counts(concatenated_mfa_files: dict, ref_alignment_dimensions: dict, verbosity: bool, file_type: str):
@@ -781,13 +804,13 @@ def multiple_alignments(executables: dict, query_sequence_files: list, refpkg_di
     return concatenated_msa_files
 
 
-def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg_dict: dict,
+def prepare_and_run_hmmalign(execs: dict, pquery_groups_manifest: list, refpkg_dict: dict,
                              output_dir="", n_proc=2, silent=False) -> dict:
     """
     Runs `hmmalign` to add the query sequences into the reference FASTA multiple alignments
 
     :param execs: Dictionary of executable file paths indexed by the software names
-    :param single_query_fasta_files: List of unaligned query sequences in FASTA format
+    :param pquery_groups_manifest: List of dictionaries
     :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their respective prefix attributes
     :param output_dir: Where to write the multiple alignment files containing reference and query sequences
     :param n_proc: The number of alignment jobs to run in parallel
@@ -800,32 +823,27 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
     task_list = list()
 
     # Run hmmalign on each fasta file
-    for query_fa_in in sorted(single_query_fasta_files):
-        file_name_info = re.match(r"(.*)_hmm_purified.*\.(f.*)$", os.path.basename(query_fa_in))
-        if file_name_info:
-            refpkg_name, extension = file_name_info.groups()
-        else:
-            LOGGER.error("Unable to parse information from file name:" + "\n" + str(query_fa_in) + "\n")
-            sys.exit(3)
+    for pquery_group in pquery_groups_manifest:
+        # Add to the manifest to ensure all files are available to ClipKitHelper
+        file_prefix, _ext = os.path.splitext(os.path.basename(pquery_group["qry_fa"]))
+        query_mfa_out = os.path.join(output_dir, file_prefix + ".sto")
+        pquery_group["qry_ref_mfa"] = os.path.join(output_dir, file_prefix + ".mfa")
 
         try:
-            ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
+            ref_pkg = refpkg_dict[pquery_group["refpkg_name"]]  # type: refpkg.ReferencePackage
         except KeyError:
+            # Reference packages are provided only for MSAs that need to be processed
             continue
 
-        if ref_pkg.prefix not in hmmalign_singlehit_files:
-            hmmalign_singlehit_files[ref_pkg.prefix] = []
-
-        query_mfa_out = os.path.join(output_dir,
-                                     re.sub('.' + re.escape(extension) + r"$", ".sto", os.path.basename(query_fa_in)))
-        try:
-            mfa_out_dict[ref_pkg.prefix].append(query_mfa_out)
-        except KeyError:
-            mfa_out_dict[ref_pkg.prefix] = [query_mfa_out]
+        # Stash file name in dictionary for quick look-up
+        mfa_out_dict[query_mfa_out] = pquery_group
 
         # Get the paths to either the HMM or CM profile files
         task_list.append([wrapper.hmmalign_command(execs["hmmalign"],
-                                                   ref_pkg.f__msa, ref_pkg.f__profile, query_fa_in, query_mfa_out)])
+                                                   ref_pkg.f__msa,
+                                                   ref_pkg.f__profile,
+                                                   pquery_group["qry_fa"],
+                                                   query_mfa_out)])
 
     eci.run_apply_async_multiprocessing(func=eci.launch_write_command,
                                         arguments_list=task_list,
@@ -833,18 +851,20 @@ def prepare_and_run_hmmalign(execs: dict, single_query_fasta_files: list, refpkg
                                         pbar_desc="Profile alignment",
                                         disable=silent)
 
-    for prefix in mfa_out_dict:
-        for query_mfa_out in mfa_out_dict[prefix]:
-            mfa_file = re.sub(r"\.sto$", ".mfa", query_mfa_out)
-            seq_dict = file_parsers.read_stockholm_to_dict(query_mfa_out)
-            fasta.write_new_fasta(seq_dict, mfa_file)
-            hmmalign_singlehit_files[prefix].append(mfa_file)
-
     end_time = time.time()
     hours, remainder = divmod(end_time - start_time, 3600)
     minutes, seconds = divmod(remainder, 60)
     LOGGER.debug("\thmmalign time required: " +
                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+
+    # Convert from Stockholm to FASTA format
+    for query_mfa_out, pquery_group in mfa_out_dict.items():
+        seq_dict = file_parsers.read_stockholm_to_dict(query_mfa_out)
+        fasta.write_new_fasta(seq_dict, pquery_group["qry_ref_mfa"])
+        try:
+            hmmalign_singlehit_files[pquery_group["refpkg_name"]].append(pquery_group["qry_ref_mfa"])
+        except KeyError:
+            hmmalign_singlehit_files[pquery_group["refpkg_name"]] = [pquery_group["qry_ref_mfa"]]
 
     return hmmalign_singlehit_files
 
@@ -870,132 +890,6 @@ def gather_split_msa(refpkg_names: list, align_dir: str) -> dict:
             split_msa = MSAs(ref_msa, query_msa)
             split_msa_map[refpkg_name].append(split_msa)
     return split_msa_map
-
-
-def check_for_removed_sequences(trimmed_msa_files: dict, msa_files: dict, refpkg_dict: dict, min_len=10):
-    """
-    Reads the multiple alignment files (either Phylip or FASTA formatted) and looks for both reference and query
-    sequences that have been removed. Multiple alignment files are removed from `mfa_files` if:
-        1. all query sequences were removed; a DEBUG message is issued
-        2. at least one reference sequence was removed
-    This quality-control function is necessary for placing short query sequences onto reference trees.
-
-    :param trimmed_msa_files:
-    :param msa_files: A dictionary containing the untrimmed MSA files indexed by reference package code (denominator)
-    :param refpkg_dict: A dictionary of ReferencePackage objects indexed by their ref_pkg names
-    :param min_len: The minimum allowable sequence length after trimming (not including gap characters)
-    :return: A dictionary of denominators, with multiple alignment dictionaries as values. Example:
-        {M0702: { "McrB_hmm_purified.phy-BMGE.fasta": {'1': seq1, '2': seq2}}}
-    """
-    qc_ma_dict = dict()
-    num_successful_alignments = 0
-    discarded_seqs_string = ""
-    trimmed_away_seqs = dict()
-    untrimmed_msa_failed = []
-    LOGGER.debug("Validating trimmed multiple sequence alignment files... ")
-
-    for refpkg_name in sorted(trimmed_msa_files.keys()):
-        ref_pkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
-        trimmed_away_seqs[ref_pkg.prefix] = 0
-        # Create a set of the reference sequence names
-        ref_headers = fasta.get_headers(ref_pkg.f__msa)
-        unique_refs = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x)[1:] for x in ref_headers])
-        msa_passed, msa_failed, summary_str = file_parsers.validate_alignment_trimming(
-            trimmed_msa_files[ref_pkg.prefix],
-            unique_refs, True, min_len)
-
-        # Report the number of sequences that are removed by BMGE
-        for trimmed_msa_file in trimmed_msa_files[ref_pkg.prefix]:
-            try:
-                prefix = re.search('(' + re.escape(ref_pkg.prefix) + r"_.*_group\d+)-(BMGE|trimAl).fasta$",
-                                   os.path.basename(trimmed_msa_file)).group(1)
-            except TypeError:
-                LOGGER.error("Unexpected file name format for a trimmed MSA.\n")
-                sys.exit(3)
-            # Find the untrimmed query sequence MSA file - the trimmed MSA file's 'pair'
-            pair = ""
-            for msa_file in msa_files[ref_pkg.prefix]:
-                if re.search(re.escape(prefix) + r'\.', msa_file):
-                    pair = msa_file
-                    break
-            if pair:
-                if trimmed_msa_file in msa_failed:
-                    untrimmed_msa_failed.append(pair)
-                trimmed_away_seqs[ref_pkg.prefix] += len(
-                    set(fasta.get_headers(pair)).difference(set(fasta.get_headers(trimmed_msa_file))))
-            else:
-                LOGGER.error("Unable to map trimmed MSA file '" + trimmed_msa_file + "' to its original MSA.\n")
-                sys.exit(5)
-
-        if len(msa_failed) > 0:
-            if len(untrimmed_msa_failed) != len(msa_failed):
-                LOGGER.error("Not all of the failed ({}/{}),"
-                             " trimmed MSA files were mapped to their original MSAs."
-                             "\n".format(len(msa_failed), len(trimmed_msa_files[ref_pkg.prefix])))
-                sys.exit(3)
-            untrimmed_msa_passed, _, _ = file_parsers.validate_alignment_trimming(untrimmed_msa_failed, unique_refs,
-                                                                                  True, min_len)
-            msa_passed.update(untrimmed_msa_passed)
-        num_successful_alignments += len(msa_passed)
-        qc_ma_dict[ref_pkg.prefix] = msa_passed
-        discarded_seqs_string += summary_str
-        untrimmed_msa_failed.clear()
-
-    LOGGER.debug("done.\n")
-    LOGGER.debug("\tSequences removed during trimming:\n\t\t" +
-                 '\n\t\t'.join([k + ": " + str(trimmed_away_seqs[k]) for k in trimmed_away_seqs.keys()]) + "\n")
-
-    LOGGER.debug("\tSequences <" + str(min_len) + " characters removed after trimming:" +
-                 discarded_seqs_string + "\n")
-
-    if num_successful_alignments == 0:
-        LOGGER.error("No quality alignment files to analyze after trimming. Exiting now.\n")
-        sys.exit(0)  # Should be 3, but this allows Clade_exclusion_analyzer to continue after exit
-
-    return qc_ma_dict
-
-
-def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool):
-    """
-
-    :param qc_ma_dict: A dictionary mapping denominators to files to multiple alignment dictionaries
-    :param alignment_length_dict:
-    :param concatenated_msa_files: Dictionary with markers indexing original (untrimmed) multiple alignment files
-    :param tool: The name of the tool that was appended to the original, untrimmed or unmasked alignment files
-    :return: None
-    """
-    trimmed_length_dict = dict()
-    for denominator in sorted(qc_ma_dict.keys()):
-        if len(concatenated_msa_files[denominator]) >= 1:
-            of_ext = concatenated_msa_files[denominator][0].split('.')[-1]
-        else:
-            continue
-        if denominator not in trimmed_length_dict:
-            trimmed_length_dict[denominator] = list()
-        for multi_align_file in qc_ma_dict[denominator]:
-            file_type = multi_align_file.split('.')[-1]
-            multi_align = qc_ma_dict[denominator][multi_align_file]
-            num_seqs, trimmed_seq_length = fasta.multiple_alignment_dimensions(multi_align_file, multi_align)
-
-            original_multi_align = re.sub('-' + tool + '.' + file_type, '.' + of_ext, multi_align_file)
-            raw_align_len = alignment_length_dict[original_multi_align]
-            diff = raw_align_len - trimmed_seq_length
-            if diff < 0:
-                LOGGER.warning("MSA length increased after {} processing for {}\n".format(tool, multi_align_file))
-            else:
-                trimmed_length_dict[denominator].append(diff)
-
-    trimming_performance_string = "\tAverage columns removed:\n"
-    for denominator in trimmed_length_dict:
-        trimming_performance_string += "\t\t" + denominator + "\t"
-        n_trimmed_files = len(trimmed_length_dict[denominator])
-        if n_trimmed_files > 0:
-            trimming_performance_string += str(round(sum(trimmed_length_dict[denominator]) / n_trimmed_files, 1)) + "\n"
-        else:
-            trimming_performance_string += str(0.0) + "\n"
-
-    LOGGER.debug(trimming_performance_string + "\n")
-    return
 
 
 def delete_files(clean_up: bool, root_dir: str, section: int) -> None:
@@ -1413,6 +1307,30 @@ def alert_for_refpkg_feature_annotations(pqueries: dict, refpkg_dict: dict) -> N
     return
 
 
+def build_pquery_group_manifest(bin_identities: dict, file_group_map: dict) -> list:
+    pquery_group_manifest = []
+    for marker in file_group_map:
+        for file_name, group_name in file_group_map[marker].items():
+            manifest = {"group": group_name,
+                        "refpkg_name": marker,
+                        "qry_fa": file_name,
+                        "qry_ref_mfa": '',
+                        "gap_tuned": False,
+                        "avg_id": 0.0}
+
+            try:
+                id_vals = bin_identities[marker][group_name]
+                manifest["avg_id"] = round(sum(id_vals)/len(id_vals), 2)
+            except (KeyError, ZeroDivisionError):
+                manifest["avg_id"] = 0.0
+
+            if manifest["avg_id"] >= 0:
+                manifest["gap_tuned"] = True
+
+            pquery_group_manifest.append(manifest)
+    return pquery_group_manifest
+
+
 def assign(sys_args):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = treesapp_args.TreeSAPPArgumentParser(description='Classify sequences through evolutionary placement.')
@@ -1461,23 +1379,30 @@ def assign(sys_args):
     load_homologs(hmm_matches, ts_assign.formatted_input, query_seqs)
     pqueries = load_pqueries(hmm_matches, query_seqs)
     query_seqs.change_dict_keys("num_id")
-    extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
+    extracted_seq_dict, numeric_contig_index, bin_identities = bin_hmm_matches(hmm_matches,
+                                                                               query_seqs.fasta_dict,
+                                                                               refpkg_dict=refpkg_dict,
+                                                                               method="identity")
     numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)
-    homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
-                                             refpkg_dict, ts_assign.stage_lookup("search").dir_path)
+    homolog_seq_files = write_grouped_fastas(extracted_seq_dict,
+                                             seq_name_index=numeric_contig_index,
+                                             refpkg_dict=refpkg_dict,
+                                             output_dir=ts_assign.stage_lookup("search").dir_path)
+    pquery_group_manifest = build_pquery_group_manifest(bin_identities,
+                                                        homolog_seq_files)
     # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
     extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
     delete_files(args.delete, ts_assign.stage_lookup("search").dir_path, 1)
     ts_assign.increment_stage_dir(checkpoint="search")
 
     ##
-    # STAGE 4: Run hmmalign, and optionally BMGE, to produce the MSAs for phylogenetic placement
+    # STAGE 4: Run hmmalign, and optionally trim, to produce the MSAs for phylogenetic placement
     ##
-    split_msa_files = ts_assign.align(refpkg_dict, homolog_seq_files,
+    split_msa_files = ts_assign.align(refpkg_dict=refpkg_dict,
+                                      pquery_groups=pquery_group_manifest,
                                       n_proc=n_proc,
                                       trim_align=args.trim_align,
-                                      min_seq_length=args.min_seq_length,
-                                      verbose=args.verbose)
+                                      min_seq_length=args.min_seq_length)
     delete_files(args.delete, ts_assign.stage_lookup("search").dir_path, 2)
     ts_assign.increment_stage_dir(checkpoint="align")
 

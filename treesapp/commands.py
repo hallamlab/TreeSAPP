@@ -31,6 +31,7 @@ from treesapp import assign as ts_assign_mod
 from treesapp import create_refpkg as ts_create_mod
 from treesapp import update_refpkg as ts_update_mod
 from treesapp import hmmer_tbl_parser
+from treesapp import multiple_alignment
 
 LOGGER = logging.getLogger(logger.logger_name())
 
@@ -47,6 +48,7 @@ def info(sys_args):
 
     import treesapp
     import Bio
+    from clipkit.version import __version__ as ck_version
     import numpy
     import packaging
     import pygtrie
@@ -62,6 +64,7 @@ def info(sys_args):
 
     # Write the version of all python deps
     py_deps = {"biopython": Bio.__version__,
+               "clipkit": ck_version,
                "ete3": ete3.__version__,
                "joblib": joblib.__version__,
                "numpy": numpy.__version__,
@@ -634,33 +637,21 @@ def create(sys_args):
                                           n_threads=args.num_threads, intermediates_dir=ts_create.var_output_dir)
 
         ##
-        # Optionally trim with BMGE and create the Phylip multiple alignment file
+        # Optionally trim the multiple sequence alignment create Phylip files
         ##
         dict_for_phy = dict()
         if args.trim_align:
-            trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_create.executables,
-                                                                   {ts_create.ref_pkg.refpkg_code:
-                                                                        [ts_create.ref_pkg.f__msa]},
-                                                                   {ts_create.ref_pkg.refpkg_code:
-                                                                        ts_create.ref_pkg})
-            trimmed_mfa_file = trimmed_mfa_files[ts_create.ref_pkg.refpkg_code]
-            unique_ref_headers = set(ref_seqs.fasta_dict.keys())
-            qc_ma_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming(trimmed_mfa_file,
-                                                                                                   unique_ref_headers)
-            LOGGER.debug("Number of sequences discarded: " + summary_str + "\n")
-            if len(qc_ma_dict.keys()) == 0:
+            trimmer = multiple_alignment.trim_multiple_alignment_clipkit(msa_file=ts_create.ref_pkg.f__msa,
+                                                                         ref_pkg=ts_create.ref_pkg,
+                                                                         min_seq_length=args.min_seq_length,
+                                                                         for_placement=False)
+            trimmer.summarise_trimming()
+            if not trimmer.success:
                 # At least one of the reference sequences were discarded and therefore this package is invalid.
                 LOGGER.error("Trimming removed reference sequences. This could indicate non-homologous sequences.\n" +
                              "Please improve sequence quality-control and/or rerun without the '--trim_align' flag.\n")
                 sys.exit(13)
-            elif len(qc_ma_dict.keys()) > 1:
-                LOGGER.error("Multiple trimmed alignment files are found when only one is expected:\n" +
-                             "\n".join([str(k) + ": " + str(qc_ma_dict[k]) for k in qc_ma_dict]))
-                sys.exit(13)
-            # NOTE: only a single trimmed-MSA file in the dictionary
-            for trimmed_msa_file in qc_ma_dict:
-                dict_for_phy = qc_ma_dict[trimmed_msa_file]
-                os.remove(trimmed_msa_file)
+            dict_for_phy.update(trimmer.get_qc_trimmed_fasta().fasta_dict)
         else:
             dict_for_phy.update(ref_seqs.fasta_dict)
 

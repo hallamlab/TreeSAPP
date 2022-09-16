@@ -53,7 +53,7 @@ class ClassifierTester(unittest.TestCase):
 
         treesapp_dir = get_treesapp_root()
         executables = {}
-        for dep in ["hmmbuild", "hmmalign", "hmmsearch", "epa-ng", "raxml-ng", "FastTree", "mafft", "BMGE.jar"]:
+        for dep in ["hmmbuild", "hmmalign", "hmmsearch", "epa-ng", "raxml-ng", "FastTree", "mafft"]:
             executables[dep] = fetch_executable_path(dep, treesapp_dir)
         pbar = tqdm()
         test_taxon_one = "f__Bradyrhizobiaceae; g__Bradyrhizobium; s__Bradyrhizobium 'sp.' BTAi1"
@@ -68,10 +68,9 @@ class ClassifierTester(unittest.TestCase):
 
     def test_fetch_executable_path(self):
         from treesapp.utilities import fetch_executable_path
-        from re import sub
         treesapp_dir = get_treesapp_root()
-        exe_path = fetch_executable_path("BMGE.jar", treesapp_dir)
-        self.assertEqual("/sub_binaries/BMGE.jar", sub(treesapp_dir, '', exe_path))
+        exe_path = fetch_executable_path("epa-ng", treesapp_dir)
+        self.assertEqual("epa-ng", os.path.basename(exe_path))
         return
 
     def test_load_training_data_frame(self):

@@ -7,6 +7,8 @@ from glob import glob
 from shutil import copy
 from datetime import datetime as dt
 
+import Bio.Align
+from Bio import Align
 from packaging import version
 from ete3 import Tree
 from pandas import DataFrame
@@ -1271,6 +1273,60 @@ class ReferencePackage:
                            "Refer to the log file for more details.\n".format(len(dups)))
 
         return
+
+    @staticmethod
+    def bio_aligner_helper(pw_aligner: Bio.Align.PairwiseAligner, seqA: str, seqB: str):
+        aln = pw_aligner.align(seqA, seqB)[0]
+        return aln
+
+    def blast(self, qseq: str, **kwargs) -> (Align.PairwiseAlignment, float, float):
+        """Find the percent pairwise identity between a query sequence and its closest match in a reference package."""
+        aligner = Align.PairwiseAligner(mode="global")
+        aligner.match_score = kwargs.get('match', 1)
+        aligner.mismatch_score = kwargs.get('mismatch', 0)
+        aligner.gap_score = kwargs.get('gap', -10)
+        aligner.extend_gap_score = kwargs.get('extend_gap', -1)
+
+        def _calculate_identity(sequenceA, sequenceB):
+            """
+            Returns the percentage of identical characters between two sequences.
+            Assumes the sequences are aligned.
+            """
+
+            sa, sb, sl = sequenceA, sequenceB, len(sequenceA)
+            matches = [sa[i] == sb[i] for i in range(sl)]
+            seq_id = (100 * sum(matches)) / sl
+
+            gapless_sl = sum([1 for i in range(sl) if (sa[i] != '-' and sb[i] != '-')])
+            gap_id = (100 * sum(matches)) / gapless_sl
+            return (seq_id, gap_id)
+
+        ref_seqs = self.get_fasta()
+        ref_seqs.unalign()
+        top_aln = None
+
+        task_list = []
+        for sname, sseq in ref_seqs.fasta_dict.items():
+            task_list.append({"seqA": sseq,
+                              "seqB": qseq,
+                              "pw_aligner": aligner})
+
+        results = eci.run_apply_async_multiprocessing(func=self.bio_aligner_helper,
+                                                      arguments_list=task_list,
+                                                      num_processes=kwargs.get('n_proc', 1),
+                                                      pbar_desc="BLAST-ing refpkg",
+                                                      disable=True)
+
+        for aln in results:
+            if not top_aln:
+                top_aln = aln
+            elif aln.score > top_aln.score:
+                top_aln = aln
+
+        # Calculate sequence identity
+        aligned_A , _aln, aligned_B = top_aln.format().split("\n")[:3]
+        seq_id, g_seq_id = _calculate_identity(aligned_A, aligned_B)
+        return top_aln, seq_id, g_seq_id
 
 
 def write_edited_pkl(ref_pkg: ReferencePackage, output_dir: str, overwrite: bool) -> int:

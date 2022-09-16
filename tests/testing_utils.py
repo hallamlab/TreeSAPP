@@ -6,6 +6,9 @@ from pkg_resources import Requirement, resource_filename, ResolutionError
 import ete3
 
 
+NUM_THREADS = os.cpu_count()
+
+
 def random_ete_tree(leaf_names: list, branch_len_dist=None) -> ete3.Tree:
     if not branch_len_dist:
         branch_len_dist = (0, 1)

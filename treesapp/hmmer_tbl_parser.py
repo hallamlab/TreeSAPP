@@ -71,6 +71,7 @@ class HmmMatch:
         self.eval = 0.0  # Full-sequence E-value (in the case a sequence alignment is split)
         self.full_score = 0
         self.next_domain = None  # The next domain aligned by hmmsearch
+        self.aln_pident = 0.0
 
     def get_info(self):
         info_string = "Info for query " + str(self.orf) + ":\n"
@@ -84,6 +85,15 @@ class HmmMatch:
         info_string += "\tacc = " + str(self.acc) + "\n"
         info_string += "\tfull score = " + str(self.full_score) + "\n"
         return info_string
+
+    def coord_string(self, sep='_') -> str:
+        return str(self.start) + sep + str(self.end)
+
+    def sequence_name(self, sep=' ') -> str:
+        if self.desc != '-':
+            return self.orf + sep + self.desc
+        else:
+            return self.orf
 
     def subsequent_matches(self):
         if not self.next_domain:

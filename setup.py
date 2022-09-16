@@ -1,4 +1,3 @@
-from setuptools import Extension
 from setuptools import setup, find_packages
 
 with open("README.md", "r") as readme:
@@ -22,7 +21,7 @@ CLASSIFIERS = [
 SETUP_METADATA = \
     {
         "name": "treesapp",
-        "version": "0.11.4",
+        "version": "0.11.5",
         "description": "TreeSAPP is a functional and taxonomic annotation tool for genomes and metagenomes.",
         "long_description": LONG_DESCRIPTION,
         "long_description_content_type": "text/markdown",
@@ -34,16 +33,12 @@ SETUP_METADATA = \
         "include_package_data": True,
         "entry_points": {'console_scripts': ['treesapp = treesapp.__main__:main']},
         "classifiers": CLASSIFIERS,
-        "ext_modules": [Extension("_tree_parser",
-                                  sources=["treesapp/extensions/tree_parsermodule.cpp"],
-                                  language="c++")
-                        ],
         "install_requires": open("requirements.txt").read().splitlines(),
         "setup_requires": [
             "setuptools>=50.0.0"
         ],
         "extras_require": {
-            'test': ['pytest', 'pytest-cov'],
+            'tests': ['pytest', 'pytest-cov'],
         }
     }
 
