@@ -119,7 +119,7 @@ def jplace_parser(filename: str) -> JPlace:
     """
     jplace_data = JPlace()
     with open(filename) as jplace:
-        jplace_json = load(jplace, encoding="utf-8")
+        jplace_json = load(jplace)
         jplace_data.tree = jplace_json["tree"]
         # A list of strings
         if sys.version_info > (2, 9):
