@@ -667,9 +667,9 @@ def instantiate_classifier(kernel_name, occ=False):
     """
     if kernel_name == "lin":
         if occ:
-            clf = svm.OneClassSVM(kernel="linear", max_iter=1E7, tol=1E-5)
+            clf = svm.OneClassSVM(kernel="linear", max_iter=int(1E7), tol=1E-5)
         else:
-            clf = svm.LinearSVC(random_state=12345, max_iter=1E7, tol=1E-5, dual=False, C=10)  # Linear Kernel
+            clf = svm.LinearSVC(random_state=12345, max_iter=int(1E7), tol=1E-5, dual=False, C=10)  # Linear Kernel
         k_name = "linear"
     elif kernel_name == "rbf":
         if occ:
