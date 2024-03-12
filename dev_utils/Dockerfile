@@ -1,17 +1,18 @@
-FROM ubuntu:bionic
+FROM ubuntu:focal
 
 ENV TREESAPP_VERSION="0.11.4"\
-  MAFFT_VERSION="7.475-1"\
+  MAFFT_VERSION="7.520-1"\
   BWA_VERSION="0.7.17"\
   PRODIGAL_VERSION="2.6.3"\
-  HMMER_VERSION="3.3"\
+  HMMER_VERSION="3.3.2"\
   RAXML_VERSION="1.0.1"\
   EPA_VERSION="0.3.8"\
-  VSEARCH_VERSION="2.15.0"\
   MMSEQS_VERSION="12-113e3"
+ENV TZ=America/Vancouver
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-LABEL base.image="ubuntu:bionic"
-LABEL container.version="0.3"
+LABEL base.image="ubuntu:focal"
+LABEL container.version="0.4"
 LABEL software="TreeSAPP"
 LABEL software.version=${TREESAPP_VERSION}
 LABEL description="A Python package for gene-centric taxonomic and functional classification using phylogenetic placement"
@@ -53,11 +54,6 @@ RUN curl -LJ0 --output /usr/local/bin/BMGE.jar https://github.com/hallamlab/Tree
 RUN curl -LJ0 --output mafft.deb https://mafft.cbrc.jp/alignment/software/mafft_${MAFFT_VERSION}_amd64.deb && \
  dpkg -i mafft.deb && \
  rm mafft.deb
-
-RUN wget https://github.com/torognes/vsearch/archive/v${VSEARCH_VERSION}.tar.gz && \
- tar xzf v${VSEARCH_VERSION}.tar.gz && \
- cd vsearch-${VSEARCH_VERSION} && \
- ./autogen.sh && ./configure && make && make install && cd -
 
 RUN curl -LJ0 --output mmseqs-linux-sse41.tar.gz https://github.com/soedinglab/MMseqs2/releases/download/${MMSEQS_VERSION}/MMseqs2-Linux-SSE4_1.tar.gz && \
  tar xvzf mmseqs-linux-sse41.tar.gz && \
