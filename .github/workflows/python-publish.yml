@@ -76,7 +76,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: dist
           path: dist
@@ -96,7 +96,7 @@ jobs:
     needs: [ build-sdist, build-linux-wheels, build-macos-wheels, create-release ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: dist
           path: dist
